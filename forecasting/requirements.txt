@@ -1,0 +1,8 @@
+# Python dependencies for the forecasting service.
+# Prophet usage will be added in a later phase; packages are listed now
+# so the environment matches the project technology stack.
+
+Flask==3.0.3
+prophet==1.1.6
+pandas==2.2.3
+python-dotenv==1.0.1

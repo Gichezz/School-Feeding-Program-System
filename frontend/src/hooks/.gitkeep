@@ -1,0 +1,5 @@
+/**
+ * Custom React hooks will live here (e.g. online status, local queries).
+ * Intentionally empty in Phase 1.
+ */
+export {};

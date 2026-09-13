@@ -1,0 +1,3 @@
+// Shared UI components will live here (buttons, forms, layout pieces).
+// Intentionally empty in Phase 1.
+export {};
