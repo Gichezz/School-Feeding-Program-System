@@ -2,16 +2,18 @@ const { Pool } = require('pg');
 
 /**
  * PostgreSQL connection pool.
- * Uses environment variables; connection is not required for Phase 1
- * health checks, but the config is ready for later phases.
+ * Uses DATABASE_URL when set; otherwise individual PG* variables.
+ * Do not put real passwords in source code.
  */
-const pool = new Pool({
-  host: process.env.PGHOST || 'localhost',
-  port: Number(process.env.PGPORT || 5432),
-  database: process.env.PGDATABASE || 'school_feeding',
-  user: process.env.PGUSER || 'postgres',
-  password: process.env.PGPASSWORD || '',
-});
+const pool = process.env.DATABASE_URL
+  ? new Pool({ connectionString: process.env.DATABASE_URL })
+  : new Pool({
+      host: process.env.PGHOST || 'localhost',
+      port: Number(process.env.PGPORT || 5432),
+      database: process.env.PGDATABASE || 'school_feeding',
+      user: process.env.PGUSER || 'postgres',
+      password: process.env.PGPASSWORD || '',
+    });
 
 async function checkDatabaseConnection() {
   const client = await pool.connect();

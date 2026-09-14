@@ -85,7 +85,8 @@ Forecast endpoint returns `501` until a later phase.
 |----------|---------|
 | `PORT` | Express port (default `3001`) |
 | `NODE_ENV` | `development` / `production` |
-| `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD` | PostgreSQL connection |
+| `DATABASE_URL` | PostgreSQL connection string (preferred) |
+| `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD` | Alternative PostgreSQL connection fields |
 | `FORECASTING_SERVICE_URL` | Flask service URL (later phase) |
 
 ### Frontend (`frontend/.env`)
