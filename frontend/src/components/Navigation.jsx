@@ -4,7 +4,7 @@ const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', end: true },
   { to: '/attendance', label: 'Attendance' },
   { to: '/meals', label: 'Meal Distribution' },
-  { to: '/sync', label: 'Synchronization Status' },
+  { to: '/sync', label: 'Sync Status' },
   { to: '/reports', label: 'Reports' },
   { to: '/settings', label: 'Settings' },
 ];

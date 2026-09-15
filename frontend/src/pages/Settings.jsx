@@ -1,17 +1,41 @@
 import PageIntro from '../components/PageIntro';
 
 /**
- * Settings section placeholder.
+ * Settings page (basic placeholder for future expansion)
  */
 function Settings() {
   return (
     <PageIntro
       title="Settings"
-      purpose="This section will hold school profile, device identity, and user preferences. Authentication and device settings will be added in a later phase."
+      purpose="Application configuration and preferences"
     >
-      <p className="placeholder-note">
-        Settings are not available yet.
-      </p>
+      <div className="form-section">
+        <h2>Application Settings</h2>
+        <p style={{ color: 'var(--color-muted)', lineHeight: '1.6' }}>
+          Basic application settings will be available here in future phases.
+        </p>
+      </div>
+
+      <div className="form-section">
+        <h2>School Profile</h2>
+        <p style={{ color: 'var(--color-muted)', lineHeight: '1.6' }}>
+          School-specific settings and profile information will be configurable here in a later phase.
+        </p>
+      </div>
+
+      <div className="form-section">
+        <h2>User Preferences</h2>
+        <p style={{ color: 'var(--color-muted)', lineHeight: '1.6' }}>
+          User preferences and display settings will be available here in a later phase.
+        </p>
+      </div>
+
+      <div className="form-section">
+        <h2>Device Information</h2>
+        <p style={{ color: 'var(--color-muted)', lineHeight: '1.6' }}>
+          Device identity and synchronization settings will be managed here when offline functionality is implemented.
+        </p>
+      </div>
     </PageIntro>
   );
 }
