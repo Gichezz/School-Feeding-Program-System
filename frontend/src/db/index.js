@@ -1,6 +1,5 @@
 /**
- * Local database modules (Dexie.js / IndexedDB) will be wired here in a later
- * phase. The architecture-phase Dexie file remains at ../database/db.js and
- * is not used by the UI in this frontend-foundation phase.
+ * Local database modules (Dexie.js / IndexedDB)
+ * Phase 5: Offline data persistence layer
  */
-export {};
+export { default as db, getOrCreateClientId, getMetadata, setMetadata } from './database.js';

@@ -1,14 +1,18 @@
 import { useState, useEffect } from 'react';
 import PageIntro from '../components/PageIntro';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { getAttendance, getMeals } from '../services/api';
+import { getAttendance, getMeals, getSchools } from '../services/api';
+import { cacheSchools, getCachedSchools, getLocalAttendance, getLocalMeals } from '../services/localDb';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
 
 /**
  * Dashboard page with real API data
  */
 function Dashboard() {
+  const isOnline = useOnlineStatus();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [schools, setSchools] = useState([]);
   const [todayData, setTodayData] = useState({
     attendance: null,
     meals: null,
@@ -16,7 +20,51 @@ function Dashboard() {
   const [recentAttendance, setRecentAttendance] = useState([]);
   const [recentMeals, setRecentMeals] = useState([]);
 
-  const today = new Date().toISOString().split('T')[0];
+  // Helper function to format date as DD-MM-YYYY for display
+  function formatDateForDisplay(dateString) {
+    if (!dateString) return '';
+    // If already in DD-MM-YYYY format, return as is
+    const dateRegex = /^\d{2}-\d{2}-\d{4}$/;
+    if (dateRegex.test(dateString)) {
+      return dateString;
+    }
+    // Otherwise convert from ISO format
+    const date = new Date(dateString);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+  }
+
+  const today = formatDateForDisplay(new Date());
+
+  // Helper function to get school name from ID
+  function getSchoolName(schoolId) {
+    const school = schools.find(s => s.id === schoolId || s.id === parseInt(schoolId));
+    return school ? school.name : 'Unknown School';
+  }
+
+  // Helper function to normalize record data for display
+  function normalizeAttendanceRecord(record) {
+    return {
+      ...record,
+      attendance_date: record.attendance_date || record.attendanceDate,
+      school_name: record.school_name || getSchoolName(record.schoolId || record.school_id),
+      total_registered: record.total_registered || record.totalRegistered,
+      total_present: record.total_present || record.totalPresent,
+      total_absent: record.total_absent || record.totalAbsent,
+    };
+  }
+
+  function normalizeMealRecord(record) {
+    return {
+      ...record,
+      distribution_date: record.distribution_date || record.distributionDate,
+      school_name: record.school_name || getSchoolName(record.schoolId || record.school_id),
+      meals_prepared: record.meals_prepared || record.mealsPrepared,
+      meals_served: record.meals_served || record.mealsServed,
+    };
+  }
 
   useEffect(() => {
     async function loadDashboardData() {
@@ -24,26 +72,77 @@ function Dashboard() {
         setLoading(true);
         setError(null);
 
-        // Fetch today's attendance
-        const attendanceResponse = await getAttendance({ date: today });
-        const todayAttendance = attendanceResponse.attendance?.[0] || null;
-        setTodayData(prev => ({ ...prev, attendance: todayAttendance }));
+        // Load schools for offline use
+        let schoolsData = [];
+        try {
+          const schoolsResponse = await getSchools();
+          schoolsData = schoolsResponse.schools || [];
+          await cacheSchools(schoolsData);
+        } catch (err) {
+          console.warn('Could not fetch schools:', err.message);
+          try {
+            schoolsData = await getCachedSchools();
+          } catch (cacheErr) {
+            console.warn('Could not get cached schools:', cacheErr.message);
+            schoolsData = []; // Empty array is better than crashing
+          }
+        }
+        setSchools(schoolsData);
 
-        // Fetch today's meals
-        const mealsResponse = await getMeals({ date: today });
-        const todayMeals = mealsResponse.meals?.[0] || null;
-        setTodayData(prev => ({ ...prev, meals: todayMeals }));
+        // Try to fetch from server, fall back to local data
+        let todayAttendance = null;
+        let todayMeals = null;
+        let recentAttendanceData = [];
+        let recentMealsData = [];
 
-        // Fetch recent attendance (last 5 records)
-        const recentAttendanceResponse = await getAttendance();
-        setRecentAttendance(recentAttendanceResponse.attendance?.slice(0, 5) || []);
+        try {
+          // Fetch today's attendance (backend now accepts DD-MM-YYYY)
+          const attendanceResponse = await getAttendance({ date: today });
+          todayAttendance = attendanceResponse.attendance?.[0] || null;
 
-        // Fetch recent meals (last 5 records)
-        const recentMealsResponse = await getMeals();
-        setRecentMeals(recentMealsResponse.meals?.slice(0, 5) || []);
+          // Fetch today's meals (backend now accepts DD-MM-YYYY)
+          const mealsResponse = await getMeals({ date: today });
+          todayMeals = mealsResponse.meals?.[0] || null;
+
+          // Fetch recent attendance (last 5 records)
+          const recentAttendanceResponse = await getAttendance();
+          recentAttendanceData = recentAttendanceResponse.attendance?.slice(0, 5) || [];
+
+          // Fetch recent meals (last 5 records)
+          const recentMealsResponse = await getMeals();
+          recentMealsData = recentMealsResponse.meals?.slice(0, 5) || [];
+        } catch (serverError) {
+          console.warn('Server unavailable, using local data:', serverError.message);
+          
+          // Fall back to local data
+          try {
+            const localAttendance = await getLocalAttendance();
+            const localMeals = await getLocalMeals();
+            
+            // Find today's records
+            todayAttendance = localAttendance.find(r => r.attendanceDate === today) || null;
+            todayMeals = localMeals.find(r => r.distributionDate === today) || null;
+            
+            // Get recent records
+            recentAttendanceData = localAttendance.slice(0, 5);
+            recentMealsData = localMeals.slice(0, 5);
+          } catch (localError) {
+            console.warn('Could not get local data:', localError.message);
+            // Continue with empty data
+          }
+        }
+
+        setTodayData({ attendance: todayAttendance, meals: todayMeals });
+        setRecentAttendance(recentAttendanceData);
+        setRecentMeals(recentMealsData);
 
       } catch (err) {
-        setError(err.message);
+        // Only set error if it's not a network error (which is expected offline)
+        if (!err.message.includes('Network error') && !err.message.includes('fetch')) {
+          setError(err.message);
+        }
+        // For network errors, just continue with local data
+        console.warn('Network error, using local data:', err.message);
       } finally {
         setLoading(false);
       }
@@ -77,17 +176,23 @@ function Dashboard() {
     );
   }
 
-  const totalRegistered = todayData.attendance?.total_registered || 0;
-  const totalPresent = todayData.attendance?.total_present || 0;
-  const totalAbsent = todayData.attendance?.total_absent || 0;
-  const mealsPrepared = todayData.meals?.meals_prepared || 0;
-  const mealsServed = todayData.meals?.meals_served || 0;
+  const totalRegistered = todayData.attendance?.total_registered || todayData.attendance?.totalRegistered || 0;
+  const totalPresent = todayData.attendance?.total_present || todayData.attendance?.totalPresent || 0;
+  const totalAbsent = todayData.attendance?.total_absent || todayData.attendance?.totalAbsent || 0;
+  const mealsPrepared = todayData.meals?.meals_prepared || todayData.meals?.mealsPrepared || 0;
+  const mealsServed = todayData.meals?.meals_served || todayData.meals?.mealsServed || 0;
 
   return (
     <PageIntro
       title="Dashboard"
       purpose="Overview of school feeding activity for today"
     >
+      {!isOnline && (
+        <div className="form-warning" style={{ marginBottom: '1rem' }}>
+          <strong>Offline Mode:</strong> Showing local data only. Changes will be saved locally and synced when you go online.
+        </div>
+      )}
+      
       <div className="stats-grid">
         <div className="stat-card">
           <p className="stat-card__label">Total Registered</p>
@@ -133,15 +238,18 @@ function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {recentAttendance.map((record) => (
-                  <tr key={record.id}>
-                    <td>{record.attendance_date}</td>
-                    <td>{record.school_name}</td>
-                    <td>{record.total_registered}</td>
-                    <td>{record.total_present}</td>
-                    <td>{record.total_absent}</td>
-                  </tr>
-                ))}
+                {recentAttendance.map((record) => {
+                  const normalized = normalizeAttendanceRecord(record);
+                  return (
+                    <tr key={record.id}>
+                      <td>{formatDateForDisplay(normalized.attendance_date)}</td>
+                      <td>{normalized.school_name}</td>
+                      <td>{normalized.total_registered}</td>
+                      <td>{normalized.total_present}</td>
+                      <td>{normalized.total_absent}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -166,14 +274,17 @@ function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {recentMeals.map((record) => (
-                  <tr key={record.id}>
-                    <td>{record.distribution_date}</td>
-                    <td>{record.school_name}</td>
-                    <td>{record.meals_prepared}</td>
-                    <td>{record.meals_served}</td>
-                  </tr>
-                ))}
+                {recentMeals.map((record) => {
+                  const normalized = normalizeMealRecord(record);
+                  return (
+                    <tr key={record.id}>
+                      <td>{formatDateForDisplay(normalized.distribution_date)}</td>
+                      <td>{normalized.school_name}</td>
+                      <td>{normalized.meals_prepared}</td>
+                      <td>{normalized.meals_served}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

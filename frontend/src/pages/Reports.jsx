@@ -12,6 +12,22 @@ function Reports() {
   const [attendanceData, setAttendanceData] = useState([]);
   const [mealsData, setMealsData] = useState([]);
 
+  // Helper function to format date as DD-MM-YYYY for display
+  function formatDateForDisplay(dateString) {
+    if (!dateString) return '';
+    // If already in DD-MM-YYYY format, return as is
+    const dateRegex = /^\d{2}-\d{2}-\d{4}$/;
+    if (dateRegex.test(dateString)) {
+      return dateString;
+    }
+    // Otherwise convert from ISO format
+    const date = new Date(dateString);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+  }
+
   useEffect(() => {
     async function loadReportData() {
       try {
@@ -115,7 +131,7 @@ function Reports() {
               <tbody>
                 {attendanceData.map((record) => (
                   <tr key={record.id}>
-                    <td>{record.attendance_date}</td>
+                    <td>{formatDateForDisplay(record.attendance_date)}</td>
                     <td>{record.school_name}</td>
                     <td>{record.total_registered}</td>
                     <td>{record.total_present}</td>
@@ -148,7 +164,7 @@ function Reports() {
               <tbody>
                 {mealsData.map((record) => (
                   <tr key={record.id}>
-                    <td>{record.distribution_date}</td>
+                    <td>{formatDateForDisplay(record.distribution_date)}</td>
                     <td>{record.school_name}</td>
                     <td>{record.meals_prepared}</td>
                     <td>{record.meals_served}</td>

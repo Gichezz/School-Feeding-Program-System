@@ -2,6 +2,50 @@ const { pool } = require('../db/pool');
 const { NotFoundError, ValidationError, DatabaseError } = require('../utils/errors');
 
 /**
+ * Helper function to convert DD-MM-YYYY to YYYY-MM-DD for PostgreSQL
+ */
+function convertDateFormat(dateString) {
+  if (!dateString) return '';
+  const parts = dateString.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}-${parts[1]}-${parts[0]}`; // Convert DD-MM-YYYY to YYYY-MM-DD
+  }
+  return dateString;
+}
+
+/**
+ * Helper function to convert YYYY-MM-DD to DD-MM-YYYY for API responses
+ */
+function convertDateToDisplayFormat(dateString) {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}-${month}-${year}`;
+}
+
+/**
+ * Helper function to validate DD-MM-YYYY format
+ */
+function validateDateFormat(dateString) {
+  if (!dateString) return false;
+  const dateRegex = /^\d{2}-\d{2}-\d{4}$/;
+  if (!dateRegex.test(dateString)) return false;
+  
+  const parts = dateString.split('-');
+  const day = parseInt(parts[0]);
+  const month = parseInt(parts[1]);
+  const year = parseInt(parts[2]);
+  
+  if (month < 1 || month > 12) return false;
+  if (day < 1 || day > 31) return false;
+  if (year < 1900 || year > 2100) return false;
+  
+  return true;
+}
+
+/**
  * Get all meal distribution records with optional filtering by school and/or date
  */
 async function getMeals(req, res, next) {
@@ -30,7 +74,7 @@ async function getMeals(req, res, next) {
 
     if (date) {
       conditions.push(`md.distribution_date = $${params.length + 1}`);
-      params.push(date);
+      params.push(convertDateFormat(date));
     }
 
     if (conditions.length > 0) {
@@ -41,9 +85,16 @@ async function getMeals(req, res, next) {
 
     const result = await pool.query(query, params);
     
+    // Convert dates to DD-MM-YYYY format for API response
+    const formattedMeals = result.rows.map(record => ({
+      ...record,
+      distribution_date: convertDateToDisplayFormat(record.distribution_date),
+      updated_at: convertDateToDisplayFormat(record.updated_at),
+    }));
+    
     res.json({
-      meals: result.rows,
-      count: result.rows.length,
+      meals: formattedMeals,
+      count: formattedMeals.length,
     });
   } catch (error) {
     next(new DatabaseError('Failed to retrieve meal distribution records'));
@@ -77,7 +128,14 @@ async function getMealById(req, res, next) {
       throw new NotFoundError('Meal distribution record not found');
     }
 
-    res.json({ meal: result.rows[0] });
+    // Convert dates to DD-MM-YYYY format for API response
+    const formattedRecord = {
+      ...result.rows[0],
+      distribution_date: convertDateToDisplayFormat(result.rows[0].distribution_date),
+      updated_at: convertDateToDisplayFormat(result.rows[0].updated_at),
+    };
+
+    res.json({ meal: formattedRecord });
   } catch (error) {
     if (error instanceof NotFoundError) {
       return res.status(404).json({ error: error.message });
@@ -104,10 +162,9 @@ async function createMeal(req, res, next) {
       throw new ValidationError('Invalid school ID format');
     }
 
-    // Validate date format
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(distribution_date)) {
-      throw new ValidationError('Invalid date format. Use YYYY-MM-DD');
+    // Validate date format (DD-MM-YYYY)
+    if (!validateDateFormat(distribution_date)) {
+      throw new ValidationError('Invalid date format. Use DD-MM-YYYY (e.g., 15-09-2026)');
     }
 
     // Validate non-negative values
@@ -136,7 +193,7 @@ async function createMeal(req, res, next) {
 
     const values = [
       school_id,
-      distribution_date,
+      convertDateFormat(distribution_date),
       meals_prepared,
       meals_served,
       updated_by || null,
@@ -145,8 +202,15 @@ async function createMeal(req, res, next) {
 
     const result = await pool.query(query, values);
 
+    // Convert dates to DD-MM-YYYY format for API response
+    const formattedRecord = {
+      ...result.rows[0],
+      distribution_date: convertDateToDisplayFormat(result.rows[0].distribution_date),
+      updated_at: convertDateToDisplayFormat(result.rows[0].updated_at),
+    };
+
     res.status(201).json({
-      meal: result.rows[0],
+      meal: formattedRecord,
       message: 'Meal distribution record created successfully',
     });
   } catch (error) {
