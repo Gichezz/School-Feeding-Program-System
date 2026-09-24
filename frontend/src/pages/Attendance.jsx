@@ -11,6 +11,7 @@ import {
   getCachedSchools
 } from '../services/localDb';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
+import { manualSync } from '../sync/syncManager';
 
 /**
  * Attendance page with form and history
@@ -20,10 +21,30 @@ function Attendance() {
   
   // Helper function to format date as DD-MM-YYYY for input
   function formatDateForInput(date) {
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day}-${month}-${year}`;
+    // If already in DD-MM-YYYY format, return as is
+    if (typeof date === 'string' && /^\d{2}-\d{2}-\d{4}$/.test(date)) {
+      return date;
+    }
+    
+    // If it's a Date object, format it
+    if (date instanceof Date) {
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}-${month}-${year}`;
+    }
+    
+    // If it's an ISO string or other format, convert to Date then format
+    try {
+      const dateObj = new Date(date);
+      const day = String(dateObj.getDate()).padStart(2, '0');
+      const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const year = dateObj.getFullYear();
+      return `${day}-${month}-${year}`;
+    } catch (e) {
+      console.error('Invalid date format:', date);
+      return formatDateForInput(new Date()); // Return today's date as fallback
+    }
   }
 
   const [schools, setSchools] = useState([]);
@@ -33,6 +54,7 @@ function Attendance() {
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
   const [formError, setFormError] = useState(null);
+  const [editingRecord, setEditingRecord] = useState(null);
 
   const [formData, setFormData] = useState({
     school_id: '',
@@ -106,8 +128,12 @@ function Attendance() {
         const localAttendance = localAttendanceResult.status === 'fulfilled' ? localAttendanceResult.value : [];
         const serverAttendance = serverAttendanceResult.status === 'fulfilled' ? serverAttendanceResult.value.attendance : [];
         
-        // Combine local and server records
-        setAttendanceRecords([...localAttendance, ...serverAttendance]);
+        // Combine local and server records, but deduplicate by serverId
+        // Local records take precedence over server records
+        const serverIds = new Set(localAttendance.map(r => r.serverId).filter(Boolean));
+        const uniqueServerAttendance = serverAttendance.filter(r => !serverIds.has(r.id));
+        
+        setAttendanceRecords([...localAttendance, ...uniqueServerAttendance]);
       } catch (err) {
         // Only set error if it's not a network error (which is expected offline)
         if (!err.message.includes('Network error') && !err.message.includes('fetch')) {
@@ -210,12 +236,52 @@ function Attendance() {
         totalAbsent: parseInt(formData.total_absent),
       };
 
-      // Save to local database (this now queues the operation automatically)
-      const localRecord = await saveLocalAttendance(attendanceData);
+      if (editingRecord) {
+        // Check if the record exists in local database by either local ID or server ID
+        let localRecord = await getLocalAttendanceById(editingRecord.id);
+        
+        // If not found by local ID, try to find by server ID
+        if (!localRecord && editingRecord.serverId) {
+          const allLocalRecords = await getLocalAttendance();
+          localRecord = allLocalRecords.find(r => r.serverId === editingRecord.serverId);
+        }
+        
+        if (!localRecord) {
+          // Record is from server only, create it locally first
+          // Don't preserve the server ID to avoid key conflicts
+          localRecord = await saveLocalAttendance({
+            ...attendanceData,
+            serverId: editingRecord.id // Store server ID separately
+          });
+          setSuccessMessage('Attendance record created locally from server data');
+        } else {
+          // Update existing local record - maintains the same local ID
+          await updateLocalAttendance(localRecord.id, attendanceData);
+          setSuccessMessage(isOnline 
+            ? 'Attendance record updated and queued for synchronization' 
+            : 'Attendance record updated locally (pending synchronization when online)');
+        }
+        
+        setEditingRecord(null);
+      } else {
+        // Create new record
+        await saveLocalAttendance(attendanceData);
+        setSuccessMessage(isOnline 
+          ? 'Attendance record created and queued for synchronization' 
+          : 'Attendance record saved locally (pending synchronization when online)');
+      }
       
-      setSuccessMessage(isOnline 
-        ? 'Attendance record created and queued for synchronization' 
-        : 'Attendance record saved locally (pending synchronization when online)');
+      // Auto-sync if online after a short delay
+      if (isOnline) {
+        setTimeout(async () => {
+          try {
+            await manualSync();
+            console.log('Auto-sync completed after record update');
+          } catch (error) {
+            console.error('Auto-sync failed after record update:', error);
+          }
+        }, 2000); // 2 second delay to allow operation to queue
+      }
       
       // Reset form
       setFormData({
@@ -235,6 +301,46 @@ function Attendance() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleEditRecord = (record) => {
+    setEditingRecord(record);
+    
+    // Handle date format - if already in DD-MM-YYYY format, use as is
+    let attendanceDate = record.attendanceDate || record.attendance_date;
+    if (attendanceDate && !attendanceDate.includes('-')) {
+      // If it's a Date object or ISO string, format it
+      attendanceDate = formatDateForInput(new Date(attendanceDate));
+    }
+    // If it's already in DD-MM-YYYY format, use it directly
+    
+    setFormData({
+      school_id: record.schoolId || record.school_id || '',
+      attendance_date: attendanceDate || formatDateForInput(new Date()),
+      total_registered: record.totalRegistered || record.total_registered || '',
+      total_present: record.totalPresent || record.total_present || '',
+      total_absent: record.totalAbsent || record.total_absent || '',
+    });
+    setSuccessMessage(null);
+    setFormError(null);
+    
+    // Smooth scroll to form section
+    const formSection = document.querySelector('.form-section');
+    if (formSection) {
+      formSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingRecord(null);
+    setFormData({
+      school_id: '',
+      attendance_date: formatDateForInput(new Date()),
+      total_registered: '',
+      total_present: '',
+      total_absent: '',
+    });
+    setFormError(null);
   };
 
   if (loading) {
@@ -273,8 +379,19 @@ function Attendance() {
         </div>
       )}
       
-      <section className="form-section">
-        <h2>Record Attendance</h2>
+      <section className="form-section" style={{
+        border: editingRecord ? '2px solid var(--color-primary)' : 'none',
+        borderRadius: editingRecord ? '4px' : '0',
+        padding: editingRecord ? '1rem' : '0',
+        backgroundColor: editingRecord ? 'var(--color-info-bg)' : 'transparent',
+        transition: 'all 0.3s ease'
+      }}>
+        <h2>{editingRecord ? 'Edit Attendance' : 'Record Attendance'}</h2>
+        {editingRecord && (
+          <p style={{ fontSize: '0.9rem', color: 'var(--color-muted)', marginBottom: '1rem' }}>
+            Editing record from {formatDateForDisplay(editingRecord.attendanceDate || editingRecord.attendance_date)}
+          </p>
+        )}
         {formError && <div className="form-error">{formError}</div>}
         {successMessage && <div className="form-success">{successMessage}</div>}
         
@@ -358,8 +475,18 @@ function Attendance() {
 
           <div className="form-actions">
             <button type="submit" className="btn btn--primary" disabled={submitting}>
-              {submitting ? 'Submitting...' : 'Submit Attendance'}
+              {submitting ? 'Submitting...' : (editingRecord ? 'Update Attendance' : 'Submit Attendance')}
             </button>
+            {editingRecord && (
+              <button 
+                type="button" 
+                className="btn btn--secondary" 
+                onClick={handleCancelEdit}
+                disabled={submitting}
+              >
+                Cancel
+              </button>
+            )}
           </div>
         </form>
       </section>
@@ -382,11 +509,12 @@ function Attendance() {
                   <th>Absent</th>
                   <th>Status</th>
                   <th>Last Updated</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {attendanceRecords.map((record) => (
-                  <tr key={record.id}>
+                  <tr key={`${record.id}-${record.syncStatus || 'server'}`}>
                     <td>{formatDateForDisplay(record.attendance_date || record.attendanceDate)}</td>
                     <td>{record.school_name || getSchoolName(record.schoolId || record.school_id)}</td>
                     <td>{record.total_registered || record.totalRegistered}</td>
@@ -394,6 +522,15 @@ function Attendance() {
                     <td>{record.total_absent || record.totalAbsent}</td>
                     <td>{getSyncStatusDisplay(record)}</td>
                     <td>{formatDateForDisplay(record.updated_at || record.updatedAt)}</td>
+                    <td>
+                      <button
+                        className="btn btn--small"
+                        onClick={() => handleEditRecord(record)}
+                        disabled={submitting}
+                      >
+                        Edit
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

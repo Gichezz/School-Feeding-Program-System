@@ -8,6 +8,7 @@ import {
   getSyncQueueStats
 } from './syncQueue';
 import { updateLocalAttendance, updateLocalMeal } from '../services/localDb';
+import { saveConflict } from './conflictService';
 
 /**
  * Sync Manager - Phase 6
@@ -111,8 +112,21 @@ export async function processSyncQueue() {
           // Mark operation as conflict
           await markOperationConflict(operation.id, result.conflictData);
           
+          // Save conflict to local database
+          await saveConflict({
+            operationId: operation.id,
+            entityType: operation.entityType,
+            recordId: operation.recordId,
+            baseVersion: result.baseVersion,
+            serverVersion: result.serverVersion,
+            localPayload: result.localPayload,
+            serverRecord: result.serverRecord,
+            conflictId: result.conflictId,
+            status: 'unresolved'
+          });
+          
           // Update local record sync status
-          await updateLocalRecordConflictStatus(operation, result.conflictData);
+          await updateLocalRecordConflictStatus(operation);
           
           syncProgress.conflicts++;
           console.log(`Operation ${operation.id} has conflict`);
@@ -187,17 +201,15 @@ async function updateLocalRecordAfterSync(operation, syncResult) {
 /**
  * Update local record conflict status
  */
-async function updateLocalRecordConflictStatus(operation, conflictData) {
+async function updateLocalRecordConflictStatus(operation) {
   try {
     if (operation.entityType === 'attendance') {
       await updateLocalAttendance(operation.recordId, {
-        syncStatus: 'conflict',
-        conflictData
+        syncStatus: 'conflict'
       });
     } else if (operation.entityType === 'mealDistribution') {
       await updateLocalMeal(operation.recordId, {
-        syncStatus: 'conflict',
-        conflictData
+        syncStatus: 'conflict'
       });
     }
   } catch (error) {
@@ -244,17 +256,19 @@ export async function getComprehensiveSyncStatus() {
  */
 export function setupAutoSync() {
   const handleOnline = async () => {
-    console.log('Connection restored, triggering automatic sync');
-    // Small delay to ensure connection is stable
+    console.log('Connection restored, triggering automatic sync in 5 seconds');
+    // 5 second delay to ensure connection is stable and allow pending operations to queue
     setTimeout(async () => {
       try {
-        await processSyncQueue();
+        const result = await processSyncQueue();
+        console.log('Auto sync result:', result);
         // Dispatch event to notify UI that sync completed
-        window.dispatchEvent(new CustomEvent('syncCompleted'));
+        window.dispatchEvent(new CustomEvent('syncCompleted', { detail: result }));
       } catch (error) {
         console.error('Auto sync failed:', error);
+        window.dispatchEvent(new CustomEvent('syncFailed', { detail: error }));
       }
-    }, 1000);
+    }, 5000); // Changed from 1000ms to 5000ms (5 seconds)
   };
 
   window.addEventListener('online', handleOnline);

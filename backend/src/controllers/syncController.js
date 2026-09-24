@@ -61,10 +61,9 @@ async function syncOperations(req, res, next) {
 
     const results = [];
 
-    // Process each operation within a transaction
-    await client.query('BEGIN');
-
+    // Process each operation - each gets its own transaction
     for (const operation of operations) {
+      await client.query('BEGIN');
       try {
         // Check for idempotency - has this operation already been processed?
         const existingSyncOp = await client.query(
@@ -89,16 +88,23 @@ async function syncOperations(req, res, next) {
             });
             continue;
           } else if (existingOp.status === 'conflict') {
-            // Return the previous conflict result
+            // Return the previous conflict result with conflict ID
+            const existingConflict = await client.query(
+              'SELECT * FROM conflicts WHERE operation_id = $1',
+              [operation.id]
+            );
+            
             const serverRecord = await getServerRecord(operation.entityType, operation.payload, client);
             results.push({
               success: false,
               operationId: operation.id,
               status: 'conflict',
               message: 'Previous attempt resulted in conflict',
+              conflictId: existingConflict.rows[0]?.conflict_id || null,
               serverRecord: serverRecord,
               baseVersion: operation.baseVersion,
-              serverVersion: serverRecord?.version || null
+              serverVersion: serverRecord?.version || null,
+              localPayload: operation.payload
             });
             continue;
           } else if (existingOp.status === 'failed') {
@@ -148,16 +154,63 @@ async function syncOperations(req, res, next) {
           status: 'synced'
         });
 
+        await client.query('COMMIT');
+
       } catch (error) {
+        // Rollback the current transaction due to error
+        await client.query('ROLLBACK');
+        
+        // Start a new transaction for error handling
+        await client.query('BEGIN');
+        
         // Handle individual operation errors
         const serverRecord = await getServerRecord(operation.entityType, operation.payload, client);
         
         // Determine if this is a conflict (version mismatch) or other error
         let status = 'failed';
+        let conflictId = null;
+        
         if (error.message.includes('version mismatch') || 
             error.message.includes('Version mismatch') ||
             error.message.includes('conflict')) {
           status = 'conflict';
+          
+          // Create conflict record in database
+          try {
+            const dbEntityType = entityTypeMap[operation.entityType] || operation.entityType;
+            
+            // Check if conflict already exists for this operation
+            const existingConflict = await client.query(
+              'SELECT conflict_id FROM conflicts WHERE operation_id = $1',
+              [operation.id]
+            );
+            
+            if (existingConflict.rows.length === 0) {
+              // Create new conflict record
+              const conflictResult = await client.query(
+                `INSERT INTO conflicts 
+                 (entity_type, record_id, operation_id, client_id, base_version, server_version, 
+                  local_payload, server_payload, status)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'unresolved')
+                 RETURNING conflict_id`,
+                [
+                  dbEntityType,
+                  serverRecord?.id || null,
+                  operation.id,
+                  clientId,
+                  operation.baseVersion,
+                  serverRecord?.version || null,
+                  JSON.stringify(operation.payload),
+                  JSON.stringify(serverRecord)
+                ]
+              );
+              conflictId = conflictResult.rows[0].conflict_id;
+            } else {
+              conflictId = existingConflict.rows[0].conflict_id;
+            }
+          } catch (conflictError) {
+            console.error('Error creating conflict record:', conflictError);
+          }
         }
         
         // Record the operation status
@@ -188,19 +241,22 @@ async function syncOperations(req, res, next) {
           console.error('Error recording operation status:', recordError);
         }
 
+        // Commit the error handling transaction
+        await client.query('COMMIT');
+
         results.push({
           success: false,
           operationId: operation.id,
           status: status,
           message: error.message,
+          conflictId: conflictId,
           serverRecord: serverRecord,
           baseVersion: operation.baseVersion,
-          serverVersion: serverRecord?.version || null
+          serverVersion: serverRecord?.version || null,
+          localPayload: operation.payload
         });
       }
     }
-
-    await client.query('COMMIT');
 
     res.json({
       success: true,
@@ -208,7 +264,12 @@ async function syncOperations(req, res, next) {
     });
 
   } catch (error) {
-    await client.query('ROLLBACK');
+    // Only rollback if there's an active transaction
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackError) {
+      console.error('Error during rollback:', rollbackError);
+    }
     
     if (error instanceof ValidationError) {
       return res.status(400).json({ error: error.message });
@@ -490,6 +551,293 @@ function convertDateFormat(dateString) {
   return dateString;
 }
 
+/**
+ * Resolve a conflict by choosing either local or server version
+ */
+async function resolveConflict(req, res, next) {
+  const client = await pool.connect();
+  
+  try {
+    const { conflictId } = req.params;
+    const { resolution } = req.body;
+    const clientId = req.body.clientId;
+
+    // Validate resolution choice
+    const allowedResolutions = ['keep_local', 'keep_server'];
+    if (!resolution || !allowedResolutions.includes(resolution)) {
+      throw new ValidationError(`Invalid resolution. Must be one of: ${allowedResolutions.join(', ')}`);
+    }
+
+    await client.query('BEGIN');
+
+    // Get the conflict record
+    const conflictResult = await client.query(
+      'SELECT * FROM conflicts WHERE conflict_id = $1',
+      [conflictId]
+    );
+
+    if (conflictResult.rows.length === 0) {
+      throw new NotFoundError('Conflict not found');
+    }
+
+    const conflict = conflictResult.rows[0];
+
+    // Check if conflict is already resolved
+    if (conflict.status !== 'unresolved') {
+      throw new ValidationError('Conflict has already been resolved');
+    }
+
+    // Get current server record to prevent stale resolutions
+    const currentServerRecord = await getServerRecord(
+      conflict.entity_type === 'attendance' ? 'attendance' : 'mealDistribution',
+      conflict.local_payload,
+      client
+    );
+
+    // Verify the conflict is still valid (server version hasn't changed)
+    if (currentServerRecord && currentServerRecord.version !== conflict.server_version) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({
+        error: 'Stale conflict',
+        message: 'The server record has been modified since this conflict was created. Please refresh and try again.',
+        currentServerVersion: currentServerRecord.version,
+        expectedServerVersion: conflict.server_version
+      });
+    }
+
+    let resultRecord;
+    let newVersion;
+
+    if (resolution === 'keep_server') {
+      // Keep server version - update local record with server data
+      // The server record remains unchanged
+      resultRecord = currentServerRecord;
+      newVersion = currentServerRecord.version;
+
+      // Mark conflict as resolved
+      await client.query(
+        `UPDATE conflicts 
+         SET status = 'resolved', 
+             resolution = $1, 
+             resolved_at = NOW(),
+             resolved_by = $2
+         WHERE conflict_id = $3`,
+        ['keep_server', clientId || null, conflictId]
+      );
+
+    } else if (resolution === 'keep_local') {
+      // Keep local version - apply local payload to server
+      const localPayload = conflict.local_payload;
+      
+      if (conflict.entity_type === 'attendance') {
+        const updateResult = await applyLocalAttendanceUpdate(client, localPayload, conflict.server_version, clientId);
+        resultRecord = updateResult.record;
+        newVersion = updateResult.version;
+      } else if (conflict.entity_type === 'meal_distribution') {
+        const updateResult = await applyLocalMealUpdate(client, localPayload, conflict.server_version, clientId);
+        resultRecord = updateResult.record;
+        newVersion = updateResult.version;
+      }
+
+      // Mark conflict as resolved
+      await client.query(
+        `UPDATE conflicts 
+         SET status = 'resolved', 
+             resolution = $1, 
+             resolved_at = NOW(),
+             resolved_by = $2
+         WHERE conflict_id = $3`,
+        ['keep_local', clientId || null, conflictId]
+      );
+    }
+
+    // Update the associated sync operation status
+    await client.query(
+      `UPDATE sync_operations 
+       SET status = 'applied', 
+           processed_at = NOW()
+       WHERE operation_id = $1`,
+      [conflict.operation_id]
+    );
+
+    await client.query('COMMIT');
+
+    res.json({
+      success: true,
+      conflictId: conflictId,
+      resolution: resolution,
+      record: resultRecord,
+      version: newVersion,
+      message: `Conflict resolved using ${resolution} strategy`
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    
+    if (error instanceof ValidationError) {
+      return res.status(400).json({ error: error.message });
+    }
+    if (error instanceof NotFoundError) {
+      return res.status(404).json({ error: error.message });
+    }
+    next(error);
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Apply local attendance update as part of conflict resolution
+ */
+async function applyLocalAttendanceUpdate(client, payload, currentServerVersion, clientId) {
+  const { schoolId, attendanceDate, totalRegistered, totalPresent, totalAbsent } = payload;
+  const formattedDate = convertDateFormat(attendanceDate);
+
+  // Get current record
+  const current = await client.query(
+    'SELECT id, version FROM attendance_records WHERE school_id = $1 AND attendance_date = $2',
+    [schoolId, formattedDate]
+  );
+
+  if (current.rows.length === 0) {
+    throw new Error('Record not found');
+  }
+
+  const currentRecord = current.rows[0];
+
+  // Update record with incremented version
+  const result = await client.query(
+    `UPDATE attendance_records 
+     SET total_registered = $1, total_present = $2, total_absent = $3, 
+         version = version + 1, updated_at = NOW(), client_id = $4
+     WHERE id = $5
+     RETURNING *`,
+    [totalRegistered, totalPresent, totalAbsent, clientId, currentRecord.id]
+  );
+
+  return {
+    record: result.rows[0],
+    version: result.rows[0].version
+  };
+}
+
+/**
+ * Apply local meal distribution update as part of conflict resolution
+ */
+async function applyLocalMealUpdate(client, payload, currentServerVersion, clientId) {
+  const { schoolId, distributionDate, mealsPrepared, mealsServed } = payload;
+  const formattedDate = convertDateFormat(distributionDate);
+
+  // Get current record
+  const current = await client.query(
+    'SELECT id, version FROM meal_distributions WHERE school_id = $1 AND distribution_date = $2',
+    [schoolId, formattedDate]
+  );
+
+  if (current.rows.length === 0) {
+    throw new Error('Record not found');
+  }
+
+  const currentRecord = current.rows[0];
+
+  // Update record with incremented version
+  const result = await client.query(
+    `UPDATE meal_distributions 
+     SET meals_prepared = $1, meals_served = $2, version = version + 1, updated_at = NOW(), client_id = $3
+     WHERE id = $4
+     RETURNING *`,
+    [mealsPrepared, mealsServed, clientId, currentRecord.id]
+  );
+
+  return {
+    record: result.rows[0],
+    version: result.rows[0].version
+  };
+}
+
+/**
+ * Get all unresolved conflicts for a client
+ */
+async function getConflicts(req, res, next) {
+  const client = await pool.connect();
+  
+  try {
+    const { clientId } = req.query;
+    const { status } = req.query;
+
+    let query = 'SELECT * FROM conflicts';
+    const conditions = [];
+    const params = [];
+    let paramIndex = 1;
+
+    if (clientId) {
+      conditions.push(`client_id = $${paramIndex}`);
+      params.push(clientId);
+      paramIndex++;
+    }
+
+    if (status) {
+      conditions.push(`status = $${paramIndex}`);
+      params.push(status);
+      paramIndex++;
+    }
+
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
+    }
+
+    query += ' ORDER BY created_at DESC';
+
+    const result = await client.query(query, params);
+
+    res.json({
+      success: true,
+      conflicts: result.rows
+    });
+
+  } catch (error) {
+    next(error);
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Get a specific conflict by ID
+ */
+async function getConflictById(req, res, next) {
+  const client = await pool.connect();
+  
+  try {
+    const { conflictId } = req.params;
+
+    const result = await client.query(
+      'SELECT * FROM conflicts WHERE conflict_id = $1',
+      [conflictId]
+    );
+
+    if (result.rows.length === 0) {
+      throw new NotFoundError('Conflict not found');
+    }
+
+    res.json({
+      success: true,
+      conflict: result.rows[0]
+    });
+
+  } catch (error) {
+    if (error instanceof NotFoundError) {
+      return res.status(404).json({ error: error.message });
+    }
+    next(error);
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
-  syncOperations
+  syncOperations,
+  resolveConflict,
+  getConflicts,
+  getConflictById
 };

@@ -5,6 +5,7 @@ const NAV_ITEMS = [
   { to: '/attendance', label: 'Attendance' },
   { to: '/meals', label: 'Meal Distribution' },
   { to: '/sync', label: 'Sync Status' },
+  { to: '/conflicts', label: 'Conflicts' },
   { to: '/reports', label: 'Reports' },
   { to: '/settings', label: 'Settings' },
 ];

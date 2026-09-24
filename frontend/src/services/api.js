@@ -100,3 +100,23 @@ export async function syncOperations(data) {
     body: JSON.stringify(data),
   });
 }
+
+/**
+ * Conflicts API
+ */
+export async function getConflicts(params = {}) {
+  const queryString = new URLSearchParams(params).toString();
+  const endpoint = queryString ? `/sync/conflicts?${queryString}` : '/sync/conflicts';
+  return apiRequest(endpoint);
+}
+
+export async function getConflictById(conflictId) {
+  return apiRequest(`/sync/conflicts/${conflictId}`);
+}
+
+export async function resolveConflict(conflictId, data) {
+  return apiRequest(`/sync/conflicts/${conflictId}/resolve`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}

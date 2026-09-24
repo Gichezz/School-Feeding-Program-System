@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import PageIntro from '../components/PageIntro';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
@@ -9,6 +10,7 @@ import {
   getSyncProgress 
 } from '../sync/syncManager';
 import { getSyncQueueStats, getAllOperations } from '../sync/syncQueue';
+import { getConflictStats } from '../sync/conflictService';
 
 /**
  * Synchronization status page for Phase 6
@@ -19,6 +21,7 @@ function SyncStatus() {
   const [loading, setLoading] = useState(true);
   const [syncStatus, setSyncStatus] = useState(null);
   const [queueStats, setQueueStats] = useState(null);
+  const [conflictStats, setConflictStats] = useState(null);
   const [recentOperations, setRecentOperations] = useState([]);
   const [syncing, setSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState(null);
@@ -64,10 +67,11 @@ function SyncStatus() {
       }
       setError(null);
 
-      const [status, stats, operations] = await Promise.all([
+      const [status, stats, operations, conflicts] = await Promise.all([
         getComprehensiveSyncStatus(),
         getSyncQueueStats(),
-        getAllOperations()
+        getAllOperations(),
+        getConflictStats()
       ]);
 
       let hasChanges = false;
@@ -80,6 +84,11 @@ function SyncStatus() {
       
       if (JSON.stringify(queueStats) !== JSON.stringify(stats)) {
         setQueueStats(stats);
+        hasChanges = true;
+      }
+      
+      if (JSON.stringify(conflictStats) !== JSON.stringify(conflicts)) {
+        setConflictStats(conflicts);
         hasChanges = true;
       }
       
@@ -185,11 +194,6 @@ function SyncStatus() {
             >
               {syncing ? 'Syncing...' : 'Sync Now'}
             </button>
-            {queueStats?.pending === 0 && (
-              <p style={{ marginTop: '0.5rem', color: 'var(--color-muted)', fontSize: '0.9rem' }}>
-                No pending operations to sync
-              </p>
-            )}
           </div>
         )}
       </section>
@@ -238,6 +242,35 @@ function SyncStatus() {
           <p>No queue statistics available</p>
         )}
       </section>
+
+      {/* Conflict Statistics */}
+      {conflictStats && conflictStats.unresolved > 0 && (
+        <section className="form-section" style={{ 
+          backgroundColor: 'var(--color-warning-bg)',
+          padding: '1rem',
+          borderRadius: '4px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h2 style={{ margin: 0 }}>⚠️ Unresolved Conflicts</h2>
+            <Link 
+              to="/conflicts" 
+              className="btn btn--primary"
+              style={{ fontSize: '0.9rem' }}
+            >
+              View Conflicts
+            </Link>
+          </div>
+          <div style={{ marginBottom: '1rem' }}>
+            <p><strong>Total Conflicts:</strong> {conflictStats.total}</p>
+            <p><strong>Unresolved:</strong> {conflictStats.unresolved}</p>
+            <p><strong>Resolved:</strong> {conflictStats.resolved}</p>
+          </div>
+          <p style={{ margin: 0, fontSize: '0.9rem' }}>
+            You have {conflictStats.unresolved} unresolved conflict(s) that require your attention. 
+            These occur when the server has a newer version of a record than your local changes.
+          </p>
+        </section>
+      )}
 
       {/* Recent Operations */}
       <section className="form-section">
@@ -292,24 +325,6 @@ function SyncStatus() {
         )}
       </section>
 
-      {/* Conflict Information */}
-      {queueStats?.conflict > 0 && (
-        <section className="form-section" style={{ 
-          backgroundColor: 'var(--color-warning-bg)',
-          padding: '1rem',
-          borderRadius: '4px'
-        }}>
-          <h2>⚠️ Conflicts Require Attention</h2>
-          <p>
-            You have {queueStats.conflict} operation(s) with version conflicts. 
-            These occur when the server has a newer version of a record than your local changes.
-          </p>
-          <p style={{ marginTop: '0.5rem' }}>
-            Conflict resolution will be available in Phase 7. For now, these operations will remain in the queue.
-          </p>
-        </section>
-      )}
-
       {/* Information */}
       <section className="form-section">
         <h2>Synchronization Information</h2>
@@ -321,6 +336,7 @@ function SyncStatus() {
             <li>Each operation includes a version number to prevent conflicts</li>
             <li>If a version mismatch is detected, the operation is marked as a conflict</li>
             <li>You can manually trigger synchronization using the "Sync Now" button</li>
+            <li>Conflicts can be resolved using the Conflicts page</li>
           </ul>
           <p><strong>Status meanings:</strong></p>
           <ul style={{ marginTop: '0.5rem' }}>

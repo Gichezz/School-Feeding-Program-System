@@ -25,6 +25,16 @@ class SchoolFeedingDB extends Dexie {
       metadata: 'key, value',
       syncQueue: '++id, entityType, recordId, status, clientId, createdAt'
     });
+    
+    // Version 3: Add conflicts table for conflict resolution (Phase 7)
+    this.version(3).stores({
+      attendance: '++id, schoolId, attendanceDate, syncStatus, clientId, updatedAt',
+      mealDistribution: '++id, schoolId, distributionDate, syncStatus, clientId, updatedAt',
+      schools: 'id, name',
+      metadata: 'key, value',
+      syncQueue: '++id, entityType, recordId, status, clientId, createdAt',
+      conflicts: '++id, operationId, entityType, recordId, status, createdAt'
+    });
   }
 }
 

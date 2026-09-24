@@ -134,15 +134,15 @@ export async function updateLocalAttendance(id, updates) {
     const updatedRecord = {
       ...existing,
       ...updates,
-      version: existing.version + 1,
+      version: updates.version !== undefined ? updates.version : existing.version + 1,
       updatedAt: new Date().toISOString(),
-      syncStatus: 'pending'
+      syncStatus: updates.syncStatus !== undefined ? updates.syncStatus : 'pending'
     };
     
     await db.attendance.update(id, updatedRecord);
     
-    // Add to sync queue (only if not already updating sync status)
-    if (!updates.syncStatus || updates.syncStatus !== 'synced') {
+    // Add to sync queue (only if not already updating sync status and not a conflict resolution)
+    if ((!updates.syncStatus || updates.syncStatus !== 'synced') && !updates.skipSyncQueue) {
       // For updates, we need to send the complete record state
       // Merge existing data with updates to ensure all required fields are present
       const syncPayload = {
@@ -263,15 +263,15 @@ export async function updateLocalMeal(id, updates) {
     const updatedRecord = {
       ...existing,
       ...updates,
-      version: existing.version + 1,
+      version: updates.version !== undefined ? updates.version : existing.version + 1,
       updatedAt: new Date().toISOString(),
-      syncStatus: 'pending'
+      syncStatus: updates.syncStatus !== undefined ? updates.syncStatus : 'pending'
     };
     
     await db.mealDistribution.update(id, updatedRecord);
     
-    // Add to sync queue (only if not already updating sync status)
-    if (!updates.syncStatus || updates.syncStatus !== 'synced') {
+    // Add to sync queue (only if not already updating sync status and not a conflict resolution)
+    if ((!updates.syncStatus || updates.syncStatus !== 'synced') && !updates.skipSyncQueue) {
       // For updates, we need to send the complete record state
       // Merge existing data with updates to ensure all required fields are present
       const syncPayload = {
