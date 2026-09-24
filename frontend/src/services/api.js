@@ -90,3 +90,13 @@ export async function createMeal(data) {
     body: JSON.stringify(data),
   });
 }
+
+/**
+ * Sync API
+ */
+export async function syncOperations(data) {
+  return apiRequest('/sync', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}

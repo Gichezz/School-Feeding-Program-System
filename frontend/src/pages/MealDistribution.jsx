@@ -202,29 +202,12 @@ function MealDistribution() {
         mealsServed: parseInt(formData.meals_served),
       };
 
-      // Save to local database first
+      // Save to local database (this now queues the operation automatically)
       const localRecord = await saveLocalMeal(mealData);
       
-      // Try to save to server if available
-      try {
-        const serverData = {
-          school_id: formData.school_id,
-          distribution_date: formData.distribution_date,
-          meals_prepared: parseInt(formData.meals_prepared),
-          meals_served: parseInt(formData.meals_served),
-        };
-
-        await createMeal(serverData);
-        
-        // Update local record to mark as synced
-        await updateLocalMeal(localRecord.id, { syncStatus: 'synced' });
-        
-        setSuccessMessage('Meal distribution record created and synced successfully');
-      } catch (serverError) {
-        // Server unavailable, but local save succeeded
-        console.warn('Server unavailable, record saved locally:', serverError.message);
-        setSuccessMessage('Meal distribution record saved locally (pending synchronization)');
-      }
+      setSuccessMessage(isOnline 
+        ? 'Meal distribution record created and queued for synchronization' 
+        : 'Meal distribution record saved locally (pending synchronization when online)');
       
       // Reset form
       setFormData({
@@ -234,17 +217,9 @@ function MealDistribution() {
         meals_served: '',
       });
 
-      // Reload meal records from both local and server
-      const [localRecords, serverResponse] = await Promise.allSettled([
-        getLocalMeals(),
-        getMeals().catch(() => ({ meals: [] }))
-      ]);
-      
-      const localMeals = localRecords.status === 'fulfilled' ? localRecords.value : [];
-      const serverMeals = serverResponse.status === 'fulfilled' ? serverResponse.value.meals : [];
-      
-      // Combine records, prioritizing local ones for display
-      setMealRecords([...localMeals, ...serverMeals]);
+      // Reload meal records from local database
+      const localRecords = await getLocalMeals();
+      setMealRecords(localRecords);
 
     } catch (err) {
       setFormError(err.message);

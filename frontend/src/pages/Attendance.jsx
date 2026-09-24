@@ -210,30 +210,12 @@ function Attendance() {
         totalAbsent: parseInt(formData.total_absent),
       };
 
-      // Save to local database first
+      // Save to local database (this now queues the operation automatically)
       const localRecord = await saveLocalAttendance(attendanceData);
       
-      // Try to save to server if available
-      try {
-        const serverData = {
-          school_id: formData.school_id,
-          attendance_date: formData.attendance_date,
-          total_registered: parseInt(formData.total_registered),
-          total_present: parseInt(formData.total_present),
-          total_absent: parseInt(formData.total_absent),
-        };
-
-        await createAttendance(serverData);
-        
-        // Update local record to mark as synced
-        await updateLocalAttendance(localRecord.id, { syncStatus: 'synced' });
-        
-        setSuccessMessage('Attendance record created and synced successfully');
-      } catch (serverError) {
-        // Server unavailable, but local save succeeded
-        console.warn('Server unavailable, record saved locally:', serverError.message);
-        setSuccessMessage('Attendance record saved locally (pending synchronization)');
-      }
+      setSuccessMessage(isOnline 
+        ? 'Attendance record created and queued for synchronization' 
+        : 'Attendance record saved locally (pending synchronization when online)');
       
       // Reset form
       setFormData({
@@ -244,17 +226,9 @@ function Attendance() {
         total_absent: '',
       });
 
-      // Reload attendance records from both local and server
-      const [localRecords, serverResponse] = await Promise.allSettled([
-        getLocalAttendance(),
-        getAttendance().catch(() => ({ attendance: [] }))
-      ]);
-      
-      const localAttendance = localRecords.status === 'fulfilled' ? localRecords.value : [];
-      const serverAttendance = serverResponse.status === 'fulfilled' ? serverResponse.value.attendance : [];
-      
-      // Combine records, prioritizing local ones for display
-      setAttendanceRecords([...localAttendance, ...serverAttendance]);
+      // Reload attendance records from local database
+      const localRecords = await getLocalAttendance();
+      setAttendanceRecords(localRecords);
 
     } catch (err) {
       setFormError(err.message);

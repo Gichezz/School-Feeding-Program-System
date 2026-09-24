@@ -1,4 +1,5 @@
 import { db, getOrCreateClientId } from '../db';
+import { addToSyncQueue } from '../sync/syncQueue';
 
 /**
  * Schools caching functions for offline operation
@@ -83,6 +84,7 @@ export async function getLocalAttendanceById(id) {
 /**
  * Save attendance record to local database
  * Adds client ID, version, timestamp, and sync status
+ * Queues the operation for synchronization
  */
 export async function saveLocalAttendance(attendanceData) {
   try {
@@ -99,7 +101,18 @@ export async function saveLocalAttendance(attendanceData) {
     };
     
     const id = await db.attendance.add(record);
-    return { ...record, id };
+    const savedRecord = { ...record, id };
+    
+    // Add to sync queue
+    await addToSyncQueue({
+      entityType: 'attendance',
+      recordId: id,
+      operation: 'create',
+      payload: attendanceData,
+      baseVersion: 0
+    });
+    
+    return savedRecord;
   } catch (error) {
     console.error('Error saving local attendance record:', error);
     throw new Error('Failed to save attendance record locally');
@@ -108,6 +121,7 @@ export async function saveLocalAttendance(attendanceData) {
 
 /**
  * Update attendance record in local database
+ * Queues the operation for synchronization
  */
 export async function updateLocalAttendance(id, updates) {
   try {
@@ -116,6 +130,7 @@ export async function updateLocalAttendance(id, updates) {
       throw new Error('Attendance record not found');
     }
     
+    const baseVersion = existing.version;
     const updatedRecord = {
       ...existing,
       ...updates,
@@ -125,6 +140,28 @@ export async function updateLocalAttendance(id, updates) {
     };
     
     await db.attendance.update(id, updatedRecord);
+    
+    // Add to sync queue (only if not already updating sync status)
+    if (!updates.syncStatus || updates.syncStatus !== 'synced') {
+      // For updates, we need to send the complete record state
+      // Merge existing data with updates to ensure all required fields are present
+      const syncPayload = {
+        schoolId: existing.schoolId,
+        attendanceDate: existing.attendanceDate,
+        totalRegistered: updates.totalRegistered !== undefined ? updates.totalRegistered : existing.totalRegistered,
+        totalPresent: updates.totalPresent !== undefined ? updates.totalPresent : existing.totalPresent,
+        totalAbsent: updates.totalAbsent !== undefined ? updates.totalAbsent : existing.totalAbsent
+      };
+      
+      await addToSyncQueue({
+        entityType: 'attendance',
+        recordId: id,
+        operation: 'update',
+        payload: syncPayload,
+        baseVersion: baseVersion
+      });
+    }
+    
     return updatedRecord;
   } catch (error) {
     console.error('Error updating local attendance record:', error);
@@ -176,6 +213,7 @@ export async function getLocalMealById(id) {
 /**
  * Save meal distribution record to local database
  * Adds client ID, version, timestamp, and sync status
+ * Queues the operation for synchronization
  */
 export async function saveLocalMeal(mealData) {
   try {
@@ -192,7 +230,18 @@ export async function saveLocalMeal(mealData) {
     };
     
     const id = await db.mealDistribution.add(record);
-    return { ...record, id };
+    const savedRecord = { ...record, id };
+    
+    // Add to sync queue
+    await addToSyncQueue({
+      entityType: 'mealDistribution',
+      recordId: id,
+      operation: 'create',
+      payload: mealData,
+      baseVersion: 0
+    });
+    
+    return savedRecord;
   } catch (error) {
     console.error('Error saving local meal record:', error);
     throw new Error('Failed to save meal record locally');
@@ -201,6 +250,7 @@ export async function saveLocalMeal(mealData) {
 
 /**
  * Update meal distribution record in local database
+ * Queues the operation for synchronization
  */
 export async function updateLocalMeal(id, updates) {
   try {
@@ -209,6 +259,7 @@ export async function updateLocalMeal(id, updates) {
       throw new Error('Meal record not found');
     }
     
+    const baseVersion = existing.version;
     const updatedRecord = {
       ...existing,
       ...updates,
@@ -218,6 +269,27 @@ export async function updateLocalMeal(id, updates) {
     };
     
     await db.mealDistribution.update(id, updatedRecord);
+    
+    // Add to sync queue (only if not already updating sync status)
+    if (!updates.syncStatus || updates.syncStatus !== 'synced') {
+      // For updates, we need to send the complete record state
+      // Merge existing data with updates to ensure all required fields are present
+      const syncPayload = {
+        schoolId: existing.schoolId,
+        distributionDate: existing.distributionDate,
+        mealsPrepared: updates.mealsPrepared !== undefined ? updates.mealsPrepared : existing.mealsPrepared,
+        mealsServed: updates.mealsServed !== undefined ? updates.mealsServed : existing.mealsServed
+      };
+      
+      await addToSyncQueue({
+        entityType: 'mealDistribution',
+        recordId: id,
+        operation: 'update',
+        payload: syncPayload,
+        baseVersion: baseVersion
+      });
+    }
+    
     return updatedRecord;
   } catch (error) {
     console.error('Error updating local meal record:', error);

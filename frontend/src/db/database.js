@@ -16,6 +16,15 @@ class SchoolFeedingDB extends Dexie {
       schools: 'id, name',
       metadata: 'key, value'
     });
+    
+    // Version 2: Add syncQueue table for offline synchronization (Phase 6)
+    this.version(2).stores({
+      attendance: '++id, schoolId, attendanceDate, syncStatus, clientId, updatedAt',
+      mealDistribution: '++id, schoolId, distributionDate, syncStatus, clientId, updatedAt',
+      schools: 'id, name',
+      metadata: 'key, value',
+      syncQueue: '++id, entityType, recordId, status, clientId, createdAt'
+    });
   }
 }
 
