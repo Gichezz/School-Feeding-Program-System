@@ -9,7 +9,7 @@ University final-year prototype for one selected school. Attendance and meal-dis
 | Frontend | React.js, PWA, Service Workers, IndexedDB, Dexie.js |
 | Backend | Node.js, Express.js, REST API |
 | Database | PostgreSQL |
-| Forecasting (later) | Python, Flask, Facebook Prophet |
+| Forecasting | Python, Flask, Facebook Prophet |
 
 ## Project structure
 
@@ -17,7 +17,7 @@ University final-year prototype for one selected school. Attendance and meal-dis
 school-feeding-system/
 ├── frontend/          # React PWA (Dexie, sync stubs, service worker via Vite PWA)
 ├── backend/           # Express REST API
-├── forecasting/       # Flask + Prophet placeholder (not implemented yet)
+├── forecasting/       # Flask + Prophet forecasting service, dataset scripts, tests
 ├── database/          # schema.sql, seed.sql
 ├── docs/              # Architecture notes
 └── README.md
@@ -64,18 +64,35 @@ psql -U postgres -d school_feeding -f database/schema.sql
 psql -U postgres -d school_feeding -f database/seed.sql
 ```
 
-### 4. Forecasting service (placeholder only)
+### 4. Forecasting service (Phase 10)
 
 ```bash
 cd forecasting
 python -m venv venv
 venv\Scripts\activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
+cd ..
+python forecasting/scripts/evaluate_forecasting_models.py
+python forecasting/scripts/train_forecasting_model.py
+cd forecasting
 python app.py
 ```
 
 Health check: `GET http://localhost:5000/health`  
-Forecast endpoint returns `501` until a later phase.
+Forecast: `GET http://localhost:5000/api/forecast?horizon_days=14&start_date=YYYY-MM-DD&enrollment=600`
+(returns `503` until a model has been trained). Tests: `venv\Scripts\python -m pytest tests`.
+Trained on synthetic data only and not yet connected to the backend or frontend. See [docs/forecasting.md](docs/forecasting.md).
+
+### 5. Historical dataset (Phase 9)
+
+Synthetic historical data for one simulated Kenyan school, prepared for the later forecasting phase. See [docs/synthetic-dataset.md](docs/synthetic-dataset.md).
+
+```bash
+python forecasting/scripts/inspect_us_dataset.py
+python forecasting/scripts/generate_synthetic_dataset.py
+python forecasting/scripts/validate_synthetic_dataset.py
+python forecasting/scripts/data_quality_report.py
+```
 
 ## Environment variables (needed now or later)
 

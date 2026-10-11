@@ -1,0 +1,173 @@
+# ---------------------------------------------------------------------------
+# Synthetic Kenyan school dataset - simulation configuration (Phase 9)
+#
+# Every value here is an ASSUMPTION for ONE SIMULATED school. None of these
+# values are official Kenyan Ministry of Education calendar dates, Kenya
+# Meteorological Department observations, or measured school records.
+#
+# Regenerate with:  python forecasting/scripts/generate_synthetic_dataset.py
+# The same file + the same random_seed always produce the same dataset.
+# ---------------------------------------------------------------------------
+
+scenario:
+  name: baseline_v1
+  description: >-
+    One simulated public day school with a school feeding programme, an
+    illustrative three-term Kenyan calendar and a simplified bimodal
+    (long rains / short rains) rainfall pattern.
+
+random_seed: 20250901
+
+# One record per calendar day. 1998-01-01..2025-12-31 = 28 full school years
+# = 10,227 days, which is the "approximately 10,000 records" target without
+# duplicating dates or inventing extra calendar days.
+period:
+  start_date: "1998-01-01"
+  end_date: "2025-12-31"
+
+calendar:
+  label: ILLUSTRATIVE - rule-based dates, not official Ministry of Education calendars
+  # The Kenyan academic year is treated as the calendar year (Jan-Dec).
+  school_weekdays: [Monday, Tuesday, Wednesday, Thursday, Friday]
+  # Each term starts on the first Monday on/after start_anchor (MM-DD) and ends
+  # on the Friday of its last week. Half-term starts on start_weekday of the
+  # given term week and covers `weekdays` weekdays (weekends inside it count too).
+  # Exams: `mid_term_school_days` school days immediately before half-term and
+  # `end_of_term_school_days` final school days of the term.
+  terms:
+    - name: T1
+      start_anchor: "01-03"
+      weeks: 13
+      half_term: {week: 7, start_weekday: Thursday, weekdays: 3}
+      exams: {mid_term_school_days: 3, end_of_term_school_days: 5}
+    - name: T2
+      start_anchor: "04-28"
+      weeks: 14
+      half_term: {week: 7, start_weekday: Thursday, weekdays: 3}
+      exams: {mid_term_school_days: 3, end_of_term_school_days: 5}
+    - name: T3
+      start_anchor: "08-25"
+      weeks: 10
+      half_term: {week: 5, start_weekday: Thursday, weekdays: 2}
+      exams: {mid_term_school_days: 0, end_of_term_school_days: 10}
+  # Optional exact dates for specific terms, e.g. to substitute published dates:
+  #   "2024-T1": {start: "2024-01-08", end: "2024-04-05"}
+  term_overrides: {}
+  # Simplified public holiday set. Movable holidays such as Idd-ul-Fitr and
+  # holidays that changed over the period (e.g. Moi/Utamaduni Day) are omitted.
+  public_holidays:
+    fixed:
+      - {date: "01-01", name: new_years_day}
+      - {date: "05-01", name: labour_day}
+      - {date: "06-01", name: madaraka_day}
+      - {date: "10-20", name: mashujaa_day}
+      - {date: "12-12", name: jamhuri_day}
+      - {date: "12-25", name: christmas_day}
+      - {date: "12-26", name: boxing_day}
+    easter_based:
+      - {offset_days: -2, name: good_friday}
+      - {offset_days: 1, name: easter_monday}
+    sunday_observed_on_monday: true
+
+enrollment:
+  initial: 480
+  # Applied once per year at the start of Term 1 (new intake minus leavers).
+  annual_growth_mean: 0.018
+  annual_growth_sd: 0.025
+  # Applied at the start of Terms 2 and 3 (between-term transfers/dropouts).
+  between_term_change_mean: -0.003
+  between_term_change_sd: 0.008
+  # Weekly net transfers during term (Poisson counts, applied on each Monday).
+  weekly_transfers_in_mean: 0.5
+  weekly_transfers_out_mean: 0.55
+  min: 200
+  max: 1500
+  # Validation limit: largest allowed day-to-day relative change.
+  max_daily_change_fraction: 0.10
+
+rainfall:
+  # Simplified bimodal pattern: long rains (Mar-May) and short rains (Oct-Dec).
+  # Index 0 = January. Values are illustrative, not station observations.
+  monthly_wet_day_probability: [0.12, 0.12, 0.30, 0.55, 0.40, 0.12, 0.08, 0.10, 0.10, 0.28, 0.50, 0.28]
+  monthly_mean_wet_day_mm:     [5.0,  5.0,  9.0,  13.0, 10.0, 4.0,  3.5,  3.5,  4.0,  8.0,  11.0, 7.0]
+  wet_day_gamma_shape: 0.8        # < 1 gives many light and few heavy rain days
+  wet_day_persistence: 0.35       # 0 = independent days; higher = longer wet spells
+  # Year-to-year variability of each rainy season (lognormal multiplier sd).
+  season_multiplier_sd: 0.30
+  long_rains_months: [3, 4, 5]
+  short_rains_months: [10, 11, 12]
+
+# weather_category is derived from rainfall_mm with these lower bounds (mm).
+weather_categories:
+  - {name: dry, min_mm: 0.0}
+  - {name: light_rain, min_mm: 1.0}
+  - {name: moderate_rain, min_mm: 10.0}
+  - {name: heavy_rain, min_mm: 30.0}
+
+special_events:
+  mean_events_per_term: 3
+  # Events are not placed on exam days or in the first `skip_first_school_days` of term.
+  skip_first_school_days: 3
+  types: [sports_day, school_meeting, cultural_day, academic_event, other]
+  type_weights_by_term:
+    T1: {sports_day: 0.30, school_meeting: 0.30, cultural_day: 0.10, academic_event: 0.20, other: 0.10}
+    T2: {sports_day: 0.25, school_meeting: 0.15, cultural_day: 0.30, academic_event: 0.15, other: 0.15}
+    T3: {sports_day: 0.10, school_meeting: 0.25, cultural_day: 0.15, academic_event: 0.35, other: 0.15}
+
+attendance:
+  # All effects are on the logit scale of the daily attendance probability.
+  # Any value set to `us_reference` is read from
+  # data/processed/us_reference_profile.json (derived from the US dataset).
+  base_rate: 0.92                     # Kenyan-context assumption, NOT the US mean
+  dow_logit_offsets: us_reference     # relative weekday pattern from US data
+  dow_scale: 1.0
+  noise_sd_logit: 0.22                # Kenyan-context assumption (single school)
+  noise_ar1: us_reference             # day-to-day persistence from US data
+  school_year_effect_sd_logit: 0.08   # slow year-to-year variation
+  first_day_of_term_logit: -0.45
+  first_week_of_term_logit: -0.30     # students returning late after holidays
+  last_week_of_term_logit: -0.10
+  pre_break_logit: us_reference       # school day before half-term / public holiday
+  exam_logit: 0.35
+  # Weather effect is DRAWN per day from Normal(mean, sd): rainy days usually,
+  # but not always, reduce attendance.
+  weather_effects:
+    dry: {mean: 0.0, sd: 0.0}
+    light_rain: {mean: -0.02, sd: 0.05}
+    moderate_rain: {mean: -0.08, sd: 0.08}
+    heavy_rain: {mean: -0.25, sd: 0.15}
+  event_effects:
+    sports_day: {mean: 0.15, sd: 0.10}
+    school_meeting: {mean: -0.15, sd: 0.10}
+    cultural_day: {mean: 0.10, sd: 0.10}
+    academic_event: {mean: 0.10, sd: 0.08}
+    other: {mean: 0.0, sd: 0.15}
+  # Occasional multi-day dips (e.g. illness outbreaks). Poisson count per term.
+  shock_episodes_per_term: 0.3
+  shock_duration_school_days: [3, 10]
+  shock_peak_logit_drop: [0.2, 0.6]
+
+meals:
+  # Latent demand = present students who would take the meal if available.
+  uptake:
+    base_rate: 0.97
+    noise_sd_logit: 0.30
+    event_effects: {sports_day: 0.3, school_meeting: -0.5, cultural_day: 0.2, academic_event: 0.0, other: 0.0}
+  # meals_planned uses ONLY information available before the school day:
+  # attendance of previous school days, the previous day's enrollment, the
+  # calendar and scheduled events. Never same-day attendance or rainfall.
+  planning:
+    lookback_school_days: 10
+    default_rate_without_history: 0.85
+    buffer_fraction: 0.03
+    round_up_to: 5
+    adjustments:
+      first_day_of_term: 0.94
+      first_week_of_term: 0.97
+      exam_period: 1.02
+      event: {sports_day: 1.03, school_meeting: 0.95, cultural_day: 1.02, academic_event: 1.0, other: 1.0}
+  preparation:
+    deviation_sd_fraction: 0.01       # normal day-to-day deviation from plan
+    shortfall_probability: 0.03       # supply shortfall on a school day
+    shortfall_rainy_month_multiplier: 1.5
+    shortfall_fraction_range: [0.10, 0.40]

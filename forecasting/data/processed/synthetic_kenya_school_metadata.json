@@ -1,0 +1,55 @@
+{
+  "dataset": "synthetic_kenya_school_daily.csv",
+  "description": "Synthetic daily records for ONE SIMULATED Kenyan school. Not observed data.",
+  "scenario": {
+    "name": "baseline_v1",
+    "description": "One simulated public day school with a school feeding programme, an illustrative three-term Kenyan calendar and a simplified bimodal (long rains / short rains) rainfall pattern."
+  },
+  "random_seed": 20250901,
+  "config_file": "forecasting/config/synthetic_kenya_school.yaml",
+  "config_sha256": "8fab264225037ca6b26cd1331f9e675b63679aa9601f0a308afac8bbb57419a3",
+  "us_reference_values_used": {
+    "dow_logit_offsets": {
+      "Monday": -0.0372,
+      "Tuesday": 0.0651,
+      "Wednesday": 0.0833,
+      "Thursday": 0.0367,
+      "Friday": -0.148
+    },
+    "noise_ar1": 0.4722,
+    "pre_break_logit": -0.157
+  },
+  "period": {
+    "start_date": "1998-01-01",
+    "end_date": "2025-12-31"
+  },
+  "records": 10227,
+  "school_days": 4867,
+  "columns": [
+    "date",
+    "day_of_week",
+    "is_school_day",
+    "is_school_holiday",
+    "is_public_holiday",
+    "term",
+    "school_year",
+    "week_of_term",
+    "is_half_term",
+    "is_exam_period",
+    "students_enrolled",
+    "rainfall_mm",
+    "weather_category",
+    "is_special_event",
+    "special_event_type",
+    "students_present",
+    "meals_planned",
+    "meals_prepared",
+    "meals_served",
+    "estimated_meal_demand",
+    "is_supply_shortfall",
+    "source_type",
+    "synthetic_scenario"
+  ],
+  "dataset_sha256": "4e47829c883eae00afad0ffda6ca291a73cb05e1fe7361a53b8684e8c9fe7f09",
+  "generated_at_utc": "2026-09-30T23:25:46+00:00"
+}

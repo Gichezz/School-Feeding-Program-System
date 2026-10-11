@@ -70,6 +70,21 @@ export async function getLocalAttendance() {
 }
 
 /**
+ * Get attendance records from local database with date range filtering
+ */
+export async function getLocalAttendanceByDateRange(startDate, endDate) {
+  try {
+    return await db.attendance
+      .where('attendanceDate')
+      .between(startDate, endDate, true, true)
+      .toArray();
+  } catch (error) {
+    console.error('Error getting local attendance records by date range:', error);
+    throw new Error('Failed to retrieve local attendance records');
+  }
+}
+
+/**
  * Get attendance record by ID from local database
  */
 export async function getLocalAttendanceById(id) {
@@ -199,6 +214,21 @@ export async function getLocalMeals() {
 }
 
 /**
+ * Get meal distribution records from local database with date range filtering
+ */
+export async function getLocalMealsByDateRange(startDate, endDate) {
+  try {
+    return await db.mealDistribution
+      .where('distributionDate')
+      .between(startDate, endDate, true, true)
+      .toArray();
+  } catch (error) {
+    console.error('Error getting local meal records by date range:', error);
+    throw new Error('Failed to retrieve local meal records');
+  }
+}
+
+/**
  * Get meal distribution record by ID from local database
  */
 export async function getLocalMealById(id) {
@@ -307,5 +337,34 @@ export async function deleteLocalMeal(id) {
   } catch (error) {
     console.error('Error deleting local meal record:', error);
     throw new Error('Failed to delete meal record locally');
+  }
+}
+
+/**
+ * Get sync queue statistics from local database
+ */
+export async function getLocalSyncStats() {
+  try {
+    const allSyncQueue = await db.syncQueue.toArray();
+    
+    const stats = {
+      total: allSyncQueue.length,
+      pending: 0,
+      synced: 0,
+      failed: 0,
+      conflict: 0
+    };
+    
+    allSyncQueue.forEach(op => {
+      if (op.status === 'pending') stats.pending++;
+      else if (op.status === 'synced') stats.synced++;
+      else if (op.status === 'failed') stats.failed++;
+      else if (op.status === 'conflict') stats.conflict++;
+    });
+    
+    return stats;
+  } catch (error) {
+    console.error('Error getting local sync stats:', error);
+    throw new Error('Failed to retrieve sync statistics');
   }
 }

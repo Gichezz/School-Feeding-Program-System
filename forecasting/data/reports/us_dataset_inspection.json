@@ -1,0 +1,233 @@
+{
+  "file": {
+    "filename": "us_school_attendance.csv",
+    "relative_path": "forecasting/data/raw/us_school_attendance.csv",
+    "format": "CSV (comma-separated, header row, UTF-8/ASCII)",
+    "size_bytes": 8103974,
+    "sha256": "2b3759efa82c62ee119a96463480aa8ee3a67104b58453d0e0dea6c8bdb9ec3e"
+  },
+  "shape": {
+    "rows": 277153,
+    "columns": 6
+  },
+  "columns": [
+    {
+      "name": "School DBN",
+      "inferred_dtype": "object",
+      "example": "01M015"
+    },
+    {
+      "name": "Date",
+      "inferred_dtype": "int64",
+      "example": "20180905"
+    },
+    {
+      "name": "Enrolled",
+      "inferred_dtype": "int64",
+      "example": "172"
+    },
+    {
+      "name": "Absent",
+      "inferred_dtype": "int64",
+      "example": "19"
+    },
+    {
+      "name": "Present",
+      "inferred_dtype": "int64",
+      "example": "153"
+    },
+    {
+      "name": "Released",
+      "inferred_dtype": "int64",
+      "example": "0"
+    }
+  ],
+  "missing_values": {
+    "School DBN": {
+      "nan": 0,
+      "empty_string": 0
+    },
+    "Date": {
+      "nan": 0,
+      "empty_string": 0
+    },
+    "Enrolled": {
+      "nan": 0,
+      "empty_string": 0
+    },
+    "Absent": {
+      "nan": 0,
+      "empty_string": 0
+    },
+    "Present": {
+      "nan": 0,
+      "empty_string": 0
+    },
+    "Released": {
+      "nan": 0,
+      "empty_string": 0
+    }
+  },
+  "dates": {
+    "storage_format": "integer YYYYMMDD",
+    "unparseable": 0,
+    "min": "2018-09-04",
+    "max": "2019-06-26",
+    "unique_dates": 185,
+    "calendar_days_in_range": 296,
+    "records_by_weekday": {
+      "Monday": 49441,
+      "Tuesday": 51509,
+      "Wednesday": 60820,
+      "Thursday": 57701,
+      "Friday": 57682
+    },
+    "unique_dates_by_month": {
+      "2018-09": 16,
+      "2018-10": 22,
+      "2018-11": 19,
+      "2018-12": 15,
+      "2019-01": 21,
+      "2019-02": 17,
+      "2019-03": 20,
+      "2019-04": 16,
+      "2019-05": 22,
+      "2019-06": 17
+    },
+    "weekend_records": 0
+  },
+  "duplicates": {
+    "exact_duplicate_rows": 0,
+    "duplicate_school_date_keys": 0
+  },
+  "numeric_summary": {
+    "Enrolled": {
+      "count": 277153.0,
+      "mean": 596.986,
+      "std": 482.91,
+      "min": 1.0,
+      "25%": 329.0,
+      "50%": 476.0,
+      "75%": 684.0,
+      "max": 5955.0
+    },
+    "Absent": {
+      "count": 277153.0,
+      "mean": 50.504,
+      "std": 54.33,
+      "min": 0.0,
+      "25%": 23.0,
+      "50%": 38.0,
+      "75%": 59.0,
+      "max": 2151.0
+    },
+    "Present": {
+      "count": 277153.0,
+      "mean": 544.499,
+      "std": 452.97,
+      "min": 1.0,
+      "25%": 291.0,
+      "50%": 430.0,
+      "75%": 640.0,
+      "max": 5847.0
+    },
+    "Released": {
+      "count": 277153.0,
+      "mean": 1.983,
+      "std": 35.115,
+      "min": 0.0,
+      "25%": 0.0,
+      "50%": 0.0,
+      "75%": 0.0,
+      "max": 5904.0
+    }
+  },
+  "schools": {
+    "unique_schools": 1583,
+    "records_per_school": {
+      "count": 1583.0,
+      "mean": 175.1,
+      "std": 8.7,
+      "min": 1.0,
+      "25%": 177.0,
+      "50%": 178.0,
+      "75%": 178.0,
+      "max": 179.0
+    },
+    "schools_with_fewer_than_100_records": 3,
+    "dbn_pattern_note": "School DBN looks like District-Borough-Number (e.g. 01M015); the file itself does not document the code."
+  },
+  "consistency": {
+    "present_plus_absent_eq_enrolled": 243853,
+    "present_plus_absent_plus_released_eq_enrolled": 277153,
+    "rows_with_released_gt_0": 33300,
+    "rows_present_gt_enrolled": 0,
+    "rows_enrolled_eq_0": 0,
+    "rows_negative_any": 0,
+    "rows_enrolled_lt_20": 43,
+    "rows_attendance_rate_lt_0.5": 3161,
+    "rows_released_ge_half_of_enrolled": 958
+  },
+  "attendance_rate_school_day": {
+    "count": 277153.0,
+    "mean": 0.8979,
+    "std": 0.0953,
+    "min": 0.0005,
+    "25%": 0.8817,
+    "50%": 0.9259,
+    "75%": 0.9512,
+    "max": 1.0
+  },
+  "date_coverage": {
+    "max_schools_on_a_date": 1583,
+    "median_schools_on_a_date": 1580.0,
+    "low_coverage_threshold": 791.5,
+    "low_coverage_dates": {
+      "2018-09-04": 1,
+      "2018-11-06": 1,
+      "2019-02-19": 1,
+      "2019-02-20": 1,
+      "2019-02-21": 1,
+      "2019-06-06": 4,
+      "2019-06-11": 519
+    }
+  },
+  "daily_aggregate_rate_full_coverage_dates": {
+    "count": 178.0,
+    "mean": 0.9113,
+    "std": 0.0359,
+    "min": 0.6794,
+    "25%": 0.9025,
+    "50%": 0.9219,
+    "75%": 0.931,
+    "max": 0.9459
+  },
+  "lowest_rate_full_coverage_dates": [
+    {
+      "date": "2019-01-31",
+      "day_of_week": "Thursday",
+      "attendance_rate": 0.6794
+    },
+    {
+      "date": "2019-06-25",
+      "day_of_week": "Tuesday",
+      "attendance_rate": 0.72728
+    },
+    {
+      "date": "2019-06-26",
+      "day_of_week": "Wednesday",
+      "attendance_rate": 0.7828
+    },
+    {
+      "date": "2019-06-24",
+      "day_of_week": "Monday",
+      "attendance_rate": 0.79096
+    },
+    {
+      "date": "2019-06-21",
+      "day_of_week": "Friday",
+      "attendance_rate": 0.80689
+    }
+  ],
+  "raw_file_unchanged": true
+}

@@ -1,8 +1,14 @@
-# Python dependencies for the forecasting service.
-# Prophet usage will be added in a later phase; packages are listed now
-# so the environment matches the project technology stack.
+# Python dependencies for the forecasting service (Flask + Prophet).
+# Test dependencies: requirements-dev.txt
 
 Flask==3.0.3
 prophet==1.1.6
 pandas==2.2.3
 python-dotenv==1.0.1
+
+# Phase 9 dataset scripts and Phase 10 forecasting pipeline
+# numpy 2.1.x matches pandas 2.2.3; newer numpy warns about pandas internals.
+numpy==2.1.3
+PyYAML>=6.0
+# prophet 1.1.6's bundled CmdStan fails cmdstanpy 1.3's install check.
+cmdstanpy==1.2.5

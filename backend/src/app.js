@@ -5,6 +5,7 @@ const schoolsRoutes = require('./routes/schoolsRoutes');
 const attendanceRoutes = require('./routes/attendanceRoutes');
 const mealsRoutes = require('./routes/mealsRoutes');
 const syncRoutes = require('./routes/syncRoutes');
+const reportsRoutes = require('./routes/reportsRoutes');
 const errorHandler = require('./middleware/errorHandler');
 
 /**
@@ -26,6 +27,7 @@ app.use('/api/schools', schoolsRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/meals', mealsRoutes);
 app.use('/api/sync', syncRoutes);
+app.use('/api/reports', reportsRoutes);
 
 // Placeholder mount points for later phases
 // app.use('/api/students', studentRoutes);

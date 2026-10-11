@@ -1,0 +1,480 @@
+{
+  "passed": 79,
+  "total": 79,
+  "results": [
+    {
+      "group": "structure",
+      "check": "expected columns in expected order",
+      "passed": true,
+      "detail": "got 23 columns"
+    },
+    {
+      "group": "structure",
+      "check": "required field 'date' has no nulls",
+      "passed": true,
+      "detail": "0 null values"
+    },
+    {
+      "group": "structure",
+      "check": "required field 'day_of_week' has no nulls",
+      "passed": true,
+      "detail": "0 null values"
+    },
+    {
+      "group": "structure",
+      "check": "required field 'is_school_day' has no nulls",
+      "passed": true,
+      "detail": "0 null values"
+    },
+    {
+      "group": "structure",
+      "check": "required field 'is_school_holiday' has no nulls",
+      "passed": true,
+      "detail": "0 null values"
+    },
+    {
+      "group": "structure",
+      "check": "required field 'is_public_holiday' has no nulls",
+      "passed": true,
+      "detail": "0 null values"
+    },
+    {
+      "group": "structure",
+      "check": "required field 'term' has no nulls",
+      "passed": true,
+      "detail": "0 null values"
+    },
+    {
+      "group": "structure",
+      "check": "required field 'school_year' has no nulls",
+      "passed": true,
+      "detail": "0 null values"
+    },
+    {
+      "group": "structure",
+      "check": "required field 'is_half_term' has no nulls",
+      "passed": true,
+      "detail": "0 null values"
+    },
+    {
+      "group": "structure",
+      "check": "required field 'is_exam_period' has no nulls",
+      "passed": true,
+      "detail": "0 null values"
+    },
+    {
+      "group": "structure",
+      "check": "required field 'students_enrolled' has no nulls",
+      "passed": true,
+      "detail": "0 null values"
+    },
+    {
+      "group": "structure",
+      "check": "required field 'rainfall_mm' has no nulls",
+      "passed": true,
+      "detail": "0 null values"
+    },
+    {
+      "group": "structure",
+      "check": "required field 'weather_category' has no nulls",
+      "passed": true,
+      "detail": "0 null values"
+    },
+    {
+      "group": "structure",
+      "check": "required field 'is_special_event' has no nulls",
+      "passed": true,
+      "detail": "0 null values"
+    },
+    {
+      "group": "structure",
+      "check": "required field 'source_type' has no nulls",
+      "passed": true,
+      "detail": "0 null values"
+    },
+    {
+      "group": "structure",
+      "check": "required field 'synthetic_scenario' has no nulls",
+      "passed": true,
+      "detail": "0 null values"
+    },
+    {
+      "group": "structure",
+      "check": "metadata row count matches file",
+      "passed": true,
+      "detail": "metadata=10227, file=10227"
+    },
+    {
+      "group": "structure",
+      "check": "metadata dataset hash matches file",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "group": "dates",
+      "check": "all dates valid ISO dates",
+      "passed": true,
+      "detail": "0 invalid dates"
+    },
+    {
+      "group": "dates",
+      "check": "dates unique (no duplicate dates)",
+      "passed": true,
+      "detail": "0 duplicate dates"
+    },
+    {
+      "group": "dates",
+      "check": "records in chronological order",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "group": "dates",
+      "check": "no gaps: every day of configured period present",
+      "passed": true,
+      "detail": "10227 records vs 10227 days in 1998-01-01..2025-12-31"
+    },
+    {
+      "group": "calendar",
+      "check": "day_of_week matches date",
+      "passed": true,
+      "detail": "0 rows violating"
+    },
+    {
+      "group": "calendar",
+      "check": "school_year equals calendar year of date",
+      "passed": true,
+      "detail": "0 rows violating"
+    },
+    {
+      "group": "calendar",
+      "check": "school days fall on configured weekdays",
+      "passed": true,
+      "detail": "0 rows violating"
+    },
+    {
+      "group": "calendar",
+      "check": "school day is never a school holiday",
+      "passed": true,
+      "detail": "0 rows violating"
+    },
+    {
+      "group": "calendar",
+      "check": "school holiday <=> inter-term, half-term or public holiday",
+      "passed": true,
+      "detail": "0 rows violating"
+    },
+    {
+      "group": "calendar",
+      "check": "in-term weekday that is not a holiday is a school day",
+      "passed": true,
+      "detail": "0 rows violating"
+    },
+    {
+      "group": "calendar",
+      "check": "week_of_term null outside term",
+      "passed": true,
+      "detail": "0 rows violating"
+    },
+    {
+      "group": "calendar",
+      "check": "week_of_term >= 1 inside term",
+      "passed": true,
+      "detail": "0 rows violating"
+    },
+    {
+      "group": "calendar",
+      "check": "half-term only inside a term",
+      "passed": true,
+      "detail": "0 rows violating"
+    },
+    {
+      "group": "calendar",
+      "check": "exam period only on school days",
+      "passed": true,
+      "detail": "0 rows violating"
+    },
+    {
+      "group": "calendar",
+      "check": "term label format YYYY-Tn or 'holiday'",
+      "passed": true,
+      "detail": "0 bad labels"
+    },
+    {
+      "group": "calendar",
+      "check": "term year matches school_year",
+      "passed": true,
+      "detail": "0 rows violating"
+    },
+    {
+      "group": "calendar",
+      "check": "each term is one contiguous date span",
+      "passed": true,
+      "detail": "0 terms split"
+    },
+    {
+      "group": "calendar",
+      "check": "terms do not overlap",
+      "passed": true,
+      "detail": "0 overlaps"
+    },
+    {
+      "group": "calendar",
+      "check": "terms ordered T1<T2<T3 within each year",
+      "passed": true,
+      "detail": "0 years out of order"
+    },
+    {
+      "group": "calendar",
+      "check": "every term has school days",
+      "passed": true,
+      "detail": "84 terms, min 47 school days"
+    },
+    {
+      "group": "events",
+      "check": "event type null when no event",
+      "passed": true,
+      "detail": "0 rows violating"
+    },
+    {
+      "group": "events",
+      "check": "event type present when event",
+      "passed": true,
+      "detail": "0 rows violating"
+    },
+    {
+      "group": "events",
+      "check": "event type in allowed set",
+      "passed": true,
+      "detail": "0 rows violating"
+    },
+    {
+      "group": "events",
+      "check": "events only on school days",
+      "passed": true,
+      "detail": "0 rows violating"
+    },
+    {
+      "group": "enrollment_weather",
+      "check": "enrollment positive",
+      "passed": true,
+      "detail": "0 rows violating"
+    },
+    {
+      "group": "enrollment_weather",
+      "check": "enrollment within configured min/max",
+      "passed": true,
+      "detail": "0 rows violating"
+    },
+    {
+      "group": "enrollment_weather",
+      "check": "enrollment changes gradually (daily change <= 10%)",
+      "passed": true,
+      "detail": "0 days exceeding (max observed 5.74%)"
+    },
+    {
+      "group": "enrollment_weather",
+      "check": "enrollment constant on non-school days within a holiday",
+      "passed": true,
+      "detail": "0 rows violating"
+    },
+    {
+      "group": "enrollment_weather",
+      "check": "rainfall nonnegative",
+      "passed": true,
+      "detail": "0 rows violating"
+    },
+    {
+      "group": "enrollment_weather",
+      "check": "weather_category consistent with rainfall thresholds",
+      "passed": true,
+      "detail": "0 rows violating"
+    },
+    {
+      "group": "attendance_meals",
+      "check": "students_present present on every school day",
+      "passed": true,
+      "detail": "0 missing on school days"
+    },
+    {
+      "group": "attendance_meals",
+      "check": "students_present null on non-school days",
+      "passed": true,
+      "detail": "0 filled on non-school days"
+    },
+    {
+      "group": "attendance_meals",
+      "check": "meals_planned present on every school day",
+      "passed": true,
+      "detail": "0 missing on school days"
+    },
+    {
+      "group": "attendance_meals",
+      "check": "meals_planned null on non-school days",
+      "passed": true,
+      "detail": "0 filled on non-school days"
+    },
+    {
+      "group": "attendance_meals",
+      "check": "meals_prepared present on every school day",
+      "passed": true,
+      "detail": "0 missing on school days"
+    },
+    {
+      "group": "attendance_meals",
+      "check": "meals_prepared null on non-school days",
+      "passed": true,
+      "detail": "0 filled on non-school days"
+    },
+    {
+      "group": "attendance_meals",
+      "check": "meals_served present on every school day",
+      "passed": true,
+      "detail": "0 missing on school days"
+    },
+    {
+      "group": "attendance_meals",
+      "check": "meals_served null on non-school days",
+      "passed": true,
+      "detail": "0 filled on non-school days"
+    },
+    {
+      "group": "attendance_meals",
+      "check": "estimated_meal_demand present on every school day",
+      "passed": true,
+      "detail": "0 missing on school days"
+    },
+    {
+      "group": "attendance_meals",
+      "check": "estimated_meal_demand null on non-school days",
+      "passed": true,
+      "detail": "0 filled on non-school days"
+    },
+    {
+      "group": "attendance_meals",
+      "check": "is_supply_shortfall present on every school day",
+      "passed": true,
+      "detail": "0 missing on school days"
+    },
+    {
+      "group": "attendance_meals",
+      "check": "is_supply_shortfall null on non-school days",
+      "passed": true,
+      "detail": "0 filled on non-school days"
+    },
+    {
+      "group": "attendance_meals",
+      "check": "attendance nonnegative",
+      "passed": true,
+      "detail": "0 rows violating"
+    },
+    {
+      "group": "attendance_meals",
+      "check": "attendance <= enrollment",
+      "passed": true,
+      "detail": "0 rows violating"
+    },
+    {
+      "group": "attendance_meals",
+      "check": "meals_planned nonnegative",
+      "passed": true,
+      "detail": "0 rows violating"
+    },
+    {
+      "group": "attendance_meals",
+      "check": "meals_prepared nonnegative",
+      "passed": true,
+      "detail": "0 rows violating"
+    },
+    {
+      "group": "attendance_meals",
+      "check": "meals_served nonnegative",
+      "passed": true,
+      "detail": "0 rows violating"
+    },
+    {
+      "group": "attendance_meals",
+      "check": "estimated_meal_demand nonnegative",
+      "passed": true,
+      "detail": "0 rows violating"
+    },
+    {
+      "group": "attendance_meals",
+      "check": "meals_served <= meals_prepared",
+      "passed": true,
+      "detail": "0 rows violating"
+    },
+    {
+      "group": "attendance_meals",
+      "check": "meals_served <= students_present",
+      "passed": true,
+      "detail": "0 rows violating"
+    },
+    {
+      "group": "attendance_meals",
+      "check": "estimated_meal_demand <= students_present",
+      "passed": true,
+      "detail": "0 rows violating"
+    },
+    {
+      "group": "attendance_meals",
+      "check": "meals_served == min(demand, prepared)",
+      "passed": true,
+      "detail": "0 rows violating"
+    },
+    {
+      "group": "leakage",
+      "check": "meals_planned reproducible from prior-day information only",
+      "passed": true,
+      "detail": "0 school days differ"
+    },
+    {
+      "group": "leakage",
+      "check": "same-day attendance/rainfall do not affect that day's plan",
+      "passed": true,
+      "detail": "0 of 200 sampled days changed after perturbation"
+    },
+    {
+      "group": "provenance",
+      "check": "source_type is 'synthetic' for all generated records",
+      "passed": true,
+      "detail": "0 rows violating"
+    },
+    {
+      "group": "provenance",
+      "check": "synthetic_scenario equals configured scenario",
+      "passed": true,
+      "detail": "0 rows violating"
+    },
+    {
+      "group": "provenance",
+      "check": "US reference records labelled 'transformed'",
+      "passed": true,
+      "detail": "0 rows violating"
+    },
+    {
+      "group": "provenance",
+      "check": "US reference records have no synthetic_scenario",
+      "passed": true,
+      "detail": "0 rows violating"
+    },
+    {
+      "group": "provenance",
+      "check": "raw US dataset unchanged since inspection",
+      "passed": true,
+      "detail": "sha256 2b3759efa82c..."
+    },
+    {
+      "group": "reproducibility",
+      "check": "regeneration with same config and seed is byte-identical",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "group": "reproducibility",
+      "check": "config unchanged since generation",
+      "passed": true,
+      "detail": ""
+    }
+  ]
+}

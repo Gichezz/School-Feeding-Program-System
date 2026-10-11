@@ -120,3 +120,36 @@ export async function resolveConflict(conflictId, data) {
     body: JSON.stringify(data),
   });
 }
+
+/**
+ * Reports API
+ */
+export async function getDashboardSummary(params = {}) {
+  const queryString = new URLSearchParams(params).toString();
+  const endpoint = queryString ? `/reports/dashboard?${queryString}` : '/reports/dashboard';
+  return apiRequest(endpoint);
+}
+
+export async function getAttendanceReport(params = {}) {
+  const queryString = new URLSearchParams(params).toString();
+  const endpoint = queryString ? `/reports/attendance?${queryString}` : '/reports/attendance';
+  return apiRequest(endpoint);
+}
+
+export async function getMealsReport(params = {}) {
+  const queryString = new URLSearchParams(params).toString();
+  const endpoint = queryString ? `/reports/meals?${queryString}` : '/reports/meals';
+  return apiRequest(endpoint);
+}
+
+export async function getAttendanceTrend(params = {}) {
+  const queryString = new URLSearchParams(params).toString();
+  const endpoint = queryString ? `/reports/attendance/trend?${queryString}` : '/reports/attendance/trend';
+  return apiRequest(endpoint);
+}
+
+export async function getMealsTrend(params = {}) {
+  const queryString = new URLSearchParams(params).toString();
+  const endpoint = queryString ? `/reports/meals/trend?${queryString}` : '/reports/meals/trend';
+  return apiRequest(endpoint);
+}
