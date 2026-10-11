@@ -208,8 +208,9 @@ function Attendance() {
     const present = parseInt(formData.total_present);
     const absent = parseInt(formData.total_absent);
     
-    if (present + absent > registered) {
-      setFormError('Total present + absent cannot exceed total registered');
+    // Every registered learner is counted as either present or absent
+    if (present + absent !== registered) {
+      setFormError(`Total present + absent must equal total registered (${present} + ${absent} = ${present + absent}, registered ${registered})`);
       return false;
     }
 

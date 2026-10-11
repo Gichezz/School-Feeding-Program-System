@@ -37,7 +37,8 @@ function attendanceError({ schoolId, date, registered, present, absent }) {
   if (![registered, present, absent].every(isCount)) {
     return `Total registered, present and absent must be whole numbers between 0 and ${MAX_COUNT}`;
   }
-  if (present + absent > registered) return 'Total present + total absent cannot exceed total registered';
+  // Every registered learner is counted as either present or absent
+  if (present + absent !== registered) return 'Total present + total absent must equal total registered';
   return null;
 }
 
