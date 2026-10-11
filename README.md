@@ -42,7 +42,8 @@ npm run dev
 ```
 
 API default: `http://localhost:5000`  
-Health check: `GET http://localhost:5000/api/health`
+Health check: `GET http://localhost:5000/api/health`  
+Tests: `npm test`. This needs PostgreSQL running; it creates a `<database>_test` database (or uses `TEST_DATABASE_URL`) and drops it afterwards.
 
 ### 2. Frontend
 
@@ -106,6 +107,7 @@ python forecasting/scripts/data_quality_report.py
 | `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD` | Alternative PostgreSQL connection fields |
 | `FORECASTING_SERVICE_URL` | Flask forecasting service URL (default `http://localhost:5001`) |
 | `FORECASTING_TIMEOUT_MS` | How long the backend waits for a forecast (default `15000`) |
+| `TEST_DATABASE_URL` | Optional database for `npm test`; its name must end in `_test` |
 
 ### Frontend (`frontend/.env`)
 
