@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import PageIntro from '../components/PageIntro';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { getSchools, getAttendance, createAttendance } from '../services/api';
+import { mergeLocalAndServerRecords } from '../utils/mergeRecords';
 import { 
   getLocalAttendance, 
   saveLocalAttendance, 
@@ -128,12 +129,11 @@ function Attendance() {
         const localAttendance = localAttendanceResult.status === 'fulfilled' ? localAttendanceResult.value : [];
         const serverAttendance = serverAttendanceResult.status === 'fulfilled' ? serverAttendanceResult.value.attendance : [];
         
-        // Combine local and server records, but deduplicate by serverId
-        // Local records take precedence over server records
-        const serverIds = new Set(localAttendance.map(r => r.serverId).filter(Boolean));
-        const uniqueServerAttendance = serverAttendance.filter(r => !serverIds.has(r.id));
-        
-        setAttendanceRecords([...localAttendance, ...uniqueServerAttendance]);
+        // Combine local and server records; local records take precedence
+        setAttendanceRecords(mergeLocalAndServerRecords(localAttendance, serverAttendance, {
+          localDateField: 'attendanceDate',
+          serverDateField: 'attendance_date',
+        }));
       } catch (err) {
         // Only set error if it's not a network error (which is expected offline)
         if (!err.message.includes('Network error') && !err.message.includes('fetch')) {

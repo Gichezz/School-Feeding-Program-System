@@ -183,16 +183,16 @@ export async function processSyncQueue() {
  */
 async function updateLocalRecordAfterSync(operation, syncResult) {
   try {
+    // Keep the server record id so pages can match this record to the server's copy
+    const updates = {
+      syncStatus: 'synced',
+      version: syncResult.version,
+      ...(syncResult.recordId && { serverId: syncResult.recordId })
+    };
     if (operation.entityType === 'attendance') {
-      await updateLocalAttendance(operation.recordId, {
-        syncStatus: 'synced',
-        version: syncResult.version
-      });
+      await updateLocalAttendance(operation.recordId, updates);
     } else if (operation.entityType === 'mealDistribution') {
-      await updateLocalMeal(operation.recordId, {
-        syncStatus: 'synced',
-        version: syncResult.version
-      });
+      await updateLocalMeal(operation.recordId, updates);
     }
   } catch (error) {
     console.error('Error updating local record after sync:', error);
