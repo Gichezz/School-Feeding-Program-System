@@ -35,6 +35,17 @@ class SchoolFeedingDB extends Dexie {
       syncQueue: '++id, entityType, recordId, status, clientId, createdAt',
       conflicts: '++id, operationId, entityType, recordId, status, createdAt'
     });
+
+    // Version 4: Cache the latest meal-demand forecast per school for offline viewing
+    this.version(4).stores({
+      attendance: '++id, schoolId, attendanceDate, syncStatus, clientId, updatedAt',
+      mealDistribution: '++id, schoolId, distributionDate, syncStatus, clientId, updatedAt',
+      schools: 'id, name',
+      metadata: 'key, value',
+      syncQueue: '++id, entityType, recordId, status, clientId, createdAt',
+      conflicts: '++id, operationId, entityType, recordId, status, createdAt',
+      forecasts: 'schoolId, fetchedAt'
+    });
   }
 }
 

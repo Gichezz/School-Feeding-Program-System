@@ -21,7 +21,9 @@ async function apiRequest(endpoint, options = {}) {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+      const error = new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+      error.status = response.status;
+      throw error;
     }
 
     return response.json();
@@ -152,4 +154,13 @@ export async function getMealsTrend(params = {}) {
   const queryString = new URLSearchParams(params).toString();
   const endpoint = queryString ? `/reports/meals/trend?${queryString}` : '/reports/meals/trend';
   return apiRequest(endpoint);
+}
+
+/**
+ * Forecasts API
+ * params: school_id (required), start_date (DD-MM-YYYY), horizon_days, enrollment
+ */
+export async function getForecast(params = {}) {
+  const queryString = new URLSearchParams(params).toString();
+  return apiRequest(`/forecasts?${queryString}`);
 }
