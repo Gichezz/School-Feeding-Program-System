@@ -11,6 +11,7 @@ Closes #
 
 ## Tests performed
 
+- [ ] `backend`: `npm test`
 - [ ] `forecasting`: `python -m pytest tests`
 - [ ] `frontend`: `npm run build`
 - [ ] Manual checks (describe below)
