@@ -515,17 +515,6 @@ async function getRecordVersion(entityType, recordId, client) {
 }
 
 /**
- * Map frontend entity types to database entity types
- */
-function mapEntityType(entityType) {
-  const entityTypeMap = {
-    'attendance': 'attendance',
-    'mealDistribution': 'meal_distribution'
-  };
-  return entityTypeMap[entityType] || entityType;
-}
-
-/**
  * Convert DD-MM-YYYY to YYYY-MM-DD
  */
 function convertDateFormat(dateString) {

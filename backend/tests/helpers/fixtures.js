@@ -1,0 +1,60 @@
+const { pool } = require('../../src/db/pool');
+const { readSql } = require('./testDatabase');
+
+// Identifiers from database/seed.sql
+const SCHOOL_ID = '11111111-1111-1111-1111-111111111111';
+const MISSING_ID = '99999999-9999-9999-9999-999999999999';
+
+const TABLES = [
+  'conflicts',
+  'sync_operations',
+  'forecast_results',
+  'attendance_records',
+  'meal_distributions',
+  'students',
+  'users',
+  'schools',
+];
+
+/**
+ * Empty every table and reload the seed data.
+ */
+async function resetDatabase() {
+  await pool.query(`TRUNCATE ${TABLES.join(', ')} CASCADE`);
+  await pool.query(readSql('seed.sql'));
+}
+
+function attendancePayload(overrides = {}) {
+  return {
+    schoolId: SCHOOL_ID,
+    attendanceDate: '06-10-2026',
+    totalRegistered: 100,
+    totalPresent: 90,
+    totalAbsent: 10,
+    ...overrides,
+  };
+}
+
+function mealPayload(overrides = {}) {
+  return {
+    schoolId: SCHOOL_ID,
+    distributionDate: '06-10-2026',
+    mealsPrepared: 100,
+    mealsServed: 90,
+    ...overrides,
+  };
+}
+
+function syncOperation(id, entityType, operation, payload, baseVersion) {
+  return { id, entityType, operation, payload, baseVersion };
+}
+
+module.exports = {
+  pool,
+  SCHOOL_ID,
+  MISSING_ID,
+  resetDatabase,
+  attendancePayload,
+  mealPayload,
+  syncOperation,
+};
