@@ -39,3 +39,9 @@ Thumbs.db
 # Test / coverage
 coverage/
 .nyc_output/
+
+# Vite temp files
+*.timestamp-*.mjs
+
+# Generated Colab bundle
+school_feeding_forecasting_colab.zip

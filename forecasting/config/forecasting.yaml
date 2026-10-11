@@ -1,0 +1,90 @@
+# ---------------------------------------------------------------------------
+# Forecasting configuration (Phase 10)
+#
+# Used by:
+#   scripts/evaluate_forecasting_models.py  (rolling-origin validation + test)
+#   scripts/train_forecasting_model.py      (final model artifact)
+#   app.py / services/forecast_service.py   (Flask API)
+#
+# The data is SYNTHETIC (one simulated Kenyan school). Nothing here has been
+# validated against real Kenyan school records.
+# ---------------------------------------------------------------------------
+
+dataset:
+  path: data/processed/synthetic_kenya_school_daily.csv   # relative to forecasting/
+  date_column: date
+  target: estimated_meal_demand
+  school_day_column: is_school_day
+
+# Chronological split (inclusive dates). Validation selects/tunes models;
+# the test period is used once, for the final comparison.
+split:
+  train: {start: "1998-01-01", end: "2021-12-31"}
+  validation: {start: "2022-01-01", end: "2023-12-31"}
+  test: {start: "2024-01-01", end: "2025-12-31"}
+
+evaluation:
+  # A forecast origin is the date a forecast is made, using data up to the
+  # previous day. Origins are placed every `origin_step_days` calendar days.
+  origin_step_days: 14
+  horizons_days: [7, 14, 30]        # calendar days ahead; only school days are scored
+  selection_metric: mae             # averaged over all horizons on validation
+  mape_min_actual: 1.0              # actuals below this are excluded from MAPE
+
+horizon:
+  default_days: 14
+  min_days: 1
+  max_days: 60
+  # The API refuses start dates further than this beyond the training data.
+  max_days_after_training_end: 730
+
+baselines:
+  historical_average:
+    # expanding = all previous school days; trailing = previous N calendar days
+    variants:
+      - {name: expanding}
+      - {name: trailing_365d, window_days: 365}
+  moving_average:
+    windows_school_days: [5, 10, 20]
+
+prophet:
+  random_seed: 20250901
+  interval_width: 0.80
+  coverage_levels: [0.80, 0.95]
+  uncertainty_samples: 1000
+  # Regressors that can be supplied for any future date:
+  #   calendar flags come from the configured school calendar
+  #   (config/synthetic_kenya_school.yaml); enrollment comes from school
+  #   records (last known value, held constant over the horizon).
+  # Rainfall, attendance, meals and special events are NOT used (see docs).
+  available_regressors:
+    first_day_of_term: calendar
+    first_week_of_term: calendar
+    exam_period: calendar
+    students_enrolled: school_records
+  # Stage 1 compares regressor sets; stage 2 tunes the best set. Small on purpose.
+  candidates:
+    - name: prophet_basic
+      regressors: []
+    - name: prophet_calendar
+      regressors: [first_day_of_term, first_week_of_term, exam_period]
+    - name: prophet_calendar_enrollment
+      regressors: [first_day_of_term, first_week_of_term, exam_period, students_enrolled]
+  base_params:
+    weekly_seasonality: true
+    yearly_seasonality: true
+    daily_seasonality: false
+    changepoint_prior_scale: 0.05
+    seasonality_mode: additive
+  tuning_grid:
+    - {changepoint_prior_scale: 0.01}
+    - {changepoint_prior_scale: 0.5}
+    - {seasonality_mode: multiplicative}
+
+artifacts:
+  dir: models/artifacts                     # relative to forecasting/
+  model_file: prophet_model.json
+  metadata_file: model_metadata.json
+  evaluation_json: data/reports/forecast_evaluation.json
+  evaluation_report: data/reports/forecast_evaluation_report.md
+  evaluation_predictions: data/reports/forecast_evaluation_predictions.csv

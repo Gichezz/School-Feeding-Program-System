@@ -1,0 +1,24 @@
+{
+  "source_type": "transformed",
+  "source_dataset": "us_school_attendance.csv",
+  "note": "Derived from US (New York City-style) school records. Reference only; not Kenyan data.",
+  "filters": {
+    "min_records_per_school": 150,
+    "min_date_coverage_fraction": 0.5,
+    "schools_used": 1580,
+    "school_days_used": 276601
+  },
+  "mean_attendance_rate": 0.8984,
+  "dow_logit_offsets": {
+    "Monday": -0.0372,
+    "Tuesday": 0.0651,
+    "Wednesday": 0.0833,
+    "Thursday": 0.0367,
+    "Friday": -0.148
+  },
+  "within_school_residual_sd_logit": 0.5185,
+  "within_school_residual_robust_sd_logit": 0.3522,
+  "within_school_residual_lag1_autocorr": 0.4722,
+  "pre_break_logit_offset": -0.157,
+  "post_break_logit_offset": -0.158
+}
