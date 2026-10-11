@@ -55,7 +55,8 @@ npm run dev
 ```
 
 App default: `http://localhost:5173`  
-Dev proxy forwards `/api` to the backend.
+Dev proxy forwards `/api` to the backend.  
+Tests: `npm test` (Vitest with an in-memory IndexedDB; no backend needed).
 
 ### 3. Database (when ready)
 
