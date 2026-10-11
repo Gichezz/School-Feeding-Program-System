@@ -26,6 +26,7 @@ describe('sync payload validation', () => {
     ['a count sent as text', 'attendance', attendancePayload({ totalPresent: '90' })],
     ['a fractional count', 'attendance', attendancePayload({ totalPresent: 89.5 })],
     ['present + absent above registered', 'attendance', attendancePayload({ totalPresent: 95, totalAbsent: 10 })],
+    ['present + absent below registered', 'attendance', attendancePayload({ totalPresent: 85, totalAbsent: 10 })],
     ['more meals served than prepared', 'mealDistribution', mealPayload({ mealsServed: 101 })],
     ['a missing meal count', 'mealDistribution', mealPayload({ mealsPrepared: undefined })],
   ])('rejects %s with 400 before writing anything', async (_, entityType, payload) => {
@@ -60,6 +61,16 @@ describe('sync payload validation', () => {
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('op-1'));
     errorSpy.mockRestore();
     warnSpy.mockRestore();
+  });
+});
+
+describe('attendance totals in the database', () => {
+  it('rejects a row where present + absent does not equal registered', async () => {
+    await expect(pool.query(
+      `INSERT INTO attendance_records (school_id, attendance_date, total_registered, total_present, total_absent, client_id)
+       VALUES ($1, '2026-10-01', 100, 90, 5, 'test')`,
+      [SCHOOL_ID]
+    )).rejects.toMatchObject({ code: '23514', constraint: 'attendance_present_absent_equals_registered' });
   });
 });
 

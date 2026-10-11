@@ -88,8 +88,9 @@ CREATE TABLE IF NOT EXISTS attendance_records (
     CONSTRAINT attendance_registered_nonneg CHECK (total_registered >= 0),
     CONSTRAINT attendance_present_nonneg CHECK (total_present >= 0),
     CONSTRAINT attendance_absent_nonneg CHECK (total_absent >= 0),
-    CONSTRAINT attendance_present_absent_within_registered
-        CHECK (total_present + total_absent <= total_registered),
+    -- Every registered learner is counted as either present or absent
+    CONSTRAINT attendance_present_absent_equals_registered
+        CHECK (total_present + total_absent = total_registered),
     CONSTRAINT attendance_version_nonneg CHECK (version >= 0)
 );
 

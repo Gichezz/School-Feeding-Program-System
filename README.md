@@ -66,6 +66,14 @@ psql -U postgres -d school_feeding -f database/schema.sql
 psql -U postgres -d school_feeding -f database/seed.sql
 ```
 
+**Existing databases:** `schema.sql` only creates missing tables, so apply schema changes made after your database was created with the scripts in `database/migrations/`, in order:
+
+```bash
+psql -U postgres -d school_feeding -f database/migrations/001_attendance_present_absent_equals_registered.sql
+```
+
+`001` requires present + absent to equal registered for new and updated attendance records, and lists existing records that do not add up. Correct those records, then run `ALTER TABLE attendance_records VALIDATE CONSTRAINT attendance_present_absent_equals_registered;`.
+
 ### 4. Forecasting service (Phase 10)
 
 ```bash
