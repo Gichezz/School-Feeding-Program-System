@@ -102,9 +102,10 @@ export async function markOperationSynced(operationId) {
  */
 export async function markOperationFailed(operationId, errorMessage) {
   try {
+    const operation = await db.syncQueue.get(operationId);
     await db.syncQueue.update(operationId, {
       status: 'failed',
-      retryCount: db.syncQueue.get(operationId).then(op => (op?.retryCount || 0) + 1),
+      retryCount: (operation?.retryCount || 0) + 1,
       lastAttemptAt: new Date().toISOString(),
       errorMessage
     });

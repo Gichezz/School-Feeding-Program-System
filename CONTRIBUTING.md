@@ -33,7 +33,7 @@ Work is tracked through GitHub issues, milestones and the [project board](https:
    | Service | Command |
    |---------|---------|
    | Forecasting | `cd forecasting` then `venv\Scripts\python -m pytest tests` |
-   | Frontend | `cd frontend` then `npm run build` |
+   | Frontend | `cd frontend` then `npm test` and `npm run build` |
    | Backend | `cd backend` then `npm test` (needs PostgreSQL; creates and drops a `*_test` database) |
 
 6. **Push the branch** (never `main`) and open a pull request into `main` using the template.
@@ -45,7 +45,7 @@ Work is tracked through GitHub issues, milestones and the [project board](https:
 
 `main` is protected by a repository ruleset: changes require a pull request, and force pushes and branch deletion are blocked, for everyone including administrators.
 
-Every pull request runs the [CI workflow](.github/workflows/ci.yml): backend tests against PostgreSQL, the frontend build, and the forecasting tests. Wait for all three checks to pass before merging.
+Every pull request runs the [CI workflow](.github/workflows/ci.yml): backend tests against PostgreSQL, the frontend tests and build, and the forecasting tests. Wait for all three checks to pass before merging.
 
 ## Issue conventions
 

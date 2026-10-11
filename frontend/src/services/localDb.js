@@ -341,6 +341,22 @@ export async function deleteLocalMeal(id) {
 }
 
 /**
+ * Set only the sync status of a local record.
+ * Unlike updateLocalAttendance/updateLocalMeal this is not a user edit:
+ * the version and values stay the same and nothing is queued.
+ */
+export async function setLocalSyncStatus(entityType, id, syncStatus) {
+  try {
+    const table = entityType === 'mealDistribution' ? db.mealDistribution : db.attendance;
+    await table.update(id, { syncStatus });
+    return true;
+  } catch (error) {
+    console.error('Error setting local sync status:', error);
+    throw new Error('Failed to update local sync status');
+  }
+}
+
+/**
  * Get sync queue statistics from local database
  */
 export async function getLocalSyncStats() {
