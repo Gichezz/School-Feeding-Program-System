@@ -1,0 +1,33 @@
+name: Feature or task
+description: New functionality, integration, test coverage, documentation or maintenance work
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What needs to be done, and why.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Verifiable conditions for closing this issue. One checkbox per criterion.
+      value: |
+        - [ ]
+    validations:
+      required: true
+  - type: textarea
+    id: files
+    attributes:
+      label: Relevant or expected files
+      description: Existing files to change and new files expected to be created.
+      placeholder: |
+        - backend/src/controllers/...
+        - frontend/src/pages/... (new)
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: Issues this depends on or blocks (for example "Depends on #9", "Blocks #18").
+      placeholder: None.
