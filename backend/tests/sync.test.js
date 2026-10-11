@@ -1,5 +1,7 @@
-const request = require('supertest');
 const app = require('../src/app');
+const { api } = require('./helpers/auth');
+
+const asAdmin = api(app);
 const {
   pool,
   resetDatabase,
@@ -12,7 +14,7 @@ beforeEach(resetDatabase);
 afterAll(() => pool.end());
 
 function sync(clientId, operations) {
-  return request(app).post('/api/sync').send({ clientId, operations });
+  return asAdmin.post('/api/sync').send({ clientId, operations });
 }
 
 describe('POST /api/sync validation', () => {
@@ -30,7 +32,7 @@ describe('POST /api/sync validation', () => {
     ['an unknown operation', { clientId: 'device-a', operations: [syncOperation('op-1', 'attendance', 'delete', {}, 0)] }],
     ['a missing baseVersion', { clientId: 'device-a', operations: [syncOperation('op-1', 'attendance', 'create', {}, undefined)] }],
   ])('rejects %s with 400', async (_, body) => {
-    const res = await request(app).post('/api/sync').send(body);
+    const res = await asAdmin.post('/api/sync').send(body);
 
     expect(res.status).toBe(400);
   });

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { syncOperations, resolveConflict, getConflicts, getConflictById } = require('../controllers/syncController');
+const { requireRole } = require('../middleware/auth');
 
 /**
  * POST /api/sync
@@ -24,6 +25,6 @@ router.get('/conflicts/:conflictId', getConflictById);
  * POST /api/sync/conflicts/:conflictId/resolve
  * Resolve a conflict by choosing local or server version
  */
-router.post('/conflicts/:conflictId/resolve', resolveConflict);
+router.post('/conflicts/:conflictId/resolve', requireRole('admin'), resolveConflict);
 
 module.exports = router;

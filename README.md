@@ -58,6 +58,8 @@ App default: `http://localhost:5173`
 Dev proxy forwards `/api` to the backend.  
 Tests: `npm test` (Vitest with an in-memory IndexedDB; no backend needed).
 
+**Signing in:** every page except sign-in needs an account. `database/seed.sql` creates two demo accounts for local development (passwords are listed at the top of that file): an administrator, who can also resolve sync conflicts, and a school staff member. Recording works offline even after a sign-in expires; records stay on the device and sync after the next sign-in.
+
 ### 3. Database (when ready)
 
 ```bash
@@ -108,6 +110,8 @@ python forecasting/scripts/data_quality_report.py
 | `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD` | Alternative PostgreSQL connection fields |
 | `FORECASTING_SERVICE_URL` | Flask forecasting service URL (default `http://localhost:5001`) |
 | `FORECASTING_TIMEOUT_MS` | How long the backend waits for a forecast (default `15000`) |
+| `JWT_SECRET` | **Required.** Random secret (32+ characters) that signs sign-in sessions; the server will not start without it |
+| `JWT_EXPIRES_IN` | How long a sign-in lasts (default `7d`) |
 | `FRONTEND_URL` | Browser origin allowed by CORS (default `http://localhost:5173`; set to the deployed frontend URL) |
 | `JSON_BODY_LIMIT` | Maximum JSON request body size (default `100kb`) |
 | `TEST_DATABASE_URL` | Optional database for `npm test`; its name must end in `_test` |

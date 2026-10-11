@@ -1,6 +1,8 @@
 const http = require('http');
-const request = require('supertest');
 const app = require('../src/app');
+const { api } = require('./helpers/auth');
+
+const asAdmin = api(app);
 const { pool, SCHOOL_ID, MISSING_ID, resetDatabase } = require('./helpers/fixtures');
 
 /**
@@ -82,13 +84,13 @@ describe('GET /api/forecasts validation', () => {
     ['horizon_days above 60', `school_id=${SCHOOL_ID}&horizon_days=61`],
     ['a non-numeric enrollment', `school_id=${SCHOOL_ID}&enrollment=abc`],
   ])('rejects %s with 400', async (_, query) => {
-    const res = await request(app).get(`/api/forecasts?${query}`);
+    const res = await asAdmin.get(`/api/forecasts?${query}`);
 
     expect(res.status).toBe(400);
   });
 
   it('returns 404 for an unknown school', async () => {
-    const res = await request(app).get(`/api/forecasts?school_id=${MISSING_ID}`);
+    const res = await asAdmin.get(`/api/forecasts?school_id=${MISSING_ID}`);
 
     expect(res.status).toBe(404);
   });
@@ -96,7 +98,7 @@ describe('GET /api/forecasts validation', () => {
 
 describe('GET /api/forecasts live', () => {
   it('returns the forecast with DD-MM-YYYY dates and stores it', async () => {
-    const res = await request(app).get(`/api/forecasts?${baseQuery}`);
+    const res = await asAdmin.get(`/api/forecasts?${baseQuery}`);
 
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
@@ -119,14 +121,14 @@ describe('GET /api/forecasts live', () => {
   });
 
   it('replaces stored rows on a repeat request instead of duplicating them', async () => {
-    await request(app).get(`/api/forecasts?${baseQuery}`);
-    await request(app).get(`/api/forecasts?${baseQuery}`);
+    await asAdmin.get(`/api/forecasts?${baseQuery}`);
+    await asAdmin.get(`/api/forecasts?${baseQuery}`);
 
     expect(await storedRows()).toHaveLength(2);
   });
 
   it('uses the enrollment from the request first', async () => {
-    const res = await request(app).get(`/api/forecasts?${baseQuery}&enrollment=450`);
+    const res = await asAdmin.get(`/api/forecasts?${baseQuery}&enrollment=450`);
 
     expect(res.body).toMatchObject({ enrollment_used: 450, enrollment_source: 'request' });
     expect(lastQuery.get('enrollment')).toBe('450');
@@ -134,7 +136,7 @@ describe('GET /api/forecasts live', () => {
 
   it('otherwise uses the latest attendance record', async () => {
     // Seed data has one attendance record with 3 registered learners
-    const res = await request(app).get(`/api/forecasts?${baseQuery}`);
+    const res = await asAdmin.get(`/api/forecasts?${baseQuery}`);
 
     expect(res.body).toMatchObject({ enrollment_used: 3, enrollment_source: 'attendance_records' });
     expect(lastQuery.get('enrollment')).toBe('3');
@@ -143,7 +145,7 @@ describe('GET /api/forecasts live', () => {
   it('falls back to the model default with no attendance history', async () => {
     await pool.query('DELETE FROM attendance_records');
 
-    const res = await request(app).get(`/api/forecasts?${baseQuery}`);
+    const res = await asAdmin.get(`/api/forecasts?${baseQuery}`);
 
     expect(res.body).toMatchObject({ enrollment_used: null, enrollment_source: 'model_default' });
     expect(lastQuery.has('enrollment')).toBe(false);
@@ -152,7 +154,7 @@ describe('GET /api/forecasts live', () => {
   it('passes forecasting-service validation errors through as 400', async () => {
     respond = json(400, { error: 'start_date must be after the training data end (2025-10-31)' });
 
-    const res = await request(app).get(`/api/forecasts?${baseQuery}`);
+    const res = await asAdmin.get(`/api/forecasts?${baseQuery}`);
 
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/training data end/);
@@ -161,14 +163,14 @@ describe('GET /api/forecasts live', () => {
 
 describe('GET /api/forecasts when the service is unavailable', () => {
   async function storeOneForecast() {
-    await request(app).get(`/api/forecasts?${baseQuery}`);
+    await asAdmin.get(`/api/forecasts?${baseQuery}`);
   }
 
   it('returns stored forecasts marked as stale when the service is unreachable', async () => {
     await storeOneForecast();
     process.env.FORECASTING_SERVICE_URL = closedPortUrl;
 
-    const res = await request(app).get(`/api/forecasts?${baseQuery}`);
+    const res = await asAdmin.get(`/api/forecasts?${baseQuery}`);
 
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ source: 'stored', stale: true, school_days_forecast: 2 });
@@ -178,7 +180,7 @@ describe('GET /api/forecasts when the service is unavailable', () => {
   it('returns 503 when unreachable and nothing is stored', async () => {
     process.env.FORECASTING_SERVICE_URL = closedPortUrl;
 
-    const res = await request(app).get(`/api/forecasts?${baseQuery}`);
+    const res = await asAdmin.get(`/api/forecasts?${baseQuery}`);
 
     expect(res.status).toBe(503);
   });
@@ -188,7 +190,7 @@ describe('GET /api/forecasts when the service is unavailable', () => {
     respond = () => {}; // never answers
 
     const started = Date.now();
-    const res = await request(app).get(`/api/forecasts?${baseQuery}`);
+    const res = await asAdmin.get(`/api/forecasts?${baseQuery}`);
 
     expect(res.status).toBe(503);
     expect(res.body.error).toMatch(/300 ms/);
@@ -198,7 +200,7 @@ describe('GET /api/forecasts when the service is unavailable', () => {
   it('returns 503 when the service has no model loaded', async () => {
     respond = json(503, { error: 'Model artifact not found' });
 
-    const res = await request(app).get(`/api/forecasts?${baseQuery}`);
+    const res = await asAdmin.get(`/api/forecasts?${baseQuery}`);
 
     expect(res.status).toBe(503);
     expect(res.body.error).toBe('Model artifact not found');
@@ -210,7 +212,7 @@ describe('GET /api/forecasts when the service is unavailable', () => {
       res.end('<html></html>');
     };
 
-    const res = await request(app).get(`/api/forecasts?${baseQuery}`);
+    const res = await asAdmin.get(`/api/forecasts?${baseQuery}`);
 
     expect(res.status).toBe(502);
   });
@@ -218,7 +220,7 @@ describe('GET /api/forecasts when the service is unavailable', () => {
   it('returns 502 for a server error from the service', async () => {
     respond = json(500, { error: 'boom' });
 
-    const res = await request(app).get(`/api/forecasts?${baseQuery}`);
+    const res = await asAdmin.get(`/api/forecasts?${baseQuery}`);
 
     expect(res.status).toBe(502);
   });
