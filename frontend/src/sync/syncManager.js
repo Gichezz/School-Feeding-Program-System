@@ -112,16 +112,17 @@ export async function processSyncQueue() {
           // Mark operation as conflict
           await markOperationConflict(operation.id, result.conflictData);
           
-          // Save conflict to local database
+          // Save conflict to local database (details come from the server's sync result)
+          const conflictData = result.conflictData || {};
           await saveConflict({
             operationId: operation.id,
             entityType: operation.entityType,
             recordId: operation.recordId,
-            baseVersion: result.baseVersion,
-            serverVersion: result.serverVersion,
-            localPayload: result.localPayload,
-            serverRecord: result.serverRecord,
-            conflictId: result.conflictId,
+            baseVersion: conflictData.baseVersion,
+            serverVersion: conflictData.serverVersion,
+            localPayload: conflictData.localPayload,
+            serverRecord: conflictData.serverRecord,
+            conflictId: conflictData.conflictId,
             status: 'unresolved'
           });
           
