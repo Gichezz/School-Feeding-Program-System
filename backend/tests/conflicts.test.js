@@ -1,5 +1,7 @@
-const request = require('supertest');
 const app = require('../src/app');
+const { api, USERS } = require('./helpers/auth');
+
+const asAdmin = api(app);
 const {
   pool,
   MISSING_ID,
@@ -13,7 +15,7 @@ beforeEach(resetDatabase);
 afterAll(() => pool.end());
 
 function sync(clientId, operations) {
-  return request(app).post('/api/sync').send({ clientId, operations });
+  return asAdmin.post('/api/sync').send({ clientId, operations });
 }
 
 /**
@@ -76,8 +78,8 @@ describe('listing conflicts', () => {
   it('lists unresolved conflicts and returns one by id', async () => {
     const { conflictId } = await createAttendanceConflict();
 
-    const list = await request(app).get('/api/sync/conflicts?status=unresolved');
-    const one = await request(app).get(`/api/sync/conflicts/${conflictId}`);
+    const list = await asAdmin.get('/api/sync/conflicts?status=unresolved');
+    const one = await asAdmin.get(`/api/sync/conflicts/${conflictId}`);
 
     expect(list.status).toBe(200);
     expect(list.body.conflicts.map((c) => c.conflict_id)).toEqual([conflictId]);
@@ -86,7 +88,7 @@ describe('listing conflicts', () => {
   });
 
   it('returns 404 for an unknown conflict', async () => {
-    const res = await request(app).get(`/api/sync/conflicts/${MISSING_ID}`);
+    const res = await asAdmin.get(`/api/sync/conflicts/${MISSING_ID}`);
 
     expect(res.status).toBe(404);
   });
@@ -94,7 +96,7 @@ describe('listing conflicts', () => {
 
 describe('resolving conflicts', () => {
   function resolve(conflictId, resolution) {
-    return request(app).post(`/api/sync/conflicts/${conflictId}/resolve`).send({ resolution, clientId: 'device-a' });
+    return asAdmin.post(`/api/sync/conflicts/${conflictId}/resolve`).send({ resolution, clientId: 'device-a' });
   }
 
   it('keep_local applies the offline values and bumps the version', async () => {
@@ -107,7 +109,7 @@ describe('resolving conflicts', () => {
     expect(await attendanceRow()).toEqual({ total_present: 80, version: 3 });
 
     const conflict = await pool.query('SELECT status, resolution, resolved_by FROM conflicts WHERE conflict_id = $1', [conflictId]);
-    expect(conflict.rows[0]).toEqual({ status: 'resolved', resolution: 'keep_local', resolved_by: null });
+    expect(conflict.rows[0]).toEqual({ status: 'resolved', resolution: 'keep_local', resolved_by: USERS.admin.id });
     const op = await pool.query("SELECT status FROM sync_operations WHERE operation_id = 'op-3'");
     expect(op.rows[0].status).toBe('applied');
   });

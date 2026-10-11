@@ -18,6 +18,8 @@ async function syncOperations(req, res, next) {
   
   try {
     const { clientId, operations } = req.body;
+    // Recorded as updated_by on every record this request writes
+    const userId = req.user?.id || null;
 
     // Validate request structure
     if (!clientId || typeof clientId !== 'string') {
@@ -128,9 +130,9 @@ async function syncOperations(req, res, next) {
         // Process the operation based on type
         let result;
         if (operation.operation === 'create') {
-          result = await handleCreateOperation(client, operation, clientId);
+          result = await handleCreateOperation(client, operation, clientId, userId);
         } else if (operation.operation === 'update') {
-          result = await handleUpdateOperation(client, operation, clientId);
+          result = await handleUpdateOperation(client, operation, clientId, userId);
         }
 
         // Map entity type for database
@@ -292,22 +294,22 @@ async function syncOperations(req, res, next) {
 /**
  * Handle CREATE operation
  */
-async function handleCreateOperation(client, operation, clientId) {
+async function handleCreateOperation(client, operation, clientId, userId) {
   if (operation.entityType === 'attendance') {
-    return await createAttendanceRecord(client, operation.payload, clientId);
+    return await createAttendanceRecord(client, operation.payload, clientId, userId);
   } else if (operation.entityType === 'mealDistribution') {
-    return await createMealDistributionRecord(client, operation.payload, clientId);
+    return await createMealDistributionRecord(client, operation.payload, clientId, userId);
   }
 }
 
 /**
  * Handle UPDATE operation with version checking
  */
-async function handleUpdateOperation(client, operation, clientId) {
+async function handleUpdateOperation(client, operation, clientId, userId) {
   if (operation.entityType === 'attendance') {
-    return await updateAttendanceRecord(client, operation.payload, operation.baseVersion, clientId);
+    return await updateAttendanceRecord(client, operation.payload, operation.baseVersion, clientId, userId);
   } else if (operation.entityType === 'mealDistribution') {
-    return await updateMealDistributionRecord(client, operation.payload, operation.baseVersion, clientId);
+    return await updateMealDistributionRecord(client, operation.payload, operation.baseVersion, clientId, userId);
   }
 }
 
@@ -325,7 +327,7 @@ function mapEntityType(entityType) {
 /**
  * Create attendance record
  */
-async function createAttendanceRecord(client, payload, clientId) {
+async function createAttendanceRecord(client, payload, clientId, userId) {
   const { schoolId, attendanceDate, totalRegistered, totalPresent, totalAbsent } = payload;
 
   // Convert DD-MM-YYYY to YYYY-MM-DD
@@ -348,10 +350,10 @@ async function createAttendanceRecord(client, payload, clientId) {
   // Create new record
   const result = await client.query(
     `INSERT INTO attendance_records 
-     (school_id, attendance_date, total_registered, total_present, total_absent, client_id, version)
-     VALUES ($1, $2, $3, $4, $5, $6, 1)
+     (school_id, attendance_date, total_registered, total_present, total_absent, client_id, version, updated_by)
+     VALUES ($1, $2, $3, $4, $5, $6, 1, $7)
      RETURNING id, version`,
-    [schoolId, formattedDate, totalRegistered, totalPresent, totalAbsent, clientId]
+    [schoolId, formattedDate, totalRegistered, totalPresent, totalAbsent, clientId, userId]
   );
 
   return {
@@ -363,7 +365,7 @@ async function createAttendanceRecord(client, payload, clientId) {
 /**
  * Update attendance record with version checking
  */
-async function updateAttendanceRecord(client, payload, baseVersion, clientId) {
+async function updateAttendanceRecord(client, payload, baseVersion, clientId, userId) {
   const { schoolId, attendanceDate, totalRegistered, totalPresent, totalAbsent } = payload;
 
   // Convert DD-MM-YYYY to YYYY-MM-DD
@@ -390,10 +392,10 @@ async function updateAttendanceRecord(client, payload, baseVersion, clientId) {
   const result = await client.query(
     `UPDATE attendance_records 
      SET total_registered = $1, total_present = $2, total_absent = $3, 
-         version = version + 1, updated_at = NOW(), client_id = $4
+         version = version + 1, updated_at = NOW(), client_id = $4, updated_by = $6
      WHERE id = $5
      RETURNING id, version`,
-    [totalRegistered, totalPresent, totalAbsent, clientId, currentRecord.id]
+    [totalRegistered, totalPresent, totalAbsent, clientId, currentRecord.id, userId]
   );
 
   return {
@@ -405,7 +407,7 @@ async function updateAttendanceRecord(client, payload, baseVersion, clientId) {
 /**
  * Create meal distribution record
  */
-async function createMealDistributionRecord(client, payload, clientId) {
+async function createMealDistributionRecord(client, payload, clientId, userId) {
   const { schoolId, distributionDate, mealsPrepared, mealsServed } = payload;
 
   // Convert DD-MM-YYYY to YYYY-MM-DD
@@ -428,10 +430,10 @@ async function createMealDistributionRecord(client, payload, clientId) {
   // Create new record
   const result = await client.query(
     `INSERT INTO meal_distributions 
-     (school_id, distribution_date, meals_prepared, meals_served, client_id, version)
-     VALUES ($1, $2, $3, $4, $5, 1)
+     (school_id, distribution_date, meals_prepared, meals_served, client_id, version, updated_by)
+     VALUES ($1, $2, $3, $4, $5, 1, $6)
      RETURNING id, version`,
-    [schoolId, formattedDate, mealsPrepared, mealsServed, clientId]
+    [schoolId, formattedDate, mealsPrepared, mealsServed, clientId, userId]
   );
 
   return {
@@ -443,7 +445,7 @@ async function createMealDistributionRecord(client, payload, clientId) {
 /**
  * Update meal distribution record with version checking
  */
-async function updateMealDistributionRecord(client, payload, baseVersion, clientId) {
+async function updateMealDistributionRecord(client, payload, baseVersion, clientId, userId) {
   const { schoolId, distributionDate, mealsPrepared, mealsServed } = payload;
 
   // Convert DD-MM-YYYY to YYYY-MM-DD
@@ -469,10 +471,10 @@ async function updateMealDistributionRecord(client, payload, baseVersion, client
   // Update record with incremented version
   const result = await client.query(
     `UPDATE meal_distributions 
-     SET meals_prepared = $1, meals_served = $2, version = version + 1, updated_at = NOW(), client_id = $3
+     SET meals_prepared = $1, meals_served = $2, version = version + 1, updated_at = NOW(), client_id = $3, updated_by = $5
      WHERE id = $4
      RETURNING id, version`,
-    [mealsPrepared, mealsServed, clientId, currentRecord.id]
+    [mealsPrepared, mealsServed, clientId, currentRecord.id, userId]
   );
 
   return {
@@ -562,9 +564,8 @@ async function resolveConflict(req, res, next) {
     }
     const { resolution } = req.body;
     const clientId = req.body.clientId;
-    // conflicts.resolved_by references users.id; there is no authenticated user yet (#22),
-    // so the resolving device's clientId cannot be stored there.
-    const resolvedBy = null;
+    // The signed-in user who resolves the conflict (conflicts.resolved_by references users.id)
+    const resolvedBy = req.user?.id || null;
 
     // Validate resolution choice
     const allowedResolutions = ['keep_local', 'keep_server'];
@@ -634,11 +635,11 @@ async function resolveConflict(req, res, next) {
       const localPayload = conflict.local_payload;
       
       if (conflict.entity_type === 'attendance') {
-        const updateResult = await applyLocalAttendanceUpdate(client, localPayload, conflict.server_version, clientId);
+        const updateResult = await applyLocalAttendanceUpdate(client, localPayload, conflict.server_version, clientId, resolvedBy);
         resultRecord = updateResult.record;
         newVersion = updateResult.version;
       } else if (conflict.entity_type === 'meal_distribution') {
-        const updateResult = await applyLocalMealUpdate(client, localPayload, conflict.server_version, clientId);
+        const updateResult = await applyLocalMealUpdate(client, localPayload, conflict.server_version, clientId, resolvedBy);
         resultRecord = updateResult.record;
         newVersion = updateResult.version;
       }
@@ -693,7 +694,7 @@ async function resolveConflict(req, res, next) {
 /**
  * Apply local attendance update as part of conflict resolution
  */
-async function applyLocalAttendanceUpdate(client, payload, currentServerVersion, clientId) {
+async function applyLocalAttendanceUpdate(client, payload, currentServerVersion, clientId, userId) {
   const { schoolId, attendanceDate, totalRegistered, totalPresent, totalAbsent } = payload;
   const formattedDate = convertDateFormat(attendanceDate);
 
@@ -713,10 +714,10 @@ async function applyLocalAttendanceUpdate(client, payload, currentServerVersion,
   const result = await client.query(
     `UPDATE attendance_records 
      SET total_registered = $1, total_present = $2, total_absent = $3, 
-         version = version + 1, updated_at = NOW(), client_id = $4
+         version = version + 1, updated_at = NOW(), client_id = $4, updated_by = $6
      WHERE id = $5
      RETURNING *`,
-    [totalRegistered, totalPresent, totalAbsent, clientId, currentRecord.id]
+    [totalRegistered, totalPresent, totalAbsent, clientId, currentRecord.id, userId]
   );
 
   return {
@@ -728,7 +729,7 @@ async function applyLocalAttendanceUpdate(client, payload, currentServerVersion,
 /**
  * Apply local meal distribution update as part of conflict resolution
  */
-async function applyLocalMealUpdate(client, payload, currentServerVersion, clientId) {
+async function applyLocalMealUpdate(client, payload, currentServerVersion, clientId, userId) {
   const { schoolId, distributionDate, mealsPrepared, mealsServed } = payload;
   const formattedDate = convertDateFormat(distributionDate);
 
@@ -747,10 +748,10 @@ async function applyLocalMealUpdate(client, payload, currentServerVersion, clien
   // Update record with incremented version
   const result = await client.query(
     `UPDATE meal_distributions 
-     SET meals_prepared = $1, meals_served = $2, version = version + 1, updated_at = NOW(), client_id = $3
+     SET meals_prepared = $1, meals_served = $2, version = version + 1, updated_at = NOW(), client_id = $3, updated_by = $5
      WHERE id = $4
      RETURNING *`,
-    [mealsPrepared, mealsServed, clientId, currentRecord.id]
+    [mealsPrepared, mealsServed, clientId, currentRecord.id, userId]
   );
 
   return {

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import PageIntro from '../components/PageIntro';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
+import { useSession } from '../hooks/useSession';
 import { 
   getUnresolvedConflicts, 
   getConflictStats,
@@ -17,6 +18,8 @@ import { getCachedSchools } from '../services/localDb';
  */
 function Conflicts() {
   const isOnline = useOnlineStatus();
+  // Only administrators may decide which version of a record wins
+  const { isAdmin } = useSession();
   const [loading, setLoading] = useState(true);
   const [conflicts, setConflicts] = useState([]);
   const [conflictStats, setConflictStats] = useState(null);
@@ -379,7 +382,12 @@ function Conflicts() {
             <h3 style={{ marginTop: 0 }}>Resolution Options</h3>
             <p style={{ marginBottom: '1rem' }}>Choose which version should become the authoritative record:</p>
             
-            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+            {!isAdmin && (
+              <p className="placeholder-note">
+                Only an administrator can resolve conflicts. This conflict stays recorded until an administrator reviews it.
+              </p>
+            )}
+            {isAdmin && <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
               <button
                 className="btn btn--primary"
                 onClick={() => handleResolveClick('keep_server')}
@@ -397,9 +405,9 @@ function Conflicts() {
               >
                 Keep Local Version
               </button>
-            </div>
-            
-            {!isOnline && (
+            </div>}
+
+            {isAdmin && !isOnline && (
               <p style={{ marginTop: '0.5rem', color: 'var(--color-error-text)', fontSize: '0.9rem' }}>
                 ⚠️ Resolution requires internet connection
               </p>

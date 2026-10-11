@@ -93,7 +93,8 @@ export async function processSingleOperation(operation) {
       success: false,
       operationId: operation.id,
       status: 'failed',
-      error: error.message
+      error: error.message,
+      httpStatus: error.status
     };
   }
 }

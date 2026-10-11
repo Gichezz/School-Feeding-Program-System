@@ -9,6 +9,7 @@ import {
 } from './syncQueue';
 import { updateLocalAttendance, updateLocalMeal, setLocalSyncStatus } from '../services/localDb';
 import { saveConflict } from './conflictService';
+import { isSessionValid } from '../services/session';
 
 /**
  * Sync Manager - Phase 6
@@ -17,6 +18,7 @@ import { saveConflict } from './conflictService';
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 5000; // 5 seconds
+const SIGN_IN_TO_SYNC = 'Sign in again to sync. Your records are saved on this device.';
 
 let isSyncing = false;
 let syncProgress = {
@@ -60,6 +62,15 @@ export async function processSyncQueue() {
     return {
       success: false,
       message: 'Cannot sync while offline'
+    };
+  }
+
+  // Queued records stay on the device until someone signs in; this is not a failed attempt
+  if (!isSessionValid()) {
+    return {
+      success: false,
+      authRequired: true,
+      message: SIGN_IN_TO_SYNC
     };
   }
 
@@ -131,6 +142,15 @@ export async function processSyncQueue() {
           
           syncProgress.conflicts++;
           console.log(`Operation ${operation.id} has conflict`);
+        } else if (result.httpStatus === 401) {
+          // Session rejected by the server: stop, and keep this and the remaining operations
+          // pending without counting a retry
+          return {
+            success: false,
+            authRequired: true,
+            message: SIGN_IN_TO_SYNC,
+            progress: syncProgress
+          };
         } else {
           // Handle failure with retry logic
           const currentRetryCount = operation.retryCount || 0;

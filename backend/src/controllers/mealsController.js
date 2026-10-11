@@ -1,6 +1,6 @@
 const { pool } = require('../db/pool');
 const { NotFoundError, ValidationError, DatabaseError } = require('../utils/errors');
-const { isUuid, mealError } = require('../validation/records');
+const { mealError } = require('../validation/records');
 
 /**
  * Helper function to convert DD-MM-YYYY to YYYY-MM-DD for PostgreSQL
@@ -130,7 +130,7 @@ async function getMealById(req, res, next) {
  */
 async function createMeal(req, res, next) {
   try {
-    const { school_id, distribution_date, meals_prepared, meals_served, updated_by, client_id } = req.body;
+    const { school_id, distribution_date, meals_prepared, meals_served, client_id } = req.body;
 
     // Validate required fields
     if (!school_id || !distribution_date || meals_prepared === undefined || meals_served === undefined) {
@@ -148,11 +148,6 @@ async function createMeal(req, res, next) {
       throw new ValidationError(invalid);
     }
 
-    // Validate updated_by format if provided
-    if (updated_by && !isUuid(updated_by)) {
-      throw new ValidationError('Invalid user ID format');
-    }
-
     const query = `
       INSERT INTO meal_distributions 
         (school_id, distribution_date, meals_prepared, meals_served, updated_by, client_id)
@@ -167,7 +162,7 @@ async function createMeal(req, res, next) {
       convertDateFormat(distribution_date),
       meals_prepared,
       meals_served,
-      updated_by || null,
+      req.user?.id || null, // updated_by: the signed-in user
       client_id || null,
     ];
 

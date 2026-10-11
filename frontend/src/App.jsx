@@ -8,6 +8,8 @@ import SyncStatus from './pages/SyncStatus';
 import Conflicts from './pages/Conflicts';
 import Reports from './pages/Reports';
 import Forecast from './pages/Forecast';
+import Login from './pages/Login';
+import { useSession } from './hooks/useSession';
 import Settings from './pages/Settings';
 import { setupAutoSync } from './sync/syncManager';
 
@@ -16,6 +18,8 @@ import { setupAutoSync } from './sync/syncManager';
  * Domain features remain placeholders until later phases.
  */
 function App() {
+  const { session } = useSession();
+
   useEffect(() => {
     // Setup automatic sync when connectivity returns
     const cleanupAutoSync = setupAutoSync();
@@ -28,9 +32,21 @@ function App() {
     };
   }, []);
 
+  // Nobody has signed in on this device yet: every route shows the sign-in page
+  if (!session) {
+    return (
+      <Routes>
+        <Route element={<Layout />}>
+          <Route path="*" element={<Login />} />
+        </Route>
+      </Routes>
+    );
+  }
+
   return (
     <Routes>
       <Route element={<Layout />}>
+        <Route path="/login" element={<Login />} />
         <Route path="/" element={<Dashboard />} />
         <Route path="/attendance" element={<Attendance />} />
         <Route path="/meals" element={<MealDistribution />} />
