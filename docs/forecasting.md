@@ -225,7 +225,7 @@ The tests use a small two-year fixture built from the configured calendar and a 
 - **Special events and weather are not used,** because no future event schedule or weather forecast is integrated yet.
 - **The future calendar uses the illustrative Phase 9 rules.** A real deployment needs the school's actual term dates (`calendar.term_overrides`).
 - **The deployed model is trained to 2025-10-31.** Forecasts far beyond that (up to 730 days are allowed) rely on trend extrapolation and should be retrained with recent data.
-- **The service is not integrated yet.** It is not connected to the Express backend or the React frontend (a later phase), and it does not read PostgreSQL.
+- **The service does not read PostgreSQL.** The Express backend calls it through `GET /api/forecasts`, supplies the enrollment from attendance records and stores the results; the React Forecast page displays them. The model itself is not retrained from records collected by the system.
 
 ## 16. Running the demonstration notebook in Google Colab
 
