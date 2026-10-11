@@ -169,61 +169,25 @@ async function syncOperations(req, res, next) {
         // Determine if this is a conflict (version mismatch) or other error
         let status = 'failed';
         let conflictId = null;
-        
-        if (error.message.includes('version mismatch') || 
+
+        if (error.message.includes('version mismatch') ||
             error.message.includes('Version mismatch') ||
             error.message.includes('conflict')) {
           status = 'conflict';
-          
-          // Create conflict record in database
-          try {
-            const dbEntityType = entityTypeMap[operation.entityType] || operation.entityType;
-            
-            // Check if conflict already exists for this operation
-            const existingConflict = await client.query(
-              'SELECT conflict_id FROM conflicts WHERE operation_id = $1',
-              [operation.id]
-            );
-            
-            if (existingConflict.rows.length === 0) {
-              // Create new conflict record
-              const conflictResult = await client.query(
-                `INSERT INTO conflicts 
-                 (entity_type, record_id, operation_id, client_id, base_version, server_version, 
-                  local_payload, server_payload, status)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'unresolved')
-                 RETURNING conflict_id`,
-                [
-                  dbEntityType,
-                  serverRecord?.id || null,
-                  operation.id,
-                  clientId,
-                  operation.baseVersion,
-                  serverRecord?.version || null,
-                  JSON.stringify(operation.payload),
-                  JSON.stringify(serverRecord)
-                ]
-              );
-              conflictId = conflictResult.rows[0].conflict_id;
-            } else {
-              conflictId = existingConflict.rows[0].conflict_id;
-            }
-          } catch (conflictError) {
-            console.error('Error creating conflict record:', conflictError);
-          }
         }
-        
-        // Record the operation status
+
+        const dbEntityType = entityTypeMap[operation.entityType] || operation.entityType;
+
         try {
-          const dbEntityType = entityTypeMap[operation.entityType] || operation.entityType;
-          
+          // Record the operation status first: conflicts.operation_id references
+          // sync_operations.operation_id, so the conflict row can only be inserted after it.
           await client.query(
             'DELETE FROM sync_operations WHERE operation_id = $1',
             [operation.id]
           );
-          
+
           await client.query(
-            `INSERT INTO sync_operations 
+            `INSERT INTO sync_operations
              (operation_id, entity_type, record_id, operation_type, payload, client_id, base_version, status, processed_at)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`,
             [
@@ -237,6 +201,28 @@ async function syncOperations(req, res, next) {
               status
             ]
           );
+
+          if (status === 'conflict') {
+            // Create conflict record in database
+            const conflictResult = await client.query(
+              `INSERT INTO conflicts
+               (entity_type, record_id, operation_id, client_id, base_version, server_version,
+                local_payload, server_payload, status)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'unresolved')
+               RETURNING conflict_id`,
+              [
+                dbEntityType,
+                serverRecord?.id || null,
+                operation.id,
+                clientId,
+                operation.baseVersion,
+                serverRecord?.version || null,
+                JSON.stringify(operation.payload),
+                JSON.stringify(serverRecord)
+              ]
+            );
+            conflictId = conflictResult.rows[0].conflict_id;
+          }
         } catch (recordError) {
           console.error('Error recording operation status:', recordError);
         }
@@ -561,6 +547,9 @@ async function resolveConflict(req, res, next) {
     const { conflictId } = req.params;
     const { resolution } = req.body;
     const clientId = req.body.clientId;
+    // conflicts.resolved_by references users.id; there is no authenticated user yet (#22),
+    // so the resolving device's clientId cannot be stored there.
+    const resolvedBy = null;
 
     // Validate resolution choice
     const allowedResolutions = ['keep_local', 'keep_server'];
@@ -622,7 +611,7 @@ async function resolveConflict(req, res, next) {
              resolved_at = NOW(),
              resolved_by = $2
          WHERE conflict_id = $3`,
-        ['keep_server', clientId || null, conflictId]
+        ['keep_server', resolvedBy, conflictId]
       );
 
     } else if (resolution === 'keep_local') {
@@ -647,7 +636,7 @@ async function resolveConflict(req, res, next) {
              resolved_at = NOW(),
              resolved_by = $2
          WHERE conflict_id = $3`,
-        ['keep_local', clientId || null, conflictId]
+        ['keep_local', resolvedBy, conflictId]
       );
     }
 
