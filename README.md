@@ -104,7 +104,8 @@ python forecasting/scripts/data_quality_report.py
 | `NODE_ENV` | `development` / `production` |
 | `DATABASE_URL` | PostgreSQL connection string (preferred) |
 | `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD` | Alternative PostgreSQL connection fields |
-| `FORECASTING_SERVICE_URL` | Flask service URL (later phase) |
+| `FORECASTING_SERVICE_URL` | Flask forecasting service URL (default `http://localhost:5001`) |
+| `FORECASTING_TIMEOUT_MS` | How long the backend waits for a forecast (default `15000`) |
 
 ### Frontend (`frontend/.env`)
 
