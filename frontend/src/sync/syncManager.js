@@ -7,7 +7,7 @@ import {
   incrementRetryCount,
   getSyncQueueStats
 } from './syncQueue';
-import { updateLocalAttendance, updateLocalMeal } from '../services/localDb';
+import { updateLocalAttendance, updateLocalMeal, setLocalSyncStatus } from '../services/localDb';
 import { saveConflict } from './conflictService';
 
 /**
@@ -204,15 +204,8 @@ async function updateLocalRecordAfterSync(operation, syncResult) {
  */
 async function updateLocalRecordConflictStatus(operation) {
   try {
-    if (operation.entityType === 'attendance') {
-      await updateLocalAttendance(operation.recordId, {
-        syncStatus: 'conflict'
-      });
-    } else if (operation.entityType === 'mealDistribution') {
-      await updateLocalMeal(operation.recordId, {
-        syncStatus: 'conflict'
-      });
-    }
+    // Status only: an edit here would bump the version and queue another stale update
+    await setLocalSyncStatus(operation.entityType, operation.recordId, 'conflict');
   } catch (error) {
     console.error('Error updating local record conflict status:', error);
   }
