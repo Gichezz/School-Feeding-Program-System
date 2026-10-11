@@ -1,5 +1,6 @@
 const { pool } = require('../db/pool');
 const { NotFoundError, ValidationError, DatabaseError } = require('../utils/errors');
+const { isUuid, mealError } = require('../validation/records');
 
 /**
  * Helper function to convert DD-MM-YYYY to YYYY-MM-DD for PostgreSQL
@@ -23,26 +24,6 @@ function convertDateToDisplayFormat(dateString) {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const year = date.getFullYear();
   return `${day}-${month}-${year}`;
-}
-
-/**
- * Helper function to validate DD-MM-YYYY format
- */
-function validateDateFormat(dateString) {
-  if (!dateString) return false;
-  const dateRegex = /^\d{2}-\d{2}-\d{4}$/;
-  if (!dateRegex.test(dateString)) return false;
-  
-  const parts = dateString.split('-');
-  const day = parseInt(parts[0]);
-  const month = parseInt(parts[1]);
-  const year = parseInt(parts[2]);
-  
-  if (month < 1 || month > 12) return false;
-  if (day < 1 || day > 31) return false;
-  if (year < 1900 || year > 2100) return false;
-  
-  return true;
 }
 
 /**
@@ -156,29 +137,19 @@ async function createMeal(req, res, next) {
       throw new ValidationError('Missing required fields: school_id, distribution_date, meals_prepared, meals_served');
     }
 
-    // Validate school_id format
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(school_id)) {
-      throw new ValidationError('Invalid school ID format');
-    }
-
-    // Validate date format (DD-MM-YYYY)
-    if (!validateDateFormat(distribution_date)) {
-      throw new ValidationError('Invalid date format. Use DD-MM-YYYY (e.g., 15-09-2026)');
-    }
-
-    // Validate non-negative values
-    if (meals_prepared < 0 || meals_served < 0) {
-      throw new ValidationError('Meals prepared and served must be non-negative');
-    }
-
-    // Validate that served <= prepared
-    if (meals_served > meals_prepared) {
-      throw new ValidationError('Meals served cannot exceed meals prepared');
+    // School id, real DD-MM-YYYY date, whole-number counts, served <= prepared
+    const invalid = mealError({
+      schoolId: school_id,
+      date: distribution_date,
+      prepared: meals_prepared,
+      served: meals_served,
+    });
+    if (invalid) {
+      throw new ValidationError(invalid);
     }
 
     // Validate updated_by format if provided
-    if (updated_by && !uuidRegex.test(updated_by)) {
+    if (updated_by && !isUuid(updated_by)) {
       throw new ValidationError('Invalid user ID format');
     }
 
