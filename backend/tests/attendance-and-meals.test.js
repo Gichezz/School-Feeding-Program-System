@@ -67,6 +67,7 @@ describe('attendance records', () => {
     ['an invalid date format', { attendance_date: '2026-10-05' }],
     ['negative counts', { total_absent: -1 }],
     ['present + absent above registered', { total_present: 99, total_absent: 5 }],
+    ['present + absent below registered', { total_present: 90, total_absent: 5 }],
     ['a malformed school id', { school_id: 'abc' }],
   ])('rejects %s with 400', async (_, overrides) => {
     const res = await request(app).post('/api/attendance').send(attendanceBody(overrides));

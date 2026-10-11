@@ -137,7 +137,7 @@ async function createAttendance(req, res, next) {
       throw new ValidationError('Missing required fields: school_id, attendance_date, total_registered, total_present, total_absent');
     }
 
-    // School id, real DD-MM-YYYY date, whole-number counts, present + absent <= registered
+    // School id, real DD-MM-YYYY date, whole-number counts, present + absent = registered
     const invalid = attendanceError({
       schoolId: school_id,
       date: attendance_date,
