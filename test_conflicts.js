@@ -3,7 +3,7 @@
  * This script tests the complete conflict detection and resolution flow
  */
 
-const API_BASE = 'http://localhost:3001/api';
+const API_BASE = 'http://localhost:5000/api';
 
 // Test data
 const TEST_SCHOOL_ID = '1'; // Assuming school ID 1 exists from seed data
