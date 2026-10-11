@@ -13,7 +13,7 @@ Closes #
 
 - [ ] `backend`: `npm test`
 - [ ] `forecasting`: `python -m pytest tests`
-- [ ] `frontend`: `npm run build`
+- [ ] `frontend`: `npm test` and `npm run build`
 - [ ] Manual checks (describe below)
 
 ## Limitations or follow-up
