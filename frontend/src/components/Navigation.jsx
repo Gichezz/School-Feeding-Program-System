@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { to: '/sync', label: 'Sync Status' },
   { to: '/conflicts', label: 'Conflicts' },
   { to: '/reports', label: 'Reports' },
+  { to: '/forecast', label: 'Forecast' },
   { to: '/settings', label: 'Settings' },
 ];
 

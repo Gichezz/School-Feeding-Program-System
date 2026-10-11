@@ -7,6 +7,7 @@ import MealDistribution from './pages/MealDistribution';
 import SyncStatus from './pages/SyncStatus';
 import Conflicts from './pages/Conflicts';
 import Reports from './pages/Reports';
+import Forecast from './pages/Forecast';
 import Settings from './pages/Settings';
 import { setupAutoSync } from './sync/syncManager';
 
@@ -36,6 +37,7 @@ function App() {
         <Route path="/sync" element={<SyncStatus />} />
         <Route path="/conflicts" element={<Conflicts />} />
         <Route path="/reports" element={<Reports />} />
+        <Route path="/forecast" element={<Forecast />} />
         <Route path="/settings" element={<Settings />} />
       </Route>
     </Routes>
