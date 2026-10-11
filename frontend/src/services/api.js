@@ -2,6 +2,8 @@
  * API client helpers for talking to the Express REST backend.
  */
 
+import { getSession, markSessionExpired } from './session';
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
 /**
@@ -9,20 +11,26 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
  */
 async function apiRequest(endpoint, options = {}) {
   const url = `${API_BASE}${endpoint}`;
-  
+  const session = getSession();
+
   try {
     const response = await fetch(url, {
+      ...options,
       headers: {
         'Content-Type': 'application/json',
+        ...(session?.token && { Authorization: `Bearer ${session.token}` }),
         ...options.headers,
       },
-      ...options,
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       const error = new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
       error.status = response.status;
+      // The server no longer accepts this session; the user needs to sign in again
+      if (response.status === 401 && session?.token) {
+        markSessionExpired();
+      }
       throw error;
     }
 
@@ -163,4 +171,14 @@ export async function getMealsTrend(params = {}) {
 export async function getForecast(params = {}) {
   const queryString = new URLSearchParams(params).toString();
   return apiRequest(`/forecasts?${queryString}`);
+}
+
+/**
+ * Auth API
+ */
+export async function login(email, password) {
+  return apiRequest('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
 }

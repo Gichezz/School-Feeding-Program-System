@@ -1,8 +1,9 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import db from '../db/database';
 import { saveLocalAttendance, updateLocalAttendance } from '../services/localDb';
 import { syncOperations } from '../services/api';
 import { processSyncQueue } from './syncManager';
+import { saveSession, clearSession, isSessionValid } from '../services/session';
 
 vi.mock('../services/api', () => ({
   syncOperations: vi.fn(),
@@ -24,6 +25,14 @@ function serverResult(result) {
 function synced(operationId, version) {
   return serverResult({ success: true, operationId, status: 'synced', version, recordId: 'server-record-id' });
 }
+
+beforeEach(() => {
+  saveSession({
+    token: 'test-token',
+    expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    user: { id: 'u-1', name: 'School Feeding Officer', role: 'school_staff' },
+  });
+});
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -81,6 +90,46 @@ describe('processSyncQueue', () => {
     expect(result.success).toBe(true);
     expect(await db.syncQueue.get(first.id)).toMatchObject({ status: 'failed', retryCount: 4 });
     expect(await db.syncQueue.get(second.id)).toMatchObject({ status: 'synced' });
+  });
+
+  describe('when the user needs to sign in again', () => {
+    it('does not contact the server without a valid session and keeps records queued', async () => {
+      clearSession();
+      await saveLocalAttendance(attendance);
+
+      const result = await processSyncQueue();
+
+      expect(result).toMatchObject({ success: false, authRequired: true });
+      expect(syncOperations).not.toHaveBeenCalled();
+      expect((await db.syncQueue.toArray())[0]).toMatchObject({ status: 'pending', retryCount: 0 });
+    });
+
+    it('stops when the server rejects the session, without counting a retry', async () => {
+      await saveLocalAttendance(attendance);
+      await saveLocalAttendance({ ...attendance, attendanceDate: '07-10-2026' });
+      syncOperations.mockRejectedValue(Object.assign(new Error('Session expired, please sign in again'), { status: 401 }));
+
+      const result = await processSyncQueue();
+
+      expect(result).toMatchObject({ success: false, authRequired: true });
+      expect(syncOperations).toHaveBeenCalledTimes(1);
+      const queue = await db.syncQueue.toArray();
+      expect(queue.map((op) => [op.status, op.retryCount])).toEqual([['pending', 0], ['pending', 0]]);
+    });
+
+    it('resumes once a valid session is back', async () => {
+      clearSession();
+      await saveLocalAttendance(attendance);
+      await processSyncQueue();
+      saveSession({ token: 'new-token', expiresAt: new Date(Date.now() + 60_000).toISOString(), user: { role: 'school_staff' } });
+      const [operation] = await db.syncQueue.toArray();
+      syncOperations.mockResolvedValue(synced(operation.id, 1));
+
+      const result = await processSyncQueue();
+
+      expect(isSessionValid()).toBe(true);
+      expect(result.progress).toMatchObject({ successful: 1 });
+    });
   });
 
   describe('when the server reports a conflict', () => {

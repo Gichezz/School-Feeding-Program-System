@@ -1,6 +1,6 @@
 const { pool } = require('../db/pool');
 const { NotFoundError, ValidationError, DatabaseError } = require('../utils/errors');
-const { isUuid, attendanceError } = require('../validation/records');
+const { attendanceError } = require('../validation/records');
 
 /**
  * Helper function to convert DD-MM-YYYY to YYYY-MM-DD for PostgreSQL
@@ -130,7 +130,7 @@ async function getAttendanceById(req, res, next) {
  */
 async function createAttendance(req, res, next) {
   try {
-    const { school_id, attendance_date, total_registered, total_present, total_absent, updated_by, client_id } = req.body;
+    const { school_id, attendance_date, total_registered, total_present, total_absent, client_id } = req.body;
 
     // Validate required fields
     if (!school_id || !attendance_date || total_registered === undefined || total_present === undefined || total_absent === undefined) {
@@ -149,11 +149,6 @@ async function createAttendance(req, res, next) {
       throw new ValidationError(invalid);
     }
 
-    // Validate updated_by format if provided
-    if (updated_by && !isUuid(updated_by)) {
-      throw new ValidationError('Invalid user ID format');
-    }
-
     const query = `
       INSERT INTO attendance_records 
         (school_id, attendance_date, total_registered, total_present, total_absent, updated_by, client_id)
@@ -169,7 +164,7 @@ async function createAttendance(req, res, next) {
       total_registered,
       total_present,
       total_absent,
-      updated_by || null,
+      req.user?.id || null, // updated_by: the signed-in user
       client_id || null,
     ];
 

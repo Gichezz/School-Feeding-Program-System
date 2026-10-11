@@ -7,6 +7,8 @@ const mealsRoutes = require('./routes/mealsRoutes');
 const syncRoutes = require('./routes/syncRoutes');
 const reportsRoutes = require('./routes/reportsRoutes');
 const forecastRoutes = require('./routes/forecastRoutes');
+const authRoutes = require('./routes/authRoutes');
+const { requireAuth } = require('./middleware/auth');
 const errorHandler = require('./middleware/errorHandler');
 
 /**
@@ -23,8 +25,12 @@ app.use(cors({
 // Records are small; reject oversized bodies early
 app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || '100kb' }));
 
-// API routes
+// Public routes
 app.use('/api/health', healthRoutes);
+app.use('/api/auth', authRoutes);
+
+// Everything else under /api requires a signed-in user
+app.use('/api', requireAuth);
 app.use('/api/schools', schoolsRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/meals', mealsRoutes);
