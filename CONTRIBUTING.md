@@ -34,7 +34,7 @@ Work is tracked through GitHub issues, milestones and the [project board](https:
    |---------|---------|
    | Forecasting | `cd forecasting` then `venv\Scripts\python -m pytest tests` |
    | Frontend | `cd frontend` then `npm run build` |
-   | Backend | Manual checks until the test suite from #19 exists |
+   | Backend | `cd backend` then `npm test` (needs PostgreSQL; creates and drops a `*_test` database) |
 
 6. **Push the branch** (never `main`) and open a pull request into `main` using the template.
 7. **Link the issue.** Use `Closes #N` only when the PR meets every acceptance criterion. Otherwise use `Part of #N` and leave the issue open.
