@@ -41,8 +41,8 @@ npm install
 npm run dev
 ```
 
-API default: `http://localhost:3001`  
-Health check: `GET http://localhost:3001/api/health`
+API default: `http://localhost:5000`  
+Health check: `GET http://localhost:5000/api/health`
 
 ### 2. Frontend
 
@@ -78,8 +78,8 @@ cd forecasting
 python app.py
 ```
 
-Health check: `GET http://localhost:5000/health`  
-Forecast: `GET http://localhost:5000/api/forecast?horizon_days=14&start_date=YYYY-MM-DD&enrollment=600`
+Health check: `GET http://localhost:5001/health`  
+Forecast: `GET http://localhost:5001/api/forecast?horizon_days=14&start_date=YYYY-MM-DD&enrollment=600`
 (returns `503` until a model has been trained). Tests: `venv\Scripts\python -m pytest tests`.
 Trained on synthetic data only and not yet connected to the backend or frontend. See [docs/forecasting.md](docs/forecasting.md).
 
@@ -100,7 +100,7 @@ python forecasting/scripts/data_quality_report.py
 
 | Variable | Purpose |
 |----------|---------|
-| `PORT` | Express port (default `3001`) |
+| `PORT` | Express port (default `5000`) |
 | `NODE_ENV` | `development` / `production` |
 | `DATABASE_URL` | PostgreSQL connection string (preferred) |
 | `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD` | Alternative PostgreSQL connection fields |
@@ -117,7 +117,7 @@ python forecasting/scripts/data_quality_report.py
 | Variable | Purpose |
 |----------|---------|
 | `FLASK_ENV` | Flask environment |
-| `FLASK_RUN_PORT` | Flask port (default `5000`) |
+| `FLASK_RUN_PORT` | Flask port (default `5001`) |
 | `DATABASE_URL` | Optional DB URL when forecasting reads history later |
 
 ## Phase 1 scope
