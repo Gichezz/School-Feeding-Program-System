@@ -1,5 +1,9 @@
 const { pool } = require('../db/pool');
 const { ValidationError, DatabaseError, NotFoundError } = require('../utils/errors');
+const { isUuid, syncPayloadError } = require('../validation/records');
+
+// Upper bound on operations per POST /api/sync (the client sends one at a time)
+const MAX_OPERATIONS_PER_REQUEST = 100;
 
 /**
  * Synchronization controller for Phase 6
@@ -22,6 +26,10 @@ async function syncOperations(req, res, next) {
 
     if (!Array.isArray(operations)) {
       throw new ValidationError('Operations must be an array');
+    }
+
+    if (operations.length > MAX_OPERATIONS_PER_REQUEST) {
+      throw new ValidationError(`A sync request can contain at most ${MAX_OPERATIONS_PER_REQUEST} operations`);
     }
 
     if (operations.length === 0) {
@@ -50,6 +58,10 @@ async function syncOperations(req, res, next) {
       }
       if (op.baseVersion === undefined || op.baseVersion === null || typeof op.baseVersion !== 'number') {
         throw new ValidationError('Each operation must have a valid baseVersion');
+      }
+      const invalidPayload = syncPayloadError(op.entityType, op.payload);
+      if (invalidPayload) {
+        throw new ValidationError(`Operation ${op.id}: ${invalidPayload}`);
       }
     }
 
@@ -178,53 +190,63 @@ async function syncOperations(req, res, next) {
 
         const dbEntityType = entityTypeMap[operation.entityType] || operation.entityType;
 
-        try {
-          // Record the operation status first: conflicts.operation_id references
-          // sync_operations.operation_id, so the conflict row can only be inserted after it.
-          await client.query(
-            'DELETE FROM sync_operations WHERE operation_id = $1',
-            [operation.id]
-          );
+        // sync_operations.record_id is required. A failed operation with no matching server
+        // record (for example an update to a record that does not exist) is reported to the
+        // client but not recorded, because there is no record to attach it to.
+        const canRecord = Boolean(serverRecord?.id);
+        if (!canRecord) {
+          console.warn(`Sync operation ${operation.id} failed with no matching server record; not recorded`);
+        }
 
-          await client.query(
-            `INSERT INTO sync_operations
-             (operation_id, entity_type, record_id, operation_type, payload, client_id, base_version, status, processed_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`,
-            [
-              operation.id,
-              dbEntityType,
-              serverRecord?.id || null,
-              operation.operation.toUpperCase(),
-              JSON.stringify(operation.payload),
-              clientId,
-              operation.baseVersion,
-              status
-            ]
-          );
-
-          if (status === 'conflict') {
-            // Create conflict record in database
-            const conflictResult = await client.query(
-              `INSERT INTO conflicts
-               (entity_type, record_id, operation_id, client_id, base_version, server_version,
-                local_payload, server_payload, status)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'unresolved')
-               RETURNING conflict_id`,
+        if (canRecord) {
+          try {
+            // Record the operation status first: conflicts.operation_id references
+            // sync_operations.operation_id, so the conflict row can only be inserted after it.
+            await client.query(
+              'DELETE FROM sync_operations WHERE operation_id = $1',
+              [operation.id]
+            );
+  
+            await client.query(
+              `INSERT INTO sync_operations
+               (operation_id, entity_type, record_id, operation_type, payload, client_id, base_version, status, processed_at)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`,
               [
+                operation.id,
                 dbEntityType,
                 serverRecord?.id || null,
-                operation.id,
+                operation.operation.toUpperCase(),
+                JSON.stringify(operation.payload),
                 clientId,
                 operation.baseVersion,
-                serverRecord?.version || null,
-                JSON.stringify(operation.payload),
-                JSON.stringify(serverRecord)
+                status
               ]
             );
-            conflictId = conflictResult.rows[0].conflict_id;
+  
+            if (status === 'conflict') {
+              // Create conflict record in database
+              const conflictResult = await client.query(
+                `INSERT INTO conflicts
+                 (entity_type, record_id, operation_id, client_id, base_version, server_version,
+                  local_payload, server_payload, status)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'unresolved')
+                 RETURNING conflict_id`,
+                [
+                  dbEntityType,
+                  serverRecord?.id || null,
+                  operation.id,
+                  clientId,
+                  operation.baseVersion,
+                  serverRecord?.version || null,
+                  JSON.stringify(operation.payload),
+                  JSON.stringify(serverRecord)
+                ]
+              );
+              conflictId = conflictResult.rows[0].conflict_id;
+            }
+          } catch (recordError) {
+            console.error('Error recording operation status:', recordError);
           }
-        } catch (recordError) {
-          console.error('Error recording operation status:', recordError);
         }
 
         // Commit the error handling transaction
@@ -234,7 +256,8 @@ async function syncOperations(req, res, next) {
           success: false,
           operationId: operation.id,
           status: status,
-          message: error.message,
+          // Database errors carry a code; don't pass their internal messages to the client
+          message: error.code ? 'The operation could not be applied' : error.message,
           conflictId: conflictId,
           serverRecord: serverRecord,
           baseVersion: operation.baseVersion,
@@ -534,6 +557,9 @@ async function resolveConflict(req, res, next) {
   
   try {
     const { conflictId } = req.params;
+    if (!isUuid(conflictId)) {
+      throw new ValidationError('Invalid conflict ID format');
+    }
     const { resolution } = req.body;
     const clientId = req.body.clientId;
     // conflicts.resolved_by references users.id; there is no authenticated user yet (#22),
@@ -788,6 +814,9 @@ async function getConflictById(req, res, next) {
   
   try {
     const { conflictId } = req.params;
+    if (!isUuid(conflictId)) {
+      throw new ValidationError('Invalid conflict ID format');
+    }
 
     const result = await client.query(
       'SELECT * FROM conflicts WHERE conflict_id = $1',
@@ -804,6 +833,9 @@ async function getConflictById(req, res, next) {
     });
 
   } catch (error) {
+    if (error instanceof ValidationError) {
+      return res.status(400).json({ error: error.message });
+    }
     if (error instanceof NotFoundError) {
       return res.status(404).json({ error: error.message });
     }

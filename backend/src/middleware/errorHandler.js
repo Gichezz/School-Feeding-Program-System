@@ -12,7 +12,20 @@ function errorHandler(err, req, res, next) {
     method: req.method,
   });
 
+  // Request body errors from express.json()
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'Request body too large' });
+  }
+  if (err.type === 'entity.parse.failed') {
+    return res.status(400).json({ error: 'Malformed JSON body' });
+  }
+
   // Handle specific error types
+  if (err.code === '22P02') {
+    // Invalid text representation (e.g. a malformed UUID reached the database)
+    return res.status(400).json({ error: 'Invalid data format' });
+  }
+
   if (err.code === '23505') {
     // Unique constraint violation
     return res.status(409).json({
@@ -45,9 +58,14 @@ function errorHandler(err, req, res, next) {
     });
   }
 
-  // Default error response
+  // Default error response. Errors raised deliberately by the app carry a statusCode and a
+  // message meant for clients; anything else may contain internal details (SQL, file paths),
+  // so outside development its message is replaced with a generic one.
   const statusCode = err.statusCode || 500;
-  const message = err.message || 'Internal server error';
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  const message = err.statusCode || isDevelopment
+    ? err.message || 'Internal server error'
+    : 'Internal server error';
 
   res.status(statusCode).json({
     error: message,

@@ -20,7 +20,8 @@ app.use(cors({
   credentials: true,
 }));
 
-app.use(express.json());
+// Records are small; reject oversized bodies early
+app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || '100kb' }));
 
 // API routes
 app.use('/api/health', healthRoutes);
