@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import PageIntro from '../components/PageIntro';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { getSchools, getMeals, createMeal } from '../services/api';
+import { mergeLocalAndServerRecords } from '../utils/mergeRecords';
 import { 
   getLocalMeals, 
   saveLocalMeal, 
@@ -127,12 +128,11 @@ function MealDistribution() {
         const localMeals = localMealsResult.status === 'fulfilled' ? localMealsResult.value : [];
         const serverMeals = serverMealsResult.status === 'fulfilled' ? serverMealsResult.value.meals : [];
         
-        // Combine local and server records, but deduplicate by serverId
-        // Local records take precedence over server records
-        const serverIds = new Set(localMeals.map(r => r.serverId).filter(Boolean));
-        const uniqueServerMeals = serverMeals.filter(r => !serverIds.has(r.id));
-        
-        setMealRecords([...localMeals, ...uniqueServerMeals]);
+        // Combine local and server records; local records take precedence
+        setMealRecords(mergeLocalAndServerRecords(localMeals, serverMeals, {
+          localDateField: 'distributionDate',
+          serverDateField: 'distribution_date',
+        }));
       } catch (err) {
         // Only set error if it's not a network error (which is expected offline)
         if (!err.message.includes('Network error') && !err.message.includes('fetch')) {
