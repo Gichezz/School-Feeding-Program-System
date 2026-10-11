@@ -54,7 +54,7 @@ describe('processSyncQueue', () => {
       operations: [expect.objectContaining({ id: operation.id, entityType: 'attendance', operation: 'create', payload: attendance, baseVersion: 0 })],
     });
     expect(await db.syncQueue.get(operation.id)).toMatchObject({ status: 'synced' });
-    expect(await db.attendance.get(saved.id)).toMatchObject({ syncStatus: 'synced', version: 1 });
+    expect(await db.attendance.get(saved.id)).toMatchObject({ syncStatus: 'synced', version: 1, serverId: 'server-record-id' });
   });
 
   it('keeps a failed operation pending and counts the retry', async () => {
