@@ -165,7 +165,7 @@ python app.py
 
 The model loads once at startup and is never retrained per request. If the artifact is missing, the service still starts: `/health` reports `"forecasting": "model_not_loaded"` and `/api/forecast` returns 503 with the training command.
 
-**Port note:** Flask runs on 5000 (`FLASK_RUN_PORT`) and the Express backend on 3001 (`PORT` in `backend/.env.example`), so both can run side by side. The backend reaches this service through `FORECASTING_SERVICE_URL=http://localhost:5000`.
+**Port note:** Flask runs on 5001 (`FLASK_RUN_PORT`) and the Express backend on 5000 (`PORT` in `backend/.env.example`), so both can run side by side. The backend reaches this service through `FORECASTING_SERVICE_URL=http://localhost:5001`.
 
 ## 13. Forecast endpoint
 
@@ -182,7 +182,7 @@ Unknown parameters are rejected. Errors use the backend's shape, `{"error": "<me
 Example (the values shown are illustrative):
 
 ```bash
-curl "http://localhost:5000/api/forecast?start_date=2026-10-05&horizon_days=7&enrollment=600"
+curl "http://localhost:5001/api/forecast?start_date=2026-10-05&horizon_days=7&enrollment=600"
 ```
 
 ```json

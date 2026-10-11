@@ -69,5 +69,5 @@ app = create_app()
 
 
 if __name__ == "__main__":
-    # Port from FLASK_RUN_PORT (see .env.example); default 5000.
-    app.run(host="0.0.0.0", port=int(os.environ.get("FLASK_RUN_PORT", 5000)), debug=True)
+    # Port from FLASK_RUN_PORT (see .env.example); default 5001.
+    app.run(host="0.0.0.0", port=int(os.environ.get("FLASK_RUN_PORT", 5001)), debug=True)
