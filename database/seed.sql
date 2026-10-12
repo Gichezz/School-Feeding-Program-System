@@ -5,6 +5,10 @@
 -- Corresponding development passwords (local use only):
 --   admin@demo-school.local        -> ChangeMeAdmin1
 --   staff@demo-school.local        -> ChangeMeStaff1
+--
+-- LOCAL USE ONLY: these passwords are published here, so never load this file on a
+-- hosted or shared deployment. Create the first administrator there with
+-- backend/scripts/create-admin.js and add other users from Settings → Users.
 
 INSERT INTO schools (id, name, location)
 VALUES (

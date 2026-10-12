@@ -57,7 +57,7 @@ The server rejects a resolution if the record has changed again since the confli
 
 ## Sign-in and roles
 
-`POST /api/auth/login` checks the password against the bcrypt hash and returns a signed session token (JWT, 7 days by default). Every other API route except the health check requires it. School staff can record, sync and view everything; only administrators can resolve conflicts. The device keeps the session so it can still be used offline after the token expires; only requests to the server need a valid session.
+`POST /api/auth/login` checks the password against the bcrypt hash and returns a signed session token (JWT, 7 days by default). Every other API route except the health check requires it. School staff can record, sync and view everything; only administrators can resolve conflicts and manage user accounts (`/api/users`). The auth middleware looks up the account on every request, so a deactivated user, or a session issued before a password change or reset, is rejected straight away, and a role change applies immediately. Anyone signed in can change their own password with `PUT /api/auth/password`; the response is a new session for that device. The device keeps the session so it can still be used offline after the token expires; only requests to the server need a valid session.
 
 ## Forecasting flow
 

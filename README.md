@@ -13,6 +13,7 @@ Final-year project. A system for one selected Kenyan school that records daily a
 | **Dashboard and reports** | Attendance and meal totals, rates and trends for a date range. |
 | **Meal-demand forecast** | Expected meals per school day with a likely range, from a Prophet model served by a Flask service. The latest forecast is kept on the device for offline viewing. |
 | **Sign-in and roles** | School staff and administrators sign in; only administrators resolve conflicts. Recording keeps working offline when a sign-in expires. |
+| **User accounts** | Administrators add users, change roles, reset passwords and deactivate or reactivate accounts from Settings → Users. Everyone can change their own password. Deactivating a user or resetting a password ends their sessions straight away. |
 
 ## Architecture
 
@@ -72,15 +73,16 @@ psql -U postgres -d school_feeding -f database/schema.sql
 psql -U postgres -d school_feeding -f database/seed.sql
 ```
 
-`seed.sql` creates one demo school and two demo accounts for local development; their passwords are listed at the top of that file. The demo school's only attendance record has 3 registered learners, so forecasts are close to zero until realistic attendance is recorded.
+`seed.sql` creates one demo school and two demo accounts for **local development only**; their passwords are listed at the top of that file, so never load it on a hosted or shared database. The demo school's only attendance record has 3 registered learners, so forecasts are close to zero until realistic attendance is recorded.
 
 **Existing databases:** `schema.sql` only creates missing tables. Apply later schema changes with the scripts in `database/migrations/`, in order:
 
 ```bash
 psql -U postgres -d school_feeding -f database/migrations/001_attendance_present_absent_equals_registered.sql
+psql -U postgres -d school_feeding -f database/migrations/002_user_accounts.sql
 ```
 
-`001` requires present + absent to equal registered for new and updated attendance records, and lists existing records that do not add up. Correct those records, then run `ALTER TABLE attendance_records VALIDATE CONSTRAINT attendance_present_absent_equals_registered;`.
+`001` requires present + absent to equal registered for new and updated attendance records, and lists existing records that do not add up. Correct those records, then run `ALTER TABLE attendance_records VALIDATE CONSTRAINT attendance_present_absent_equals_registered;`. `002` adds the columns used to deactivate users and to end sessions after a password change.
 
 ### 2. Backend API (port 5000)
 
@@ -98,6 +100,12 @@ node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 ```
 
 Health check: `GET http://localhost:5000/api/health`
+
+**First administrator (without the demo accounts):** on a database where `seed.sql` was not loaded, create the first administrator from the `backend` folder. The script asks for the password without showing it (or reads `ADMIN_PASSWORD`). Then sign in and add everyone else from **Settings → Users**.
+
+```bash
+node scripts/create-admin.js --name "Your Name" --email you@example.org
+```
 
 ### 3. Forecasting service (port 5001)
 
@@ -190,5 +198,5 @@ Work is tracked in [GitHub issues](https://github.com/Gichezz/School-Feeding-Pro
 - **One school.** The data model allows more, but the prototype and its forecasting model target one school.
 - **Synthetic training data.** The forecasting model is trained and evaluated on a synthetic dataset for one simulated Kenyan school; it has not been validated against real school records ([docs/forecasting.md](docs/forecasting.md)).
 - **Offline scope.** The service worker caches the app shell, and records live in IndexedDB. Offline behaviour is tested through the browser's online/offline state rather than a real network outage.
-- **Sign-in.** The first sign-in on a device needs a connection. There is no rate limiting on sign-in yet, and a session cannot be revoked before it expires.
-- **Deployment and UI.** Deployment configuration is planned ([#25](https://github.com/Gichezz/School-Feeding-Program-System/issues/25)), and the interface is due for a redesign ([#40](https://github.com/Gichezz/School-Feeding-Program-System/issues/40)).
+- **Sign-in.** The first sign-in on a device needs a connection. There is no rate limiting on sign-in yet. A user whose role changes keeps seeing their old menu until they sign in again, although the server applies the new role straight away.
+- **Deployment.** Deployment configuration is planned ([#25](https://github.com/Gichezz/School-Feeding-Program-System/issues/25)).

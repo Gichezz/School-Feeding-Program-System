@@ -182,3 +182,45 @@ export async function login(email, password) {
     body: JSON.stringify({ email, password }),
   });
 }
+
+/**
+ * Change the signed-in user's own password. Returns a new session
+ * ({ token, expiresAt, user }); other sessions for the account end.
+ */
+export async function changePassword(currentPassword, newPassword) {
+  return apiRequest('/auth/password', {
+    method: 'PUT',
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+}
+
+/**
+ * User accounts (administrators only)
+ */
+export async function getUsers() {
+  return apiRequest('/users');
+}
+
+export async function createUser(data) {
+  return apiRequest('/users', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * changes: any of { name, role, isActive }
+ */
+export async function updateUser(id, changes) {
+  return apiRequest(`/users/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(changes),
+  });
+}
+
+export async function resetUserPassword(id, password) {
+  return apiRequest(`/users/${id}/password`, {
+    method: 'POST',
+    body: JSON.stringify({ password }),
+  });
+}

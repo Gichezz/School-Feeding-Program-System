@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { login, me } = require('../controllers/authController');
+const { login, me, changePassword } = require('../controllers/authController');
 const { requireAuth } = require('../middleware/auth');
 
 /**
@@ -14,5 +14,11 @@ router.post('/login', login);
  * The signed-in user
  */
 router.get('/me', requireAuth, me);
+
+/**
+ * PUT /api/auth/password
+ * Change your own password (current password required); other sessions end
+ */
+router.put('/password', requireAuth, changePassword);
 
 module.exports = router;
