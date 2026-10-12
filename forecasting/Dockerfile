@@ -15,6 +15,8 @@ COPY app.py ./
 COPY config ./config
 COPY models ./models
 COPY services ./services
+# The school calendar rules used for future dates live with the dataset scripts
+COPY scripts/common.py scripts/generate_synthetic_dataset.py ./scripts/
 
 RUN useradd --create-home --uid 10001 forecasting
 USER forecasting

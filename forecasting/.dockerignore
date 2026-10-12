@@ -6,6 +6,5 @@ __pycache__
 data
 notebooks
 tests
-scripts
 .env
 .env.*
