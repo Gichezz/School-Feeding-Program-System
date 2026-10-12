@@ -2,6 +2,8 @@
 # Test dependencies: requirements-dev.txt
 
 Flask==3.0.3
+# Production WSGI server (used by the Docker image)
+gunicorn==23.0.0
 prophet==1.1.6
 pandas==2.2.3
 python-dotenv==1.0.1

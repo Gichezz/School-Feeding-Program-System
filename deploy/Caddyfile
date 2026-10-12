@@ -1,0 +1,7 @@
+# HTTPS front door for the public server (docker-compose.prod.yml).
+# Caddy obtains and renews the certificate for {$DOMAIN} automatically.
+{$DOMAIN} {
+	encode zstd gzip
+	header Strict-Transport-Security "max-age=31536000"
+	reverse_proxy web:80
+}
