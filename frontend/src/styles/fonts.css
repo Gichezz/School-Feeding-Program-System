@@ -1,0 +1,20 @@
+/*
+ * Fonts are bundled with the app (no font CDN) so they work offline.
+ * Both are variable fonts licensed under the SIL Open Font License 1.1
+ * (see src/assets/fonts/LICENSE-*.txt).
+ */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../assets/fonts/inter-latin-variable.woff2') format('woff2-variations');
+}
+
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../assets/fonts/fraunces-latin-variable.woff2') format('woff2-variations');
+}

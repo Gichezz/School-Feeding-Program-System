@@ -1,0 +1,160 @@
+/*
+ * Lishe design tokens: the single source for colour, type, spacing and shape.
+ * Components and pages use these variables only; no hard-coded values elsewhere.
+ * Text/background pairs below meet WCAG AA (4.5:1 for text, 3:1 for UI and charts).
+ */
+:root {
+  /* Brand: forest green */
+  --color-brand-50: #f1f7f4;
+  --color-brand-100: #e3efe9;
+  --color-brand-200: #c4ddd1;
+  --color-brand-600: #24735d;
+  --color-brand-700: #1b5e4b;
+  --color-brand-800: #134236;
+  --color-brand-900: #12382e;
+  --color-brand: var(--color-brand-700);
+  --color-on-brand: #ffffff;
+
+  /* Surfaces and text: warm cream and near-black green */
+  --color-bg: #f7f4ef;
+  --color-surface: #fffdf9;
+  --color-surface-sunken: #f0ece4;
+  --color-surface-overlay: #fffdf9;
+  --color-ink: #1c2b24;
+  --color-ink-muted: #4f5d56;
+  --color-ink-subtle: #66736d;
+  --color-ink-inverse: #f7f4ef;
+  --color-border: #dde4df;
+  --color-border-strong: #78887f;
+  --color-scrim: rgb(28 43 36 / 0.45);
+
+  /* Semantic */
+  --color-success: #1a6b43;
+  --color-success-bg: #e3f2e9;
+  --color-success-border: #9ccdb2;
+  --color-warning: #7a4a00;
+  --color-warning-bg: #fcefd6;
+  --color-warning-border: #e9b766;
+  --color-danger: #a2241b;
+  --color-danger-solid: #b42318;
+  --color-danger-bg: #fcebea;
+  --color-danger-border: #eea69f;
+  --color-info: #1c56a3;
+  --color-info-bg: #e5eefa;
+  --color-info-border: #9dbbe6;
+  --color-neutral: #4f5d56;
+  --color-neutral-bg: #eceee9;
+  --color-neutral-border: #c7cfca;
+
+  /* Sync states: offline is normal, so it is calm grey, never red */
+  --color-sync-offline: var(--color-neutral);
+  --color-sync-offline-bg: var(--color-neutral-bg);
+  --color-sync-syncing: var(--color-info);
+  --color-sync-syncing-bg: var(--color-info-bg);
+  --color-sync-synced: var(--color-success);
+  --color-sync-synced-bg: var(--color-success-bg);
+  --color-sync-failed: var(--color-warning);
+  --color-sync-failed-bg: var(--color-warning-bg);
+
+  /* Chart series: one colour per metric, everywhere in the app */
+  --chart-1: #1b5e4b; /* attendance / present */
+  --chart-2: #b5532a; /* meals served */
+  --chart-3: #a8851a; /* meals prepared */
+  --chart-4: #6b4fa0; /* forecast */
+  --chart-grid: var(--color-border);
+  --chart-axis: var(--color-ink-subtle);
+  --chart-band-opacity: 0.18;
+
+  /* Typography: one display face (titles, wordmark), one body face */
+  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-body: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 1.875rem;
+  --font-size-4xl: 2.25rem;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --line-height-tight: 1.2;
+  --line-height-snug: 1.35;
+  --line-height-normal: 1.5;
+  --letter-spacing-caps: 0.04em;
+  --measure-narrow: 40ch; /* comfortable line length for short text */
+  --measure-wide: 60ch;
+
+  /* Icons */
+  --icon-inline: 1.15em; /* icons inside text-sized controls follow the font size */
+  --icon-sm: 1rem;
+  --icon-md: 1.25rem;
+  --icon-lg: 2rem;
+
+  /* Component sizes */
+  --chart-height-sm: 12rem;
+  --chart-height-md: 16rem;
+  --chart-height-lg: 20rem;
+  --skeleton-block-height: 6rem;
+  --toast-width: 24rem;
+
+  /* Spacing: 4px base */
+  --space-0: 0;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* Shape */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-pill: 999px;
+  --border-width: 1px;
+  --border-width-strong: 2px;
+  --border-default: var(--border-width) solid var(--color-border);
+  --shadow-sm: 0 1px 2px rgb(28 43 36 / 0.06);
+  --shadow-md: 0 2px 8px rgb(28 43 36 / 0.08), 0 1px 2px rgb(28 43 36 / 0.06);
+  --shadow-lg: 0 12px 32px rgb(28 43 36 / 0.14), 0 2px 6px rgb(28 43 36 / 0.08);
+
+  /* Interaction */
+  --touch-target: 2.75rem; /* 44px */
+  --focus-ring-color: var(--color-info);
+  --focus-ring: 0 0 0 3px var(--color-surface), 0 0 0 5px var(--focus-ring-color);
+  --duration-fast: 120ms;
+  --duration-normal: 200ms;
+  --duration-spin: 1s;
+  --duration-shimmer: 1.4s;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Layout */
+  --content-max-width: 75rem;
+  --sidebar-width: 15rem;
+  --sidebar-collapsed-width: 4.5rem;
+  --topbar-height: 3.5rem;
+  --bottom-nav-height: 4rem;
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* Layering */
+  --z-sticky: 10;
+  --z-nav: 20;
+  --z-overlay: 40;
+  --z-toast: 50;
+
+  /*
+   * Breakpoints (CSS custom properties cannot be used inside media queries, so the
+   * values are repeated there; keep them in sync with src/styles/breakpoints.js):
+   *   mobile  < 768px
+   *   tablet  768px – 1023px
+   *   desktop >= 1024px
+   */
+}
