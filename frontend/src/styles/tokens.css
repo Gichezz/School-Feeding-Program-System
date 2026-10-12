@@ -63,6 +63,8 @@
   --color-sync-synced-bg: var(--color-success-bg);
   --color-sync-failed: var(--color-warning);
   --color-sync-failed-bg: var(--color-warning-bg);
+  --color-sync-conflict: var(--color-warning);
+  --color-sync-conflict-bg: var(--color-warning-bg);
 
   /* Chart series: one colour per metric, everywhere in the app */
   --chart-1: #1b5e4b; /* attendance / present */

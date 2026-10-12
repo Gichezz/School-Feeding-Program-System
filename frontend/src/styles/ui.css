@@ -709,6 +709,8 @@
 .ui-sync--synced .ui-sync__icon { color: var(--color-sync-synced); }
 .ui-sync--failed { background: var(--color-sync-failed-bg); border-color: var(--color-warning-border); }
 .ui-sync--failed .ui-sync__icon { color: var(--color-sync-failed); }
+.ui-sync--conflict { background: var(--color-sync-conflict-bg); border-color: var(--color-warning-border); }
+.ui-sync--conflict .ui-sync__icon { color: var(--color-sync-conflict); }
 
 .ui-sync__progress {
   display: block;

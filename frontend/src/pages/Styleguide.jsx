@@ -247,6 +247,7 @@ function Styleguide() {
             <SyncStatusBar state="syncing" pendingCount={3} progress={40} onSyncNow={() => {}} />
             <SyncStatusBar state="synced" pendingCount={0} lastSyncedAt={minutesAgo(5)} onSyncNow={() => {}} />
             <SyncStatusBar state="failed" pendingCount={2} failure={{ what: '2 changes did not sync' }} onSyncNow={() => {}} />
+            <SyncStatusBar state="conflict" conflictCount={1} onSyncNow={() => {}} />
             <SyncStatusBar
               variant="expanded"
               state="failed"
