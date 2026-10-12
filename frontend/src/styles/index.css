@@ -1,7 +1,8 @@
-/* Lishe styles, in order: fonts, design tokens, base elements, shared components. */
+/* Lishe styles, in order: fonts, design tokens, base elements, shared components, app shell. */
 @import './fonts.css';
 @import './tokens.css';
 @import './base.css';
 @import './ui.css';
+@import './shell.css';
 /* Old page classes, removed once every page uses the shared components (#40) */
 @import './legacy.css';
