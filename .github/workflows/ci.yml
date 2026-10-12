@@ -79,3 +79,51 @@ jobs:
             forecasting/requirements-dev.txt
       - run: pip install -r requirements-dev.txt
       - run: python -m pytest tests
+
+  docker:
+    name: Docker Compose smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Write a throwaway .env
+        run: |
+          {
+            echo "PGPASSWORD=$(openssl rand -hex 24)"
+            echo "JWT_SECRET=$(openssl rand -hex 48)"
+            echo "LOAD_DEMO_DATA=true"
+          } > .env
+      - name: Check the HTTPS production file
+        run: |
+          DOMAIN=lishe.example.org docker compose -f docker-compose.yml -f docker-compose.prod.yml config > prod-config.yml
+          # Only Caddy may publish ports on the public server
+          test "$(grep -c 'published:' prod-config.yml)" = "3"
+          grep -q 'FRONTEND_URL: https://lishe.example.org' prod-config.yml
+      - name: Build and start the stack
+        run: docker compose up --build --detach --wait --wait-timeout 300
+      - name: Smoke test
+        env:
+          BASE_URL: http://localhost:8080
+          SMOKE_EMAIL: admin@demo-school.local
+          SMOKE_PASSWORD: ChangeMeAdmin1
+        run: node deploy/smoke-test.mjs
+      - name: Create an administrator with the script, then sign in as them
+        run: |
+          docker compose exec -T -e ADMIN_PASSWORD=ci-admin-password-1 backend \
+            node scripts/create-admin.js --name "CI Admin" --email ci-admin@example.org
+          SMOKE_EMAIL=ci-admin@example.org SMOKE_PASSWORD=ci-admin-password-1 BASE_URL=http://localhost:8080 \
+            node deploy/smoke-test.mjs
+      - name: Migrations can be applied to the running database
+        run: |
+          for file in database/migrations/*.sql; do
+            docker compose exec -T db sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f "/database/migrations/$(basename "$0")"' "$file" > /dev/null
+            echo "applied $file"
+          done
+      - name: Show logs on failure
+        if: failure()
+        run: docker compose logs --no-color
+      - name: Stop the stack
+        if: always()
+        run: docker compose down --volumes

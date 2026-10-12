@@ -48,10 +48,26 @@ Details: [docs/architecture.md](docs/architecture.md) (components and sync proto
 ├── frontend/      React PWA: pages, Dexie database, sync queue and manager, tests
 ├── backend/       Express REST API: auth, records, sync and conflicts, reports, forecasts, tests
 ├── forecasting/   Flask + Prophet service, dataset and training scripts, model artifacts, tests
-├── database/      schema.sql, seed.sql, migrations/
-├── docs/          Architecture, forecasting and dataset documentation
+├── database/      schema.sql, seed.sql, migrations/, Docker first-start script
+├── deploy/        Caddy (HTTPS) config and the deployment smoke test
+├── docs/          Architecture, deployment, forecasting and dataset documentation
 └── .github/       CI workflow, issue forms, pull request template
 ```
+
+`docker-compose.yml` runs the whole system in containers; `docker-compose.prod.yml` adds HTTPS for a public server.
+
+## Quick start with Docker
+
+With [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed, one command runs the database, API, forecasting service and app:
+
+```bash
+copy .env.example .env
+docker compose up --build
+```
+
+First set `PGPASSWORD` and `JWT_SECRET` in `.env`, and `LOAD_DEMO_DATA=true` for the demo accounts. Then open `http://localhost:8080`. [docs/deployment.md](docs/deployment.md) covers configuration, migrations, backups, deploying to a server with HTTPS, and the smoke test.
+
+To run the services without Docker, for development, follow the steps below.
 
 ## Prerequisites
 
@@ -199,4 +215,4 @@ Work is tracked in [GitHub issues](https://github.com/Gichezz/School-Feeding-Pro
 - **Synthetic training data.** The forecasting model is trained and evaluated on a synthetic dataset for one simulated Kenyan school; it has not been validated against real school records ([docs/forecasting.md](docs/forecasting.md)).
 - **Offline scope.** The service worker caches the app shell, and records live in IndexedDB. Offline behaviour is tested through the browser's online/offline state rather than a real network outage.
 - **Sign-in.** The first sign-in on a device needs a connection. There is no rate limiting on sign-in yet. A user whose role changes keeps seeing their old menu until they sign in again, although the server applies the new role straight away.
-- **Deployment.** Deployment configuration is planned ([#25](https://github.com/Gichezz/School-Feeding-Program-System/issues/25)).
+- **Hosting.** Docker Compose and an HTTPS setup for any Linux server are ready ([docs/deployment.md](docs/deployment.md)); the public demo server itself is still to be set up ([#25](https://github.com/Gichezz/School-Feeding-Program-System/issues/25)).
