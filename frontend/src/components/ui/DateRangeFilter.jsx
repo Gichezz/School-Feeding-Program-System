@@ -1,5 +1,6 @@
 import { useId } from 'react';
-import { formatDate, fromInputDate, toInputDate, toDate } from '../../utils/format';
+import DateField from './DateField';
+import { formatDate, toDate } from '../../utils/format';
 
 export const DATE_PRESETS = [
   { value: 'today', label: 'Today' },
@@ -29,9 +30,9 @@ function DateRangeFilter({ value, onChange, label = 'Date range' }) {
     const range = rangeForPreset(preset) || { start: value.start, end: value.end };
     onChange({ preset, ...range });
   };
-  const setCustom = (field, inputValue) => {
-    if (!inputValue) return;
-    const next = { ...value, preset: 'custom', [field]: fromInputDate(inputValue) };
+  const setCustom = (field, date) => {
+    if (!date) return; // wait until a complete, real date is entered
+    const next = { ...value, preset: 'custom', [field]: date };
     // Keep the range valid: the end can never be before the start
     if (toDate(next.end) < toDate(next.start)) {
       if (field === 'start') next.end = next.start;
@@ -58,14 +59,8 @@ function DateRangeFilter({ value, onChange, label = 'Date range' }) {
       </div>
       {value.preset === 'custom' && (
         <div className="ui-date-range__custom">
-          <label className="ui-date-range__field">
-            <span>From</span>
-            <input type="date" value={toInputDate(value.start)} onChange={(e) => setCustom('start', e.target.value)} />
-          </label>
-          <label className="ui-date-range__field">
-            <span>To</span>
-            <input type="date" value={toInputDate(value.end)} onChange={(e) => setCustom('end', e.target.value)} />
-          </label>
+          <DateField label="From" value={value.start} onChange={(date) => setCustom('start', date)} />
+          <DateField label="To" value={value.end} onChange={(date) => setCustom('end', date)} />
         </div>
       )}
     </div>
