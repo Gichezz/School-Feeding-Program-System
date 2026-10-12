@@ -12,5 +12,6 @@ export { default as PageHeader, APP_NAME } from './PageHeader';
 export { default as Skeleton, SkeletonText, LoadingRegion } from './Skeleton';
 export { default as StatCard } from './StatCard';
 export { default as SyncStatusBar } from './SyncStatusBar';
+export { default as SummaryList } from './SummaryList';
 export { ToastProvider, useToast } from './Toast';
 export { METRICS } from './metrics';
