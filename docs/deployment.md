@@ -25,7 +25,7 @@ You need [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Wind
 
    (`cp .env.example .env` on macOS or Linux.)
 
-2. In `.env`, set `POSTGRES_PASSWORD` and `JWT_SECRET` to long random values; the commands to generate them are in the file. For a local demo, also set `LOAD_DEMO_DATA=true` to get the demo school and the two demo accounts from `database/seed.sql`.
+2. In `.env`, set `PGPASSWORD` and `JWT_SECRET` to long random values; the commands to generate them are in the file. For a local demo, also set `LOAD_DEMO_DATA=true` to get the demo school and the two demo accounts from `database/seed.sql`.
 
 3. Build and start everything:
 
@@ -44,7 +44,7 @@ Any Linux server that can run Docker works, for example a small cloud VM. Use on
 1. **Point a domain at the server.** Create a DNS `A` record (for example `lishe.example.org`) for the server's public IP address. Open ports **80** and **443** in the server's firewall or cloud security group. Caddy needs both to obtain the certificate.
 2. **Install Docker** with the Compose plugin ([instructions](https://docs.docker.com/engine/install/)).
 3. **Get the code:** `git clone https://github.com/Gichezz/School-Feeding-Program-System.git` and `cd` into it.
-4. **Create `.env`** from `.env.example` with new random values for `POSTGRES_PASSWORD` and `JWT_SECRET`. Keep `LOAD_DEMO_DATA=false`, because the demo accounts' passwords are public. Set `DOMAIN` to your domain name.
+4. **Create `.env`** from `.env.example` with new random values for `PGPASSWORD` and `JWT_SECRET`. Keep `LOAD_DEMO_DATA=false`, because the demo accounts' passwords are public. Set `DOMAIN` to your domain name.
 5. **Start it:**
 
    ```bash
@@ -69,9 +69,9 @@ All settings come from `.env` in the project folder, which Git ignores. [`.env.e
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `POSTGRES_PASSWORD` | yes | Database password, used by `db` and `backend`. Letters and digits only. |
+| `PGPASSWORD` | yes | Database password, used by `db` and `backend`. Letters and digits only. |
 | `JWT_SECRET` | yes | Signs sign-in sessions; at least 32 random characters. The API refuses to start with the placeholder. |
-| `POSTGRES_USER`, `POSTGRES_DB` | no | Database user and name (`lishe`, `school_feeding`). |
+| `PGUSER`, `PGDATABASE` | no | Database user and name (`postgres`, `school_feeding_db`). The names match `backend/.env`; inside Docker the host is always `db`, so `PGHOST`, `PGPORT` and `DATABASE_URL` are not used. |
 | `JWT_EXPIRES_IN` | no | How long a sign-in lasts (`7d`). |
 | `LOAD_DEMO_DATA` | no | `true` loads the demo school and demo accounts on the database's **first** start. Local use only. |
 | `WEB_PORT` | no | Local port for the app (`8080`). |
@@ -136,7 +136,8 @@ The CI workflow runs the same smoke test on every pull request. It builds all fo
 
 ## Troubleshooting
 
-- **`Set POSTGRES_PASSWORD in .env`** or **`Set JWT_SECRET in .env`**: `.env` is missing or incomplete.
+- **`Set PGPASSWORD in .env`** or **`Set JWT_SECRET in .env`**: `.env` is missing or incomplete.
+- **The database password seems wrong**: Docker Compose prefers variables already set in your terminal over `.env`. If you set `PGPASSWORD` in your shell for `psql`, that value is used; open a new terminal without it.
 - **The API keeps restarting with `JWT_SECRET must be set`**: the secret is shorter than 32 characters or still the placeholder.
 - **No HTTPS certificate**: check that the domain's DNS points at the server and that ports 80 and 443 are open, then look at `docker compose logs caddy`.
 - **Forecast says the model is not loaded**: look at `docker compose logs forecasting`. The image must include `forecasting/models/artifacts`.

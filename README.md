@@ -65,7 +65,7 @@ copy .env.example .env
 docker compose up --build
 ```
 
-First set `POSTGRES_PASSWORD` and `JWT_SECRET` in `.env`, and `LOAD_DEMO_DATA=true` for the demo accounts. Then open `http://localhost:8080`. [docs/deployment.md](docs/deployment.md) covers configuration, migrations, backups, deploying to a server with HTTPS, and the smoke test.
+First set `PGPASSWORD` and `JWT_SECRET` in `.env`, and `LOAD_DEMO_DATA=true` for the demo accounts. Then open `http://localhost:8080`. [docs/deployment.md](docs/deployment.md) covers configuration, migrations, backups, deploying to a server with HTTPS, and the smoke test.
 
 To run the services without Docker, for development, follow the steps below.
 

@@ -91,7 +91,7 @@ jobs:
       - name: Write a throwaway .env
         run: |
           {
-            echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)"
+            echo "PGPASSWORD=$(openssl rand -hex 24)"
             echo "JWT_SECRET=$(openssl rand -hex 48)"
             echo "LOAD_DEMO_DATA=true"
           } > .env
