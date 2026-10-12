@@ -1,5 +1,5 @@
 import { Routes, Route } from 'react-router-dom';
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Attendance from './pages/Attendance';
@@ -12,6 +12,12 @@ import Login from './pages/Login';
 import { useSession } from './hooks/useSession';
 import Settings from './pages/Settings';
 import { setupAutoSync } from './sync/syncManager';
+
+// Design system reference; only included in development builds
+const Styleguide = import.meta.env.DEV ? lazy(() => import('./pages/Styleguide')) : null;
+const styleguideRoute = Styleguide && (
+  <Route path="/styleguide" element={<Suspense fallback={null}><Styleguide /></Suspense>} />
+);
 
 /**
  * Root application routes.
@@ -36,6 +42,7 @@ function App() {
   if (!session) {
     return (
       <Routes>
+        {styleguideRoute}
         <Route element={<Layout />}>
           <Route path="*" element={<Login />} />
         </Route>
@@ -45,6 +52,7 @@ function App() {
 
   return (
     <Routes>
+      {styleguideRoute}
       <Route element={<Layout />}>
         <Route path="/login" element={<Login />} />
         <Route path="/" element={<Dashboard />} />
