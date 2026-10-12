@@ -12,12 +12,14 @@ export default defineConfig({
       includeAssets: ['favicon.svg', 'pwa-192.png', 'pwa-512.png'],
       manifestFilename: 'manifest.webmanifest',
       manifest: {
-        name: 'School Feeding System',
-        short_name: 'SchoolFeed',
+        name: 'Lishe – School Feeding',
+        short_name: 'Lishe',
         description:
-          'Offline-first attendance and meal distribution for school feeding programs',
-        theme_color: '#1B5E4B',
-        background_color: '#F7F4EF',
+          'Every meal counted, even offline. Attendance and meal records for school feeding programmes.',
+        // Brand green and cream (--color-brand and --color-bg in src/styles/tokens.css)
+        theme_color: '#1b5e4b',
+        background_color: '#f7f4ef',
+        lang: 'en',
         display: 'standalone',
         orientation: 'any',
         start_url: '/',
@@ -42,7 +44,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // App-shell caching foundation. Offline data sync comes in a later phase.
+        // Precache the app shell, fonts and icons so Lishe opens offline
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         navigateFallback: '/index.html',
       },

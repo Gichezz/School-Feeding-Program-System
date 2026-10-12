@@ -1,13 +1,13 @@
 {
-  "name": "School Feeding System",
-  "short_name": "SchoolFeed",
-  "description": "Offline-first attendance and meal distribution for school feeding programs",
+  "name": "Lishe – School Feeding",
+  "short_name": "Lishe",
+  "description": "Every meal counted, even offline. Attendance and meal records for school feeding programmes.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#F7F4EF",
-  "theme_color": "#1B5E4B",
+  "background_color": "#f7f4ef",
+  "theme_color": "#1b5e4b",
   "lang": "en",
   "icons": [
     {

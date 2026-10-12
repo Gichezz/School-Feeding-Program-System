@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom';
 import { lazy, Suspense, useEffect } from 'react';
-import Layout from './components/Layout';
+import AppShell from './components/shell/AppShell';
+import AuthLayout from './components/shell/AuthLayout';
 import Dashboard from './pages/Dashboard';
 import Attendance from './pages/Attendance';
 import MealDistribution from './pages/MealDistribution';
@@ -43,7 +44,7 @@ function App() {
     return (
       <Routes>
         {styleguideRoute}
-        <Route element={<Layout />}>
+        <Route element={<AuthLayout />}>
           <Route path="*" element={<Login />} />
         </Route>
       </Routes>
@@ -53,7 +54,7 @@ function App() {
   return (
     <Routes>
       {styleguideRoute}
-      <Route element={<Layout />}>
+      <Route element={<AppShell />}>
         <Route path="/login" element={<Login />} />
         <Route path="/" element={<Dashboard />} />
         <Route path="/attendance" element={<Attendance />} />
