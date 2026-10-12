@@ -1,508 +1,349 @@
-import { useState, useEffect } from 'react';
-import PageIntro from '../components/PageIntro';
-import LoadingSpinner from '../components/LoadingSpinner';
-import { useOnlineStatus } from '../hooks/useOnlineStatus';
-import { useSession } from '../hooks/useSession';
-import { 
-  getUnresolvedConflicts, 
-  getConflictStats,
-  resolveConflict,
-  deleteConflict 
-} from '../sync/conflictService';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { liveQuery } from 'dexie';
+import { ArrowLeft, ArrowRight, CheckCircle2, GitCompareArrows } from 'lucide-react';
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  FormField,
+  LoadingRegion,
+  PageHeader,
+  SkeletonText,
+  SummaryList,
+  useToast,
+} from '../components/ui';
+import db from '../db/database';
+import { ATTENDANCE, MEALS } from '../features/recording/recordTypes';
+import { toCount, validateAttendance, validateMeals } from '../features/recording/validation';
+import { resolveConflict, deleteConflict } from '../sync/conflictService';
 import { getSchools } from '../services/api';
 import { getCachedSchools } from '../services/localDb';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
+import { useSession } from '../hooks/useSession';
+import { formatDate, formatDateTime, formatNumber } from '../utils/format';
+
+const CHOICES = [
+  { value: 'keep_local', label: "Keep this device's version", description: 'The values saved on this device replace the server record.' },
+  { value: 'keep_server', label: "Keep the server's version", description: "The server record stays as it is; this device's change is dropped." },
+  { value: 'merge', label: 'Edit and merge', description: 'Enter the correct values yourself. They are checked like any other record.' },
+];
+
+function typeOf(conflict) {
+  return conflict.entityType === 'attendance' ? ATTENDANCE : MEALS;
+}
+
+function dateOf(conflict) {
+  const payload = conflict.localPayload || {};
+  return formatDate(payload.attendanceDate || payload.distributionDate);
+}
 
 /**
- * Conflicts page for Phase 7
- * Displays unresolved conflicts and allows user-controlled resolution
+ * Device and server values side by side for each count.
+ */
+function comparisonRows(conflict) {
+  const type = typeOf(conflict);
+  return type.fields.map((field) => {
+    const device = conflict.localPayload?.[field.name];
+    const server = conflict.serverRecord?.[field.serverName];
+    return { ...field, device, server, differs: server !== undefined && Number(device) !== Number(server) };
+  });
+}
+
+/**
+ * Review and resolve records that were changed on this device and on the server.
+ * Only administrators can resolve; resolving needs a connection.
  */
 function Conflicts() {
   const isOnline = useOnlineStatus();
-  // Only administrators may decide which version of a record wins
   const { isAdmin } = useSession();
-  const [loading, setLoading] = useState(true);
-  const [conflicts, setConflicts] = useState([]);
-  const [conflictStats, setConflictStats] = useState(null);
-  const [selectedConflict, setSelectedConflict] = useState(null);
-  const [resolving, setResolving] = useState(false);
+  const toast = useToast();
+  const [conflicts, setConflicts] = useState(null);
+  const [schoolNames, setSchoolNames] = useState({});
+  const [selectedId, setSelectedId] = useState(null);
+  const [choice, setChoice] = useState('');
+  const [mergeValues, setMergeValues] = useState({});
+  const [step, setStep] = useState('choose'); // 'choose' | 'confirm'
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
-  const [successMessage, setSuccessMessage] = useState(null);
-  const [schools, setSchools] = useState([]);
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [pendingResolution, setPendingResolution] = useState(null);
+  const headingRef = useRef(null);
 
+  // Live list of unresolved conflicts on this device
   useEffect(() => {
-    loadConflicts();
-    loadSchools();
+    const subscription = liveQuery(() => db.conflicts.where('status').equals('unresolved').toArray()).subscribe({
+      next: (rows) => setConflicts(rows.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))),
+      error: () => setConflicts([]),
+    });
+    return () => subscription.unsubscribe();
   }, []);
 
-  const loadSchools = async () => {
-    try {
-      let schoolsData = [];
-      try {
-        const schoolsResponse = await getSchools();
-        schoolsData = schoolsResponse.schools || [];
-      } catch (serverError) {
-        console.warn('Server unavailable, using cached schools:', serverError.message);
-        try {
-          schoolsData = await getCachedSchools();
-        } catch (cacheError) {
-          console.warn('Could not get cached schools:', cacheError.message);
-          schoolsData = [];
-        }
-      }
-      setSchools(schoolsData);
-    } catch (err) {
-      console.error('Error loading schools:', err);
-    }
-  };
+  useEffect(() => {
+    getSchools()
+      .then((res) => res.schools || [])
+      .catch(() => getCachedSchools().catch(() => []))
+      .then((schools) => setSchoolNames(Object.fromEntries(schools.map((s) => [s.id, s.name]))));
+  }, []);
 
-  const loadConflicts = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+  const selected = conflicts?.find((conflict) => conflict.id === selectedId) || null;
 
-      const [unresolvedConflicts, stats] = await Promise.all([
-        getUnresolvedConflicts(),
-        getConflictStats()
-      ]);
+  // Move focus to the heading of each new step for keyboard and screen reader users
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, [selectedId, step]);
 
-      setConflicts(unresolvedConflicts);
-      setConflictStats(stats);
-    } catch (err) {
-      console.error('Error loading conflicts:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getSchoolName = (schoolId) => {
-    const school = schools.find(s => s.id === schoolId || s.id === parseInt(schoolId));
-    return school ? school.name : 'Unknown School';
-  };
-
-  const formatDateForDisplay = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day}-${month}-${year}`;
-  };
-
-  const formatDateTime = (dateString) => {
-    if (!dateString) return '';
-    return new Date(dateString).toLocaleString();
-  };
-
-  const handleSelectConflict = (conflict) => {
-    setSelectedConflict(conflict);
+  const open = (conflict) => {
+    setSelectedId(conflict.id);
+    setChoice('');
+    setStep('choose');
     setError(null);
-    setSuccessMessage(null);
-  };
-
-  const handleBackToList = () => {
-    setSelectedConflict(null);
-    setError(null);
-    setSuccessMessage(null);
-  };
-
-  const handleResolveClick = (resolution) => {
-    if (!isOnline) {
-      setError('Conflict resolution requires an internet connection');
-      return;
+    // Start the merge form from the server's values
+    const values = {};
+    for (const field of typeOf(conflict).fields) {
+      values[field.name] = String(conflict.serverRecord?.[field.serverName] ?? conflict.localPayload?.[field.name] ?? '');
     }
-    setPendingResolution(resolution);
-    setShowConfirmDialog(true);
+    setMergeValues(values);
   };
 
-  const handleConfirmResolution = async () => {
-    if (!selectedConflict || !pendingResolution) return;
+  const close = () => {
+    setSelectedId(null);
+    setStep('choose');
+    setError(null);
+  };
 
+  const mergeCheck = useMemo(() => {
+    if (!selected || choice !== 'merge') return null;
+    const validate = selected.entityType === 'attendance' ? validateAttendance : validateMeals;
+    return validate({ schoolId: 'set', date: dateOf(selected), ...mergeValues });
+  }, [selected, choice, mergeValues]);
+  const mergeErrors = mergeCheck?.errors || {};
+  const canContinue = choice && (choice !== 'merge' || Object.keys(mergeErrors).length === 0);
+
+  // The values each choice would leave on the server
+  const resultValues = () => {
+    const type = typeOf(selected);
+    return type.fields.map((field) => {
+      let value;
+      if (choice === 'keep_local') value = selected.localPayload?.[field.name];
+      else if (choice === 'keep_server') value = selected.serverRecord?.[field.serverName];
+      else value = toCount(mergeValues[field.name]);
+      return { key: field.name, label: field.label, value: formatNumber(value) };
+    });
+  };
+
+  const confirm = async () => {
+    setSubmitting(true);
+    setError(null);
     try {
-      setResolving(true);
-      setError(null);
-      setShowConfirmDialog(false);
-
-      const result = await resolveConflict(selectedConflict.id, pendingResolution);
-
-      setSuccessMessage(
-        `Conflict resolved successfully using "${pendingResolution}" strategy. Record updated to version ${result.version}.`
-      );
-
-      // Reload conflicts after successful resolution
-      setTimeout(() => {
-        loadConflicts();
-        setSelectedConflict(null);
-      }, 1500);
-
-    } catch (err) {
-      console.error('Error resolving conflict:', err);
-      if (err.message.includes('Stale conflict')) {
-        setError('This conflict is no longer valid. The server record has been modified. Please refresh and try again.');
+      if (choice === 'remove') {
+        await deleteConflict(selected.id);
+        toast.show({ tone: 'info', title: 'Removed from this device', description: 'The conflict is still recorded on the server.' });
       } else {
-        setError(err.message);
+        const values = choice === 'merge'
+          ? Object.fromEntries(Object.entries(mergeValues).map(([name, value]) => [name, toCount(value)]))
+          : undefined;
+        const result = await resolveConflict(selected.id, choice, values);
+        toast.show({ tone: 'success', title: 'Conflict resolved', description: `The record is now at version ${result.version} on the server and on this device.` });
       }
-    } finally {
-      setResolving(false);
-      setPendingResolution(null);
-    }
-  };
-
-  const handleCancelResolution = () => {
-    setShowConfirmDialog(false);
-    setPendingResolution(null);
-  };
-
-  const handleDeleteConflict = async (conflictId) => {
-    try {
-      await deleteConflict(conflictId);
-      setSuccessMessage('Conflict deleted from local storage');
-      loadConflicts();
+      close();
     } catch (err) {
-      console.error('Error deleting conflict:', err);
-      setError(err.message);
+      setStep('choose');
+      setError(/stale/i.test(err.message)
+        ? 'The server record changed again since this conflict was recorded. Sync this device, then review the conflict again.'
+        : err.message || 'The conflict could not be resolved. Try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  if (loading) {
+  const header = <PageHeader title="Conflicts" description="Records changed on this device and on the server. Choose which version to keep." />;
+
+  if (!selected) {
     return (
-      <PageIntro
-        title="Conflict Resolution"
-        purpose="Review and resolve synchronization conflicts"
-      >
-        <LoadingSpinner message="Loading conflicts..." />
-      </PageIntro>
+      <>
+        {header}
+        <div className="ui-stack">
+          {!isAdmin && (
+            <Alert tone="info" title="Only an administrator can resolve conflicts">
+              Conflicts stay recorded until an administrator reviews them. You can keep recording as normal.
+            </Alert>
+          )}
+          <Card title="Waiting for a decision">
+            {conflicts === null ? (
+              <LoadingRegion label="Loading conflicts"><SkeletonText lines={3} /></LoadingRegion>
+            ) : conflicts.length === 0 ? (
+              <EmptyState compact icon={CheckCircle2} title="No conflicts" description="When the same record is changed on this device and on the server, it appears here." />
+            ) : (
+              <ul className="conflicts__list">
+                {conflicts.map((conflict) => (
+                  <li key={conflict.id} className="conflicts__item">
+                    <GitCompareArrows className="conflicts__item-icon" aria-hidden="true" />
+                    <div className="conflicts__item-text">
+                      <p className="conflicts__item-title">{typeOf(conflict).title} · {dateOf(conflict)}</p>
+                      <p className="conflicts__item-meta">
+                        {schoolNames[conflict.localPayload?.schoolId] || 'School'} · found {formatDateTime(conflict.createdAt)}
+                      </p>
+                    </div>
+                    <Button variant="secondary" size="sm" onClick={() => open(conflict)}>Review</Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        </div>
+      </>
     );
   }
 
+  const type = typeOf(selected);
+  const rows = comparisonRows(selected);
+  const chosen = CHOICES.find((c) => c.value === choice);
+
   return (
-    <PageIntro
-      title="Conflict Resolution"
-      purpose="Review and resolve synchronization conflicts between local and server data"
-    >
-      {error && <div className="form-error">{error}</div>}
-      {successMessage && <div className="form-success">{successMessage}</div>}
-
-      {/* Connection Status */}
-      <section className="form-section">
-        <h2>Connection Status</h2>
-        <div style={{ 
-          padding: '1rem', 
-          borderRadius: '4px',
-          backgroundColor: isOnline ? 'var(--color-success-bg)' : 'var(--color-error-bg)',
-          color: isOnline ? 'var(--color-success-text)' : 'var(--color-error-text)',
-          marginBottom: '1rem'
-        }}>
-          <strong>{isOnline ? '🟢 Online' : '🔴 Offline'}</strong>
-          <p style={{ margin: '0.5rem 0 0 0' }}>
-            {isOnline 
-              ? 'Connected to server. Conflict resolution is available.' 
-              : 'No internet connection. Conflict resolution requires connectivity.'}
-          </p>
+    <>
+      {header}
+      <div className="ui-stack">
+        <div>
+          <Button variant="ghost" icon={ArrowLeft} onClick={close} disabled={submitting}>All conflicts</Button>
         </div>
-      </section>
 
-      {/* Conflict Statistics */}
-      {conflictStats && (
-        <section className="form-section">
-          <h2>Conflict Statistics</h2>
-          <div style={{ 
-            padding: '1rem', 
-            backgroundColor: 'var(--color-muted-bg)',
-            borderRadius: '4px'
-          }}>
-            <p><strong>Total Conflicts:</strong> {conflictStats.total}</p>
-            <p><strong>Unresolved:</strong> {conflictStats.unresolved}</p>
-            <p><strong>Resolved:</strong> {conflictStats.resolved}</p>
-          </div>
-        </section>
-      )}
+        {error && <Alert tone="danger" title="Not resolved">{error}</Alert>}
+        {!isOnline && (
+          <Alert tone="neutral" title="Resolving needs a connection">You can review the conflict now and resolve it when you are back online.</Alert>
+        )}
 
-      {/* Conflict List or Detail View */}
-      {!selectedConflict ? (
-        <section className="form-section">
-          <h2>Unresolved Conflicts</h2>
-          {conflicts.length === 0 ? (
-            <div className="empty-state">
-              <p>No unresolved conflicts</p>
-            </div>
-          ) : (
-            <div className="data-table-container">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Type</th>
-                    <th>Record ID</th>
-                    <th>Date</th>
-                    <th>School</th>
-                    <th>Versions</th>
-                    <th>Created</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {conflicts.map((conflict) => (
-                    <tr key={conflict.id}>
-                      <td>{conflict.entityType}</td>
-                      <td>{conflict.recordId}</td>
-                      <td>
-                        {conflict.localPayload?.attendanceDate || conflict.localPayload?.distributionDate || 'N/A'}
-                      </td>
-                      <td>{getSchoolName(conflict.localPayload?.schoolId)}</td>
-                      <td>
-                        <span style={{ fontSize: '0.85rem' }}>
-                          Local: v{conflict.baseVersion} / Server: v{conflict.serverVersion}
-                        </span>
-                      </td>
-                      <td>{formatDateTime(conflict.createdAt)}</td>
-                      <td>
-                        <button
-                          className="btn btn--small"
-                          onClick={() => handleSelectConflict(conflict)}
-                          disabled={resolving}
-                        >
-                          Review
-                        </button>
-                      </td>
+        {step === 'choose' ? (
+          <>
+            <Card>
+              <h2 ref={headingRef} tabIndex={-1} className="conflicts__heading">
+                {type.title} · {dateOf(selected)}
+              </h2>
+              <p className="conflicts__meta">
+                {schoolNames[selected.localPayload?.schoolId] || 'School'}. This device changed version {selected.baseVersion},
+                but the server had already moved on to version {selected.serverVersion}.
+              </p>
+              <div className="conflicts__compare-scroll">
+                <table className="conflicts__compare">
+                  <caption className="visually-hidden">This device compared with the server</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Value</th>
+                      <th scope="col" className="conflicts__num">This device</th>
+                      <th scope="col" className="conflicts__num">Server</th>
                     </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((row) => (
+                      <tr key={row.name} className={row.differs ? 'conflicts__row--differs' : undefined}>
+                        <th scope="row">
+                          {row.label}
+                          {row.differs && <Badge tone="warning" className="conflicts__differs">Different</Badge>}
+                        </th>
+                        <td className="conflicts__num tabular-nums">{formatNumber(row.device)}</td>
+                        <td className="conflicts__num tabular-nums">{row.server === undefined ? '–' : formatNumber(row.server)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+
+            {isAdmin ? (
+              <Card title="Which version should the server keep?">
+                <fieldset className="conflicts__choices">
+                  <legend className="visually-hidden">Version to keep</legend>
+                  {CHOICES.map((option) => (
+                    <label key={option.value} className="conflicts__choice">
+                      <input
+                        type="radio"
+                        name="resolution"
+                        value={option.value}
+                        checked={choice === option.value}
+                        onChange={() => setChoice(option.value)}
+                      />
+                      <span className="conflicts__choice-text">
+                        <span className="conflicts__choice-label">{option.label}</span>
+                        <span className="conflicts__choice-description">{option.description}</span>
+                      </span>
+                    </label>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
-      ) : (
-        <section className="form-section">
-          <div style={{ marginBottom: '1rem' }}>
-            <button
-              className="btn btn--secondary"
-              onClick={handleBackToList}
-              disabled={resolving}
-            >
-              ← Back to Conflicts
-            </button>
-          </div>
+                </fieldset>
 
-          <h2>Conflict Details</h2>
-          
-          {/* Conflict Header */}
-          <div style={{ 
-            padding: '1rem', 
-            backgroundColor: 'var(--color-warning-bg)',
-            borderRadius: '4px',
-            marginBottom: '1rem'
-          }}>
-            <p><strong>Entity Type:</strong> {selectedConflict.entityType}</p>
-            <p><strong>Record ID:</strong> {selectedConflict.recordId}</p>
-            <p><strong>Date:</strong> {selectedConflict.localPayload?.attendanceDate || selectedConflict.localPayload?.distributionDate || 'N/A'}</p>
-            <p><strong>School:</strong> {getSchoolName(selectedConflict.localPayload?.schoolId)}</p>
-            <p><strong>Conflict ID:</strong> {selectedConflict.conflictId}</p>
-            <p><strong>Created:</strong> {formatDateTime(selectedConflict.createdAt)}</p>
-          </div>
+                {choice === 'merge' && (
+                  <div className="ui-grid ui-grid--2 conflicts__merge">
+                    {type.fields.map((field) => (
+                      <FormField
+                        key={field.name}
+                        label={field.label}
+                        size="lg"
+                        type="number"
+                        inputMode="numeric"
+                        min="0"
+                        suffix={field.suffix}
+                        value={mergeValues[field.name]}
+                        onChange={(e) => setMergeValues((v) => ({ ...v, [field.name]: e.target.value }))}
+                        error={mergeErrors[field.name]}
+                        required
+                      />
+                    ))}
+                  </div>
+                )}
 
-          {/* Version Information */}
-          <div style={{ 
-            padding: '1rem', 
-            backgroundColor: 'var(--color-info-bg)',
-            borderRadius: '4px',
-            marginBottom: '1rem'
-          }}>
-            <h3 style={{ marginTop: 0 }}>Version Information</h3>
-            <p><strong>Base Version:</strong> {selectedConflict.baseVersion}</p>
-            <p><strong>Server Version:</strong> {selectedConflict.serverVersion}</p>
-            <p style={{ marginTop: '0.5rem', fontSize: '0.9rem' }}>
-              <em>Version mismatch detected. The local change was based on version {selectedConflict.baseVersion}, but the server is currently at version {selectedConflict.serverVersion}.</em>
-            </p>
-          </div>
-
-          {/* Side-by-side comparison */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-            {/* Local Version */}
-            <div style={{ 
-              padding: '1rem', 
-              backgroundColor: 'var(--color-muted-bg)',
-              borderRadius: '4px',
-              border: '2px solid var(--color-primary)'
-            }}>
-              <h3 style={{ marginTop: 0, color: 'var(--color-primary)' }}>Local Version</h3>
-              <p><em>Your changes stored on this device</em></p>
-              
-              {selectedConflict.entityType === 'attendance' && (
-                <div>
-                  <p><strong>Total Registered:</strong> {selectedConflict.localPayload?.totalRegistered}</p>
-                  <p><strong>Total Present:</strong> {selectedConflict.localPayload?.totalPresent}</p>
-                  <p><strong>Total Absent:</strong> {selectedConflict.localPayload?.totalAbsent}</p>
+                <div className="conflicts__actions">
+                  <Button icon={ArrowRight} iconPosition="end" onClick={() => setStep('confirm')} disabled={!canContinue || !isOnline}>
+                    Continue
+                  </Button>
+                  <Button variant="ghost" onClick={() => { setChoice('remove'); setStep('confirm'); }}>
+                    Remove from this device
+                  </Button>
                 </div>
-              )}
-              
-              {selectedConflict.entityType === 'mealDistribution' && (
-                <div>
-                  <p><strong>Meals Prepared:</strong> {selectedConflict.localPayload?.mealsPrepared}</p>
-                  <p><strong>Meals Served:</strong> {selectedConflict.localPayload?.mealsServed}</p>
-                </div>
-              )}
-            </div>
-
-            {/* Server Version */}
-            <div style={{ 
-              padding: '1rem', 
-              backgroundColor: 'var(--color-muted-bg)',
-              borderRadius: '4px',
-              border: '2px solid var(--color-success)'
-            }}>
-              <h3 style={{ marginTop: 0, color: 'var(--color-success)' }}>Server Version</h3>
-              <p><em>Current data on the central server</em></p>
-              
-              {selectedConflict.entityType === 'attendance' && selectedConflict.serverRecord && (
-                <div>
-                  <p><strong>Total Registered:</strong> {selectedConflict.serverRecord?.total_registered}</p>
-                  <p><strong>Total Present:</strong> {selectedConflict.serverRecord?.total_present}</p>
-                  <p><strong>Total Absent:</strong> {selectedConflict.serverRecord?.total_absent}</p>
-                </div>
-              )}
-              
-              {selectedConflict.entityType === 'mealDistribution' && selectedConflict.serverRecord && (
-                <div>
-                  <p><strong>Meals Prepared:</strong> {selectedConflict.serverRecord?.meals_prepared}</p>
-                  <p><strong>Meals Served:</strong> {selectedConflict.serverRecord?.meals_served}</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Resolution Options */}
-          <div style={{ 
-            padding: '1rem', 
-            backgroundColor: 'var(--color-info-bg)',
-            borderRadius: '4px',
-            marginBottom: '1rem'
-          }}>
-            <h3 style={{ marginTop: 0 }}>Resolution Options</h3>
-            <p style={{ marginBottom: '1rem' }}>Choose which version should become the authoritative record:</p>
-            
-            {!isAdmin && (
-              <p className="placeholder-note">
-                Only an administrator can resolve conflicts. This conflict stays recorded until an administrator reviews it.
-              </p>
+              </Card>
+            ) : (
+              <Alert
+                tone="info"
+                title="Only an administrator can resolve conflicts"
+                action={<Button variant="ghost" size="sm" onClick={() => { setChoice('remove'); setStep('confirm'); }}>Remove from this device</Button>}
+              >
+                This conflict stays recorded until an administrator reviews it.
+              </Alert>
             )}
-            {isAdmin && <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-              <button
-                className="btn btn--primary"
-                onClick={() => handleResolveClick('keep_server')}
-                disabled={resolving || !isOnline}
-                style={{ flex: '1', minWidth: '200px' }}
-              >
-                Keep Server Version
-              </button>
-              
-              <button
-                className="btn btn--primary"
-                onClick={() => handleResolveClick('keep_local')}
-                disabled={resolving || !isOnline}
-                style={{ flex: '1', minWidth: '200px' }}
-              >
-                Keep Local Version
-              </button>
-            </div>}
-
-            {isAdmin && !isOnline && (
-              <p style={{ marginTop: '0.5rem', color: 'var(--color-error-text)', fontSize: '0.9rem' }}>
-                ⚠️ Resolution requires internet connection
-              </p>
-            )}
-          </div>
-
-          {/* Additional Actions */}
-          <div style={{ display: 'flex', gap: '1rem' }}>
-            <button
-              className="btn btn--secondary"
-              onClick={() => handleDeleteConflict(selectedConflict.id)}
-              disabled={resolving}
-            >
-              Delete from Local
-            </button>
-          </div>
-        </section>
-      )}
-
-      {/* Confirmation Dialog */}
-      {showConfirmDialog && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            padding: '2rem',
-            borderRadius: '8px',
-            maxWidth: '500px',
-            width: '90%'
-          }}>
-            <h3>Confirm Resolution</h3>
-            <p style={{ marginBottom: '1rem' }}>
-              You are about to resolve this conflict by choosing <strong>"{pendingResolution}"</strong>.
-            </p>
-            <p style={{ marginBottom: '1rem' }}>
-              {pendingResolution === 'keep_server' 
-                ? 'The server version will become authoritative. Your local changes will be discarded.'
-                : 'Your local version will become the new server version. This will update the central server.'}
-            </p>
-            <p style={{ marginBottom: '1rem', fontWeight: 'bold' }}>
-              This action cannot be undone.
-            </p>
-            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-              <button
-                className="btn btn--secondary"
-                onClick={handleCancelResolution}
-                disabled={resolving}
-              >
-                Cancel
-              </button>
-              <button
-                className="btn btn--primary"
-                onClick={handleConfirmResolution}
-                disabled={resolving}
-              >
-                {resolving ? 'Resolving...' : 'Confirm'}
-              </button>
+          </>
+        ) : (
+          <Card>
+            <div className="conflicts__confirm">
+              <h2 ref={headingRef} tabIndex={-1} className="conflicts__heading">
+                {choice === 'remove' ? 'Remove this conflict from the device?' : 'Check before resolving'}
+              </h2>
+              {choice === 'remove' ? (
+                <p>
+                  The conflict is removed from this device only. The server record does not change, and the conflict
+                  stays recorded on the server.
+                </p>
+              ) : (
+                <>
+                  <p>{chosen.label}. The server and this device will both hold these values for {type.title.toLowerCase()} on {dateOf(selected)}:</p>
+                  <SummaryList rows={resultValues()} />
+                  <p className="conflicts__note">This replaces the record for everyone and cannot be undone. The choice is recorded with your name.</p>
+                </>
+              )}
+              <div className="conflicts__actions">
+                <Button
+                  variant={choice === 'remove' ? 'danger' : 'primary'}
+                  onClick={confirm}
+                  loading={submitting}
+                  disabled={choice !== 'remove' && !isOnline}
+                >
+                  {choice === 'remove' ? 'Remove from this device' : 'Resolve conflict'}
+                </Button>
+                <Button variant="secondary" icon={ArrowLeft} onClick={() => { setStep('choose'); if (choice === 'remove') setChoice(''); }} disabled={submitting}>
+                  Back
+                </Button>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Information */}
-      <section className="form-section">
-        <h2>About Conflict Resolution</h2>
-        <div style={{ color: 'var(--color-muted)', lineHeight: '1.6' }}>
-          <p><strong>What causes conflicts?</strong></p>
-          <p style={{ marginTop: '0.5rem', marginBottom: '1rem' }}>
-            Conflicts occur when multiple devices or users try to update the same record simultaneously. 
-            The system uses version numbers to detect when a local change was based on an older version of the data.
-          </p>
-          <p><strong>How to resolve:</strong></p>
-          <ul style={{ marginTop: '0.5rem', marginBottom: '1rem' }}>
-            <li><strong>Keep Server Version:</strong> Discard your local changes and use the current server data</li>
-            <li><strong>Keep Local Version:</strong> Apply your local changes to the server, overwriting the current server data</li>
-          </ul>
-          <p><strong>Important:</strong></p>
-          <ul style={{ marginTop: '0.5rem' }}>
-            <li>Resolution requires an internet connection</li>
-            <li>All resolutions are recorded in the audit trail</li>
-            <li>Choose carefully - resolution actions cannot be undone</li>
-          </ul>
-        </div>
-      </section>
-    </PageIntro>
+          </Card>
+        )}
+      </div>
+    </>
   );
 }
 
