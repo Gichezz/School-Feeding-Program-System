@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { CheckCircle2, CloudOff, RefreshCw, AlertTriangle } from 'lucide-react';
 import Button from './Button';
 import { formatNumber, formatRelativeTime } from '../../utils/format';
@@ -8,7 +9,7 @@ import { formatNumber, formatRelativeTime } from '../../utils/format';
  * state: 'offline' | 'syncing' | 'synced' | 'failed'
  * progress: 0–100 while syncing
  * failure: { what, why, fix } when failed
- * variant: 'compact' (top bar) or 'expanded' (Sync Status page)
+ * variant: 'compact' (top bar), 'pill' (top bar on phones) or 'expanded' (Sync Status page)
  */
 function SyncStatusBar({
   state,
@@ -36,8 +37,8 @@ function SyncStatusBar({
     },
     synced: {
       Icon: CheckCircle2,
-      title: pendingCount > 0 ? pending : 'All changes synced',
-      detail: lastSynced,
+      title: pendingCount > 0 ? pending : lastSyncedAt ? 'All changes synced' : 'Up to date',
+      detail: lastSyncedAt || pendingCount > 0 ? lastSynced : 'Nothing waiting to sync',
     },
     failed: {
       Icon: AlertTriangle,
@@ -47,6 +48,18 @@ function SyncStatusBar({
   }[state];
   const { Icon } = content;
   const syncDisabled = state === 'offline' || state === 'syncing' || !canSync;
+
+  // Narrow screens: icon, short label and pending count, linking to the Sync page
+  if (variant === 'pill') {
+    const short = { offline: 'Offline', syncing: `${Math.round(progress)}%`, synced: lastSyncedAt ? 'Synced' : 'Up to date', failed: 'Sync issue' }[state];
+    return (
+      <Link to="/sync" className={`ui-sync-pill ui-sync--${state}`} aria-label={`${content.title}. ${content.detail}`}>
+        <Icon className="ui-sync__icon" aria-hidden="true" />
+        <span className="ui-sync-pill__label">{short}</span>
+        {pendingCount > 0 && <span className="ui-sync-pill__count">{formatNumber(pendingCount)}</span>}
+      </Link>
+    );
+  }
 
   return (
     <div className={`ui-sync ui-sync--${state} ui-sync--${variant}`} role="status" aria-live="polite">

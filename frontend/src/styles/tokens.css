@@ -28,6 +28,14 @@
   --color-border-strong: #78887f;
   --color-scrim: rgb(28 43 36 / 0.45);
 
+  /* Sidebar (dark green); all text pairs meet AA */
+  --color-sidebar-bg: var(--color-brand-900);
+  --color-sidebar-text: var(--color-ink-inverse);
+  --color-sidebar-muted: #a3bfb3;
+  --color-sidebar-hover: var(--color-brand-800);
+  --color-sidebar-active: var(--color-brand-700);
+  --color-sidebar-focus: #9dbbe6;
+
   /* Semantic */
   --color-success: #1a6b43;
   --color-success-bg: #e3f2e9;
@@ -99,6 +107,9 @@
   --chart-height-lg: 20rem;
   --skeleton-block-height: 6rem;
   --toast-width: 24rem;
+  --menu-min-width: 15rem;
+  --sheet-max-height: 80vh;
+  --auth-max-width: 28rem;
 
   /* Spacing: 4px base */
   --space-0: 0;
