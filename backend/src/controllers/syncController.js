@@ -551,8 +551,32 @@ function convertDateFormat(dateString) {
   return dateString;
 }
 
+// Count fields an administrator may edit when merging, per entity type
+const MERGE_FIELDS = {
+  attendance: ['totalRegistered', 'totalPresent', 'totalAbsent'],
+  meal_distribution: ['mealsPrepared', 'mealsServed'],
+};
+
 /**
- * Resolve a conflict by choosing either local or server version
+ * The record an administrator built by merging: the device's record (school and
+ * date stay fixed) with the counts from `values`. Throws ValidationError when the
+ * values are missing or break the usual record rules.
+ */
+function mergedPayload(conflict, values) {
+  const fields = MERGE_FIELDS[conflict.entity_type];
+  if (!values || typeof values !== 'object' || !fields.every((field) => field in values)) {
+    throw new ValidationError(`A merge needs values for: ${fields.join(', ')}`);
+  }
+  const payload = { ...conflict.local_payload };
+  for (const field of fields) payload[field] = values[field];
+  const invalid = syncPayloadError(conflict.entity_type === 'attendance' ? 'attendance' : 'mealDistribution', payload);
+  if (invalid) throw new ValidationError(invalid);
+  return payload;
+}
+
+/**
+ * Resolve a conflict: keep the device's version, keep the server's version, or
+ * merge (an administrator's edited values, checked like any other record).
  */
 async function resolveConflict(req, res, next) {
   const client = await pool.connect();
@@ -562,13 +586,13 @@ async function resolveConflict(req, res, next) {
     if (!isUuid(conflictId)) {
       throw new ValidationError('Invalid conflict ID format');
     }
-    const { resolution } = req.body;
+    const { resolution, values } = req.body;
     const clientId = req.body.clientId;
     // The signed-in user who resolves the conflict (conflicts.resolved_by references users.id)
     const resolvedBy = req.user?.id || null;
 
     // Validate resolution choice
-    const allowedResolutions = ['keep_local', 'keep_server'];
+    const allowedResolutions = ['keep_local', 'keep_server', 'merge'];
     if (!resolution || !allowedResolutions.includes(resolution)) {
       throw new ValidationError(`Invalid resolution. Must be one of: ${allowedResolutions.join(', ')}`);
     }
@@ -630,9 +654,9 @@ async function resolveConflict(req, res, next) {
         ['keep_server', resolvedBy, conflictId]
       );
 
-    } else if (resolution === 'keep_local') {
-      // Keep local version - apply local payload to server
-      const localPayload = conflict.local_payload;
+    } else {
+      // keep_local applies the device's values; merge applies the administrator's edited values
+      const localPayload = resolution === 'merge' ? mergedPayload(conflict, values) : conflict.local_payload;
       
       if (conflict.entity_type === 'attendance') {
         const updateResult = await applyLocalAttendanceUpdate(client, localPayload, conflict.server_version, clientId, resolvedBy);
@@ -652,7 +676,7 @@ async function resolveConflict(req, res, next) {
              resolved_at = NOW(),
              resolved_by = $2
          WHERE conflict_id = $3`,
-        ['keep_local', resolvedBy, conflictId]
+        [resolution, resolvedBy, conflictId]
       );
     }
 

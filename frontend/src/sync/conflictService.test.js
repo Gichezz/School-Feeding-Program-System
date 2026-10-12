@@ -73,6 +73,20 @@ describe('resolveConflict', () => {
     expect(await db.attendance.get(recordId)).toMatchObject({ totalPresent: 80, version: 3, syncStatus: 'synced' });
   });
 
+  it('merge: sends the edited values and applies the merged record locally', async () => {
+    const { recordId, localConflictId } = await seedConflict();
+    const values = { totalRegistered: 100, totalPresent: 84, totalAbsent: 16 };
+    apiResolveConflict.mockResolvedValue(serverResolution('merge', {
+      version: 3, total_registered: 100, total_present: 84, total_absent: 16,
+    }));
+
+    await resolveConflict(localConflictId, 'merge', values);
+
+    expect(apiResolveConflict).toHaveBeenCalledWith('server-conflict-id', { resolution: 'merge', clientId: expect.any(String), values });
+    expect(await db.attendance.get(recordId)).toMatchObject({ totalPresent: 84, totalAbsent: 16, version: 3, syncStatus: 'synced' });
+    expect(await db.conflicts.get(localConflictId)).toMatchObject({ status: 'resolved', resolution: 'merge' });
+  });
+
   it('marks the conflict resolved and the queued operation done, without queueing new work', async () => {
     const { localConflictId } = await seedConflict();
     apiResolveConflict.mockResolvedValue(serverResolution('keep_server', { version: 2, total_registered: 100, total_present: 88, total_absent: 12 }));
