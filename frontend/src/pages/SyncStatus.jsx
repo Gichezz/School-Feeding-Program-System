@@ -112,6 +112,7 @@ function SyncStatus() {
           progress={sync.progress}
           lastSyncedAt={sync.lastSyncedAt}
           failure={sync.failure}
+          conflictCount={sync.unresolvedConflicts}
           canSync={sync.canSync}
           onSyncNow={syncNow}
         />

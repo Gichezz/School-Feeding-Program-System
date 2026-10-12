@@ -10,11 +10,26 @@ const PROGRESS_POLL_MS = 400;
 const SyncStatusContext = createContext(null);
 
 /**
+ * The one state the sync status bar shows, most important first. Offline and
+ * syncing describe what is happening now; a conflict needs a person to decide,
+ * so it comes before failed changes, which Lishe retries by itself.
+ *
+ * @returns {'offline' | 'syncing' | 'conflict' | 'failed' | 'synced'}
+ */
+export function syncStateFor({ isOnline, syncing, failedCount, conflictCount }) {
+  if (!isOnline) return 'offline';
+  if (syncing) return 'syncing';
+  if (conflictCount > 0) return 'conflict';
+  if (failedCount > 0) return 'failed';
+  return 'synced';
+}
+
+/**
  * Read-only summary of the sync queue for the SyncStatusBar and navigation badges.
  * It reads the local database and the sync manager's progress; it does not change
  * how syncing works. Provided once by the app shell (one subscription, one timer).
  *
- * state: 'offline' | 'syncing' | 'failed' | 'synced'
+ * state: see syncStateFor
  */
 function useSyncStatusSource() {
   const isOnline = useOnlineStatus();
@@ -75,12 +90,15 @@ function useSyncStatusSource() {
     }
   }, []);
 
-  let state = 'synced';
-  if (!isOnline) state = 'offline';
-  else if (syncing) state = 'syncing';
-  else if (queue.failed > 0) state = 'failed';
+  const state = syncStateFor({
+    isOnline,
+    syncing,
+    failedCount: queue.failed,
+    conflictCount: queue.unresolvedConflicts,
+  });
 
-  const failure = state === 'failed'
+  // Described whenever something failed, even while a conflict takes the bar
+  const failure = queue.failed > 0
     ? {
       what: queue.failed === 1 ? '1 change did not sync' : `${queue.failed} changes did not sync`,
       why: queue.lastError || 'The server could not be reached.',

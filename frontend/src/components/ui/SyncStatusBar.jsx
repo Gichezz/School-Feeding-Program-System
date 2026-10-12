@@ -1,12 +1,13 @@
 import { Link } from 'react-router-dom';
-import { CheckCircle2, CloudOff, RefreshCw, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, CloudOff, GitCompareArrows, RefreshCw, AlertTriangle } from 'lucide-react';
 import Button from './Button';
 import { formatNumber, formatRelativeTime } from '../../utils/format';
 
 /**
  * Sync state at a glance. Being offline is normal, so it is calm (grey), never alarming.
  *
- * state: 'offline' | 'syncing' | 'synced' | 'failed'
+ * state: 'offline' | 'syncing' | 'conflict' | 'failed' | 'synced'
+ * conflictCount: records changed here and on the server, waiting for a decision
  * progress: 0–100 while syncing
  * failure: { what, why, fix } when failed
  * variant: 'compact' (top bar), 'pill' (top bar on phones) or 'expanded' (Sync Status page)
@@ -17,6 +18,7 @@ function SyncStatusBar({
   progress = 0,
   lastSyncedAt,
   failure,
+  conflictCount = 0,
   onSyncNow,
   canSync = true,
   variant = 'compact',
@@ -40,6 +42,11 @@ function SyncStatusBar({
       title: pendingCount > 0 ? pending : lastSyncedAt ? 'All changes synced' : 'Up to date',
       detail: lastSyncedAt || pendingCount > 0 ? lastSynced : 'Nothing waiting to sync',
     },
+    conflict: {
+      Icon: GitCompareArrows,
+      title: conflictCount === 1 ? '1 record needs a decision' : `${formatNumber(conflictCount)} records need a decision`,
+      detail: pendingCount > 0 ? pending : 'Changed here and on the server. An administrator chooses which version to keep.',
+    },
     failed: {
       Icon: AlertTriangle,
       title: failure?.what || 'Some changes did not sync',
@@ -51,7 +58,7 @@ function SyncStatusBar({
 
   // Narrow screens: icon, short label and pending count, linking to the Sync page
   if (variant === 'pill') {
-    const short = { offline: 'Offline', syncing: `${Math.round(progress)}%`, synced: lastSyncedAt ? 'Synced' : 'Up to date', failed: 'Sync issue' }[state];
+    const short = { offline: 'Offline', syncing: `${Math.round(progress)}%`, synced: lastSyncedAt ? 'Synced' : 'Up to date', conflict: 'Conflict', failed: 'Sync issue' }[state];
     return (
       <Link to="/sync" className={`ui-sync-pill ui-sync--${state}`} aria-label={`${content.title}. ${content.detail}`}>
         <Icon className="ui-sync__icon" aria-hidden="true" />
