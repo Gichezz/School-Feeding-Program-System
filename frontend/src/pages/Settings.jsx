@@ -3,6 +3,8 @@ import { liveQuery } from 'dexie';
 import { LogOut } from 'lucide-react';
 import { APP_NAME, Button, Card, PageHeader, SummaryList } from '../components/ui';
 import LisheLogo from '../components/shell/LisheLogo';
+import ChangePasswordCard from '../features/users/ChangePasswordCard';
+import UsersSection from '../features/users/UsersSection';
 import { ROLE_LABELS, useSignOut } from '../components/shell/UserMenu';
 import db, { getOrCreateClientId } from '../db/database';
 import { useSession } from '../hooks/useSession';
@@ -10,10 +12,11 @@ import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { formatDateTime, formatNumber } from '../utils/format';
 
 /**
- * Account and device information. Read-only apart from signing out.
+ * Your account (including changing your password), what is stored on this device,
+ * and, for administrators, the Users section for managing accounts.
  */
 function Settings() {
-  const { user, session, isValid } = useSession();
+  const { user, session, isValid, isAdmin } = useSession();
   const isOnline = useOnlineStatus();
   const signOut = useSignOut();
   const [clientId, setClientId] = useState('');
@@ -34,7 +37,7 @@ function Settings() {
 
   return (
     <>
-      <PageHeader title="Settings" description="Your account and what is stored on this device." />
+      <PageHeader title="Settings" description={isAdmin ? 'Your account, user accounts and what is stored on this device.' : 'Your account and what is stored on this device.'} />
 
       <div className="ui-stack">
         <Card
@@ -50,6 +53,10 @@ function Settings() {
             ]}
           />
         </Card>
+
+        <ChangePasswordCard />
+
+        {isAdmin && <UsersSection />}
 
         <Card title="This device" description="Records are saved here first, so they are safe without a connection.">
           <SummaryList

@@ -20,6 +20,10 @@ CREATE TABLE IF NOT EXISTS users (
     email           TEXT NOT NULL,
     password_hash   TEXT NOT NULL,
     role            TEXT NOT NULL,
+    -- Deactivated users cannot sign in and their sessions stop working
+    is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+    -- Sessions issued before this time are rejected (set on password change or reset)
+    password_changed_at TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT users_email_unique UNIQUE (email),
