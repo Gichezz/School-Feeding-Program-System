@@ -75,6 +75,7 @@
 
   /* Typography: one display face (titles, wordmark), one body face */
   --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-mono: ui-monospace, 'Cascadia Mono', Consolas, monospace;
   --font-body: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
   --font-size-xs: 0.75rem;
   --font-size-sm: 0.875rem;
@@ -100,6 +101,7 @@
   --icon-sm: 1rem;
   --icon-md: 1.25rem;
   --icon-lg: 2rem;
+  --icon-xl: 3rem;
 
   /* Component sizes */
   --chart-height-sm: 12rem;

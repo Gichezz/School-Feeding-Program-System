@@ -5,5 +5,3 @@
 @import './ui.css';
 @import './shell.css';
 @import './pages.css';
-/* Old page classes, removed once every page uses the shared components (#40) */
-@import './legacy.css';

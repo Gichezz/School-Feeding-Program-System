@@ -141,6 +141,243 @@
   }
 }
 
+/* ---------- Sync status ---------- */
+.sync-status__notes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: var(--measure-wide);
+  margin: 0;
+  padding-left: var(--space-5);
+  color: var(--color-ink-muted);
+}
+
+/* ---------- Conflicts ---------- */
+.conflicts__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.conflicts__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding-block: var(--space-4);
+  border-top: var(--border-default);
+}
+
+.conflicts__item:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.conflicts__item-icon {
+  flex: none;
+  width: var(--icon-md);
+  height: var(--icon-md);
+  color: var(--color-warning);
+}
+
+.conflicts__item-text {
+  flex: 1 1 var(--field-min-width);
+  min-width: 0;
+}
+
+.conflicts__item-title,
+.conflicts__choice-label {
+  font-weight: var(--font-weight-semibold);
+}
+
+.conflicts__item-meta,
+.conflicts__meta,
+.conflicts__note,
+.conflicts__choice-description {
+  font-size: var(--font-size-sm);
+  color: var(--color-ink-muted);
+}
+
+.conflicts__heading {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-xl);
+}
+
+.conflicts__heading:focus {
+  outline: none;
+}
+
+.conflicts__compare-scroll {
+  margin-top: var(--space-4);
+  overflow-x: auto;
+}
+
+.conflicts__compare {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.conflicts__compare th,
+.conflicts__compare td {
+  padding: var(--space-3);
+  text-align: start;
+  border-bottom: var(--border-default);
+}
+
+.conflicts__compare thead th {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-ink-muted);
+  text-transform: uppercase;
+}
+
+.conflicts__compare tbody th {
+  font-weight: var(--font-weight-medium);
+}
+
+.conflicts__compare .conflicts__num {
+  text-align: end;
+}
+
+.conflicts__row--differs {
+  background: var(--color-warning-bg);
+}
+
+.conflicts__differs {
+  margin-left: var(--space-2);
+}
+
+.conflicts__choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.conflicts__choice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-height: var(--touch-target);
+  padding: var(--space-4);
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.conflicts__choice:has(input:checked) {
+  border-color: var(--color-brand);
+  box-shadow: inset 0 0 0 var(--border-width) var(--color-brand);
+  background: var(--color-brand-50);
+}
+
+.conflicts__choice:has(input:focus-visible) {
+  box-shadow: var(--focus-ring);
+}
+
+.conflicts__choice input {
+  flex: none;
+  width: var(--icon-md);
+  height: var(--icon-md);
+  margin: 0;
+  accent-color: var(--color-brand);
+}
+
+.conflicts__choice-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.conflicts__merge {
+  margin-top: var(--space-5);
+}
+
+.conflicts__confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.conflicts__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+
+.conflicts__confirm .conflicts__actions {
+  margin-top: 0;
+}
+
+/* ---------- Sign in ---------- */
+.login {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.login__brand {
+  display: flex;
+  justify-content: center;
+}
+
+.login__logo .lishe-mark {
+  width: var(--icon-xl);
+  height: var(--icon-xl);
+}
+
+.login__logo .lishe-logo__wordmark {
+  font-size: var(--font-size-2xl);
+}
+
+.login__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.login__title {
+  font-size: var(--font-size-2xl);
+}
+
+.login__intro {
+  margin-top: var(--space-1);
+  color: var(--color-ink-muted);
+}
+
+/* Signing in again inside the app: keep the card the same width */
+.app-main .login {
+  max-width: var(--auth-max-width);
+  margin: var(--space-8) auto 0;
+}
+
+/* ---------- Settings ---------- */
+.settings__note {
+  margin-top: var(--space-4);
+  font-size: var(--font-size-sm);
+  color: var(--color-ink-muted);
+}
+
+.settings__about .settings__note {
+  margin-top: var(--space-3);
+  max-width: var(--measure-wide);
+}
+
+.settings__code {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 767px) {
+  .conflicts__actions .ui-button {
+    flex: 1 1 100%;
+  }
+}
+
 /* ---------- Print (Reports) ---------- */
 .print-only {
   display: none;

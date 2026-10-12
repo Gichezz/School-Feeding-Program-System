@@ -95,8 +95,8 @@ describe('listing conflicts', () => {
 });
 
 describe('resolving conflicts', () => {
-  function resolve(conflictId, resolution) {
-    return asAdmin.post(`/api/sync/conflicts/${conflictId}/resolve`).send({ resolution, clientId: 'device-a' });
+  function resolve(conflictId, resolution, values) {
+    return asAdmin.post(`/api/sync/conflicts/${conflictId}/resolve`).send({ resolution, values, clientId: 'device-a' });
   }
 
   it('keep_local applies the offline values and bumps the version', async () => {
@@ -132,9 +132,56 @@ describe('resolving conflicts', () => {
   it('rejects an unknown strategy with 400', async () => {
     const { conflictId } = await createAttendanceConflict();
 
-    const res = await resolve(conflictId, 'merge');
+    const res = await resolve(conflictId, 'combine');
 
     expect(res.status).toBe(400);
+  });
+
+  it('merge applies the edited values, bumps the version and records the choice', async () => {
+    const { conflictId } = await createAttendanceConflict();
+
+    const res = await resolve(conflictId, 'merge', { totalRegistered: 100, totalPresent: 84, totalAbsent: 16 });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ success: true, resolution: 'merge', version: 3 });
+    expect(await attendanceRow()).toEqual({ total_present: 84, version: 3 });
+    const conflict = await pool.query('SELECT status, resolution, resolved_by FROM conflicts WHERE conflict_id = $1', [conflictId]);
+    expect(conflict.rows[0]).toEqual({ status: 'resolved', resolution: 'merge', resolved_by: USERS.admin.id });
+  });
+
+  it('merge rejects values that break the record rules and leaves the conflict open', async () => {
+    const { conflictId } = await createAttendanceConflict();
+
+    const res = await resolve(conflictId, 'merge', { totalRegistered: 100, totalPresent: 84, totalAbsent: 10 });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Total present + total absent must equal total registered');
+    expect(await attendanceRow()).toEqual({ total_present: 88, version: 2 });
+    const conflict = await pool.query('SELECT status FROM conflicts WHERE conflict_id = $1', [conflictId]);
+    expect(conflict.rows[0].status).toBe('unresolved');
+  });
+
+  it('merge needs every count', async () => {
+    const { conflictId } = await createAttendanceConflict();
+
+    const res = await resolve(conflictId, 'merge', { totalPresent: 84 });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('merge checks meal values too (served cannot exceed prepared)', async () => {
+    await sync('device-a', [syncOperation('op-m1', 'mealDistribution', 'create', mealPayload(), 0)]);
+    await sync('device-b', [syncOperation('op-m2', 'mealDistribution', 'update', mealPayload({ mealsServed: 95 }), 1)]);
+    const stale = await sync('device-a', [syncOperation('op-m3', 'mealDistribution', 'update', mealPayload({ mealsServed: 70 }), 1)]);
+    const { conflictId } = stale.body.results[0];
+
+    const tooMany = await resolve(conflictId, 'merge', { mealsPrepared: 100, mealsServed: 120 });
+    const ok = await resolve(conflictId, 'merge', { mealsPrepared: 100, mealsServed: 90 });
+
+    expect(tooMany.status).toBe(400);
+    expect(ok.status).toBe(200);
+    const meal = await pool.query("SELECT meals_served, version FROM meal_distributions WHERE distribution_date = '2026-10-06'");
+    expect(meal.rows[0]).toEqual({ meals_served: 90, version: 3 });
   });
 
   it('rejects resolving the same conflict twice with 400', async () => {
