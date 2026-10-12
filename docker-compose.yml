@@ -1,0 +1,63 @@
+# Lishe: database, API, forecasting service and web app with one command.
+#
+#   copy .env.example .env      (then set POSTGRES_PASSWORD and JWT_SECRET)
+#   docker compose up --build
+#   open http://localhost:8080
+#
+# For a public server with HTTPS, add docker-compose.prod.yml (see docs/deployment.md).
+
+name: lishe
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-school_feeding}
+      POSTGRES_USER: ${POSTGRES_USER:-lishe}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      LOAD_DEMO_DATA: ${LOAD_DEMO_DATA:-false}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      # Schema, seed and migrations, read-only; init.sh runs on the first start only
+      - ./database:/database:ro
+      - ./database/docker/init.sh:/docker-entrypoint-initdb.d/10-init.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  forecasting:
+    build: ./forecasting
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      PORT: 5000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-lishe}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-school_feeding}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      FORECASTING_SERVICE_URL: http://forecasting:5001
+      FORECASTING_TIMEOUT_MS: ${FORECASTING_TIMEOUT_MS:-15000}
+      # The browser reaches the API through the web container (same origin), so CORS only
+      # matters if the API is called from elsewhere
+      FRONTEND_URL: ${PUBLIC_URL:-http://localhost:8080}
+    depends_on:
+      db:
+        condition: service_healthy
+      forecasting:
+        condition: service_started
+
+  web:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      - backend
+
+volumes:
+  db-data:

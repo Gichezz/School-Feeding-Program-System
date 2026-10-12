@@ -1,0 +1,36 @@
+# Public server with HTTPS. Use together with docker-compose.yml:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Caddy gets and renews a free Let's Encrypt certificate for DOMAIN automatically.
+# The domain's DNS must point at this server, and ports 80 and 443 must be open.
+# HTTPS is required for the PWA to install and work offline on phones.
+
+services:
+  web:
+    # Only Caddy is published; the web container is reached inside the Docker network
+    ports: !reset []
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env to the server's domain name}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - web
+
+  backend:
+    environment:
+      FRONTEND_URL: https://${DOMAIN}
+
+volumes:
+  caddy-data:
+  caddy-config:
