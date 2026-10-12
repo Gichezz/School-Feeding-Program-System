@@ -60,3 +60,162 @@
     flex: 1 1 100%;
   }
 }
+
+/* ---------- Dashboard ---------- */
+.dashboard__attention {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dashboard__attention-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding-block: var(--space-4);
+  border-top: var(--border-default);
+}
+
+.dashboard__attention-item:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.dashboard__attention-icon {
+  flex: none;
+  width: var(--icon-md);
+  height: var(--icon-md);
+  color: var(--color-warning);
+}
+
+.dashboard__attention-text {
+  flex: 1 1 var(--field-min-width);
+  min-width: 0;
+}
+
+.dashboard__attention-title {
+  font-weight: var(--font-weight-semibold);
+}
+
+.dashboard__attention-description,
+.dashboard__attention-note {
+  font-size: var(--font-size-sm);
+  color: var(--color-ink-muted);
+}
+
+.dashboard__attention-action {
+  align-self: center;
+}
+
+/* ---------- Forecast ---------- */
+.forecast__settings {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+}
+
+.forecast__note {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: var(--measure-wide);
+}
+
+.forecast__meta {
+  font-size: var(--font-size-sm);
+  color: var(--color-ink-muted);
+}
+
+.forecast__assumptions {
+  margin: 0;
+  padding-left: var(--space-5);
+  font-size: var(--font-size-sm);
+  color: var(--color-ink-muted);
+}
+
+@media (max-width: 1023px) {
+  .forecast__settings {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---------- Print (Reports) ---------- */
+.print-only {
+  display: none;
+}
+
+.reports__print-header {
+  margin-bottom: var(--space-6);
+  padding-bottom: var(--space-3);
+  border-bottom: var(--border-default);
+  font-size: var(--font-size-sm);
+}
+
+.reports__print-name {
+  font-family: var(--font-display);
+  font-size: var(--font-size-2xl);
+  color: var(--color-brand);
+}
+
+@media print {
+  .app-sidebar,
+  .app-topbar,
+  .bottom-nav,
+  .skip-link,
+  .app-main__notice,
+  .ui-page-header__actions,
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block;
+  }
+
+  body,
+  .app-shell,
+  .app-main {
+    background: none;
+  }
+
+  .app-shell__column {
+    margin-left: 0 !important;
+    min-height: 0;
+  }
+
+  .app-main {
+    max-width: none;
+    padding: 0 !important;
+  }
+
+  /* Four stat cards in one row on paper */
+  .ui-grid--4 {
+    --ui-grid-columns: 4 !important;
+  }
+
+  .ui-card,
+  .ui-stat {
+    box-shadow: none;
+    break-inside: avoid;
+  }
+
+  /* Always the full table on paper, never the phone card list */
+  .ui-table__scroll {
+    display: block !important;
+    overflow: visible;
+  }
+
+  .ui-table__list {
+    display: none !important;
+  }
+
+  .ui-table__table tr {
+    break-inside: avoid;
+  }
+
+  .ui-sparkline {
+    display: none;
+  }
+}

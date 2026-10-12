@@ -7,6 +7,7 @@ import {
   Card,
   ChartCard,
   DataTable,
+  DateField,
   DateRangeFilter,
   EmptyState,
   FormField,
@@ -82,6 +83,7 @@ function Styleguide() {
   const toast = useToast();
   const [range, setRange] = useState({ preset: '7days', ...rangeForPreset('7days') });
   const [present, setPresent] = useState('588');
+  const [date, setDate] = useState('12-10-2026');
 
   const columns = [
     { key: 'date', header: 'Date', primary: true },
@@ -183,7 +185,7 @@ function Styleguide() {
 
         <Section title="Form fields" description="Large number inputs for daily entry on phones.">
           <div className="ui-grid ui-grid--3">
-            <FormField label="Date" type="date" defaultValue="2026-10-12" hint="Defaults to today" />
+            <DateField label="Date" value={date} onChange={setDate} hint="DD-MM-YYYY on every device. Type it, or use the calendar" />
             <FormField label="School" as="select" options={[{ value: '1', label: 'Demo Primary School' }]} />
             <FormField label="Notes" placeholder="Optional" />
             <FormField label="Registered" size="lg" type="number" inputMode="numeric" defaultValue="600" suffix="learners" />
