@@ -1,50 +1,50 @@
 import { useEffect, useState } from 'react';
-import PageIntro from '../components/PageIntro';
-import LoadingSpinner from '../components/LoadingSpinner';
-import ForecastChart from '../components/ForecastChart';
+import { CalendarDays, Sigma, TrendingUp, Utensils } from 'lucide-react';
+import {
+  Alert,
+  Card,
+  ChartCard,
+  DataTable,
+  DateField,
+  EmptyState,
+  FormField,
+  PageHeader,
+  StatCard,
+} from '../components/ui';
 import { getForecast, getSchools } from '../services/api';
 import { cacheSchools, getCachedSchools } from '../services/localDb';
 import { cacheForecast, getCachedForecast } from '../services/forecastCache';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
+import { formatDateTime, formatNumber, todayDate, toDate } from '../utils/format';
 
 const HORIZONS = [7, 14, 30];
-
-/**
- * Today's date as DD-MM-YYYY (the API date format).
- */
-function todayDisplayDate() {
-  const now = new Date();
-  const day = String(now.getDate()).padStart(2, '0');
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  return `${day}-${month}-${now.getFullYear()}`;
-}
-
-function toInputDate(displayDate) {
-  const [day, month, year] = displayDate.split('-');
-  return `${year}-${month}-${day}`;
-}
-
-function fromInputDate(inputDate) {
-  const [year, month, day] = inputDate.split('-');
-  return `${day}-${month}-${year}`;
-}
+const shortDate = (date) => date.slice(0, 5);
 
 /**
  * Weekday name for a DD-MM-YYYY date (stored forecasts do not include it).
  */
 function weekdayOf(displayDate) {
-  const [day, month, year] = displayDate.split('-').map(Number);
-  return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' });
+  const date = toDate(displayDate);
+  return date ? date.toLocaleDateString('en-GB', { weekday: 'long' }) : '';
 }
 
+const COLUMNS = [
+  { key: 'date', header: 'Date', primary: true },
+  { key: 'day', header: 'Day' },
+  { key: 'predicted', header: 'Expected meals', align: 'end', render: (d) => formatNumber(d.predicted) },
+  { key: 'range', header: 'Likely range', align: 'end', render: (d) => (d.lower !== null ? `${formatNumber(d.lower)} – ${formatNumber(d.upper)}` : '–') },
+];
+
 /**
- * Meal-demand forecast page: decision support for planning meal preparation.
+ * Meal-demand forecast: decision support for planning meal preparation.
+ * Data handling is unchanged: the server forecast when online, otherwise the last
+ * forecast saved on this device.
  */
 function Forecast() {
   const isOnline = useOnlineStatus();
   const [schools, setSchools] = useState([]);
   const [schoolId, setSchoolId] = useState('');
-  const [startDate, setStartDate] = useState(todayDisplayDate());
+  const [startDate, setStartDate] = useState(todayDate());
   const [horizonDays, setHorizonDays] = useState(14);
   const [forecast, setForecast] = useState(null);
   const [cachedAt, setCachedAt] = useState(null);
@@ -61,7 +61,7 @@ function Forecast() {
         list = response.schools || [];
         await cacheSchools(list);
       } catch {
-        list = await getCachedSchools();
+        list = await getCachedSchools().catch(() => []);
       }
       setSchools(list);
       if (list.length > 0) setSchoolId((current) => current || list[0].id);
@@ -71,7 +71,7 @@ function Forecast() {
   }, []);
 
   useEffect(() => {
-    if (!schoolId) return;
+    if (!schoolId || !startDate) return;
 
     async function showCached(reason) {
       const cached = await getCachedForecast(schoolId);
@@ -124,150 +124,126 @@ function Forecast() {
     loadForecast();
   }, [schoolId, startDate, horizonDays, isOnline]);
 
-  const days = forecast?.forecast || [];
-  const totalMeals = days.reduce((sum, d) => sum + d.predicted_demand, 0);
-  const averageMeals = days.length > 0 ? Math.round(totalMeals / days.length) : 0;
-  const busiest = days.reduce((best, d) => (!best || d.predicted_demand > best.predicted_demand ? d : best), null);
+  const days = (forecast?.forecast || []).map((d) => ({
+    date: d.date,
+    day: d.day_of_week || weekdayOf(d.date),
+    predicted: d.predicted_demand,
+    lower: d.lower_bound ?? null,
+    upper: d.upper_bound ?? null,
+  }));
+  const totalMeals = days.reduce((sum, d) => sum + d.predicted, 0);
+  const averageMeals = days.length > 0 ? totalMeals / days.length : null;
+  const busiest = days.reduce((best, d) => (!best || d.predicted > best.predicted ? d : best), null);
+  const intervalLabel = forecast?.interval_width ? `${Math.round(forecast.interval_width * 100)}%` : null;
+  const showResults = !error && (loading || forecast);
 
   return (
-    <PageIntro
-      title="Meal Demand Forecast"
-      purpose="Expected meals needed on upcoming school days, to support meal planning"
-    >
-      <section className="form-section">
-        <h2>Forecast Settings</h2>
-        <div className="form-row">
-          <div className="form-group">
-            <label htmlFor="forecast-school">School</label>
-            <select id="forecast-school" value={schoolId} onChange={(e) => setSchoolId(e.target.value)}>
-              {schools.map((school) => (
-                <option key={school.id} value={school.id}>{school.name}</option>
-              ))}
-            </select>
-          </div>
-          <div className="form-group">
-            <label htmlFor="forecast-start">Start date</label>
-            <input
-              id="forecast-start"
-              type="date"
-              value={toInputDate(startDate)}
-              onChange={(e) => e.target.value && setStartDate(fromInputDate(e.target.value))}
+    <>
+      <PageHeader title="Forecast" description="Expected meals on upcoming school days, to plan how much to prepare." />
+
+      <div className="ui-stack">
+        <Card>
+          <div className="forecast__settings">
+            <FormField
+              as="select"
+              label="School"
+              value={schoolId}
+              onChange={(e) => setSchoolId(e.target.value)}
+              options={schools.map((school) => ({ value: school.id, label: school.name }))}
+              disabled={schools.length === 0}
+            />
+            <DateField label="Start date" value={startDate} onChange={(date) => date && setStartDate(date)} />
+            <FormField
+              as="select"
+              label="Period"
+              value={horizonDays}
+              onChange={(e) => setHorizonDays(Number(e.target.value))}
+              options={HORIZONS.map((h) => ({ value: h, label: `Next ${h} days` }))}
             />
           </div>
-          <div className="form-group">
-            <label htmlFor="forecast-horizon">Period</label>
-            <select id="forecast-horizon" value={horizonDays} onChange={(e) => setHorizonDays(Number(e.target.value))}>
-              {HORIZONS.map((h) => (
-                <option key={h} value={h}>Next {h} days</option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </section>
+        </Card>
 
-      {notice && (
-        <div className="form-warning" role="status">
-          {notice}
-          {cachedAt && <> Saved {new Date(cachedAt).toLocaleString()}.</>}
-        </div>
-      )}
+        {notice && (
+          <Alert tone="neutral" title="Saved forecast">
+            {notice}
+            {cachedAt && <> Saved {formatDateTime(cachedAt)}.</>}
+          </Alert>
+        )}
 
-      {loading ? (
-        <LoadingSpinner message="Loading forecast..." />
-      ) : error ? (
-        <div className="error-state">
-          <h3>Forecast unavailable</h3>
-          <p>{error}</p>
-        </div>
-      ) : forecast && (
-        <>
-          <section className="form-section">
-            <h2>Summary</h2>
-            <div className="stats-grid">
-              <div className="stat-card">
-                <p className="stat-card__label">School days</p>
-                <p className="stat-card__value stat-card__value--small">{days.length}</p>
-              </div>
-              <div className="stat-card">
-                <p className="stat-card__label">Total meals expected</p>
-                <p className="stat-card__value stat-card__value--small">{totalMeals.toLocaleString()}</p>
-              </div>
-              <div className="stat-card">
-                <p className="stat-card__label">Average per day</p>
-                <p className="stat-card__value stat-card__value--small">{averageMeals}</p>
-              </div>
-              <div className="stat-card">
-                <p className="stat-card__label">Busiest day</p>
-                <p className="stat-card__value stat-card__value--small">{busiest ? busiest.predicted_demand : '–'}</p>
-                {busiest && <p className="stat-card__label">{busiest.date}</p>}
-              </div>
+        {error && !loading && (
+          <Alert tone="warning" title="Forecast unavailable">{error}</Alert>
+        )}
+
+        {!loading && schools.length === 0 && (
+          <EmptyState title="No schools yet" description="Sign in while online once so Lishe can load your schools." />
+        )}
+
+        {showResults && (
+          <>
+            <div className="ui-grid ui-grid--4">
+              <StatCard label="School days" icon={CalendarDays} loading={loading} value={formatNumber(days.length)}
+                hint={`In the next ${horizonDays} days`} />
+              <StatCard label="Total meals expected" icon={Sigma} metric="forecast" loading={loading} value={formatNumber(totalMeals)} />
+              <StatCard label="Average per day" icon={Utensils} metric="forecast" loading={loading} value={formatNumber(averageMeals)} />
+              <StatCard label="Busiest day" icon={TrendingUp} metric="forecast" loading={loading}
+                value={busiest ? formatNumber(busiest.predicted) : '–'}
+                hint={busiest ? `${busiest.day} ${busiest.date}` : undefined} />
             </div>
-          </section>
 
-          {days.length === 0 ? (
-            <div className="empty-state">
-              <p>There are no school days in this period (weekends, holidays or half-term).</p>
-            </div>
-          ) : (
-            <>
-              <section className="form-section">
-                <h2>Expected meals per school day</h2>
-                <ForecastChart days={days} />
-                <p className="placeholder-note">
-                  The line shows the expected number of meals; the shaded band is the likely range
-                  {forecast.interval_width ? ` (${Math.round(forecast.interval_width * 100)}% interval)` : ''}.
-                  Non-school days are not forecast.
+            <ChartCard
+              title="Expected meals per school day"
+              description={intervalLabel ? `The line is the forecast; the band is the likely range (${intervalLabel}).` : 'The line is the forecast; the band is the likely range.'}
+              type="band"
+              height="lg"
+              data={days}
+              xKey="date"
+              xTickFormatter={shortDate}
+              labelFormatter={(date) => `${weekdayOf(date)} ${date}`}
+              series={[{ dataKey: 'predicted', metric: 'forecast', label: 'Expected meals' }]}
+              band={days.some((d) => d.lower !== null) ? { lowerKey: 'lower', upperKey: 'upper', metric: 'forecast', label: 'Likely range' } : undefined}
+              loading={loading}
+              emptyMessage="No school days in this period (weekends, holidays or half-term)"
+            />
+
+            <Card title="How to read this">
+              <div className="forecast__note">
+                <p>
+                  The line shows how many meals Lishe expects each school day. The shaded band is the likely
+                  range{intervalLabel && ` (${intervalLabel} of days should fall inside it)`}: prepare close to the line,
+                  and plan for the top of the band on days when running short would be a problem.
                 </p>
-              </section>
+                <p>Weekends, holidays and half-term are not forecast.</p>
+                <p className="forecast__meta">
+                  {forecast?.data_notice || 'Forecasts come from a model trained on synthetic data and are a planning aid, not a guarantee.'}
+                </p>
+                {forecast?.assumptions?.length > 0 && (
+                  <ul className="forecast__assumptions">
+                    {forecast.assumptions.map((assumption) => <li key={assumption}>{assumption}</li>)}
+                  </ul>
+                )}
+                {forecast?.model_name && (
+                  <p className="forecast__meta">
+                    Model: {forecast.model_name}
+                    {forecast.training_data_end && ` · trained on data up to ${forecast.training_data_end}`}
+                  </p>
+                )}
+              </div>
+            </Card>
 
-              <section className="history-section">
-                <h2>Forecast by Date</h2>
-                <div className="data-table-container">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Date</th>
-                        <th>Day</th>
-                        <th>Expected meals</th>
-                        <th>Likely range</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {days.map((d) => (
-                        <tr key={d.date}>
-                          <td>{d.date}</td>
-                          <td>{d.day_of_week || weekdayOf(d.date)}</td>
-                          <td>{d.predicted_demand}</td>
-                          <td>{d.lower_bound != null ? `${d.lower_bound} – ${d.upper_bound}` : '–'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            </>
-          )}
-
-          <section className="form-section">
-            <h2>About this forecast</h2>
-            <p className="placeholder-note">
-              {forecast.data_notice || 'Forecasts come from a model trained on synthetic data and are a planning aid, not a guarantee.'}
-            </p>
-            {forecast.assumptions?.length > 0 && (
-              <ul>
-                {forecast.assumptions.map((assumption) => <li key={assumption}>{assumption}</li>)}
-              </ul>
-            )}
-            {forecast.model_name && (
-              <p className="placeholder-note">
-                Model: {forecast.model_name}
-                {forecast.training_data_end && ` · trained on data up to ${forecast.training_data_end}`}
-              </p>
-            )}
-          </section>
-        </>
-      )}
-    </PageIntro>
+            <Card title="Forecast by date">
+              <DataTable
+                caption="Forecast by date"
+                columns={COLUMNS}
+                rows={days}
+                getRowKey={(d) => d.date}
+                loading={loading}
+                emptyState={{ title: 'No school days in this period', description: 'Weekends, holidays and half-term are not forecast.' }}
+              />
+            </Card>
+          </>
+        )}
+      </div>
+    </>
   );
 }
 
