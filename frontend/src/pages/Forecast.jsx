@@ -143,10 +143,12 @@ function Forecast() {
 
       <div className="ui-stack">
         <Card>
+          {/* Every field has a one-line hint so the three boxes line up */}
           <div className="forecast__settings">
             <FormField
               as="select"
               label="School"
+              hint="Forecasts are made per school"
               value={schoolId}
               onChange={(e) => setSchoolId(e.target.value)}
               options={schools.map((school) => ({ value: school.id, label: school.name }))}
@@ -156,6 +158,7 @@ function Forecast() {
             <FormField
               as="select"
               label="Period"
+              hint="School days only"
               value={horizonDays}
               onChange={(e) => setHorizonDays(Number(e.target.value))}
               options={HORIZONS.map((h) => ({ value: h, label: `Next ${h} days` }))}
