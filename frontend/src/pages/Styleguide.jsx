@@ -14,6 +14,7 @@ import {
   Skeleton,
   SkeletonText,
   StatCard,
+  SummaryList,
   SyncStatusBar,
   rangeForPreset,
   useToast,
@@ -189,6 +190,14 @@ function Styleguide() {
             <FormField label="Present" size="lg" type="number" inputMode="numeric" value={present} onChange={(e) => setPresent(e.target.value)} required />
             <FormField label="Absent" size="lg" type="number" inputMode="numeric" defaultValue="20" error="Present + absent must equal registered (588 + 20 = 608, registered 600)" required />
           </div>
+        </Section>
+
+        <Section title="Summary list" description="The check-before-saving step on Attendance and Meals.">
+          <SummaryList rows={[
+            { key: 'date', label: 'Date', value: '12-10-2026' },
+            { key: 'registered', label: 'Registered learners', value: '600 learners' },
+            { key: 'present', label: 'Present', value: '588 learners', action: <Button variant="ghost" size="sm">Change</Button> },
+          ]} />
         </Section>
 
         <Section title="Date range filter">

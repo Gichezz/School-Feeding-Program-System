@@ -1,0 +1,62 @@
+/*
+ * Page-level layout for pages rebuilt from the shared components (#40).
+ * Token values only.
+ */
+
+/* ---------- Attendance and Meals (RecordingPage) ---------- */
+.recording__form-anchor {
+  scroll-margin-top: calc(var(--topbar-height) + var(--space-4));
+}
+
+.recording__form,
+.recording__confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.recording__confirm-title {
+  font-size: var(--font-size-xl);
+}
+
+.recording__confirm-title:focus {
+  outline: none;
+}
+
+.recording__error-summary:focus {
+  outline: none;
+}
+
+.recording__error-summary:focus-visible .ui-alert {
+  box-shadow: var(--focus-ring);
+}
+
+.recording__error-list {
+  margin: 0;
+  padding-left: var(--space-5);
+}
+
+.recording__note {
+  font-size: var(--font-size-sm);
+  color: var(--color-ink-muted);
+}
+
+.recording__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.recording__date {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+@media (max-width: 767px) {
+  /* Thumb-friendly: full-width actions, primary first */
+  .recording__actions .ui-button {
+    flex: 1 1 100%;
+  }
+}
