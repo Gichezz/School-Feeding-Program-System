@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import PageIntro from '../components/PageIntro';
+import { LogIn } from 'lucide-react';
+import { Alert, APP_NAME, Button, Card, FormField } from '../components/ui';
+import LisheLogo from '../components/shell/LisheLogo';
 import { login } from '../services/api';
 import { saveSession } from '../services/session';
 import { manualSync } from '../sync/syncManager';
@@ -20,6 +22,10 @@ function Login() {
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => {
+    document.title = `Sign in · ${APP_NAME}`;
+  }, []);
+
   async function handleSubmit(event) {
     event.preventDefault();
     setError(null);
@@ -38,45 +44,50 @@ function Login() {
   }
 
   return (
-    <PageIntro title="Sign in" purpose="Sign in to record attendance and meals and to sync with the central server">
-      <section className="form-section">
-        {!isOnline && (
-          <div className="form-warning" role="status">
-            You are offline. Signing in needs a connection.
+    <div className="login">
+      <div className="login__brand">
+        <LisheLogo withTagline className="login__logo" />
+      </div>
+
+      <Card>
+        <form className="login__form" onSubmit={handleSubmit}>
+          <div>
+            <h1 className="login__title">Sign in</h1>
+            <p className="login__intro">
+              {user ? 'Sign in again to keep syncing. Records saved on this device are kept.' : 'Use the account your programme administrator gave you.'}
+            </p>
           </div>
-        )}
-        {error && <div className="form-error" role="alert">{error}</div>}
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="login-email">Email</label>
-            <input
-              id="login-email"
-              type="email"
-              autoComplete="username"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="login-password">Password</label>
-            <input
-              id="login-password"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-          <div className="form-actions">
-            <button type="submit" className="btn btn--primary" disabled={submitting || !isOnline}>
-              {submitting ? 'Signing in...' : 'Sign in'}
-            </button>
-          </div>
+
+          {!isOnline && (
+            <Alert tone="neutral" title="You are offline">Signing in needs a connection.</Alert>
+          )}
+          {error && <Alert tone="danger" title="Could not sign in">{error}</Alert>}
+
+          <FormField
+            id="login-email"
+            label="Email"
+            type="email"
+            autoComplete="username"
+            inputMode="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+          <FormField
+            id="login-password"
+            label="Password"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+          <Button type="submit" icon={LogIn} fullWidth loading={submitting} disabled={!isOnline}>
+            {submitting ? 'Signing in…' : 'Sign in'}
+          </Button>
         </form>
-      </section>
-    </PageIntro>
+      </Card>
+    </div>
   );
 }
 

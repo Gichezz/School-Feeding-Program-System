@@ -128,15 +128,17 @@ export async function getConflictStats() {
 }
 
 /**
- * Resolve a conflict by calling the backend API
+ * Resolve a conflict by calling the backend API.
+ * resolution: 'keep_local' | 'keep_server' | 'merge'; values are the edited counts for a merge.
  */
-export async function resolveConflictOnServer(conflictId, resolution) {
+export async function resolveConflictOnServer(conflictId, resolution, values) {
   try {
     const clientId = await getOrCreateClientId();
     
     const response = await apiResolveConflict(conflictId, {
       resolution,
-      clientId
+      clientId,
+      ...(resolution === 'merge' ? { values } : {})
     });
     
     return response;
@@ -149,7 +151,7 @@ export async function resolveConflictOnServer(conflictId, resolution) {
 /**
  * Process conflict resolution - handles both server and local updates
  */
-export async function resolveConflict(localConflictId, resolution) {
+export async function resolveConflict(localConflictId, resolution, values) {
   try {
     // Get the local conflict record
     const conflict = await getConflictById(localConflictId);
@@ -158,7 +160,7 @@ export async function resolveConflict(localConflictId, resolution) {
     }
     
     // Call server to resolve the conflict
-    const serverResponse = await resolveConflictOnServer(conflict.conflictId, resolution);
+    const serverResponse = await resolveConflictOnServer(conflict.conflictId, resolution, values);
     
     if (!serverResponse.success) {
       throw new Error(serverResponse.message || 'Failed to resolve conflict on server');
@@ -167,14 +169,8 @@ export async function resolveConflict(localConflictId, resolution) {
     // Update local conflict record
     await markConflictResolved(localConflictId, resolution, serverResponse.version);
     
-    // Update the associated local record based on resolution
-    if (resolution === 'keep_server') {
-      // Update local record with server version
-      await updateLocalRecordAfterResolution(conflict, serverResponse.record);
-    } else if (resolution === 'keep_local') {
-      // Update local record with new server version
-      await updateLocalRecordAfterResolution(conflict, serverResponse.record);
-    }
+    // Whatever was chosen, the device now matches the server's resulting record
+    await updateLocalRecordAfterResolution(conflict, serverResponse.record);
     
     // Mark the associated sync queue operation as resolved
     await markSyncOperationResolved(conflict.operationId);

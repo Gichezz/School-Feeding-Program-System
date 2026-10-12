@@ -1,353 +1,159 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import PageIntro from '../components/PageIntro';
-import LoadingSpinner from '../components/LoadingSpinner';
-import { useOnlineStatus } from '../hooks/useOnlineStatus';
-import { 
-  getComprehensiveSyncStatus, 
-  manualSync, 
-  isSyncInProgress,
-  getSyncProgress 
-} from '../sync/syncManager';
-import { getSyncQueueStats, getAllOperations } from '../sync/syncQueue';
-import { getConflictStats } from '../sync/conflictService';
+import { liveQuery } from 'dexie';
+import { CheckCircle2, CloudOff, CloudUpload, GitCompareArrows } from 'lucide-react';
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  DataTable,
+  PageHeader,
+  StatCard,
+  SyncStatusBar,
+  useToast,
+} from '../components/ui';
+import db from '../db/database';
+import { useSyncStatus } from '../hooks/useSyncStatus';
+import { useSession } from '../hooks/useSession';
+import { formatDate, formatDateTime, formatNumber } from '../utils/format';
+
+const RECENT_LIMIT = 20;
+
+const STATUS = {
+  pending: { tone: 'neutral', label: 'Waiting' },
+  synced: { tone: 'success', label: 'Synced' },
+  failed: { tone: 'warning', label: 'Did not sync' },
+  conflict: { tone: 'danger', label: 'Conflict' },
+};
 
 /**
- * Synchronization status page for Phase 6
- * Displays comprehensive sync status and allows manual sync
+ * One queued change in display form.
+ */
+function toRow(op) {
+  const isAttendance = op.entityType === 'attendance';
+  const date = isAttendance ? op.payload?.attendanceDate : op.payload?.distributionDate;
+  // A pending change that already failed once is shown as "did not sync" (it will be retried)
+  const status = op.status === 'pending' && op.errorMessage ? 'failed' : op.status;
+  return {
+    id: op.id,
+    record: `${isAttendance ? 'Attendance' : 'Meals'}${date ? ` · ${formatDate(date)}` : ''}`,
+    change: op.operation === 'update' ? 'Edited' : 'New record',
+    status,
+    savedAt: formatDateTime(op.createdAt),
+    attempts: op.retryCount || 0,
+    detail: status === 'failed' ? op.errorMessage : '',
+  };
+}
+
+const COLUMNS = [
+  { key: 'record', header: 'Record', primary: true },
+  { key: 'change', header: 'Change' },
+  {
+    key: 'status',
+    header: 'Status',
+    render: (row) => <Badge tone={(STATUS[row.status] || STATUS.pending).tone}>{(STATUS[row.status] || STATUS.pending).label}</Badge>,
+  },
+  { key: 'savedAt', header: 'Saved on device' },
+  { key: 'attempts', header: 'Attempts', align: 'end' },
+];
+
+/**
+ * What is waiting on this device, what has reached the server, and a manual sync.
+ * Reads the local sync queue only; syncing itself is unchanged.
  */
 function SyncStatus() {
-  const isOnline = useOnlineStatus();
-  const [loading, setLoading] = useState(true);
-  const [syncStatus, setSyncStatus] = useState(null);
-  const [queueStats, setQueueStats] = useState(null);
-  const [conflictStats, setConflictStats] = useState(null);
-  const [recentOperations, setRecentOperations] = useState([]);
-  const [syncing, setSyncing] = useState(false);
-  const [syncProgress, setSyncProgress] = useState(null);
-  const [error, setError] = useState(null);
-  const [successMessage, setSuccessMessage] = useState(null);
-  const [lastUpdated, setLastUpdated] = useState(null);
-  const prevSyncingRef = useRef(false);
+  const sync = useSyncStatus();
+  const { isAdmin } = useSession();
+  const toast = useToast();
+  const [operations, setOperations] = useState(null);
 
+  // Live view of the queue, so the page updates while a sync runs
   useEffect(() => {
-    loadSyncStatus();
-    
-    // Monitor sync state and refresh when it changes
-    const interval = setInterval(() => {
-      const currentlySyncing = isSyncInProgress();
-      
-      // Refresh if sync is in progress OR if sync just completed
-      if (currentlySyncing || (prevSyncingRef.current && !currentlySyncing)) {
-        loadSyncStatus();
-      }
-      
-      prevSyncingRef.current = currentlySyncing;
-    }, 2000);
-    
-    // Listen for sync completion events
-    const handleSyncCompleted = () => {
-      console.log('Sync completed event received, refreshing status');
-      loadSyncStatus();
-    };
-    
-    window.addEventListener('syncCompleted', handleSyncCompleted);
-    
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('syncCompleted', handleSyncCompleted);
-    };
+    const subscription = liveQuery(() => db.syncQueue.toArray()).subscribe({
+      next: setOperations,
+      error: () => setOperations([]),
+    });
+    return () => subscription.unsubscribe();
   }, []);
 
-  const loadSyncStatus = async () => {
-    try {
-      // Only set loading to true on initial load, not on refreshes
-      if (!syncStatus && !queueStats) {
-        setLoading(true);
-      }
-      setError(null);
-
-      const [status, stats, operations, conflicts] = await Promise.all([
-        getComprehensiveSyncStatus(),
-        getSyncQueueStats(),
-        getAllOperations(),
-        getConflictStats()
-      ]);
-
-      let hasChanges = false;
-
-      // Only update state if values have actually changed
-      if (JSON.stringify(syncStatus) !== JSON.stringify(status)) {
-        setSyncStatus(status);
-        hasChanges = true;
-      }
-      
-      if (JSON.stringify(queueStats) !== JSON.stringify(stats)) {
-        setQueueStats(stats);
-        hasChanges = true;
-      }
-      
-      if (JSON.stringify(conflictStats) !== JSON.stringify(conflicts)) {
-        setConflictStats(conflicts);
-        hasChanges = true;
-      }
-      
-      const newOps = operations.slice(-10).reverse();
-      if (JSON.stringify(recentOperations) !== JSON.stringify(newOps)) {
-        setRecentOperations(newOps);
-        hasChanges = true;
-      }
-      
-      const currentSyncing = isSyncInProgress();
-      if (syncing !== currentSyncing) {
-        setSyncing(currentSyncing);
-        hasChanges = true;
-      }
-      
-      const currentProgress = getSyncProgress();
-      if (JSON.stringify(syncProgress) !== JSON.stringify(currentProgress)) {
-        setSyncProgress(currentProgress);
-        hasChanges = true;
-      }
-
-      // Only update timestamp if there were changes
-      if (hasChanges) {
-        setLastUpdated(new Date().toLocaleTimeString());
-      }
-    } catch (err) {
-      console.error('Error loading sync status:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+  const syncNow = async () => {
+    const result = await sync.syncNow();
+    if (!result) return;
+    toast.show(result.success
+      ? { tone: 'success', title: 'Sync finished', description: result.message }
+      : { tone: 'warning', title: 'Sync did not finish', description: result.message || 'Lishe will try again automatically.' });
   };
 
-  const handleManualSync = async () => {
-    try {
-      console.log('Manual sync button clicked');
-      setSyncing(true);
-      setError(null);
-      setSuccessMessage(null);
-
-      console.log('Calling manualSync...');
-      const result = await manualSync();
-      console.log('Manual sync result:', result);
-      
-      if (result.success) {
-        setSuccessMessage(result.message);
-        // Force refresh after sync completes to show updated status
-        setTimeout(() => loadSyncStatus(), 500);
-      } else {
-        setError(result.message);
-      }
-    } catch (err) {
-      console.error('Manual sync error:', err);
-      setError(err.message);
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <PageIntro
-        title="Synchronization Status"
-        purpose="Monitor offline data synchronization and conflict resolution"
-      >
-        <LoadingSpinner message="Loading synchronization status..." />
-      </PageIntro>
-    );
-  }
+  const loading = operations === null;
+  const counts = (operations || []).reduce((total, op) => {
+    const status = op.status === 'pending' && op.errorMessage ? 'failed' : op.status;
+    total[status] = (total[status] || 0) + 1;
+    return total;
+  }, {});
+  const recent = (operations || [])
+    .slice()
+    .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
+    .slice(0, RECENT_LIMIT)
+    .map(toRow);
+  const columns = recent.some((row) => row.detail)
+    ? [...COLUMNS, { key: 'detail', header: 'Why' }]
+    : COLUMNS;
 
   return (
-    <PageIntro
-      title="Synchronization Status"
-      purpose="Monitor offline data synchronization and conflict resolution"
-    >
-      {error && <div className="form-error">{error}</div>}
-      {successMessage && <div className="form-success">{successMessage}</div>}
+    <>
+      <PageHeader title="Sync status" description="What is waiting on this device and what has reached the server." />
 
-      {/* Connection Status */}
-      <section className="form-section">
-        <h2>Connection Status</h2>
-        <div style={{ 
-          padding: '1rem', 
-          borderRadius: '4px',
-          backgroundColor: isOnline ? 'var(--color-success-bg)' : 'var(--color-error-bg)',
-          color: isOnline ? 'var(--color-success-text)' : 'var(--color-error-text)',
-          marginBottom: '1rem'
-        }}>
-          <strong>{isOnline ? '🟢 Online' : '🔴 Offline'}</strong>
-          <p style={{ margin: '0.5rem 0 0 0' }}>
-            {isOnline 
-              ? 'Connected to server. Synchronization is available.' 
-              : 'No internet connection. Working in offline mode.'}
-          </p>
+      <div className="ui-stack">
+        <SyncStatusBar
+          variant="expanded"
+          state={sync.state}
+          pendingCount={sync.pendingCount}
+          progress={sync.progress}
+          lastSyncedAt={sync.lastSyncedAt}
+          failure={sync.failure}
+          canSync={sync.canSync}
+          onSyncNow={syncNow}
+        />
+
+        {sync.unresolvedConflicts > 0 && (
+          <Alert
+            tone="warning"
+            title={sync.unresolvedConflicts === 1 ? '1 record needs a decision' : `${formatNumber(sync.unresolvedConflicts)} records need a decision`}
+            action={isAdmin && <Button as={Link} to="/conflicts" variant="secondary" size="sm">Resolve</Button>}
+          >
+            The same record was changed on this device and on the server.
+            {!isAdmin && ' An administrator will choose which version to keep.'}
+          </Alert>
+        )}
+
+        <div className="ui-grid ui-grid--4">
+          <StatCard label="Waiting" icon={CloudUpload} loading={loading} value={formatNumber(counts.pending || 0)} hint="Saved here, not sent yet" />
+          <StatCard label="Synced" icon={CheckCircle2} loading={loading} value={formatNumber(counts.synced || 0)} hint="Reached the server" />
+          <StatCard label="Did not sync" icon={CloudOff} loading={loading} value={formatNumber(counts.failed || 0)} hint="Retried automatically" />
+          <StatCard label="Conflicts" icon={GitCompareArrows} loading={loading} value={formatNumber(sync.unresolvedConflicts)} hint="Need an administrator" />
         </div>
 
-        {isOnline && (
-          <div className="form-actions">
-            <button 
-              className="btn btn--primary" 
-              onClick={handleManualSync}
-              disabled={syncing}
-            >
-              {syncing ? 'Syncing...' : 'Sync Now'}
-            </button>
-          </div>
-        )}
-      </section>
+        <Card title="Recent changes" description={`The latest ${RECENT_LIMIT} changes saved on this device, newest first.`}>
+          <DataTable
+            caption="Recent changes"
+            columns={columns}
+            rows={recent}
+            loading={loading}
+            emptyState={{ title: 'No changes yet', description: 'Records you save on this device appear here until they sync.' }}
+          />
+        </Card>
 
-      {/* Sync Progress */}
-      {syncing && syncProgress && (
-        <section className="form-section">
-          <h2>Sync Progress</h2>
-          <div style={{ 
-            padding: '1rem', 
-            backgroundColor: 'var(--color-info-bg)',
-            borderRadius: '4px'
-          }}>
-            <p><strong>Total:</strong> {syncProgress.total}</p>
-            <p><strong>Processed:</strong> {syncProgress.processed}</p>
-            <p><strong>Successful:</strong> {syncProgress.successful}</p>
-            <p><strong>Failed:</strong> {syncProgress.failed}</p>
-            <p><strong>Conflicts:</strong> {syncProgress.conflicts}</p>
-          </div>
-        </section>
-      )}
-
-      {/* Queue Statistics */}
-      <section className="form-section">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h2 style={{ margin: 0 }}>Sync Queue Statistics</h2>
-          {lastUpdated && (
-            <span style={{ fontSize: '0.85rem', color: 'var(--color-muted)' }}>
-              Last updated: {lastUpdated}
-            </span>
-          )}
-        </div>
-        {queueStats ? (
-          <div style={{ 
-            padding: '1rem', 
-            backgroundColor: 'var(--color-muted-bg)',
-            borderRadius: '4px'
-          }}>
-            <p><strong>Total Operations:</strong> {queueStats.total}</p>
-            <p><strong>Pending:</strong> {queueStats.pending}</p>
-            <p><strong>Synced:</strong> {queueStats.synced}</p>
-            <p><strong>Failed:</strong> {queueStats.failed}</p>
-            <p><strong>Conflicts:</strong> {queueStats.conflict}</p>
-          </div>
-        ) : (
-          <p>No queue statistics available</p>
-        )}
-      </section>
-
-      {/* Conflict Statistics */}
-      {conflictStats && conflictStats.unresolved > 0 && (
-        <section className="form-section" style={{ 
-          backgroundColor: 'var(--color-warning-bg)',
-          padding: '1rem',
-          borderRadius: '4px'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h2 style={{ margin: 0 }}>⚠️ Unresolved Conflicts</h2>
-            <Link 
-              to="/conflicts" 
-              className="btn btn--primary"
-              style={{ fontSize: '0.9rem' }}
-            >
-              View Conflicts
-            </Link>
-          </div>
-          <div style={{ marginBottom: '1rem' }}>
-            <p><strong>Total Conflicts:</strong> {conflictStats.total}</p>
-            <p><strong>Unresolved:</strong> {conflictStats.unresolved}</p>
-            <p><strong>Resolved:</strong> {conflictStats.resolved}</p>
-          </div>
-          <p style={{ margin: 0, fontSize: '0.9rem' }}>
-            You have {conflictStats.unresolved} unresolved conflict(s) that require your attention. 
-            These occur when the server has a newer version of a record than your local changes.
-          </p>
-        </section>
-      )}
-
-      {/* Recent Operations */}
-      <section className="form-section">
-        <h2>Recent Operations</h2>
-        {recentOperations.length === 0 ? (
-          <div className="empty-state">
-            <p>No operations in queue</p>
-          </div>
-        ) : (
-          <div className="data-table-container">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Type</th>
-                  <th>Entity</th>
-                  <th>Operation</th>
-                  <th>Status</th>
-                  <th>Created</th>
-                  <th>Retries</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentOperations.map((op) => (
-                  <tr key={op.id}>
-                    <td>{op.entityType}</td>
-                    <td>{op.recordId}</td>
-                    <td>{op.operation}</td>
-                    <td>
-                      <span style={{
-                        padding: '2px 8px',
-                        borderRadius: '4px',
-                        fontSize: '0.85rem',
-                        backgroundColor: op.status === 'synced' ? 'var(--color-success-bg)' :
-                                       op.status === 'conflict' ? 'var(--color-error-bg)' :
-                                       op.status === 'failed' ? 'var(--color-warning-bg)' :
-                                       'var(--color-muted-bg)',
-                        color: op.status === 'synced' ? 'var(--color-success-text)' :
-                               op.status === 'conflict' ? 'var(--color-error-text)' :
-                               op.status === 'failed' ? 'var(--color-warning-text)' :
-                               'var(--color-muted-text)'
-                      }}>
-                        {op.status}
-                      </span>
-                    </td>
-                    <td>{new Date(op.createdAt).toLocaleString()}</td>
-                    <td>{op.retryCount || 0}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-
-      {/* Information */}
-      <section className="form-section">
-        <h2>Synchronization Information</h2>
-        <div style={{ color: 'var(--color-muted)', lineHeight: '1.6' }}>
-          <p><strong>How it works:</strong></p>
-          <ul style={{ marginTop: '0.5rem', marginBottom: '1rem' }}>
-            <li>When you create or update records offline, they are saved locally and queued for synchronization</li>
-            <li>When you go online, the system automatically attempts to synchronize pending operations</li>
-            <li>Each operation includes a version number to prevent conflicts</li>
-            <li>If a version mismatch is detected, the operation is marked as a conflict</li>
-            <li>You can manually trigger synchronization using the "Sync Now" button</li>
-            <li>Conflicts can be resolved using the Conflicts page</li>
+        <Card title="How syncing works">
+          <ul className="sync-status__notes">
+            <li>Every record is saved on this device first, so nothing is lost without a connection.</li>
+            <li>When the device is online and you are signed in, Lishe sends waiting changes automatically. Sync now sends them straight away.</li>
+            <li>A change that does not sync stays on the device and is tried again.</li>
+            <li>If the same record was changed somewhere else first, it becomes a conflict and an administrator chooses which version to keep.</li>
           </ul>
-          <p><strong>Status meanings:</strong></p>
-          <ul style={{ marginTop: '0.5rem' }}>
-            <li><strong>Pending:</strong> Waiting to be synchronized</li>
-            <li><strong>Synced:</strong> Successfully synchronized with server</li>
-            <li><strong>Failed:</strong> Synchronization failed (will be retried)</li>
-            <li><strong>Conflict:</strong> Version mismatch detected (requires resolution)</li>
-          </ul>
-        </div>
-      </section>
-    </PageIntro>
+        </Card>
+      </div>
+    </>
   );
 }
 
