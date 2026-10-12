@@ -1,0 +1,723 @@
+/*
+ * App shell: sidebar (desktop), icon strip (tablet), bottom tabs (mobile), top bar.
+ * Breakpoints: mobile < 768px, tablet 768–1023px, desktop >= 1024px.
+ */
+
+/* ---------- Logo ---------- */
+.lishe-logo {
+  --mark-ink: var(--color-brand);
+  --mark-cut: var(--color-surface);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-ink);
+  text-decoration: none;
+}
+
+.lishe-mark {
+  width: var(--icon-lg);
+  height: var(--icon-lg);
+  flex-shrink: 0;
+}
+
+.lishe-mark__plate {
+  fill: none;
+  stroke: var(--mark-ink);
+  stroke-width: 4;
+}
+
+.lishe-mark__leaf {
+  fill: var(--mark-ink);
+}
+
+.lishe-mark__vein {
+  stroke: var(--mark-cut);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+.lishe-logo__text {
+  display: flex;
+  flex-direction: column;
+}
+
+.lishe-logo__wordmark {
+  font-family: var(--font-display);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-tight);
+  color: var(--mark-ink);
+}
+
+.lishe-logo__tagline {
+  font-size: var(--font-size-sm);
+  color: var(--color-ink-muted);
+}
+
+/* ---------- Frame ---------- */
+.app-shell {
+  min-height: 100vh;
+}
+
+.app-shell__column {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  margin-left: var(--sidebar-width);
+}
+
+.app-main {
+  flex: 1;
+  width: 100%;
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-6) var(--space-12);
+}
+
+.app-main:focus {
+  outline: none;
+}
+
+.app-main__notice {
+  margin-bottom: var(--space-5);
+}
+
+/* ---------- Sidebar ---------- */
+.app-sidebar {
+  --mark-ink: var(--color-brand-200);
+  --mark-cut: var(--color-sidebar-bg);
+  --focus-ring-color: var(--color-sidebar-focus);
+  --focus-ring: 0 0 0 2px var(--color-sidebar-bg), 0 0 0 4px var(--focus-ring-color);
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: var(--z-nav);
+  display: flex;
+  flex-direction: column;
+  width: var(--sidebar-width);
+  padding: var(--space-4) var(--space-3);
+  overflow-y: auto;
+  background: var(--color-sidebar-bg);
+  color: var(--color-sidebar-text);
+}
+
+.app-sidebar .lishe-logo__wordmark {
+  color: var(--color-sidebar-text);
+}
+
+.app-sidebar__brand {
+  display: flex;
+  align-items: center;
+  min-height: var(--touch-target);
+  padding: 0 var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.app-sidebar__toggle {
+  display: none;
+}
+
+.app-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.app-nav__heading {
+  padding: 0 var(--space-3);
+  margin-bottom: var(--space-1);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-caps);
+  text-transform: uppercase;
+  color: var(--color-sidebar-muted);
+}
+
+.app-nav__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.app-nav__link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--touch-target);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  color: var(--color-sidebar-text);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+}
+
+.app-nav__link:hover {
+  background: var(--color-sidebar-hover);
+  color: var(--color-sidebar-text);
+}
+
+.app-nav__link--active {
+  background: var(--color-sidebar-active);
+  font-weight: var(--font-weight-semibold);
+}
+
+.app-nav__link--active::before {
+  content: '';
+  position: absolute;
+  inset: var(--space-2) auto var(--space-2) calc(-1 * var(--space-3));
+  width: var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--color-brand-200);
+}
+
+.app-nav__icon {
+  width: var(--icon-md);
+  height: var(--icon-md);
+  flex-shrink: 0;
+}
+
+.app-nav__label {
+  flex: 1;
+  white-space: nowrap;
+}
+
+.app-nav__count {
+  min-width: var(--space-6);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--space-5);
+  text-align: center;
+}
+
+/* ---------- Top bar ---------- */
+.app-topbar {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: var(--topbar-height);
+  padding: var(--space-2) var(--space-6);
+  background: var(--color-surface);
+  border-bottom: var(--border-default);
+}
+
+.app-topbar__identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.app-topbar__logo {
+  display: none;
+}
+
+.app-topbar__school {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-topbar__school-icon {
+  width: var(--icon-md);
+  height: var(--icon-md);
+  flex-shrink: 0;
+  color: var(--color-brand);
+}
+
+.app-topbar__sync {
+  margin-left: auto;
+  min-width: 0;
+}
+
+.app-topbar__sync--pill {
+  display: none;
+}
+
+.app-topbar__sync .ui-sync--compact {
+  padding-block: var(--space-1);
+}
+
+/* In the top bar each line stays on one line; the Sync page shows everything */
+.app-topbar__sync .ui-sync__title,
+.app-topbar__sync .ui-sync__detail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-topbar__sync .ui-sync__text {
+  min-width: 0;
+}
+
+/* ---------- Sync pill (phones) ---------- */
+.ui-sync-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--touch-target);
+  padding: 0 var(--space-3);
+  border: var(--border-width) solid;
+  border-radius: var(--radius-pill);
+  color: var(--color-ink);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.ui-sync-pill:hover {
+  color: var(--color-ink);
+}
+
+.ui-sync-pill .ui-sync__icon {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+}
+
+.ui-sync-pill__count {
+  min-width: var(--space-5);
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  font-size: var(--font-size-xs);
+  text-align: center;
+}
+
+/* ---------- User menu ---------- */
+.user-menu {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.user-menu__button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--touch-target);
+  padding: var(--space-1) var(--space-2);
+  border: var(--border-width) solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  cursor: pointer;
+  text-align: start;
+}
+
+.user-menu__button:hover {
+  background: var(--color-brand-50);
+}
+
+.user-menu__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-8);
+  height: var(--space-8);
+  border-radius: var(--radius-pill);
+  background: var(--color-brand-100);
+  color: var(--color-brand-800);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+}
+
+.user-menu__who {
+  display: flex;
+  flex-direction: column;
+  line-height: var(--line-height-tight);
+}
+
+.user-menu__name {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.user-menu__role {
+  font-size: var(--font-size-xs);
+  color: var(--color-ink-muted);
+}
+
+.user-menu__chevron {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  color: var(--color-ink-muted);
+}
+
+.user-menu__panel {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  right: 0;
+  z-index: var(--z-overlay);
+  min-width: var(--menu-min-width);
+  padding: var(--space-3);
+  background: var(--color-surface-overlay);
+  border: var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.user-menu__panel-name {
+  font-weight: var(--font-weight-semibold);
+}
+
+.user-menu__panel-meta {
+  font-size: var(--font-size-sm);
+  color: var(--color-ink-muted);
+  margin-bottom: var(--space-2);
+}
+
+.user-menu__action {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--touch-target);
+  padding: var(--space-2);
+  border: 0;
+  border-top: var(--border-default);
+  background: transparent;
+  color: var(--color-danger);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+}
+
+.user-menu__action svg {
+  width: var(--icon-md);
+  height: var(--icon-md);
+}
+
+/* ---------- Bottom tabs and More sheet (phones) ---------- */
+.bottom-nav {
+  display: none;
+}
+
+.more-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  display: flex;
+  align-items: flex-end;
+  background: var(--color-scrim);
+}
+
+.more-sheet__panel {
+  width: 100%;
+  max-height: var(--sheet-max-height);
+  overflow-y: auto;
+  padding: var(--space-4) var(--space-4) calc(var(--space-4) + var(--safe-area-bottom));
+  background: var(--color-surface);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  box-shadow: var(--shadow-lg);
+  animation: more-sheet-in var(--duration-normal) var(--ease-standard);
+}
+
+.more-sheet__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+}
+
+.more-sheet__title {
+  font-size: var(--font-size-lg);
+}
+
+.more-sheet__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch-target);
+  height: var(--touch-target);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-ink-muted);
+  cursor: pointer;
+}
+
+.more-sheet__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.more-sheet__link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: calc(var(--touch-target) + var(--space-2));
+  padding: var(--space-2) var(--space-2);
+  border: 0;
+  border-bottom: var(--border-default);
+  background: transparent;
+  color: var(--color-ink);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+  text-align: start;
+  cursor: pointer;
+}
+
+.more-sheet__link--active {
+  color: var(--color-brand);
+  font-weight: var(--font-weight-semibold);
+}
+
+.more-sheet__link .app-nav__count {
+  flex-shrink: 0;
+}
+
+.more-sheet__signout {
+  color: var(--color-danger);
+  border-bottom: 0;
+}
+
+@keyframes more-sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+/* ---------- Auth layout ---------- */
+.auth-layout {
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  padding: var(--space-6) var(--space-4);
+}
+
+.auth-layout__main {
+  width: 100%;
+  max-width: var(--auth-max-width);
+  margin: auto 0;
+}
+
+.auth-layout__main:focus {
+  outline: none;
+}
+
+/* ---------- Tablet: icon strip that expands ---------- */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .app-shell__column {
+    margin-left: var(--sidebar-collapsed-width);
+  }
+
+  .app-sidebar {
+    width: var(--sidebar-collapsed-width);
+    padding-inline: var(--space-2);
+    overflow-x: hidden;
+    transition: width var(--duration-normal) var(--ease-standard), box-shadow var(--duration-normal) var(--ease-standard);
+  }
+
+  .app-sidebar__toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    align-self: flex-start;
+    width: var(--touch-target);
+    height: var(--touch-target);
+    margin: 0 0 var(--space-2) var(--space-1);
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--color-sidebar-text);
+    cursor: pointer;
+  }
+
+  .app-sidebar__toggle:hover {
+    background: var(--color-sidebar-hover);
+  }
+
+  .app-sidebar__toggle svg {
+    width: var(--icon-md);
+    height: var(--icon-md);
+  }
+
+  .app-sidebar__brand {
+    padding-inline: var(--space-2);
+  }
+
+  /* Narrower top bar: sync title only, and the avatar without the name (shown in the menu) */
+  .app-topbar__sync .ui-sync__detail,
+  .user-menu__who {
+    display: none;
+  }
+
+  /* Collapsed: icons only; labels stay available to screen readers */
+  .app-sidebar:not([data-expanded='true']):not(:hover):not(:focus-within) .lishe-logo__text,
+  .app-sidebar:not([data-expanded='true']):not(:hover):not(:focus-within) .app-nav__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .app-sidebar:not([data-expanded='true']):not(:hover):not(:focus-within) .app-nav__heading {
+    display: none;
+  }
+
+  .app-sidebar:not([data-expanded='true']):not(:hover):not(:focus-within) .app-nav__link {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .app-sidebar:not([data-expanded='true']):not(:hover):not(:focus-within) .app-nav__count {
+    position: absolute;
+    top: var(--space-1);
+    right: var(--space-1);
+    min-width: var(--space-4);
+    padding: 0 var(--space-1);
+    line-height: var(--space-4);
+  }
+
+  .app-sidebar:not([data-expanded='true']):not(:hover):not(:focus-within) .app-nav__link--active::before {
+    left: calc(-1 * var(--space-2));
+  }
+
+  /* Expanded: overlays the content instead of pushing it */
+  .app-sidebar[data-expanded='true'],
+  .app-sidebar:hover,
+  .app-sidebar:focus-within {
+    width: var(--sidebar-width);
+    box-shadow: var(--shadow-lg);
+  }
+}
+
+/* ---------- Mobile: bottom tabs ---------- */
+@media (max-width: 767px) {
+  .app-sidebar {
+    display: none;
+  }
+
+  .app-shell__column {
+    margin-left: 0;
+  }
+
+  .app-topbar {
+    gap: var(--space-2);
+    padding-inline: var(--space-4);
+  }
+
+  .app-topbar__logo {
+    display: inline-flex;
+  }
+
+  .app-topbar__school,
+  .app-topbar__sync--bar,
+  .user-menu__who {
+    display: none;
+  }
+
+  .app-topbar__sync--pill {
+    display: block;
+  }
+
+  .app-main {
+    padding: var(--space-4) var(--space-4) calc(var(--bottom-nav-height) + var(--safe-area-bottom) + var(--space-8));
+  }
+
+  .bottom-nav {
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: var(--z-nav);
+    display: block;
+    padding-bottom: var(--safe-area-bottom);
+    background: var(--color-surface);
+    border-top: var(--border-default);
+    box-shadow: var(--shadow-md);
+  }
+
+  .bottom-nav__list {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .bottom-nav__tab {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
+    width: 100%;
+    min-height: var(--bottom-nav-height);
+    padding: var(--space-1);
+    border: 0;
+    background: transparent;
+    color: var(--color-ink-muted);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .bottom-nav__tab--active {
+    color: var(--color-brand);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .bottom-nav__tab--active::before {
+    content: '';
+    position: absolute;
+    inset: 0 25% auto 25%;
+    height: var(--space-1);
+    border-radius: 0 0 var(--radius-pill) var(--radius-pill);
+    background: var(--color-brand);
+  }
+
+  .bottom-nav__icon-wrap {
+    position: relative;
+    display: inline-flex;
+  }
+
+  .bottom-nav__icon {
+    width: var(--icon-md);
+    height: var(--icon-md);
+  }
+
+  .bottom-nav__dot {
+    position: absolute;
+    top: calc(-1 * var(--space-2));
+    left: calc(100% - var(--space-2));
+    min-width: var(--space-4);
+    padding: 0 var(--space-1);
+    border-radius: var(--radius-pill);
+    background: var(--color-warning-bg);
+    border: var(--border-width) solid var(--color-warning-border);
+    color: var(--color-warning);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-bold);
+    line-height: var(--space-4);
+    text-align: center;
+  }
+
+  .bottom-nav__label {
+    white-space: nowrap;
+  }
+
+  /* Toasts sit above the tab bar */
+  .ui-toast-region {
+    left: var(--space-4);
+    right: var(--space-4);
+    width: auto;
+    bottom: calc(var(--bottom-nav-height) + var(--safe-area-bottom) + var(--space-3));
+  }
+}
