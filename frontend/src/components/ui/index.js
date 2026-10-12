@@ -5,6 +5,7 @@ export { default as Button } from './Button';
 export { default as Card } from './Card';
 export { default as ChartCard, Sparkline } from './ChartCard';
 export { default as DataTable } from './DataTable';
+export { default as DateField, maskDate, parseDisplayDate } from './DateField';
 export { default as DateRangeFilter, DATE_PRESETS, rangeForPreset } from './DateRangeFilter';
 export { default as EmptyState } from './EmptyState';
 export { default as FormField } from './FormField';

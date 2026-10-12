@@ -7,6 +7,7 @@ import {
   Button,
   Card,
   DataTable,
+  DateField,
   EmptyState,
   FormField,
   LoadingRegion,
@@ -18,7 +19,7 @@ import {
 import { getSchools } from '../../services/api';
 import { cacheSchools, getCachedSchools } from '../../services/localDb';
 import { mergeLocalAndServerRecords } from '../../utils/mergeRecords';
-import { formatDate, formatNumber, fromInputDate, todayDate, toDate, toInputDate } from '../../utils/format';
+import { formatDate, formatNumber, todayDate, toDate } from '../../utils/format';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { manualSync } from '../../sync/syncManager';
 
@@ -298,14 +299,13 @@ function RecordingPage({ type }) {
                       options={[{ value: '', label: 'Select the school' }, ...schools.map((s) => ({ value: s.id, label: s.name }))]}
                     />
                   )}
-                  <FormField
+                  <DateField
                     id={fieldId('date')}
                     label="Date"
-                    type="date"
                     required
-                    hint="Today, unless you are catching up on an earlier day"
-                    value={toInputDate(values.date)}
-                    onChange={(e) => setField('date', fromInputDate(e.target.value))}
+                    hint="DD-MM-YYYY. Today, unless you are catching up on an earlier day"
+                    value={values.date}
+                    onChange={(date) => setField('date', date)}
                     onBlur={() => touch('date')}
                     error={errorFor('date')}
                   />

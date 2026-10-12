@@ -110,6 +110,7 @@
   --menu-min-width: 15rem;
   --sheet-max-height: 80vh;
   --auth-max-width: 28rem;
+  --field-min-width: 12rem;
 
   /* Spacing: 4px base */
   --space-0: 0;
