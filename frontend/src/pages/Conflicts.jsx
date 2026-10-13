@@ -15,6 +15,7 @@ import {
   useToast,
 } from '../components/ui';
 import db from '../db/database';
+import HeldRecordsCard from '../features/held/HeldRecordsCard';
 import { ATTENDANCE, MEALS } from '../features/recording/recordTypes';
 import { toCount, validateAttendance, validateMeals } from '../features/recording/validation';
 import { resolveConflict, deleteConflict } from '../sync/conflictService';
@@ -190,6 +191,7 @@ function Conflicts() {
               </ul>
             )}
           </Card>
+          {isAdmin && <HeldRecordsCard />}
         </div>
       </>
     );
