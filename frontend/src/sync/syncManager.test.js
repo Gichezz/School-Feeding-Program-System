@@ -195,3 +195,49 @@ describe('processSyncQueue', () => {
     });
   });
 });
+
+describe('records tied to who captured them (#61)', () => {
+  beforeEach(() => {
+    saveSession({
+      token: 'peter-token',
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      user: { id: 'user-peter', name: 'Peter Otieno', role: 'school_staff', deviceId: 'device-1' },
+    });
+  });
+
+  it('queues each record with who captured it, on which device and when, and sends that', async () => {
+    await saveLocalAttendance(attendance);
+    const [operation] = await db.syncQueue.toArray();
+    syncOperations.mockResolvedValue(synced(operation.id, 1));
+
+    await processSyncQueue();
+
+    expect(operation).toMatchObject({ capturedBy: 'user-peter', capturedByName: 'Peter Otieno', deviceId: 'device-1', capturedAt: expect.any(String) });
+    expect(syncOperations.mock.calls.at(-1)[0].operations[0]).toMatchObject({ capturedBy: 'user-peter', deviceId: 'device-1', capturedAt: operation.capturedAt });
+  });
+
+  it('leaves a colleague’s record waiting, without counting a retry', async () => {
+    await saveLocalAttendance(attendance);
+    const [operation] = await db.syncQueue.toArray();
+    syncOperations.mockResolvedValue(serverResult({ success: false, operationId: operation.id, status: 'deferred' }));
+
+    const result = await processSyncQueue();
+
+    expect(result.progress).toMatchObject({ deferred: 1 });
+    expect(await db.syncQueue.get(operation.id)).toMatchObject({ status: 'pending', retryCount: 0 });
+  });
+
+  it('stops sending a held record, and forgets the person’s offline sign-in when the server says so', async () => {
+    await db.offlineUsers.put({ userId: 'user-mary', email: 'mary@example.org', deviceId: 'device-1' });
+    const saved = await saveLocalAttendance(attendance);
+    const [operation] = await db.syncQueue.toArray();
+    syncOperations.mockResolvedValue(serverResult({ success: false, operationId: operation.id, status: 'held', reason: 'user_deactivated', capturedBy: 'user-mary' }));
+
+    const result = await processSyncQueue();
+
+    expect(result.progress).toMatchObject({ held: 1 });
+    expect(await db.syncQueue.get(operation.id)).toMatchObject({ status: 'held', heldReason: 'user_deactivated' });
+    expect((await db.attendance.get(saved.id)).syncStatus).toBe('held');
+    expect(await db.offlineUsers.get('user-mary')).toBeUndefined();
+  });
+});

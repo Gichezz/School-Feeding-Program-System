@@ -59,6 +59,20 @@ class SchoolFeedingDB extends Dexie {
       forecasts: 'schoolId, fetchedAt',
       deviceIdentity: 'key'
     });
+
+    // Version 6: What each staff member needs to sign in offline on this device (#61):
+    // a slow PIN hash, when they last signed in online, and their last session
+    this.version(6).stores({
+      attendance: '++id, schoolId, attendanceDate, syncStatus, clientId, updatedAt',
+      mealDistribution: '++id, schoolId, distributionDate, syncStatus, clientId, updatedAt',
+      schools: 'id, name',
+      metadata: 'key, value',
+      syncQueue: '++id, entityType, recordId, status, clientId, createdAt',
+      conflicts: '++id, operationId, entityType, recordId, status, createdAt',
+      forecasts: 'schoolId, fetchedAt',
+      deviceIdentity: 'key',
+      offlineUsers: 'userId, email'
+    });
   }
 }
 

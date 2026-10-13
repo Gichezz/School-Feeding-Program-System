@@ -1,5 +1,6 @@
 import db from '../db/database';
 import { getOrCreateClientId } from '../db/database';
+import { getSession } from '../services/session';
 
 /**
  * Generate a unique operation ID for synchronization
@@ -15,6 +16,9 @@ export async function addToSyncQueue(operation) {
   try {
     const clientId = await getOrCreateClientId();
     const now = new Date().toISOString();
+    // Who captured the record, on which school device (#61). It only ever syncs under
+    // that person's own session.
+    const capturer = getSession()?.user;
     
     const queueItem = {
       id: generateOperationId(),
@@ -25,6 +29,10 @@ export async function addToSyncQueue(operation) {
       baseVersion: operation.baseVersion || 0,
       clientId,
       createdAt: now,
+      capturedBy: capturer?.id || null,
+      capturedByName: capturer?.name || null,
+      deviceId: capturer?.deviceId || null,
+      capturedAt: now,
       status: 'pending',
       retryCount: 0,
       lastAttemptAt: null,
@@ -132,6 +140,19 @@ export async function markOperationConflict(operationId, conflictData) {
     console.error('Error marking operation as conflict:', error);
     throw new Error('Failed to mark operation as conflict');
   }
+}
+
+/**
+ * The server is keeping this record for an administrator to review (#61); the device
+ * stops sending it.
+ */
+export async function markOperationHeld(operationId, reason) {
+  await db.syncQueue.update(operationId, {
+    status: 'held',
+    heldReason: reason,
+    lastAttemptAt: new Date().toISOString(),
+    errorMessage: null,
+  });
 }
 
 /**

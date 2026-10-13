@@ -1,4 +1,5 @@
 import db from '../../db/database';
+import { forgetAllOfflineUsers } from './offlineSignIn';
 
 /**
  * This school device's identity (#60).
@@ -56,9 +57,10 @@ export async function updateDeviceStatus(status) {
 }
 
 /**
- * Forget this device's identity, e.g. after an administrator removed the device.
- * Records saved on the device are not touched.
+ * Forget this device's identity, e.g. after an administrator removed the device, along
+ * with everyone's offline sign-in on it. Records saved on the device are not touched.
  */
 export async function clearDeviceIdentity() {
   await db.deviceIdentity.delete(KEY);
+  await forgetAllOfflineUsers();
 }

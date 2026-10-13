@@ -321,3 +321,18 @@ export async function unlockDeviceUser(deviceId, userId) {
 export async function newActivationCode(userId) {
   return apiRequest(`/users/${userId}/activation-code`, { method: 'POST' });
 }
+
+/**
+ * Held records (administrators, #61)
+ */
+export async function getHeldRecords() {
+  return apiRequest('/sync/held');
+}
+
+export async function applyHeldRecord(id) {
+  return apiRequest(`/sync/held/${id}/apply`, { method: 'POST' });
+}
+
+export async function discardHeldRecord(id) {
+  return apiRequest(`/sync/held/${id}/discard`, { method: 'POST' });
+}

@@ -25,6 +25,7 @@ const STATUS = {
   synced: { tone: 'success', label: 'Synced' },
   failed: { tone: 'warning', label: 'Did not sync' },
   conflict: { tone: 'danger', label: 'Conflict' },
+  held: { tone: 'warning', label: 'Held for review' },
 };
 
 /**
@@ -42,13 +43,15 @@ function toRow(op) {
     status,
     savedAt: formatDateTime(op.createdAt),
     attempts: op.retryCount || 0,
-    detail: status === 'failed' ? op.errorMessage : '',
+    capturedBy: op.capturedByName || '–',
+    detail: status === 'failed' ? op.errorMessage : status === 'held' ? 'An administrator will review it' : '',
   };
 }
 
 const COLUMNS = [
   { key: 'record', header: 'Record', primary: true },
   { key: 'change', header: 'Change' },
+  { key: 'capturedBy', header: 'Captured by' },
   {
     key: 'status',
     header: 'Status',
