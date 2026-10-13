@@ -1,20 +1,61 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Fingerprint, KeyRound, Pencil, UserPlus, UserRoundCheck, UserRoundX } from 'lucide-react';
+import { Copy, Fingerprint, KeyRound, Pencil, Ticket, UserPlus, UserRoundCheck, UserRoundX } from 'lucide-react';
 import { Alert, Badge, Button, Card, DataTable, FormField, useToast } from '../../components/ui';
-import { createUser, getUsers, resetUserPasskeys, resetUserPassword, updateUser } from '../../services/api';
+import { createUser, getSchools, getUsers, newActivationCode, resetUserPasskeys, resetUserPassword, updateUser } from '../../services/api';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { useSession } from '../../hooks/useSession';
-import { formatDate } from '../../utils/format';
+import { formatDate, formatDateTime } from '../../utils/format';
 import { MIN_PASSWORD_LENGTH, newUserErrors, passwordError, ROLE_OPTIONS } from './accountRules';
 
 const ROLE_LABEL = Object.fromEntries(ROLE_OPTIONS.map((r) => [r.value, r.label]));
-const EMPTY_USER = { name: '', email: '', role: 'school_staff', password: '' };
+const EMPTY_USER = { name: '', email: '', role: 'school_staff', password: '', schoolId: '' };
 const PASSWORD_HINT = `At least ${MIN_PASSWORD_LENGTH} characters. Share it with them privately; they can change it in Settings.`;
 
 /**
- * Add a user (name, email, role, initial password).
+ * A one-time activation code for a staff member, shown once (#60). They use it on the
+ * school device, with their email, to choose their password and PIN.
  */
-function AddUserForm({ onDone, onCancel }) {
+function ActivationCode({ name, code, expiresAt, onDone }) {
+  const toast = useToast();
+  const headingRef = useRef(null);
+  useEffect(() => headingRef.current?.focus(), []);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      toast.show({ tone: 'success', title: 'Activation code copied' });
+    } catch {
+      toast.show({ tone: 'warning', title: 'Could not copy', description: 'Write the code down instead.' });
+    }
+  };
+
+  return (
+    <div className="users__code">
+      <h3 ref={headingRef} tabIndex={-1} className="users__panel-title">Activation code for {name}</h3>
+      <p className="users__code-value tabular-nums">{code}</p>
+      <p>
+        Give this code to {name} privately. On the school device they choose <strong>Set up this school device</strong>,
+        enter their email and this code, and pick their own password and PIN. It works once and expires {formatDateTime(expiresAt)}.
+        It will not be shown again; you can issue a new one from Manage.
+      </p>
+      <div className="users__actions">
+        <Button variant="secondary" icon={Copy} onClick={copy}>Copy code</Button>
+        <Button onClick={onDone}>Done</Button>
+      </div>
+    </div>
+  );
+}
+
+const schoolOptions = (schools) => [
+  { value: '', label: 'Choose a school', disabled: true },
+  ...schools.map((school) => ({ value: school.id, label: school.name })),
+];
+
+/**
+ * Add a user. Administrators get an initial password; school staff get a school and a
+ * one-time activation code instead (they set their own password and PIN on the device).
+ */
+function AddUserForm({ schools, onDone, onCancel, onCode }) {
   const toast = useToast();
   const [values, setValues] = useState(EMPTY_USER);
   const [submitted, setSubmitted] = useState(false);
@@ -38,9 +79,19 @@ function AddUserForm({ onDone, onCancel }) {
     if (Object.keys(newUserErrors(values)).length > 0) return;
     setSaving(true);
     try {
-      const { user } = await createUser({ ...values, name: values.name.trim(), email: values.email.trim() });
-      toast.show({ tone: 'success', title: `${user.name} added`, description: `They can sign in with ${user.email}.` });
-      onDone();
+      const isStaff = values.role === 'school_staff';
+      const result = await createUser({
+        name: values.name.trim(),
+        email: values.email.trim(),
+        role: values.role,
+        ...(isStaff ? { schoolId: values.schoolId } : { password: values.password }),
+      });
+      toast.show({ tone: 'success', title: `${result.user.name} added` });
+      if (result.activationCode) {
+        onCode({ name: result.user.name, code: result.activationCode, expiresAt: result.activationExpiresAt });
+      } else {
+        onDone();
+      }
     } catch (err) {
       setServerError(err.message);
     } finally {
@@ -56,7 +107,11 @@ function AddUserForm({ onDone, onCancel }) {
         <FormField label="Name" autoComplete="off" required {...field('name')} />
         <FormField label="Email" type="email" inputMode="email" autoComplete="off" required {...field('email')} />
         <FormField label="Role" as="select" options={ROLE_OPTIONS} {...field('role')} />
-        <FormField label="Initial password" type="password" autoComplete="new-password" hint={PASSWORD_HINT} required {...field('password')} />
+        {values.role === 'school_staff' ? (
+          <FormField label="School" as="select" options={schoolOptions(schools)} hint="They can only record for this school" required {...field('schoolId')} />
+        ) : (
+          <FormField label="Initial password" type="password" autoComplete="new-password" hint={PASSWORD_HINT} required {...field('password')} />
+        )}
       </div>
       <div className="users__actions">
         <Button type="submit" icon={UserPlus} loading={saving}>Add user</Button>
@@ -69,10 +124,11 @@ function AddUserForm({ onDone, onCancel }) {
 /**
  * Change a user's name or role, reset their password, or deactivate / reactivate them.
  */
-function EditUserPanel({ user, isSelf, onDone, onCancel }) {
+function EditUserPanel({ user, isSelf, schools, onDone, onCancel, onCode }) {
   const toast = useToast();
   const [name, setName] = useState(user.name);
   const [role, setRole] = useState(user.role);
+  const [schoolId, setSchoolId] = useState(user.schoolId || '');
   const [newPassword, setNewPassword] = useState('');
   const [busy, setBusy] = useState(null); // 'save' | 'password' | 'status' | 'passkeys'
   const [confirmStatus, setConfirmStatus] = useState(false);
@@ -104,6 +160,8 @@ function EditUserPanel({ user, isSelf, onDone, onCancel }) {
     const changes = {};
     if (name.trim() !== user.name) changes.name = name.trim();
     if (role !== user.role) changes.role = role;
+    if (role === 'school_staff' && !schoolId) return setErrors({ schoolId: 'Choose their school' });
+    if (role === 'school_staff' && schoolId !== (user.schoolId || '')) changes.schoolId = schoolId;
     if (Object.keys(changes).length === 0) return onCancel();
     return run('save', () => updateUser(user.id, changes), { title: 'Changes saved', description: changes.role ? `${name.trim()} is now ${ROLE_LABEL[role].toLowerCase()}.` : undefined });
   };
@@ -122,6 +180,19 @@ function EditUserPanel({ user, isSelf, onDone, onCancel }) {
     title: user.isActive ? `${user.name} deactivated` : `${user.name} reactivated`,
     description: user.isActive ? 'They can no longer sign in, and their sessions have ended.' : 'They can sign in again.',
   });
+
+  const issueCode = async () => {
+    setBusy('code');
+    setServerError(null);
+    try {
+      const { activationCode, expiresAt } = await newActivationCode(user.id);
+      onCode({ name: user.name, code: activationCode, expiresAt });
+    } catch (err) {
+      setServerError(err.message);
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const resetPasskeys = () => run('passkeys', () => resetUserPasskeys(user.id), {
     title: `${user.name}'s passkeys reset`,
@@ -146,12 +217,38 @@ function EditUserPanel({ user, isSelf, onDone, onCancel }) {
             disabled={isSelf}
             hint={isSelf ? 'You cannot change your own role. Ask another administrator.' : undefined}
           />
+          {role === 'school_staff' && (
+            <FormField
+              label="School"
+              as="select"
+              options={schoolOptions(schools)}
+              value={schoolId}
+              onChange={(e) => setSchoolId(e.target.value)}
+              error={errors.schoolId}
+              hint="They can only record for this school"
+              required
+            />
+          )}
         </div>
         <div className="users__actions">
           <Button type="submit" icon={Pencil} loading={busy === 'save'} disabled={Boolean(busy)}>Save changes</Button>
           <Button variant="secondary" onClick={onCancel} disabled={Boolean(busy)}>Cancel</Button>
         </div>
       </form>
+
+      {user.role === 'school_staff' && user.isActive && (
+        <div className="users__section">
+          <h4 className="users__section-title">Activation code</h4>
+          <p className="users__panel-meta">
+            For setting up a school device for the first time, or after forgetting their password. Any earlier code stops working.
+          </p>
+          <div>
+            <Button variant="secondary" icon={Ticket} onClick={issueCode} loading={busy === 'code'} disabled={Boolean(busy)}>
+              Issue a new activation code
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="users__section">
         <h4 className="users__section-title">Reset password</h4>
@@ -240,6 +337,8 @@ function UsersSection() {
   const [users, setUsers] = useState(null);
   const [loadError, setLoadError] = useState(null);
   const [panel, setPanel] = useState(null); // null | 'add' | user id
+  const [schools, setSchools] = useState([]);
+  const [activation, setActivation] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -252,8 +351,16 @@ function UsersSection() {
   }, []);
 
   useEffect(() => {
-    if (isOnline) load();
+    if (!isOnline) return;
+    load();
+    getSchools().then((res) => setSchools(res.schools || [])).catch(() => setSchools([]));
   }, [isOnline, load]);
+
+  const showCode = (details) => {
+    setPanel(null);
+    setActivation(details);
+    load();
+  };
 
   const done = () => {
     setPanel(null);
@@ -273,6 +380,7 @@ function UsersSection() {
       ),
     },
     { key: 'email', header: 'Email' },
+    { key: 'school', header: 'School', render: (u) => u.schoolName || (u.role === 'admin' ? 'All schools' : '–') },
     { key: 'role', header: 'Role', render: (u) => ROLE_LABEL[u.role] || u.role },
     {
       key: 'passkey',
@@ -302,7 +410,7 @@ function UsersSection() {
     <Card
       title="Users"
       description="Everyone who can sign in to Lishe. Only administrators see this section."
-      actions={panel === null && (
+      actions={panel === null && !activation && (
         <Button icon={UserPlus} onClick={() => setPanel('add')} disabled={!isOnline}>Add user</Button>
       )}
     >
@@ -310,8 +418,19 @@ function UsersSection() {
         {!isOnline && <Alert tone="neutral" title="You are offline">Managing users needs a connection.</Alert>}
         {loadError && <Alert tone="danger" title="Users could not be loaded">{loadError}</Alert>}
 
-        {panel === 'add' && <AddUserForm onDone={done} onCancel={() => setPanel(null)} />}
-        {editing && <EditUserPanel key={editing.id} user={editing} isSelf={editing.id === me?.id} onDone={done} onCancel={() => setPanel(null)} />}
+        {activation && <ActivationCode {...activation} onDone={() => setActivation(null)} />}
+        {panel === 'add' && <AddUserForm schools={schools} onDone={done} onCancel={() => setPanel(null)} onCode={showCode} />}
+        {editing && (
+          <EditUserPanel
+            key={editing.id}
+            user={editing}
+            isSelf={editing.id === me?.id}
+            schools={schools}
+            onDone={done}
+            onCancel={() => setPanel(null)}
+            onCode={showCode}
+          />
+        )}
 
         {isOnline && (
           <DataTable

@@ -65,6 +65,10 @@ async function syncOperations(req, res, next) {
       if (invalidPayload) {
         throw new ValidationError(`Operation ${op.id}: ${invalidPayload}`);
       }
+      // School staff can only send records for their own school (#60)
+      if (req.user?.role === 'school_staff' && op.payload.schoolId !== req.user.schoolId) {
+        throw new ValidationError(`Operation ${op.id}: you can only record for your own school`);
+      }
     }
 
     // Map frontend entity types to database entity types

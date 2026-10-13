@@ -229,11 +229,12 @@ describe('password sign-in for administrators', () => {
     expect(res).toMatchObject({ status: 401, body: { error: 'Invalid email or password' } });
   });
 
-  it('is unchanged for school staff', async () => {
+  it('is refused for school staff, who sign in on a school device instead (#60)', async () => {
     const res = await login(USERS.staff.email, USERS.staff.password);
 
-    expect(res.status).toBe(200);
-    expect(res.body.user.needsPasskey).toBe(false);
+    expect(res.status).toBe(403);
+    expect(res.body).toMatchObject({ deviceRequired: true });
+    expect(res.body).not.toHaveProperty('token');
   });
 });
 

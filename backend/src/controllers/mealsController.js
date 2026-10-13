@@ -132,6 +132,10 @@ async function createMeal(req, res, next) {
   try {
     const { school_id, distribution_date, meals_prepared, meals_served, client_id } = req.body;
 
+    if (req.user?.role === 'school_staff' && school_id !== req.user.schoolId) {
+      return res.status(403).json({ error: 'You can only record meals for your own school' });
+    }
+
     // Validate required fields
     if (!school_id || !distribution_date || meals_prepared === undefined || meals_served === undefined) {
       throw new ValidationError('Missing required fields: school_id, distribution_date, meals_prepared, meals_served');

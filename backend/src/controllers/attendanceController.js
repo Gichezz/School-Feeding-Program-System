@@ -132,6 +132,10 @@ async function createAttendance(req, res, next) {
   try {
     const { school_id, attendance_date, total_registered, total_present, total_absent, client_id } = req.body;
 
+    if (req.user?.role === 'school_staff' && school_id !== req.user.schoolId) {
+      return res.status(403).json({ error: 'You can only record attendance for your own school' });
+    }
+
     // Validate required fields
     if (!school_id || !attendance_date || total_registered === undefined || total_present === undefined || total_absent === undefined) {
       throw new ValidationError('Missing required fields: school_id, attendance_date, total_registered, total_present, total_absent');

@@ -6,8 +6,12 @@ const { NotFoundError, DatabaseError } = require('../utils/errors');
  */
 async function getSchools(req, res, next) {
   try {
+    // School staff only see the school they work at
+    const ownSchoolOnly = req.user?.role === 'school_staff';
     const result = await pool.query(
-      'SELECT id, name, location, created_at, updated_at FROM schools ORDER BY name'
+      `SELECT id, name, location, created_at, updated_at FROM schools
+       ${ownSchoolOnly ? 'WHERE id = $1' : ''} ORDER BY name`,
+      ownSchoolOnly ? [req.user.schoolId] : []
     );
     
     res.json({
@@ -37,7 +41,7 @@ async function getSchoolById(req, res, next) {
       [id]
     );
 
-    if (result.rows.length === 0) {
+    if (result.rows.length === 0 || (req.user?.role === 'school_staff' && id !== req.user.schoolId)) {
       throw new NotFoundError('School not found');
     }
 
