@@ -1,23 +1,11 @@
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { pool } = require('../db/pool');
+const { saveChallenge, consumeChallenge } = require('./challenges');
 
-const CHALLENGE_TTL_MINUTES = 5;
 const RECOVERY_CODE_COUNT = 10;
 // No 0/O or 1/I, so codes are easy to read and type
 const RECOVERY_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-
-/**
- * Store a challenge for one registration or sign-in. Expired ones are cleared out.
- */
-async function saveChallenge(challenge, purpose, userId = null) {
-  await pool.query('DELETE FROM auth_challenges WHERE expires_at < NOW()');
-  await pool.query(
-    `INSERT INTO auth_challenges (challenge, purpose, user_id, expires_at)
-     VALUES ($1, $2, $3, NOW() + make_interval(mins => $4))`,
-    [challenge, purpose, userId, CHALLENGE_TTL_MINUTES]
-  );
-}
 
 /**
  * The challenge inside a browser response (clientDataJSON), or null.
@@ -29,22 +17,6 @@ function challengeFromResponse(response) {
   } catch {
     return null;
   }
-}
-
-/**
- * Use up a stored challenge: returns true once for a valid, unexpired challenge that
- * matches the purpose (and user, for registration), then never again.
- */
-async function consumeChallenge(challenge, purpose, userId = null) {
-  if (!challenge) return false;
-  const result = await pool.query(
-    `DELETE FROM auth_challenges
-     WHERE challenge = $1 AND purpose = $2 AND expires_at > NOW()
-       AND user_id IS NOT DISTINCT FROM $3
-     RETURNING id`,
-    [challenge, purpose, userId]
-  );
-  return result.rows.length === 1;
 }
 
 function publicPasskey(row) {

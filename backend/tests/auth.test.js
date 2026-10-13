@@ -14,13 +14,13 @@ function login(email, password) {
 
 describe('POST /api/auth/login', () => {
   it('returns a 7-day session token and the user for valid credentials', async () => {
-    const res = await login(USERS.staff.email, USERS.staff.password);
+    const res = await login(USERS.admin.email, USERS.admin.password);
 
     expect(res.status).toBe(200);
-    expect(res.body.user).toEqual({ id: USERS.staff.id, name: USERS.staff.name, email: USERS.staff.email, role: 'school_staff', needsPasskey: false });
+    expect(res.body.user).toEqual({ id: USERS.admin.id, name: USERS.admin.name, email: USERS.admin.email, role: 'admin', needsPasskey: true });
     expect(res.body.user).not.toHaveProperty('password_hash');
     const payload = jwt.verify(res.body.token, process.env.JWT_SECRET);
-    expect(payload).toMatchObject({ sub: USERS.staff.id, role: 'school_staff' });
+    expect(payload).toMatchObject({ sub: USERS.admin.id, role: 'admin' });
     expect(payload.exp - payload.iat).toBe(7 * 24 * 60 * 60);
     expect(new Date(res.body.expiresAt).getTime()).toBe(payload.exp * 1000);
   });

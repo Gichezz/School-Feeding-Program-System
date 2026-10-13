@@ -46,6 +46,19 @@ class SchoolFeedingDB extends Dexie {
       conflicts: '++id, operationId, entityType, recordId, status, createdAt',
       forecasts: 'schoolId, fetchedAt'
     });
+
+    // Version 5: This school device's identity (#60): its enrolled ID and the
+    // non-exportable private key it signs sign-in challenges with
+    this.version(5).stores({
+      attendance: '++id, schoolId, attendanceDate, syncStatus, clientId, updatedAt',
+      mealDistribution: '++id, schoolId, distributionDate, syncStatus, clientId, updatedAt',
+      schools: 'id, name',
+      metadata: 'key, value',
+      syncQueue: '++id, entityType, recordId, status, clientId, createdAt',
+      conflicts: '++id, operationId, entityType, recordId, status, createdAt',
+      forecasts: 'schoolId, fetchedAt',
+      deviceIdentity: 'key'
+    });
   }
 }
 

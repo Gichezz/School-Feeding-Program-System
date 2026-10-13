@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Fingerprint, LifeBuoy, LogIn } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Fingerprint, KeyRound, LifeBuoy, LogIn, Tablet } from 'lucide-react';
 import { Alert, APP_NAME, Button, Card, FormField, useToast } from '../components/ui';
 import LisheLogo from '../components/shell/LisheLogo';
 import { login, signInWithRecoveryCode } from '../services/api';
@@ -9,13 +9,16 @@ import { manualSync } from '../sync/syncManager';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useSession } from '../hooks/useSession';
 import { passkeyErrorMessage, passkeysSupported, signInWithPasskey } from '../features/passkeys/passkeyClient';
+import { getDeviceIdentity } from '../features/devices/deviceIdentity';
+import { signInWithPin } from '../features/devices/deviceClient';
 
 const OFFLINE_MESSAGE = 'Could not reach the server. Try again when you are online.';
 
 /**
  * Sign-in page. Needs a connection; records captured offline stay on the device
- * and sync after signing in. Administrators sign in with a passkey (#57); if they
- * cannot use one, they sign in with their password and a recovery code.
+ * and sync after signing in. School staff sign in on a set-up school device with their
+ * email and PIN (#60). Administrators sign in with a passkey (#57); if they cannot use
+ * one, they sign in with their password and a recovery code.
  */
 function Login() {
   const navigate = useNavigate();
@@ -23,16 +26,24 @@ function Login() {
   const isOnline = useOnlineStatus();
   const { user } = useSession();
   const canUsePasskeys = passkeysSupported();
-  const [mode, setMode] = useState('password'); // 'password' | 'recovery'
+  const [mode, setMode] = useState(null); // 'device' | 'password' | 'recovery'
+  const [identity, setIdentity] = useState(undefined);
+  const [pin, setPin] = useState('');
+  const [deviceRequired, setDeviceRequired] = useState(false);
   const [email, setEmail] = useState(user?.email || '');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
   const [error, setError] = useState(null);
   const [passkeyRequired, setPasskeyRequired] = useState(false);
-  const [busy, setBusy] = useState(null); // 'password' | 'passkey' | 'recovery'
+  const [busy, setBusy] = useState(null); // 'device' | 'password' | 'passkey' | 'recovery'
 
   useEffect(() => {
     document.title = `Sign in · ${APP_NAME}`;
+    // A set-up school device opens on staff PIN sign-in
+    getDeviceIdentity().then((found) => {
+      setIdentity(found);
+      setMode(found ? 'device' : 'password');
+    });
   }, []);
 
   function finish(session, destination = '/') {
@@ -62,7 +73,24 @@ function Login() {
           setPasskeyRequired(true);
           return;
         }
+        if (err.data?.deviceRequired) {
+          setDeviceRequired(true);
+          return;
+        }
         setError(err.status === 401 || err.status === 400 ? err.message : OFFLINE_MESSAGE);
+      }
+    });
+  };
+
+  const handleDevice = (event) => {
+    event.preventDefault();
+    return run('device', async () => {
+      try {
+        finish(await signInWithPin(email.trim(), pin));
+      } catch (err) {
+        setPin('');
+        if (err.data?.deviceRevoked) setIdentity(null);
+        setError(err.status ? err.message : OFFLINE_MESSAGE);
       }
     });
   };
@@ -96,7 +124,10 @@ function Login() {
     setMode(next);
     setError(null);
     setCode('');
+    setPin('');
   };
+
+  if (mode === null) return null;
 
   const emailField = (
     <FormField
@@ -129,7 +160,45 @@ function Login() {
       </div>
 
       <Card>
-        {mode === 'password' ? (
+        {mode === 'device' && identity ? (
+          <form className="login__form" onSubmit={handleDevice}>
+            <div>
+              <h1 className="login__title">Sign in</h1>
+              <p className="login__intro">
+                {identity.name}. Sign in with your email and the 6-digit PIN you set on this device.
+              </p>
+            </div>
+            {!isOnline && <Alert tone="neutral" title="You are offline">Signing in needs a connection.</Alert>}
+            {identity.status !== 'approved' && !error && (
+              <Alert tone="info" title="New device">
+                An administrator approves each new device in Settings → School devices. Once they have, you can sign in here.
+              </Alert>
+            )}
+            {error && <Alert tone="danger" title="Could not sign in">{error}</Alert>}
+            {emailField}
+            <FormField
+              id="login-pin"
+              label="PIN"
+              type="password"
+              inputMode="numeric"
+              autoComplete="off"
+              maxLength={6}
+              size="lg"
+              value={pin}
+              onChange={(e) => setPin(e.target.value)}
+              required
+            />
+            <Button type="submit" icon={LogIn} fullWidth loading={busy === 'device'} disabled={!isOnline || Boolean(busy)}>
+              {busy === 'device' ? 'Signing in…' : 'Sign in'}
+            </Button>
+            <Button as={Link} to="/activate" variant="ghost" icon={KeyRound} fullWidth>
+              New on this device, or forgot your PIN?
+            </Button>
+            <Button variant="ghost" icon={Fingerprint} fullWidth onClick={() => switchMode('password')}>
+              Administrator sign-in
+            </Button>
+          </form>
+        ) : mode === 'password' ? (
           <div className="login__form">
             <div>
               <h1 className="login__title">Sign in</h1>
@@ -140,6 +209,18 @@ function Login() {
 
             {!isOnline && <Alert tone="neutral" title="You are offline">Signing in needs a connection.</Alert>}
             {error && <Alert tone="danger" title="Could not sign in">{error}</Alert>}
+            {deviceRequired && (
+              <Alert
+                tone="info"
+                title="Sign in on your school device"
+                action={identity
+                  ? <Button size="sm" variant="secondary" onClick={() => switchMode('device')}>Use PIN sign-in</Button>
+                  : <Button as={Link} to="/activate" size="sm" variant="secondary">Set up this device</Button>}
+              >
+                School staff sign in on the school's device with their email and PIN.
+                {!identity && ' If this is the school device, set it up first.'}
+              </Alert>
+            )}
             {passkeyRequired && (
               <Alert tone="info" title="Use your passkey">
                 This administrator account signs in with a passkey. Choose “Sign in with a passkey”, or use a recovery
@@ -172,6 +253,13 @@ function Login() {
                   Can’t use your passkey?
                 </Button>
               </>
+            )}
+
+            <p className="login__divider"><span>School staff</span></p>
+            {identity ? (
+              <Button variant="secondary" icon={Tablet} fullWidth onClick={() => switchMode('device')}>Sign in with your PIN</Button>
+            ) : (
+              <Button as={Link} to="/activate" variant="secondary" icon={Tablet} fullWidth>Set up this school device</Button>
             )}
           </div>
         ) : (

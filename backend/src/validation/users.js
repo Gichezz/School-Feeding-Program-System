@@ -38,6 +38,19 @@ function passwordError(password) {
 }
 
 /**
+ * A staff PIN: exactly 6 digits, not one repeated digit (000000) and not a straight
+ * run up or down (123456, 654321), which are the first guesses anyone tries.
+ */
+function pinError(pin) {
+  if (typeof pin !== 'string' || !/^\d{6}$/.test(pin)) return 'The PIN must be exactly 6 digits';
+  const digits = [...pin].map(Number);
+  const steps = digits.slice(1).map((d, i) => d - digits[i]);
+  if (steps.every((s) => s === 0)) return 'Choose a PIN that is not one digit repeated';
+  if (steps.every((s) => s === 1) || steps.every((s) => s === -1)) return 'Choose a PIN that is not a run of digits like 123456';
+  return null;
+}
+
+/**
  * Emails are compared and stored in lower case, so one address has one account.
  */
 function normaliseEmail(email) {
@@ -51,5 +64,6 @@ module.exports = {
   emailError,
   roleError,
   passwordError,
+  pinError,
   normaliseEmail,
 };

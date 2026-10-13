@@ -9,7 +9,9 @@ const SESSION_ENDED = 'Your session has ended, please sign in again';
  * Require a valid session token: `Authorization: Bearer <token>`.
  * The account is checked on every request, so deactivating a user, resetting their
  * password or changing their role takes effect straight away.
- * Sets req.user = { id, name, email, role } from the database.
+ * School staff sessions also belong to an approved school device at their own school
+ * (#60), so revoking a device ends its sessions at once.
+ * Sets req.user = { id, name, email, role, schoolId, deviceId } from the database.
  */
 async function requireAuth(req, res, next) {
   const header = req.headers.authorization || '';
@@ -31,17 +33,35 @@ async function requireAuth(req, res, next) {
 
   try {
     const result = await pool.query(
-      `SELECT id, name, email, role, is_active,
-              floor(extract(epoch FROM password_changed_at))::bigint AS password_changed
-       FROM users WHERE id = $1`,
-      [payload.sub]
+      `SELECT u.id, u.name, u.email, u.role, u.school_id, u.is_active,
+              floor(extract(epoch FROM u.password_changed_at))::bigint AS password_changed,
+              d.status AS device_status, d.school_id AS device_school_id
+       FROM users u
+       LEFT JOIN devices d ON d.id = $2
+       WHERE u.id = $1`,
+      [payload.sub, isUuid(payload.dev) ? payload.dev : null]
     );
     const user = result.rows[0];
     // Unknown or deactivated account, or a session from before a password change
     if (!user || !user.is_active || (user.password_changed !== null && payload.iat < Number(user.password_changed))) {
       return res.status(401).json({ error: SESSION_ENDED });
     }
-    req.user = { id: user.id, name: user.name, email: user.email, role: user.role };
+    if (user.role === 'school_staff' && (user.device_status !== 'approved' || user.device_school_id !== user.school_id)) {
+      return res.status(401).json({
+        error: user.device_status === 'revoked'
+          ? 'This device has been removed by an administrator. Set it up again to keep using it.'
+          : SESSION_ENDED,
+        ...(user.device_status === 'revoked' && { deviceRevoked: true }),
+      });
+    }
+    req.user = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      schoolId: user.school_id,
+      deviceId: user.role === 'school_staff' ? payload.dev : null,
+    };
     return next();
   } catch (error) {
     return next(error);

@@ -43,11 +43,12 @@ export function isSessionValid(session = getSession(), now = Date.now()) {
 /**
  * Called when the server rejects the session (401), e.g. it expired on the server side.
  * Keeps the user details so the app can still show who was signed in.
+ * reason: why it ended, when the app should say more than "expired" (e.g. 'deviceRevoked').
  */
-export function markSessionExpired() {
+export function markSessionExpired(reason) {
   const session = getSession();
   if (session) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...session, expiresAt: new Date(0).toISOString() }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...session, expiresAt: new Date(0).toISOString(), ...(reason && { endedReason: reason }) }));
   }
   notify(SESSION_EXPIRED_EVENT);
 }
