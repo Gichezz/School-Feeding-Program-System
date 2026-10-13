@@ -3,6 +3,7 @@
  */
 
 import { getSession, markSessionExpired } from './session';
+import { clearDeviceIdentity } from '../features/devices/deviceIdentity';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
@@ -31,7 +32,11 @@ async function apiRequest(endpoint, options = {}) {
       error.data = errorData;
       // The server no longer accepts this session; the user needs to sign in again
       if (response.status === 401 && session?.token) {
-        markSessionExpired();
+        markSessionExpired(errorData.deviceRevoked ? 'deviceRevoked' : undefined);
+      }
+      // An administrator removed this school device: forget its identity (records stay)
+      if (errorData.deviceRevoked) {
+        await clearDeviceIdentity().catch(() => {});
       }
       throw error;
     }
@@ -274,4 +279,45 @@ export async function regenerateRecoveryCodes() {
 
 export async function resetUserPasskeys(id) {
   return apiRequest(`/users/${id}/passkeys/reset`, { method: 'POST' });
+}
+
+/**
+ * School devices and staff PIN sign-in (#60)
+ */
+export async function getDeviceChallenge() {
+  return apiRequest('/devices/challenge', { method: 'POST' });
+}
+
+export async function enrolDevice(data) {
+  return apiRequest('/devices/enrol', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function signInOnDevice(data) {
+  return apiRequest('/devices/sign-in', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getDevices() {
+  return apiRequest('/devices');
+}
+
+export async function approveDevice(id) {
+  return apiRequest(`/devices/${id}/approve`, { method: 'POST' });
+}
+
+export async function revokeDevice(id) {
+  return apiRequest(`/devices/${id}/revoke`, { method: 'POST' });
+}
+
+export async function unlockDeviceUser(deviceId, userId) {
+  return apiRequest(`/devices/${deviceId}/users/${userId}/unlock`, { method: 'POST' });
+}
+
+export async function newActivationCode(userId) {
+  return apiRequest(`/users/${userId}/activation-code`, { method: 'POST' });
 }

@@ -22,7 +22,13 @@ function AppShell() {
         <div className="app-shell__column">
           <TopBar />
           <main id="main-content" className="app-main" tabIndex={-1}>
-            {session && !isValid && (
+            {session && !isValid && session.endedReason === 'deviceRevoked' && (
+              <Alert tone="warning" title="This device was removed by an administrator" className="app-main__notice">
+                Records saved here are kept. To sync them, <Link to="/activate">set this device up again</Link>; an
+                administrator will need to approve it.
+              </Alert>
+            )}
+            {session && !isValid && session.endedReason !== 'deviceRevoked' && (
               <Alert tone="warning" title="Your sign-in has expired" className="app-main__notice">
                 You can keep recording on this device; <Link to="/login">sign in again</Link> to sync.
               </Alert>

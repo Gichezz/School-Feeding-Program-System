@@ -6,6 +6,8 @@ import { APP_NAME, Button, Card, PageHeader, SummaryList } from '../components/u
 import LisheLogo from '../components/shell/LisheLogo';
 import ChangePasswordCard from '../features/users/ChangePasswordCard';
 import PasskeysCard from '../features/passkeys/PasskeysCard';
+import DevicesCard from '../features/devices/DevicesCard';
+import { getDeviceIdentity } from '../features/devices/deviceIdentity';
 import UsersSection from '../features/users/UsersSection';
 import { ROLE_LABELS, useSignOut } from '../components/shell/UserMenu';
 import db, { getOrCreateClientId } from '../db/database';
@@ -24,9 +26,11 @@ function Settings() {
   const { hash } = useLocation();
   const [clientId, setClientId] = useState('');
   const [device, setDevice] = useState(null);
+  const [schoolDevice, setSchoolDevice] = useState(null);
 
   useEffect(() => {
     getOrCreateClientId().then(setClientId).catch(() => setClientId(''));
+    getDeviceIdentity().then(setSchoolDevice);
     const subscription = liveQuery(async () => ({
       attendance: await db.attendance.count(),
       meals: await db.mealDistribution.count(),
@@ -36,11 +40,26 @@ function Settings() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Links such as /settings#passkeys open at that card
+  // Links such as /settings#devices open at that card. The cards above it load their
+  // data after the first render and push it down, so keep it in view while the page is
+  // still growing (up to 3 seconds), unless the user starts scrolling or typing.
   useEffect(() => {
-    if (!hash) return;
-    const target = document.getElementById(hash.slice(1));
-    target?.scrollIntoView({ block: 'start' });
+    if (!hash) return undefined;
+    const scroll = () => document.getElementById(hash.slice(1))?.scrollIntoView({ block: 'start', behavior: 'instant' });
+    const observer = new ResizeObserver(scroll);
+    const stop = () => observer.disconnect();
+    const userEvents = ['wheel', 'touchstart', 'keydown', 'mousedown'];
+    scroll();
+    // Each card, not just the page: one card growing while another shrinks leaves the
+    // page height unchanged but still moves the target
+    document.querySelectorAll('#main-content .ui-card').forEach((card) => observer.observe(card));
+    userEvents.forEach((type) => window.addEventListener(type, stop, { once: true, passive: true }));
+    const timer = setTimeout(stop, 3000);
+    return () => {
+      stop();
+      clearTimeout(timer);
+      userEvents.forEach((type) => window.removeEventListener(type, stop));
+    };
   }, [hash]);
 
   const count = (n) => (device ? formatNumber(n) : '…');
@@ -70,10 +89,19 @@ function Settings() {
 
         {isAdmin && <UsersSection />}
 
+        {isAdmin && <DevicesCard />}
+
         <Card title="This device" description="Records are saved here first, so they are safe without a connection.">
           <SummaryList
             rows={[
               { key: 'connection', label: 'Connection', value: isOnline ? 'Online' : 'Offline' },
+              {
+                key: 'school-device',
+                label: 'School device',
+                value: schoolDevice
+                  ? `${schoolDevice.name} (${schoolDevice.status === 'approved' ? 'approved' : 'waiting for approval'})`
+                  : 'Not set up for staff sign-in',
+              },
               { key: 'attendance', label: 'Attendance records', value: count(device?.attendance) },
               { key: 'meals', label: 'Meal records', value: count(device?.meals) },
               { key: 'waiting', label: 'Changes waiting to sync', value: count(device?.waiting) },

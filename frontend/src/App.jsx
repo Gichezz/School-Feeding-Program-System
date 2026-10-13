@@ -10,6 +10,7 @@ import Conflicts from './pages/Conflicts';
 import Reports from './pages/Reports';
 import Forecast from './pages/Forecast';
 import Login from './pages/Login';
+import ActivateDevice from './pages/ActivateDevice';
 import { useSession } from './hooks/useSession';
 import Settings from './pages/Settings';
 import { setupAutoSync } from './sync/syncManager';
@@ -45,6 +46,7 @@ function App() {
       <Routes>
         {styleguideRoute}
         <Route element={<AuthLayout />}>
+          <Route path="/activate" element={<ActivateDevice />} />
           <Route path="*" element={<Login />} />
         </Route>
       </Routes>
@@ -56,6 +58,7 @@ function App() {
       {styleguideRoute}
       <Route element={<AppShell />}>
         <Route path="/login" element={<Login />} />
+        <Route path="/activate" element={<ActivateDevice />} />
         <Route path="/" element={<Dashboard />} />
         <Route path="/attendance" element={<Attendance />} />
         <Route path="/meals" element={<MealDistribution />} />

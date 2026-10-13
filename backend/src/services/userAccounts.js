@@ -8,7 +8,7 @@ const BCRYPT_ROUNDS = 10;
 /**
  * Columns that are safe to return. password_hash is never selected for responses.
  */
-const PUBLIC_COLUMNS = 'id, name, email, role, is_active, created_at, updated_at';
+const PUBLIC_COLUMNS = 'id, name, email, role, school_id, is_active, created_at, updated_at';
 
 /**
  * A user row in the shape the API returns.
@@ -19,6 +19,8 @@ function publicUser(user) {
     name: user.name,
     email: user.email,
     role: user.role,
+    schoolId: user.school_id || null,
+    ...(user.school_name !== undefined && { schoolName: user.school_name }),
     isActive: user.is_active,
     createdAt: user.created_at,
     updatedAt: user.updated_at,
@@ -33,10 +35,11 @@ function hashPassword(password) {
 /**
  * A signed session token for a user, with its expiry time.
  * extra: fields added to the returned user (not to the token), e.g. needsPasskey.
+ * claims: extra fields signed into the token, e.g. { dev } for a school device.
  */
-function issueSession(user, extra = {}) {
+function issueSession(user, extra = {}, claims = {}) {
   const token = jwt.sign(
-    { name: user.name, email: user.email, role: user.role },
+    { name: user.name, email: user.email, role: user.role, ...claims },
     getJwtSecret(),
     { subject: user.id, expiresIn: getJwtExpiresIn(), algorithm: 'HS256' }
   );
@@ -52,9 +55,12 @@ function issueSession(user, extra = {}) {
  * A session plus what the app needs to know about the account's sign-in methods:
  * administrators without a passkey are asked to add one.
  */
-async function sessionFor(user) {
+async function sessionFor(user, { deviceId } = {}) {
   const needsPasskey = user.role === 'admin' && (await countPasskeys(user.id)) === 0;
-  return issueSession(user, { needsPasskey });
+  const extra = { needsPasskey };
+  if (user.school_id) extra.schoolId = user.school_id;
+  if (deviceId) extra.deviceId = deviceId;
+  return issueSession(user, extra, deviceId ? { dev: deviceId } : {});
 }
 
 module.exports = {

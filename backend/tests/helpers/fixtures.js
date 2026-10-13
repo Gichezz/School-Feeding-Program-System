@@ -4,8 +4,13 @@ const { readSql } = require('./testDatabase');
 // Identifiers from database/seed.sql
 const SCHOOL_ID = '11111111-1111-1111-1111-111111111111';
 const MISSING_ID = '99999999-9999-9999-9999-999999999999';
+// An approved school device for the seeded staff member's test sessions (see helpers/auth.js)
+const TEST_DEVICE_ID = 'dddddddd-dddd-dddd-dddd-dddddddddddd';
 
 const TABLES = [
+  'device_users',
+  'devices',
+  'activation_codes',
   'auth_challenges',
   'recovery_codes',
   'passkey_credentials',
@@ -25,6 +30,11 @@ const TABLES = [
 async function resetDatabase() {
   await pool.query(`TRUNCATE ${TABLES.join(', ')} CASCADE`);
   await pool.query(readSql('seed.sql'));
+  await pool.query(
+    `INSERT INTO devices (id, school_id, name, status, public_key, approved_at)
+     VALUES ($1, $2, 'Test school device', 'approved', '{"kty":"EC","crv":"P-256","x":"test","y":"test"}', NOW())`,
+    [TEST_DEVICE_ID, SCHOOL_ID]
+  );
 }
 
 function attendancePayload(overrides = {}) {
@@ -56,6 +66,7 @@ module.exports = {
   pool,
   SCHOOL_ID,
   MISSING_ID,
+  TEST_DEVICE_ID,
   resetDatabase,
   attendancePayload,
   mealPayload,

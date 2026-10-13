@@ -9,6 +9,7 @@ const reportsRoutes = require('./routes/reportsRoutes');
 const forecastRoutes = require('./routes/forecastRoutes');
 const authRoutes = require('./routes/authRoutes');
 const usersRoutes = require('./routes/usersRoutes');
+const devicesRoutes = require('./routes/devicesRoutes');
 const { requireAuth } = require('./middleware/auth');
 const errorHandler = require('./middleware/errorHandler');
 
@@ -29,6 +30,8 @@ app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || '100kb' }));
 // Public routes
 app.use('/api/health', healthRoutes);
 app.use('/api/auth', authRoutes);
+// Device set-up and staff sign-in are public; device management checks sign-in itself
+app.use('/api/devices', devicesRoutes);
 
 // Everything else under /api requires a signed-in user
 app.use('/api', requireAuth);
