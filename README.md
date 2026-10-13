@@ -13,6 +13,7 @@ Final-year project. A system for one selected Kenyan school that records daily a
 | **Dashboard and reports** | Attendance and meal totals, rates and trends for a date range. |
 | **Meal-demand forecast** | Expected meals per school day with a likely range, from a Prophet model served by a Flask service. The latest forecast is kept on the device for offline viewing. |
 | **Sign-in and roles** | School staff and administrators sign in; only administrators resolve conflicts. Recording keeps working offline when a sign-in expires. |
+| **Administrator passkeys** | Administrators sign in with a passkey (WebAuthn): the device's fingerprint, face or screen lock, with the private key kept on the device. Once an administrator has a passkey, their password alone no longer signs them in. One-time recovery codes cover a lost device. |
 | **User accounts** | Administrators add users, change roles, reset passwords and deactivate or reactivate accounts from Settings → Users. Everyone can change their own password. Deactivating a user or resetting a password ends their sessions straight away. |
 
 ## Architecture
@@ -96,9 +97,10 @@ psql -U postgres -d school_feeding -f database/seed.sql
 ```bash
 psql -U postgres -d school_feeding -f database/migrations/001_attendance_present_absent_equals_registered.sql
 psql -U postgres -d school_feeding -f database/migrations/002_user_accounts.sql
+psql -U postgres -d school_feeding -f database/migrations/003_admin_passkeys.sql
 ```
 
-`001` requires present + absent to equal registered for new and updated attendance records, and lists existing records that do not add up. Correct those records, then run `ALTER TABLE attendance_records VALIDATE CONSTRAINT attendance_present_absent_equals_registered;`. `002` adds the columns used to deactivate users and to end sessions after a password change.
+`001` requires present + absent to equal registered for new and updated attendance records, and lists existing records that do not add up. Correct those records, then run `ALTER TABLE attendance_records VALIDATE CONSTRAINT attendance_present_absent_equals_registered;`. `002` adds the columns used to deactivate users and to end sessions after a password change. `003` adds the tables for administrator passkeys and recovery codes.
 
 ### 2. Backend API (port 5000)
 
@@ -117,7 +119,7 @@ node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 
 Health check: `GET http://localhost:5000/api/health`
 
-**First administrator (without the demo accounts):** on a database where `seed.sql` was not loaded, create the first administrator from the `backend` folder. The script asks for the password without showing it (or reads `ADMIN_PASSWORD`). Then sign in and add everyone else from **Settings → Users**.
+**First administrator (without the demo accounts):** on a database where `seed.sql` was not loaded, create the first administrator from the `backend` folder. The script asks for the password without showing it (or reads `ADMIN_PASSWORD`). Then sign in, add a passkey from **Settings → Passkeys**, and add everyone else from **Settings → Users**. Passkeys belong to one domain (`WEBAUTHN_RP_ID` in `backend/.env`, `localhost` by default), so passkeys made on `localhost` do not work on a hosted server.
 
 ```bash
 node scripts/create-admin.js --name "Your Name" --email you@example.org

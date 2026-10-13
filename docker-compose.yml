@@ -46,6 +46,9 @@ services:
       # The browser reaches the API through the web container (same origin), so CORS only
       # matters if the API is called from elsewhere
       FRONTEND_URL: ${PUBLIC_URL:-http://localhost:8080}
+      # Administrator passkeys belong to this domain and may only be used from this origin
+      WEBAUTHN_RP_ID: localhost
+      WEBAUTHN_ORIGINS: http://localhost:${WEB_PORT:-8080}
     depends_on:
       db:
         condition: service_healthy

@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const { pool } = require('../db/pool');
-const { hashPassword, issueSession } = require('../services/userAccounts');
+const { hashPassword, sessionFor } = require('../services/userAccounts');
+const { countPasskeys } = require('../services/passkeys');
 const { passwordError } = require('../validation/users');
 
 // Compared against when the email is unknown, so both cases take similar time
@@ -10,7 +11,8 @@ const INVALID_LOGIN = 'Invalid email or password';
 /**
  * POST /api/auth/login
  * Body: { email, password } → { token, expiresAt, user }
- * Deactivated accounts get the same message as a wrong password.
+ * Deactivated accounts get the same message as a wrong password. Accounts with a
+ * passkey (administrators, #57) cannot sign in with a password alone.
  */
 async function login(req, res, next) {
   try {
@@ -29,7 +31,14 @@ async function login(req, res, next) {
       return res.status(401).json({ error: INVALID_LOGIN });
     }
 
-    res.json(issueSession(user));
+    if ((await countPasskeys(user.id)) > 0) {
+      return res.status(403).json({
+        error: 'This account signs in with a passkey. Use "Sign in with a passkey", or a recovery code if you cannot.',
+        passkeyRequired: true,
+      });
+    }
+
+    res.json(await sessionFor(user));
   } catch (error) {
     next(error);
   }
@@ -39,8 +48,13 @@ async function login(req, res, next) {
  * GET /api/auth/me
  * The signed-in user, from the session token.
  */
-function me(req, res) {
-  res.json({ user: req.user });
+async function me(req, res, next) {
+  try {
+    const needsPasskey = req.user.role === 'admin' && (await countPasskeys(req.user.id)) === 0;
+    res.json({ user: { ...req.user, needsPasskey } });
+  } catch (error) {
+    next(error);
+  }
 }
 
 /**
@@ -72,7 +86,7 @@ async function changePassword(req, res, next) {
        WHERE id = $2`,
       [await hashPassword(newPassword), user.id]
     );
-    res.json(issueSession(user));
+    res.json(await sessionFor(user));
   } catch (error) {
     next(error);
   }

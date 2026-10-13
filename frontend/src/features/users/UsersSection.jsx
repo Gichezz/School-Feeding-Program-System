@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { KeyRound, Pencil, UserPlus, UserRoundCheck, UserRoundX } from 'lucide-react';
+import { Fingerprint, KeyRound, Pencil, UserPlus, UserRoundCheck, UserRoundX } from 'lucide-react';
 import { Alert, Badge, Button, Card, DataTable, FormField, useToast } from '../../components/ui';
-import { createUser, getUsers, resetUserPassword, updateUser } from '../../services/api';
+import { createUser, getUsers, resetUserPasskeys, resetUserPassword, updateUser } from '../../services/api';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { useSession } from '../../hooks/useSession';
 import { formatDate } from '../../utils/format';
@@ -74,8 +74,9 @@ function EditUserPanel({ user, isSelf, onDone, onCancel }) {
   const [name, setName] = useState(user.name);
   const [role, setRole] = useState(user.role);
   const [newPassword, setNewPassword] = useState('');
-  const [busy, setBusy] = useState(null); // 'save' | 'password' | 'status'
+  const [busy, setBusy] = useState(null); // 'save' | 'password' | 'status' | 'passkeys'
   const [confirmStatus, setConfirmStatus] = useState(false);
+  const [confirmPasskeys, setConfirmPasskeys] = useState(false);
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState(null);
   const headingRef = useRef(null);
@@ -122,6 +123,11 @@ function EditUserPanel({ user, isSelf, onDone, onCancel }) {
     description: user.isActive ? 'They can no longer sign in, and their sessions have ended.' : 'They can sign in again.',
   });
 
+  const resetPasskeys = () => run('passkeys', () => resetUserPasskeys(user.id), {
+    title: `${user.name}'s passkeys reset`,
+    description: 'They have been signed out everywhere. They sign in with their password and add a new passkey.',
+  });
+
   return (
     <div className="users__panel">
       <h3 ref={headingRef} tabIndex={-1} className="users__panel-title">{user.name}</h3>
@@ -165,6 +171,32 @@ function EditUserPanel({ user, isSelf, onDone, onCancel }) {
           </Button>
         </div>
       </div>
+
+      {!isSelf && user.passkeyCount > 0 && (
+        <div className="users__section">
+          <h4 className="users__section-title">Passkeys</h4>
+          {confirmPasskeys ? (
+            <Alert
+              tone="warning"
+              title={`Reset ${user.name}'s passkeys?`}
+              action={(
+                <div className="users__actions users__actions--tight">
+                  <Button variant="danger" size="sm" onClick={resetPasskeys} loading={busy === 'passkeys'}>Reset passkeys</Button>
+                  <Button variant="secondary" size="sm" onClick={() => setConfirmPasskeys(false)} disabled={Boolean(busy)}>Cancel</Button>
+                </div>
+              )}
+            >
+              Use this if they lost the device with their passkey and have no recovery codes. Their passkeys and
+              recovery codes are removed and they are signed out everywhere. They then sign in with their password
+              and add a new passkey.
+            </Alert>
+          ) : (
+            <Button variant="secondary" icon={Fingerprint} onClick={() => setConfirmPasskeys(true)} disabled={Boolean(busy)}>
+              Reset passkeys
+            </Button>
+          )}
+        </div>
+      )}
 
       {!isSelf && (
         <div className="users__section">
@@ -242,6 +274,15 @@ function UsersSection() {
     },
     { key: 'email', header: 'Email' },
     { key: 'role', header: 'Role', render: (u) => ROLE_LABEL[u.role] || u.role },
+    {
+      key: 'passkey',
+      header: 'Passkey',
+      render: (u) => {
+        if (u.role !== 'admin') return '–';
+        if (!u.passkeyCount) return <Badge tone="warning">Not set up</Badge>;
+        return <Badge tone="success">{u.passkeyCount === 1 ? '1 passkey' : `${u.passkeyCount} passkeys`}</Badge>;
+      },
+    },
     { key: 'status', header: 'Status', render: (u) => (u.isActive ? <Badge tone="success">Active</Badge> : <Badge tone="neutral">Deactivated</Badge>) },
     { key: 'added', header: 'Added', render: (u) => formatDate(u.createdAt) },
     {

@@ -23,7 +23,11 @@ async function findUser(id) {
  */
 async function listUsers(req, res, next) {
   try {
-    const result = await pool.query(`SELECT ${PUBLIC_COLUMNS} FROM users ORDER BY is_active DESC, lower(name)`);
+    const result = await pool.query(
+      `SELECT ${PUBLIC_COLUMNS},
+              (SELECT count(*) FROM passkey_credentials pc WHERE pc.user_id = users.id) AS passkey_count
+       FROM users ORDER BY is_active DESC, lower(name)`
+    );
     res.json({ users: result.rows.map(publicUser) });
   } catch (error) {
     next(error);
@@ -125,9 +129,36 @@ async function resetPassword(req, res, next) {
   }
 }
 
+/**
+ * POST /api/users/:id/passkeys/reset → { user }
+ * For an administrator who lost their passkeys: removes their passkeys and recovery
+ * codes and ends their sessions. They sign in with their password and add a new passkey.
+ */
+async function resetPasskeys(req, res, next) {
+  try {
+    const user = await findUser(req.params.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (user.id === req.user.id) {
+      return badRequest(res, 'You cannot reset your own passkeys. Ask another administrator.');
+    }
+    await pool.query('DELETE FROM passkey_credentials WHERE user_id = $1', [user.id]);
+    await pool.query('DELETE FROM recovery_codes WHERE user_id = $1', [user.id]);
+    // password_changed_at doubles as "sessions issued before this time end"
+    const result = await pool.query(
+      `UPDATE users SET password_changed_at = date_trunc('second', NOW()), updated_at = NOW()
+       WHERE id = $1 RETURNING ${PUBLIC_COLUMNS}`,
+      [user.id]
+    );
+    res.json({ user: publicUser({ ...result.rows[0], passkey_count: 0 }) });
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   listUsers,
   createUser,
   updateUser,
   resetPassword,
+  resetPasskeys,
 };

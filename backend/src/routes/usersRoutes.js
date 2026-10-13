@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { listUsers, createUser, updateUser, resetPassword } = require('../controllers/usersController');
+const { listUsers, createUser, updateUser, resetPassword, resetPasskeys } = require('../controllers/usersController');
 const { requireRole } = require('../middleware/auth');
 
 // Account management is for administrators only
@@ -29,5 +29,12 @@ router.patch('/:id', updateUser);
  * Reset a user's password; their existing sessions end
  */
 router.post('/:id/password', resetPassword);
+
+/**
+ * POST /api/users/:id/passkeys/reset
+ * Remove another administrator's passkeys and recovery codes (lost device); their
+ * sessions end and they add a new passkey after signing in with their password
+ */
+router.post('/:id/passkeys/reset', resetPasskeys);
 
 module.exports = router;
