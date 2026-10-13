@@ -15,6 +15,7 @@ Final-year project. A system for one selected Kenyan school that records daily a
 | **Sign-in and roles** | School staff and administrators sign in; only administrators resolve conflicts. Recording keeps working offline when a sign-in expires. |
 | **Administrator passkeys** | Administrators sign in with a passkey (WebAuthn): the device's fingerprint, face or screen lock, with the private key kept on the device. Once an administrator has a passkey, their password alone no longer signs them in. One-time recovery codes cover a lost device. |
 | **School devices for staff** | Staff record on the school's own tablets and phones. An administrator adds a staff member to a school and gives them a one-time activation code; on the school device they choose a password and a 6-digit PIN, and the device registers a key that never leaves it. Once an administrator approves the device, staff sign in there with email + PIN, checked by the server together with a signature from the device's key. Staff can only record for their own school; removing a device signs it out at once. |
+| **Offline sign-in** | A staff member who signed in online on a school device can sign in there again without a connection, with the same email and PIN, for up to 7 days; 5 wrong PINs lock offline sign-in until they sign in online. Every record keeps who captured it and on which device, and only ever syncs under that person's own account. Records from someone deactivated or whose password an administrator reset since, or from a removed device, are held for an administrator to apply or discard. |
 | **User accounts** | Administrators add users, change roles, reset passwords and deactivate or reactivate accounts from Settings → Users. Everyone can change their own password. Deactivating a user or resetting a password ends their sessions straight away. |
 
 ## Architecture
@@ -100,9 +101,10 @@ psql -U postgres -d school_feeding -f database/migrations/001_attendance_present
 psql -U postgres -d school_feeding -f database/migrations/002_user_accounts.sql
 psql -U postgres -d school_feeding -f database/migrations/003_admin_passkeys.sql
 psql -U postgres -d school_feeding -f database/migrations/004_staff_devices.sql
+psql -U postgres -d school_feeding -f database/migrations/005_offline_capture.sql
 ```
 
-`001` requires present + absent to equal registered for new and updated attendance records, and lists existing records that do not add up. Correct those records, then run `ALTER TABLE attendance_records VALIDATE CONSTRAINT attendance_present_absent_equals_registered;`. `002` adds the columns used to deactivate users and to end sessions after a password change. `003` adds the tables for administrator passkeys and recovery codes. `004` gives staff a school (existing staff get the only school, when there is one), and adds school devices, staff PINs and activation codes.
+`001` requires present + absent to equal registered for new and updated attendance records, and lists existing records that do not add up. Correct those records, then run `ALTER TABLE attendance_records VALIDATE CONSTRAINT attendance_present_absent_equals_registered;`. `002` adds the columns used to deactivate users and to end sessions after a password change. `003` adds the tables for administrator passkeys and recovery codes. `004` gives staff a school (existing staff get the only school, when there is one), and adds school devices, staff PINs and activation codes. `005` records who captured each synced record and on which device, and adds held records for administrators to review.
 
 ### 2. Backend API (port 5000)
 

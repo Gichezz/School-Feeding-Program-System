@@ -32,7 +32,11 @@ export async function syncOperations(operations) {
         operation: op.operation,
         payload: op.payload,
         baseVersion: op.baseVersion,
-        createdAt: op.createdAt
+        createdAt: op.createdAt,
+        // Who captured it, on which device and when (#61); older queue items have none
+        ...(op.capturedBy && { capturedBy: op.capturedBy }),
+        ...(op.deviceId && { deviceId: op.deviceId }),
+        ...(op.capturedAt && { capturedAt: op.capturedAt })
       }))
     };
     
@@ -71,6 +75,15 @@ export async function processSingleOperation(operation) {
           operationId: operation.id,
           status: 'conflict',
           conflictData: result
+        };
+      } else if (result.status === 'deferred' || result.status === 'held') {
+        // Deferred: a colleague captured it and must sync it. Held: kept for review (#61).
+        return {
+          success: false,
+          operationId: operation.id,
+          status: result.status,
+          reason: result.reason,
+          capturedBy: result.capturedBy
         };
       } else {
         return {

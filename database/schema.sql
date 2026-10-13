@@ -27,6 +27,9 @@ CREATE TABLE IF NOT EXISTS users (
     is_active       BOOLEAN NOT NULL DEFAULT TRUE,
     -- Sessions issued before this time are rejected (set on password change or reset)
     password_changed_at TIMESTAMPTZ,
+    -- When an administrator last reset the password; records captured before it are
+    -- held for review rather than applied (#61)
+    password_reset_at TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT users_email_unique UNIQUE (email),
@@ -149,6 +152,10 @@ CREATE TABLE IF NOT EXISTS sync_operations (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     processed_at    TIMESTAMPTZ,
     status          TEXT NOT NULL DEFAULT 'pending',
+    -- Who captured the record, on which school device and when (#61)
+    captured_by     UUID,
+    device_id       UUID,
+    captured_at     TIMESTAMPTZ,
     CONSTRAINT sync_operations_operation_id_unique UNIQUE (operation_id),
     CONSTRAINT sync_operations_entity_type_check
         CHECK (entity_type IN ('attendance', 'meal_distribution')),
@@ -387,6 +394,53 @@ BEGIN
             ON DELETE RESTRICT;
     END IF;
 END $$;
+
+-- ---------------------------------------------------------------------------
+-- Held records (#61)
+-- Records captured on a device that the server will not apply automatically: the
+-- person who captured them was deactivated or had their password reset afterwards, or
+-- the device was removed. An administrator reviews each one and applies or discards it.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS held_operations (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    operation_id    TEXT NOT NULL,
+    entity_type     TEXT NOT NULL,
+    operation_type  TEXT NOT NULL,
+    payload         JSONB NOT NULL,
+    base_version    INTEGER NOT NULL DEFAULT 0,
+    client_id       TEXT NOT NULL,
+    captured_by     UUID,
+    device_id       UUID,
+    captured_at     TIMESTAMPTZ,
+    -- the signed-in user whose sync handed the record in
+    submitted_by    UUID,
+    reason          TEXT NOT NULL,
+    status          TEXT NOT NULL DEFAULT 'pending',
+    reviewed_by     UUID,
+    reviewed_at     TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT held_operations_operation_unique UNIQUE (operation_id),
+    CONSTRAINT held_operations_entity_type_check CHECK (entity_type IN ('attendance', 'meal_distribution')),
+    CONSTRAINT held_operations_operation_type_check CHECK (operation_type IN ('create', 'update')),
+    CONSTRAINT held_operations_reason_check CHECK (reason IN ('user_deactivated', 'password_reset', 'device_revoked')),
+    CONSTRAINT held_operations_status_check CHECK (status IN ('pending', 'applied', 'discarded')),
+    CONSTRAINT held_operations_captured_by_fk
+        FOREIGN KEY (captured_by) REFERENCES users (id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL,
+    CONSTRAINT held_operations_submitted_by_fk
+        FOREIGN KEY (submitted_by) REFERENCES users (id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL,
+    CONSTRAINT held_operations_reviewed_by_fk
+        FOREIGN KEY (reviewed_by) REFERENCES users (id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_held_operations_status
+    ON held_operations (status);
 
 -- ---------------------------------------------------------------------------
 -- Indexes

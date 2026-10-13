@@ -1,5 +1,6 @@
 import { isOnline, processSingleOperation } from './syncService';
 import {
+  markOperationHeld,
   getPendingOperations,
   markOperationSynced,
   markOperationFailed,
@@ -9,6 +10,7 @@ import {
 } from './syncQueue';
 import { updateLocalAttendance, updateLocalMeal, setLocalSyncStatus } from '../services/localDb';
 import { saveConflict } from './conflictService';
+import { forgetOfflineUser } from '../features/devices/offlineSignIn';
 import { isSessionValid } from '../services/session';
 
 /**
@@ -142,6 +144,18 @@ export async function processSyncQueue() {
           
           syncProgress.conflicts++;
           console.log(`Operation ${operation.id} has conflict`);
+        } else if (result.status === 'deferred') {
+          // Captured by a colleague on this device: it waits until they sync it themselves
+          syncProgress.deferred = (syncProgress.deferred || 0) + 1;
+        } else if (result.status === 'held') {
+          // Kept on the server for an administrator to review; stop sending it
+          await markOperationHeld(operation.id, result.reason);
+          await setLocalSyncStatus(operation.entityType, operation.recordId, 'held').catch(() => {});
+          // The person can no longer sign in offline here until they sign in online
+          if (result.capturedBy && (result.reason === 'user_deactivated' || result.reason === 'password_reset')) {
+            await forgetOfflineUser(result.capturedBy).catch(() => {});
+          }
+          syncProgress.held = (syncProgress.held || 0) + 1;
         } else if (result.httpStatus === 401) {
           // Session rejected by the server: stop, and keep this and the remaining operations
           // pending without counting a retry

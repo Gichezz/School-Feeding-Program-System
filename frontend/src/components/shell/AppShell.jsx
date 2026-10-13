@@ -5,6 +5,7 @@ import TopBar from './TopBar';
 import BottomNav from './BottomNav';
 import { SyncStatusProvider } from '../../hooks/useSyncStatus';
 import { useSession } from '../../hooks/useSession';
+import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 
 /**
  * Signed-in app frame: sidebar or icon strip (tablet and desktop) or bottom tabs
@@ -13,6 +14,8 @@ import { useSession } from '../../hooks/useSession';
 function AppShell() {
   const { session, isValid, isAdmin } = useSession();
   const needsPasskey = isAdmin && isValid && session?.user?.needsPasskey;
+  const isOnline = useOnlineStatus();
+  const signedInOffline = session?.offline && !isOnline;
 
   return (
     <SyncStatusProvider>
@@ -22,6 +25,11 @@ function AppShell() {
         <div className="app-shell__column">
           <TopBar />
           <main id="main-content" className="app-main" tabIndex={-1}>
+            {signedInOffline && (
+              <Alert tone="neutral" title="Signed in offline on this device" className="app-main__notice">
+                Records you save stay here and sync under your account when the device is back online.
+              </Alert>
+            )}
             {session && !isValid && session.endedReason === 'deviceRevoked' && (
               <Alert tone="warning" title="This device was removed by an administrator" className="app-main__notice">
                 Records saved here are kept. To sync them, <Link to="/activate">set this device up again</Link>; an

@@ -147,7 +147,8 @@ async function resetPassword(req, res, next) {
 
     const result = await pool.query(
       `UPDATE users
-       SET password_hash = $1, password_changed_at = date_trunc('second', NOW()), updated_at = NOW()
+       SET password_hash = $1, password_changed_at = date_trunc('second', NOW()),
+           password_reset_at = NOW(), updated_at = NOW()
        WHERE id = $2
        RETURNING ${PUBLIC_COLUMNS}`,
       [await hashPassword(password), user.id]
