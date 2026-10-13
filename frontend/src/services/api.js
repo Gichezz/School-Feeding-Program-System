@@ -27,6 +27,8 @@ async function apiRequest(endpoint, options = {}) {
       const errorData = await response.json().catch(() => ({}));
       const error = new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
       error.status = response.status;
+      // Extra details from the server, e.g. { passkeyRequired: true }
+      error.data = errorData;
       // The server no longer accepts this session; the user needs to sign in again
       if (response.status === 401 && session?.token) {
         markSessionExpired();
@@ -34,7 +36,8 @@ async function apiRequest(endpoint, options = {}) {
       throw error;
     }
 
-    return response.json();
+    // 204 No Content (e.g. after a delete)
+    return response.status === 204 ? null : response.json();
   } catch (error) {
     if (error.name === 'TypeError' && error.message.includes('fetch')) {
       throw new Error('Network error - unable to connect to server');
@@ -223,4 +226,52 @@ export async function resetUserPassword(id, password) {
     method: 'POST',
     body: JSON.stringify({ password }),
   });
+}
+
+/**
+ * Passkeys (administrators)
+ */
+export async function getPasskeyLoginOptions() {
+  return apiRequest('/auth/passkeys/login/options', { method: 'POST' });
+}
+
+export async function verifyPasskeyLogin(response) {
+  return apiRequest('/auth/passkeys/login/verify', {
+    method: 'POST',
+    body: JSON.stringify({ response }),
+  });
+}
+
+export async function signInWithRecoveryCode(email, password, code) {
+  return apiRequest('/auth/recovery', {
+    method: 'POST',
+    body: JSON.stringify({ email, password, code }),
+  });
+}
+
+export async function getPasskeys() {
+  return apiRequest('/auth/passkeys');
+}
+
+export async function getPasskeyRegistrationOptions() {
+  return apiRequest('/auth/passkeys/register/options', { method: 'POST' });
+}
+
+export async function verifyPasskeyRegistration(response, name) {
+  return apiRequest('/auth/passkeys/register/verify', {
+    method: 'POST',
+    body: JSON.stringify({ response, name }),
+  });
+}
+
+export async function removePasskey(id) {
+  return apiRequest(`/auth/passkeys/${id}`, { method: 'DELETE' });
+}
+
+export async function regenerateRecoveryCodes() {
+  return apiRequest('/auth/recovery-codes', { method: 'POST' });
+}
+
+export async function resetUserPasskeys(id) {
+  return apiRequest(`/users/${id}/passkeys/reset`, { method: 'POST' });
 }

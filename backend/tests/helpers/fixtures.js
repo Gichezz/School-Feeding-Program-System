@@ -6,6 +6,9 @@ const SCHOOL_ID = '11111111-1111-1111-1111-111111111111';
 const MISSING_ID = '99999999-9999-9999-9999-999999999999';
 
 const TABLES = [
+  'auth_challenges',
+  'recovery_codes',
+  'passkey_credentials',
   'conflicts',
   'sync_operations',
   'forecast_results',
