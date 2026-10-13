@@ -1,6 +1,7 @@
 const { pool } = require('../db/pool');
 const { ValidationError, DatabaseError, NotFoundError } = require('../utils/errors');
 const { isUuid, syncPayloadError } = require('../validation/records');
+const { captureError, decideCapture } = require('../services/captureCheck');
 
 // Upper bound on operations per POST /api/sync (the client sends one at a time)
 const MAX_OPERATIONS_PER_REQUEST = 100;
@@ -64,6 +65,10 @@ async function syncOperations(req, res, next) {
       const invalidPayload = syncPayloadError(op.entityType, op.payload);
       if (invalidPayload) {
         throw new ValidationError(`Operation ${op.id}: ${invalidPayload}`);
+      }
+      const badCapture = captureError(op);
+      if (badCapture) {
+        throw new ValidationError(`Operation ${op.id}: ${badCapture}`);
       }
       // School staff can only send records for their own school (#60)
       if (req.user?.role === 'school_staff' && op.payload.schoolId !== req.user.schoolId) {
@@ -131,6 +136,49 @@ async function syncOperations(req, res, next) {
           }
         }
 
+        // Records are only applied under the session of the person who captured them (#61)
+        const alreadyHeld = (await client.query(
+          'SELECT reason FROM held_operations WHERE operation_id = $1',
+          [operation.id]
+        )).rows[0];
+        const decision = alreadyHeld
+          ? { action: 'hold', reason: alreadyHeld.reason }
+          : await decideCapture(client, operation, req.user);
+        if (decision.action === 'defer') {
+          await client.query('COMMIT');
+          results.push({ success: false, operationId: operation.id, status: 'deferred', message: 'Waiting for the person who captured it to sync' });
+          continue;
+        }
+        if (decision.action === 'hold') {
+          if (!alreadyHeld) {
+            const { capture } = decision;
+            await client.query(
+              `INSERT INTO held_operations
+               (operation_id, entity_type, operation_type, payload, base_version, client_id,
+                captured_by, device_id, captured_at, submitted_by, reason)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+               ON CONFLICT (operation_id) DO NOTHING`,
+              [
+                operation.id,
+                entityTypeMap[operation.entityType],
+                operation.operation,
+                JSON.stringify(operation.payload),
+                operation.baseVersion,
+                clientId,
+                capture.capturedBy,
+                capture.deviceId,
+                capture.capturedAt,
+                userId,
+                decision.reason,
+              ]
+            );
+          }
+          await client.query('COMMIT');
+          results.push({ success: false, operationId: operation.id, status: 'held', reason: decision.reason, capturedBy: decision.capture?.capturedBy });
+          continue;
+        }
+        const { capture } = decision;
+
         // Process the operation based on type
         let result;
         if (operation.operation === 'create') {
@@ -150,8 +198,9 @@ async function syncOperations(req, res, next) {
         
         await client.query(
           `INSERT INTO sync_operations 
-           (operation_id, entity_type, record_id, operation_type, payload, client_id, base_version, status, processed_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, 'applied', NOW())`,
+           (operation_id, entity_type, record_id, operation_type, payload, client_id, base_version, status, processed_at,
+            captured_by, device_id, captured_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, 'applied', NOW(), $8, $9, $10)`,
           [
             operation.id,
             dbEntityType,
@@ -159,7 +208,10 @@ async function syncOperations(req, res, next) {
             operation.operation.toUpperCase(),
             JSON.stringify(operation.payload),
             clientId,
-            operation.baseVersion
+            operation.baseVersion,
+            capture.capturedBy,
+            capture.deviceId,
+            capture.capturedAt
           ]
         );
 
@@ -875,6 +927,8 @@ async function getConflictById(req, res, next) {
 }
 
 module.exports = {
+  handleCreateOperation,
+  handleUpdateOperation,
   syncOperations,
   resolveConflict,
   getConflicts,

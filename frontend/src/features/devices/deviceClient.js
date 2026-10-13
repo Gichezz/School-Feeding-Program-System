@@ -7,6 +7,7 @@ import {
   signChallenge,
   updateDeviceStatus,
 } from './deviceIdentity';
+import { rememberForOffline } from './offlineSignIn';
 
 /**
  * Setting up a school device and signing staff in on it (#60). Every request carries a
@@ -65,6 +66,9 @@ export async function signInWithPin(email, pin) {
   try {
     const session = await signInOnDevice({ email, pin, deviceId: identity.deviceId, challenge, signature });
     if (identity.status !== 'approved') await updateDeviceStatus('approved');
+    // So this person can sign in here without a connection for the next 7 days (#61)
+    const { device, ...sessionOnly } = session;
+    await rememberForOffline(sessionOnly, pin, identity.deviceId).catch(() => {});
     return session;
   } catch (error) {
     if (error.data?.deviceRevoked) await clearDeviceIdentity();

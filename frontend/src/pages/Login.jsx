@@ -11,6 +11,7 @@ import { useSession } from '../hooks/useSession';
 import { passkeyErrorMessage, passkeysSupported, signInWithPasskey } from '../features/passkeys/passkeyClient';
 import { getDeviceIdentity } from '../features/devices/deviceIdentity';
 import { signInWithPin } from '../features/devices/deviceClient';
+import { signInOffline } from '../features/devices/offlineSignIn';
 
 const OFFLINE_MESSAGE = 'Could not reach the server. Try again when you are online.';
 
@@ -82,15 +83,32 @@ function Login() {
     });
   };
 
+  // Without a connection, the PIN is checked on this device instead (#61)
+  const signInHereOffline = async () => {
+    const session = await signInOffline(email.trim(), pin, identity.deviceId);
+    toast.show({ tone: 'info', title: 'Signed in offline', description: 'Records you save sync when you are back online.' });
+    finish(session);
+  };
+
   const handleDevice = (event) => {
     event.preventDefault();
     return run('device', async () => {
       try {
-        finish(await signInWithPin(email.trim(), pin));
+        if (!isOnline) {
+          await signInHereOffline();
+          return;
+        }
+        try {
+          finish(await signInWithPin(email.trim(), pin));
+        } catch (err) {
+          // The server could not be reached: fall back to offline sign-in on this device
+          if (err.status) throw err;
+          await signInHereOffline();
+        }
       } catch (err) {
         setPin('');
         if (err.data?.deviceRevoked) setIdentity(null);
-        setError(err.status ? err.message : OFFLINE_MESSAGE);
+        setError(err.message || OFFLINE_MESSAGE);
       }
     });
   };
@@ -168,7 +186,11 @@ function Login() {
                 {identity.name}. Sign in with your email and the 6-digit PIN you set on this device.
               </p>
             </div>
-            {!isOnline && <Alert tone="neutral" title="You are offline">Signing in needs a connection.</Alert>}
+            {!isOnline && (
+              <Alert tone="neutral" title="You are offline">
+                You can still sign in with your PIN if you have signed in online on this device in the last 7 days.
+              </Alert>
+            )}
             {identity.status !== 'approved' && !error && (
               <Alert tone="info" title="New device">
                 An administrator approves each new device in Settings → School devices. Once they have, you can sign in here.
@@ -188,8 +210,8 @@ function Login() {
               onChange={(e) => setPin(e.target.value)}
               required
             />
-            <Button type="submit" icon={LogIn} fullWidth loading={busy === 'device'} disabled={!isOnline || Boolean(busy)}>
-              {busy === 'device' ? 'Signing in…' : 'Sign in'}
+            <Button type="submit" icon={LogIn} fullWidth loading={busy === 'device'} disabled={Boolean(busy)}>
+              {busy === 'device' ? 'Signing in…' : isOnline ? 'Sign in' : 'Sign in offline'}
             </Button>
             <Button as={Link} to="/activate" variant="ghost" icon={KeyRound} fullWidth>
               New on this device, or forgot your PIN?

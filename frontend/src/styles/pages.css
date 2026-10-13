@@ -727,6 +727,63 @@
   }
 }
 
+/* ---------- Conflicts: held records ---------- */
+#held {
+  scroll-margin-top: calc(var(--topbar-height) + var(--space-4));
+}
+
+.held__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.held__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-block: var(--space-4);
+  border-top: var(--border-default);
+}
+
+.held__item:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.held__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.held__icon {
+  flex: none;
+  width: var(--icon-md);
+  height: var(--icon-md);
+  margin-top: var(--space-1);
+  color: var(--color-warning);
+}
+
+.held__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: var(--font-weight-semibold);
+}
+
+.held__reason {
+  font-size: var(--font-size-sm);
+  color: var(--color-ink-muted);
+}
+
+.held__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
 /* ---------- Print (Reports) ---------- */
 .print-only {
   display: none;
