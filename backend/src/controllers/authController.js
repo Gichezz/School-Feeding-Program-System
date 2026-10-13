@@ -22,13 +22,21 @@ async function login(req, res, next) {
     }
 
     const result = await pool.query(
-      'SELECT id, name, email, role, is_active, password_hash FROM users WHERE lower(email) = lower($1)',
+      'SELECT id, name, email, role, school_id, is_active, password_hash FROM users WHERE lower(email) = lower($1)',
       [email.trim()]
     );
     const user = result.rows[0];
     const passwordMatches = await bcrypt.compare(password, user ? user.password_hash : DUMMY_HASH);
     if (!user || !passwordMatches || !user.is_active) {
       return res.status(401).json({ error: INVALID_LOGIN });
+    }
+
+    // School staff sign in on an enrolled school device with their PIN (#60)
+    if (user.role === 'school_staff') {
+      return res.status(403).json({
+        error: 'School staff sign in on a school device with their email and PIN. Set up this device first if it is new.',
+        deviceRequired: true,
+      });
     }
 
     if ((await countPasskeys(user.id)) > 0) {
@@ -74,7 +82,7 @@ async function changePassword(req, res, next) {
       return res.status(400).json({ error: 'The new password must be different from the current one' });
     }
 
-    const result = await pool.query('SELECT id, name, email, role, password_hash FROM users WHERE id = $1', [req.user.id]);
+    const result = await pool.query('SELECT id, name, email, role, school_id, password_hash FROM users WHERE id = $1', [req.user.id]);
     const user = result.rows[0];
     if (!user || !(await bcrypt.compare(currentPassword, user.password_hash))) {
       return res.status(400).json({ error: 'Your current password is not correct' });
@@ -86,7 +94,8 @@ async function changePassword(req, res, next) {
        WHERE id = $2`,
       [await hashPassword(newPassword), user.id]
     );
-    res.json(await sessionFor(user));
+    // Staff stay signed in on the school device they used (#60)
+    res.json(await sessionFor(user, { deviceId: req.user.deviceId }));
   } catch (error) {
     next(error);
   }

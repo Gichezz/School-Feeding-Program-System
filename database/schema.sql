@@ -20,6 +20,9 @@ CREATE TABLE IF NOT EXISTS users (
     email           TEXT NOT NULL,
     password_hash   TEXT NOT NULL,
     role            TEXT NOT NULL,
+    -- School staff belong to one school (foreign key added after the schools table);
+    -- administrators have none and can see every school
+    school_id       UUID,
     -- Deactivated users cannot sign in and their sessions stop working
     is_active       BOOLEAN NOT NULL DEFAULT TRUE,
     -- Sessions issued before this time are rejected (set on password change or reset)
@@ -31,7 +34,8 @@ CREATE TABLE IF NOT EXISTS users (
         email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
     ),
     CONSTRAINT users_role_check CHECK (role IN ('admin', 'school_staff')),
-    CONSTRAINT users_password_hash_present CHECK (char_length(password_hash) >= 20)
+    CONSTRAINT users_password_hash_present CHECK (char_length(password_hash) >= 20),
+    CONSTRAINT users_staff_school CHECK (role <> 'school_staff' OR school_id IS NOT NULL)
 );
 
 -- ---------------------------------------------------------------------------
@@ -255,7 +259,7 @@ CREATE TABLE IF NOT EXISTS auth_challenges (
     user_id         UUID,
     expires_at      TIMESTAMPTZ NOT NULL,
     CONSTRAINT auth_challenge_unique UNIQUE (challenge),
-    CONSTRAINT auth_challenge_purpose_check CHECK (purpose IN ('register', 'authenticate')),
+    CONSTRAINT auth_challenge_purpose_check CHECK (purpose IN ('register', 'authenticate', 'device')),
     CONSTRAINT auth_challenge_user_fk
         FOREIGN KEY (user_id) REFERENCES users (id)
         ON UPDATE CASCADE
@@ -280,6 +284,109 @@ CREATE INDEX IF NOT EXISTS idx_passkey_user
 
 CREATE INDEX IF NOT EXISTS idx_recovery_codes_user
     ON recovery_codes (user_id);
+
+-- ---------------------------------------------------------------------------
+-- School devices and staff PINs (#60)
+-- Staff record on designated school devices. Each device holds a private key that
+-- never leaves it; the server keeps the public key. An administrator approves each
+-- device before staff can sign in on it.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS devices (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    school_id       UUID NOT NULL,
+    name            TEXT NOT NULL,
+    status          TEXT NOT NULL DEFAULT 'pending',
+    -- P-256 public key (JWK) of the device's non-exportable key pair
+    public_key      JSONB NOT NULL,
+    enrolled_by     UUID,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    approved_by     UUID,
+    approved_at     TIMESTAMPTZ,
+    revoked_by      UUID,
+    revoked_at      TIMESTAMPTZ,
+    last_seen_at    TIMESTAMPTZ,
+    CONSTRAINT devices_status_check CHECK (status IN ('pending', 'approved', 'revoked')),
+    CONSTRAINT devices_school_fk
+        FOREIGN KEY (school_id) REFERENCES schools (id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+    CONSTRAINT devices_enrolled_by_fk
+        FOREIGN KEY (enrolled_by) REFERENCES users (id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL,
+    CONSTRAINT devices_approved_by_fk
+        FOREIGN KEY (approved_by) REFERENCES users (id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL,
+    CONSTRAINT devices_revoked_by_fk
+        FOREIGN KEY (revoked_by) REFERENCES users (id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL
+);
+
+-- A staff member's PIN on one device (stored only as a bcrypt hash)
+CREATE TABLE IF NOT EXISTS device_users (
+    device_id       UUID NOT NULL,
+    user_id         UUID NOT NULL,
+    pin_hash        TEXT NOT NULL,
+    failed_attempts INTEGER NOT NULL DEFAULT 0,
+    -- set after too many wrong PINs; an administrator unlocks it
+    locked_at       TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_sign_in_at TIMESTAMPTZ,
+    PRIMARY KEY (device_id, user_id),
+    CONSTRAINT device_users_device_fk
+        FOREIGN KEY (device_id) REFERENCES devices (id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+    CONSTRAINT device_users_user_fk
+        FOREIGN KEY (user_id) REFERENCES users (id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+    CONSTRAINT device_users_failed_nonneg CHECK (failed_attempts >= 0)
+);
+
+-- One-time codes an administrator gives a new staff member to set up their account
+CREATE TABLE IF NOT EXISTS activation_codes (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID NOT NULL,
+    code_hash       TEXT NOT NULL,
+    created_by      UUID,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at      TIMESTAMPTZ NOT NULL,
+    used_at         TIMESTAMPTZ,
+    CONSTRAINT activation_codes_user_fk
+        FOREIGN KEY (user_id) REFERENCES users (id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+    CONSTRAINT activation_codes_created_by_fk
+        FOREIGN KEY (created_by) REFERENCES users (id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_devices_school
+    ON devices (school_id);
+
+CREATE INDEX IF NOT EXISTS idx_device_users_user
+    ON device_users (user_id);
+
+CREATE INDEX IF NOT EXISTS idx_activation_codes_user
+    ON activation_codes (user_id);
+
+-- users.school_id refers to schools, which is created after users
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_school_fk') THEN
+        ALTER TABLE users
+            ADD CONSTRAINT users_school_fk
+            FOREIGN KEY (school_id) REFERENCES schools (id)
+            ON UPDATE CASCADE
+            ON DELETE RESTRICT;
+    END IF;
+END $$;
 
 -- ---------------------------------------------------------------------------
 -- Indexes

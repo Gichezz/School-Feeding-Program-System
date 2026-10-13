@@ -58,7 +58,7 @@ Any Linux server that can run Docker works, for example a small cloud VM. Use on
    docker compose exec backend node scripts/create-admin.js --name "Your Name" --email you@example.org
    ```
 
-7. **Sign in** at `https://<your domain>` and add a passkey from **Settings → Passkeys**. Passkeys belong to the domain, so passkeys made on another address (for example `localhost`) do not work here. Then add everyone else from **Settings → Users**.
+7. **Sign in** at `https://<your domain>` and add a passkey from **Settings → Passkeys**. Passkeys belong to the domain, so passkeys made on another address (for example `localhost`) do not work here. Then add everyone else from **Settings → Users**: administrators with an initial password, school staff with their school. Each staff member gets a one-time activation code to set up the school device, which you then approve in **Settings → School devices**.
 8. **Run the smoke test** (below) against the server.
 
 To shorten the commands on the server, you can set `COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml` in `.env`. After that, a plain `docker compose up -d --build` uses both files.
@@ -88,7 +88,7 @@ The API's passkey settings are set by the compose files: `localhost` and `http:/
 **Migrations.** A new database already has the latest schema. When a later version adds a script to `database/migrations/`, apply it to the running database (the folder is mounted read-only at `/database`):
 
 ```bash
-docker compose exec db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f /database/migrations/003_admin_passkeys.sql'
+docker compose exec db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f /database/migrations/004_staff_devices.sql'
 ```
 
 Apply the scripts in number order. Each one explains in its header what it changes.

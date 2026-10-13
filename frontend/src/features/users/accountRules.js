@@ -20,16 +20,57 @@ export function passwordError(password) {
 }
 
 /**
+ * A staff PIN: exactly 6 digits, not one repeated digit and not a straight run.
+ */
+export function pinError(pin) {
+  if (!pin) return 'Enter a 6-digit PIN';
+  if (!/^\d{6}$/.test(pin)) return 'The PIN must be exactly 6 digits';
+  const digits = [...pin].map(Number);
+  const steps = digits.slice(1).map((d, i) => d - digits[i]);
+  if (steps.every((s) => s === 0)) return 'Choose a PIN that is not one digit repeated';
+  if (steps.every((s) => s === 1) || steps.every((s) => s === -1)) return 'Choose a PIN that is not a run of digits like 123456';
+  return null;
+}
+
+/**
+ * Errors for setting up a school device, keyed by field.
+ * values: { email, method: 'code' | 'password', activationCode, newPassword, confirmPassword,
+ *           password, pin, confirmPin, deviceName, needsDeviceName }
+ */
+export function deviceSetupErrors(values) {
+  const errors = {};
+  if (!values.email?.trim()) errors.email = 'Enter your email address';
+  else if (!EMAIL_FORMAT.test(values.email.trim())) errors.email = 'Enter a valid email address, like name@school.org';
+  if (values.method === 'code') {
+    if (!values.activationCode?.trim()) errors.activationCode = 'Enter the activation code from your administrator';
+    const weak = passwordError(values.newPassword);
+    if (weak) errors.newPassword = weak;
+    else if (values.confirmPassword !== values.newPassword) errors.confirmPassword = 'The passwords do not match';
+  } else if (!values.password) {
+    errors.password = 'Enter your password';
+  }
+  const badPin = pinError(values.pin);
+  if (badPin) errors.pin = badPin;
+  else if (values.confirmPin !== values.pin) errors.confirmPin = 'The PINs do not match';
+  if (values.needsDeviceName && !values.deviceName?.trim()) errors.deviceName = 'Give this device a name, e.g. Kitchen tablet';
+  return errors;
+}
+
+/**
  * Errors for the new user form, keyed by field.
  */
-export function newUserErrors({ name, email, password }) {
+export function newUserErrors({ name, email, password, role = 'admin', schoolId }) {
   const errors = {};
   if (!name?.trim()) errors.name = 'Enter their name';
   else if (name.trim().length > 100) errors.name = 'Use 100 characters or fewer';
   if (!email?.trim()) errors.email = 'Enter their email address';
   else if (!EMAIL_FORMAT.test(email.trim())) errors.email = 'Enter a valid email address, like name@school.org';
-  const weak = passwordError(password);
-  if (weak) errors.password = weak;
+  if (role === 'school_staff') {
+    if (!schoolId) errors.schoolId = 'Choose their school';
+  } else {
+    const weak = passwordError(password);
+    if (weak) errors.password = weak;
+  }
   return errors;
 }
 

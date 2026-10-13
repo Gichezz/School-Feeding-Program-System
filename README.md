@@ -14,6 +14,7 @@ Final-year project. A system for one selected Kenyan school that records daily a
 | **Meal-demand forecast** | Expected meals per school day with a likely range, from a Prophet model served by a Flask service. The latest forecast is kept on the device for offline viewing. |
 | **Sign-in and roles** | School staff and administrators sign in; only administrators resolve conflicts. Recording keeps working offline when a sign-in expires. |
 | **Administrator passkeys** | Administrators sign in with a passkey (WebAuthn): the device's fingerprint, face or screen lock, with the private key kept on the device. Once an administrator has a passkey, their password alone no longer signs them in. One-time recovery codes cover a lost device. |
+| **School devices for staff** | Staff record on the school's own tablets and phones. An administrator adds a staff member to a school and gives them a one-time activation code; on the school device they choose a password and a 6-digit PIN, and the device registers a key that never leaves it. Once an administrator approves the device, staff sign in there with email + PIN, checked by the server together with a signature from the device's key. Staff can only record for their own school; removing a device signs it out at once. |
 | **User accounts** | Administrators add users, change roles, reset passwords and deactivate or reactivate accounts from Settings → Users. Everyone can change their own password. Deactivating a user or resetting a password ends their sessions straight away. |
 
 ## Architecture
@@ -98,9 +99,10 @@ psql -U postgres -d school_feeding -f database/seed.sql
 psql -U postgres -d school_feeding -f database/migrations/001_attendance_present_absent_equals_registered.sql
 psql -U postgres -d school_feeding -f database/migrations/002_user_accounts.sql
 psql -U postgres -d school_feeding -f database/migrations/003_admin_passkeys.sql
+psql -U postgres -d school_feeding -f database/migrations/004_staff_devices.sql
 ```
 
-`001` requires present + absent to equal registered for new and updated attendance records, and lists existing records that do not add up. Correct those records, then run `ALTER TABLE attendance_records VALIDATE CONSTRAINT attendance_present_absent_equals_registered;`. `002` adds the columns used to deactivate users and to end sessions after a password change. `003` adds the tables for administrator passkeys and recovery codes.
+`001` requires present + absent to equal registered for new and updated attendance records, and lists existing records that do not add up. Correct those records, then run `ALTER TABLE attendance_records VALIDATE CONSTRAINT attendance_present_absent_equals_registered;`. `002` adds the columns used to deactivate users and to end sessions after a password change. `003` adds the tables for administrator passkeys and recovery codes. `004` gives staff a school (existing staff get the only school, when there is one), and adds school devices, staff PINs and activation codes.
 
 ### 2. Backend API (port 5000)
 
@@ -153,6 +155,8 @@ npm run dev
 ```
 
 Open `http://localhost:5173` and sign in with a demo account. The Vite dev server forwards `/api` to the backend on port 5000.
+
+School staff do not sign in with a password alone: on the sign-in page choose **Set up this school device**, enter the demo staff email, choose **I have a password** and use the demo staff password, and pick a PIN. Then sign in as the administrator, approve the device in **Settings → School devices**, and sign back in as staff with the email and PIN.
 
 ### Historical dataset (optional)
 

@@ -18,20 +18,24 @@ VALUES (
 )
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO users (id, name, email, password_hash, role)
+-- The staff account belongs to the demo school. School staff sign in on an enrolled
+-- school device: set one up from the sign-in page with this email and password.
+INSERT INTO users (id, name, email, password_hash, role, school_id)
 VALUES (
     'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1',
     'Programme Administrator',
     'admin@demo-school.local',
     '$2b$10$rZctUe0na2ulC9Q5fctLIOv/e7K4SfuK71N22.QxTPxctjN3WlYWy',
-    'admin'
+    'admin',
+    NULL
 ),
 (
     'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2',
     'School Feeding Officer',
     'staff@demo-school.local',
     '$2b$10$31do6hB2ak7TOWnW21zOPOjemDOboT9uLb.W/c/Jrkmq8zJRJC73a',
-    'school_staff'
+    'school_staff',
+    '11111111-1111-1111-1111-111111111111'
 )
 ON CONFLICT (email) DO NOTHING;
 

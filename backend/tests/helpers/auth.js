@@ -19,13 +19,18 @@ const USERS = {
   },
 };
 
+// Matches TEST_DEVICE_ID in helpers/fixtures.js (an approved device at the demo school)
+const TEST_DEVICE_ID = 'dddddddd-dddd-dddd-dddd-dddddddddddd';
+
 /**
- * A session token for a seeded user, signed the same way as POST /api/auth/login.
+ * A session token for a seeded user, signed the same way as the sign-in endpoints.
+ * School staff sessions belong to the approved test device, as after a device sign-in.
  */
 function tokenFor(userKey, options = {}) {
   const user = USERS[userKey];
+  const device = user.role === 'school_staff' ? { dev: TEST_DEVICE_ID } : {};
   return jwt.sign(
-    { name: user.name, email: user.email, role: user.role },
+    { name: user.name, email: user.email, role: user.role, ...device },
     process.env.JWT_SECRET,
     { subject: user.id, expiresIn: '1h', algorithm: 'HS256', ...options }
   );

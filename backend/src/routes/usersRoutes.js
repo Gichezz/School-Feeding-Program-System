@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { listUsers, createUser, updateUser, resetPassword, resetPasskeys } = require('../controllers/usersController');
+const { listUsers, createUser, updateUser, resetPassword, resetPasskeys, newActivationCode } = require('../controllers/usersController');
 const { requireRole } = require('../middleware/auth');
 
 // Account management is for administrators only
@@ -36,5 +36,11 @@ router.post('/:id/password', resetPassword);
  * sessions end and they add a new passkey after signing in with their password
  */
 router.post('/:id/passkeys/reset', resetPasskeys);
+
+/**
+ * POST /api/users/:id/activation-code
+ * A new one-time activation code for a staff member
+ */
+router.post('/:id/activation-code', newActivationCode);
 
 module.exports = router;
