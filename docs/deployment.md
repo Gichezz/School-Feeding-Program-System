@@ -58,7 +58,7 @@ Any Linux server that can run Docker works, for example a small cloud VM. Use on
    docker compose exec backend node scripts/create-admin.js --name "Your Name" --email you@example.org
    ```
 
-7. **Sign in** at `https://<your domain>` and add everyone else from **Settings → Users**.
+7. **Sign in** at `https://<your domain>` and add a passkey from **Settings → Passkeys**. Passkeys belong to the domain, so passkeys made on another address (for example `localhost`) do not work here. Then add everyone else from **Settings → Users**.
 8. **Run the smoke test** (below) against the server.
 
 To shorten the commands on the server, you can set `COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml` in `.env`. After that, a plain `docker compose up -d --build` uses both files.
@@ -79,6 +79,8 @@ All settings come from `.env` in the project folder, which Git ignores. [`.env.e
 
 No secrets are stored in the repository. Changing `JWT_SECRET` signs everyone out.
 
+The API's passkey settings are set by the compose files: `localhost` and `http://localhost:<WEB_PORT>` locally, and `DOMAIN` with `https://<DOMAIN>` on the server. Changing the domain means administrators must add new passkeys, so they need their recovery codes or another administrator to reset their passkeys.
+
 ## Database: first start, migrations and backups
 
 **First start.** When the `db-data` volume is empty, [`database/docker/init.sh`](../database/docker/init.sh) creates the tables from `database/schema.sql`. If `LOAD_DEMO_DATA=true`, it also loads `database/seed.sql`. This runs only once. Changing `LOAD_DEMO_DATA` later has no effect unless you delete the volume.
@@ -86,7 +88,7 @@ No secrets are stored in the repository. Changing `JWT_SECRET` signs everyone ou
 **Migrations.** A new database already has the latest schema. When a later version adds a script to `database/migrations/`, apply it to the running database (the folder is mounted read-only at `/database`):
 
 ```bash
-docker compose exec db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f /database/migrations/002_user_accounts.sql'
+docker compose exec db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f /database/migrations/003_admin_passkeys.sql'
 ```
 
 Apply the scripts in number order. Each one explains in its header what it changes.
@@ -135,6 +137,8 @@ The browser parts of offline use cannot be scripted against a server. After depl
 The CI workflow runs the same smoke test on every pull request. It builds all four images, starts the stack with the demo data, runs the test, creates an administrator with the script, and applies the migrations.
 
 ## Troubleshooting
+
+- **"Passkeys are not set up for this web address"** or a passkey that is never accepted: the address in the browser must match `DOMAIN` (or `localhost` locally). Passkeys made for another address do not work.
 
 - **`Set PGPASSWORD in .env`** or **`Set JWT_SECRET in .env`**: `.env` is missing or incomplete.
 - **The database password seems wrong**: Docker Compose prefers variables already set in your terminal over `.env`. If you set `PGPASSWORD` in your shell for `psql`, that value is used; open a new terminal without it.

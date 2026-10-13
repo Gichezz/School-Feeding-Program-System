@@ -101,6 +101,8 @@ jobs:
           # Only Caddy may publish ports on the public server
           test "$(grep -c 'published:' prod-config.yml)" = "3"
           grep -q 'FRONTEND_URL: https://lishe.example.org' prod-config.yml
+          grep -q 'WEBAUTHN_RP_ID: lishe.example.org' prod-config.yml
+          grep -q 'WEBAUTHN_ORIGINS: https://lishe.example.org' prod-config.yml
       - name: Build and start the stack
         run: docker compose up --build --detach --wait --wait-timeout 300
       - name: Smoke test

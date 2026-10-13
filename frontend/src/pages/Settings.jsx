@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { liveQuery } from 'dexie';
+import { useLocation } from 'react-router-dom';
 import { LogOut } from 'lucide-react';
 import { APP_NAME, Button, Card, PageHeader, SummaryList } from '../components/ui';
 import LisheLogo from '../components/shell/LisheLogo';
 import ChangePasswordCard from '../features/users/ChangePasswordCard';
+import PasskeysCard from '../features/passkeys/PasskeysCard';
 import UsersSection from '../features/users/UsersSection';
 import { ROLE_LABELS, useSignOut } from '../components/shell/UserMenu';
 import db, { getOrCreateClientId } from '../db/database';
@@ -19,6 +21,7 @@ function Settings() {
   const { user, session, isValid, isAdmin } = useSession();
   const isOnline = useOnlineStatus();
   const signOut = useSignOut();
+  const { hash } = useLocation();
   const [clientId, setClientId] = useState('');
   const [device, setDevice] = useState(null);
 
@@ -32,6 +35,13 @@ function Settings() {
     })).subscribe({ next: setDevice, error: () => setDevice(null) });
     return () => subscription.unsubscribe();
   }, []);
+
+  // Links such as /settings#passkeys open at that card
+  useEffect(() => {
+    if (!hash) return;
+    const target = document.getElementById(hash.slice(1));
+    target?.scrollIntoView({ block: 'start' });
+  }, [hash]);
 
   const count = (n) => (device ? formatNumber(n) : '…');
 
@@ -53,6 +63,8 @@ function Settings() {
             ]}
           />
         </Card>
+
+        {isAdmin && <PasskeysCard />}
 
         <ChangePasswordCard />
 

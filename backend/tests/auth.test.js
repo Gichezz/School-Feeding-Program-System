@@ -17,7 +17,7 @@ describe('POST /api/auth/login', () => {
     const res = await login(USERS.staff.email, USERS.staff.password);
 
     expect(res.status).toBe(200);
-    expect(res.body.user).toEqual({ id: USERS.staff.id, name: USERS.staff.name, email: USERS.staff.email, role: 'school_staff' });
+    expect(res.body.user).toEqual({ id: USERS.staff.id, name: USERS.staff.name, email: USERS.staff.email, role: 'school_staff', needsPasskey: false });
     expect(res.body.user).not.toHaveProperty('password_hash');
     const payload = jwt.verify(res.body.token, process.env.JWT_SECRET);
     expect(payload).toMatchObject({ sub: USERS.staff.id, role: 'school_staff' });

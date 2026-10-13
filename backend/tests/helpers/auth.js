@@ -41,6 +41,7 @@ function api(app, userKey = 'admin') {
     post: (url) => request(app).post(url).set('Authorization', header),
     put: (url) => request(app).put(url).set('Authorization', header),
     patch: (url) => request(app).patch(url).set('Authorization', header),
+    delete: (url) => request(app).delete(url).set('Authorization', header),
   };
 }
 

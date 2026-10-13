@@ -468,6 +468,128 @@
   }
 }
 
+/* ---------- Sign in: passkeys ---------- */
+.login__divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-ink-muted);
+}
+
+.login__divider::before,
+.login__divider::after {
+  content: '';
+  flex: 1;
+  border-top: var(--border-default);
+}
+
+/* ---------- Settings: passkeys ---------- */
+#passkeys {
+  scroll-margin-top: calc(var(--topbar-height) + var(--space-4));
+}
+
+.passkeys__add {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: var(--auth-max-width);
+}
+
+.passkeys__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.passkeys__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.passkeys__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding-block: var(--space-3);
+  border-top: var(--border-default);
+}
+
+.passkeys__item:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.passkeys__item-icon {
+  flex: none;
+  width: var(--icon-md);
+  height: var(--icon-md);
+  color: var(--color-brand);
+}
+
+.passkeys__item-text {
+  flex: 1 1 var(--field-min-width);
+  min-width: 0;
+}
+
+.passkeys__item-name {
+  font-weight: var(--font-weight-semibold);
+}
+
+.passkeys__item-meta {
+  font-size: var(--font-size-sm);
+  color: var(--color-ink-muted);
+}
+
+.passkeys__recovery {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: var(--border-default);
+}
+
+.passkeys__codes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border: var(--border-width-strong) solid var(--color-warning-border);
+  border-radius: var(--radius-md);
+  background: var(--color-warning-bg);
+}
+
+.passkeys__codes-title {
+  font-size: var(--font-size-lg);
+}
+
+.passkeys__codes-title:focus {
+  outline: none;
+}
+
+.passkeys__code-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2) var(--space-6);
+  margin: 0;
+  padding-left: var(--space-6);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-lg);
+}
+
+@media (max-width: 767px) {
+  .passkeys__actions .ui-button {
+    flex: 1 1 100%;
+  }
+
+  .passkeys__codes {
+    padding: var(--space-4);
+  }
+}
+
 /* ---------- Print (Reports) ---------- */
 .print-only {
   display: none;

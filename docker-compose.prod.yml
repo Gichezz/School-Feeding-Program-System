@@ -30,6 +30,8 @@ services:
   backend:
     environment:
       FRONTEND_URL: https://${DOMAIN}
+      WEBAUTHN_RP_ID: ${DOMAIN}
+      WEBAUTHN_ORIGINS: https://${DOMAIN}
 
 volumes:
   caddy-data:
