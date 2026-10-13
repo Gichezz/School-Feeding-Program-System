@@ -50,7 +50,7 @@ describe('GET /api/users', () => {
     expect(res.body.users).toHaveLength(2);
     expect(res.body.users[0]).toEqual({
       id: expect.any(String), name: expect.any(String), email: expect.any(String), role: expect.any(String),
-      isActive: true, createdAt: expect.any(String), updatedAt: expect.any(String),
+      isActive: true, createdAt: expect.any(String), updatedAt: expect.any(String), passkeyCount: 0,
     });
     expect(JSON.stringify(res.body)).not.toMatch(/password|\$2[aby]\$/i);
   });
