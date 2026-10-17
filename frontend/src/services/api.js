@@ -282,6 +282,35 @@ export async function resetUserPasskeys(id) {
 }
 
 /**
+ * Authenticator app codes (TOTP) for administrators (#63)
+ */
+export async function signInWithTotp(email, password, code) {
+  return apiRequest('/auth/totp/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password, code }),
+  });
+}
+
+export async function getTotpStatus() {
+  return apiRequest('/auth/totp');
+}
+
+export async function startTotpSetup() {
+  return apiRequest('/auth/totp/setup', { method: 'POST' });
+}
+
+export async function confirmTotpSetup(code) {
+  return apiRequest('/auth/totp/confirm', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  });
+}
+
+export async function removeTotp() {
+  return apiRequest('/auth/totp', { method: 'DELETE' });
+}
+
+/**
  * School devices and staff PIN sign-in (#60)
  */
 export async function getDeviceChallenge() {

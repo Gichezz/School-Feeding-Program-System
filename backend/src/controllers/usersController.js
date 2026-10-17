@@ -32,7 +32,8 @@ async function listUsers(req, res, next) {
   try {
     const result = await pool.query(
       `SELECT ${PUBLIC_COLUMNS.split(', ').map((c) => `users.${c}`).join(', ')}, schools.name AS school_name,
-              (SELECT count(*) FROM passkey_credentials pc WHERE pc.user_id = users.id) AS passkey_count
+              (SELECT count(*) FROM passkey_credentials pc WHERE pc.user_id = users.id) AS passkey_count,
+              EXISTS (SELECT 1 FROM totp_credentials t WHERE t.user_id = users.id AND t.confirmed_at IS NOT NULL) AS totp_enabled
        FROM users LEFT JOIN schools ON schools.id = users.school_id
        ORDER BY users.is_active DESC, lower(users.name)`
     );
@@ -161,8 +162,9 @@ async function resetPassword(req, res, next) {
 
 /**
  * POST /api/users/:id/passkeys/reset → { user }
- * For an administrator who lost their passkeys: removes their passkeys and recovery
- * codes and ends their sessions. They sign in with their password and add a new passkey.
+ * For an administrator who lost their passkeys or authenticator app: removes their
+ * passkeys, authenticator app (#63) and recovery codes, and ends their sessions. They
+ * sign in with their password and set up a passkey or authenticator app again.
  */
 async function resetPasskeys(req, res, next) {
   try {
@@ -173,13 +175,14 @@ async function resetPasskeys(req, res, next) {
     }
     await pool.query('DELETE FROM passkey_credentials WHERE user_id = $1', [user.id]);
     await pool.query('DELETE FROM recovery_codes WHERE user_id = $1', [user.id]);
+    await pool.query('DELETE FROM totp_credentials WHERE user_id = $1', [user.id]);
     // password_changed_at doubles as "sessions issued before this time end"
     const result = await pool.query(
       `UPDATE users SET password_changed_at = date_trunc('second', NOW()), updated_at = NOW()
        WHERE id = $1 RETURNING ${PUBLIC_COLUMNS}`,
       [user.id]
     );
-    res.json({ user: publicUser({ ...result.rows[0], passkey_count: 0 }) });
+    res.json({ user: publicUser({ ...result.rows[0], passkey_count: 0, totp_enabled: false }) });
   } catch (error) {
     next(error);
   }

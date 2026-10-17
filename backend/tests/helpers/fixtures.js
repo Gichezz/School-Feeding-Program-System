@@ -8,6 +8,7 @@ const MISSING_ID = '99999999-9999-9999-9999-999999999999';
 const TEST_DEVICE_ID = 'dddddddd-dddd-dddd-dddd-dddddddddddd';
 
 const TABLES = [
+  'totp_credentials',
   'record_flags',
   'record_history',
   'held_operations',

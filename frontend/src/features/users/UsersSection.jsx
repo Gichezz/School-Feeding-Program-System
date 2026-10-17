@@ -195,8 +195,8 @@ function EditUserPanel({ user, isSelf, schools, onDone, onCancel, onCode }) {
   };
 
   const resetPasskeys = () => run('passkeys', () => resetUserPasskeys(user.id), {
-    title: `${user.name}'s passkeys reset`,
-    description: 'They have been signed out everywhere. They sign in with their password and add a new passkey.',
+    title: `${user.name}'s passkeys and authenticator app reset`,
+    description: 'They have been signed out everywhere. They sign in with their password and set up a passkey or app again.',
   });
 
   return (
@@ -269,27 +269,27 @@ function EditUserPanel({ user, isSelf, schools, onDone, onCancel, onCode }) {
         </div>
       </div>
 
-      {!isSelf && user.passkeyCount > 0 && (
+      {!isSelf && (user.passkeyCount > 0 || user.totpEnabled) && (
         <div className="users__section">
-          <h4 className="users__section-title">Passkeys</h4>
+          <h4 className="users__section-title">Passkeys and authenticator app</h4>
           {confirmPasskeys ? (
             <Alert
               tone="warning"
-              title={`Reset ${user.name}'s passkeys?`}
+              title={`Reset ${user.name}'s passkeys and authenticator app?`}
               action={(
                 <div className="users__actions users__actions--tight">
-                  <Button variant="danger" size="sm" onClick={resetPasskeys} loading={busy === 'passkeys'}>Reset passkeys</Button>
+                  <Button variant="danger" size="sm" onClick={resetPasskeys} loading={busy === 'passkeys'}>Reset passkeys and app</Button>
                   <Button variant="secondary" size="sm" onClick={() => setConfirmPasskeys(false)} disabled={Boolean(busy)}>Cancel</Button>
                 </div>
               )}
             >
-              Use this if they lost the device with their passkey and have no recovery codes. Their passkeys and
-              recovery codes are removed and they are signed out everywhere. They then sign in with their password
-              and add a new passkey.
+              Use this if they lost the device with their passkey or authenticator app and have no recovery codes.
+              Their passkeys, authenticator app and recovery codes are removed and they are signed out everywhere.
+              They then sign in with their password and set up a passkey or app again.
             </Alert>
           ) : (
             <Button variant="secondary" icon={Fingerprint} onClick={() => setConfirmPasskeys(true)} disabled={Boolean(busy)}>
-              Reset passkeys
+              Reset passkeys and app
             </Button>
           )}
         </div>
@@ -384,11 +384,15 @@ function UsersSection() {
     { key: 'role', header: 'Role', render: (u) => ROLE_LABEL[u.role] || u.role },
     {
       key: 'passkey',
-      header: 'Passkey',
+      header: 'Second step',
       render: (u) => {
         if (u.role !== 'admin') return '–';
-        if (!u.passkeyCount) return <Badge tone="warning">Not set up</Badge>;
-        return <Badge tone="success">{u.passkeyCount === 1 ? '1 passkey' : `${u.passkeyCount} passkeys`}</Badge>;
+        if (!u.passkeyCount && !u.totpEnabled) return <Badge tone="warning">Not set up</Badge>;
+        const parts = [
+          ...(u.passkeyCount ? [u.passkeyCount === 1 ? '1 passkey' : `${u.passkeyCount} passkeys`] : []),
+          ...(u.totpEnabled ? ['app'] : []),
+        ];
+        return <Badge tone="success">{parts.join(' + ')}</Badge>;
       },
     },
     { key: 'status', header: 'Status', render: (u) => (u.isActive ? <Badge tone="success">Active</Badge> : <Badge tone="neutral">Deactivated</Badge>) },
