@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const { pool } = require('../db/pool');
 const { hashPassword, sessionFor } = require('../services/userAccounts');
 const { countPasskeys } = require('../services/passkeys');
+const { isTotpEnabled } = require('../services/totp');
 const { passwordError } = require('../validation/users');
 
 // Compared against when the email is unknown, so both cases take similar time
@@ -12,7 +13,8 @@ const INVALID_LOGIN = 'Invalid email or password';
  * POST /api/auth/login
  * Body: { email, password } → { token, expiresAt, user }
  * Deactivated accounts get the same message as a wrong password. Accounts with a
- * passkey (administrators, #57) cannot sign in with a password alone.
+ * passkey (administrators, #57) or an authenticator app (#63) cannot sign in with a
+ * password alone.
  */
 async function login(req, res, next) {
   try {
@@ -39,7 +41,16 @@ async function login(req, res, next) {
       });
     }
 
-    if ((await countPasskeys(user.id)) > 0) {
+    const hasPasskey = (await countPasskeys(user.id)) > 0;
+    const hasTotp = await isTotpEnabled(user.id);
+    if (hasTotp) {
+      return res.status(403).json({
+        error: 'Enter the 6-digit code from your authenticator app.',
+        totpRequired: true,
+        passkeyRequired: hasPasskey,
+      });
+    }
+    if (hasPasskey) {
       return res.status(403).json({
         error: 'This account signs in with a passkey. Use "Sign in with a passkey", or a recovery code if you cannot.',
         passkeyRequired: true,

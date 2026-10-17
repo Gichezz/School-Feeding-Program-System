@@ -5,12 +5,13 @@ import { getPasskeys, regenerateRecoveryCodes, removePasskey } from '../../servi
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { formatDate, formatRelativeTime } from '../../utils/format';
 import { addPasskey, passkeyErrorMessage, passkeysSupported, suggestedPasskeyName } from './passkeyClient';
+import { SECOND_FACTOR_CHANGED_EVENT } from '../totp/totpFormat';
 
 /**
  * Recovery codes, shown once. They let an administrator sign in with their password if
- * they cannot use any of their passkeys.
+ * they cannot use any of their passkeys or their authenticator app (#63).
  */
-function RecoveryCodes({ codes, onDone }) {
+export function RecoveryCodes({ codes, onDone }) {
   const toast = useToast();
   const headingRef = useRef(null);
   useEffect(() => headingRef.current?.focus(), []);
@@ -28,7 +29,7 @@ function RecoveryCodes({ codes, onDone }) {
     <div className="passkeys__codes">
       <h3 ref={headingRef} tabIndex={-1} className="passkeys__codes-title">Save your recovery codes</h3>
       <p>
-        If you cannot use any of your passkeys, sign in with your password and one of these codes. Each code works
+        If you cannot use your passkeys or authenticator app, sign in with your password and one of these codes. Each code works
         once. Keep them somewhere safe, away from this device. <strong>They will not be shown again.</strong>
       </p>
       <ol className="passkeys__code-list" aria-label="Recovery codes">
@@ -70,6 +71,12 @@ function PasskeysCard() {
   useEffect(() => {
     if (isOnline) load();
   }, [isOnline, load]);
+
+  // Setting up or removing an authenticator app changes the recovery codes shown here
+  useEffect(() => {
+    window.addEventListener(SECOND_FACTOR_CHANGED_EVENT, load);
+    return () => window.removeEventListener(SECOND_FACTOR_CHANGED_EVENT, load);
+  }, [load]);
 
   const add = async (event) => {
     event.preventDefault();
@@ -192,7 +199,7 @@ function PasskeysCard() {
           </ul>
         )}
 
-        {passkeys.length > 0 && !codes && (
+        {(passkeys.length > 0 || data?.totpEnabled) && !codes && (
           <div className="passkeys__recovery">
             <p className="passkeys__item-meta">
               {data.recoveryCodesLeft === 1 ? '1 recovery code left.' : `${data.recoveryCodesLeft} recovery codes left.`}

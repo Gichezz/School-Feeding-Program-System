@@ -44,7 +44,7 @@ function AppShell() {
             {needsPasskey && (
               <Alert
                 tone="warning"
-                title="Add a passkey to secure your administrator account"
+                title="Add a passkey or authenticator app to secure your administrator account"
                 className="app-main__notice"
                 action={<Button as={Link} to="/settings#passkeys" variant="secondary" size="sm">Add a passkey</Button>}
               >
