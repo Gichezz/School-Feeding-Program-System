@@ -1,4 +1,7 @@
 const { pool } = require('../db/pool');
+const { checkEntryWindow } = require('../validation/entryWindow');
+const { afterRecordSaved } = require('../services/integrity');
+const clock = require('../utils/clock');
 const { NotFoundError, ValidationError, DatabaseError } = require('../utils/errors');
 const { mealError } = require('../validation/records');
 
@@ -152,6 +155,13 @@ async function createMeal(req, res, next) {
       throw new ValidationError(invalid);
     }
 
+    // Today or up to 3 school days back; older needs a reason (#62)
+    const lateReason = req.body.late_reason;
+    const entry = checkEntryWindow(distribution_date, { lateReason });
+    if (entry.error) {
+      throw new ValidationError(entry.error);
+    }
+
     const query = `
       INSERT INTO meal_distributions 
         (school_id, distribution_date, meals_prepared, meals_served, updated_by, client_id)
@@ -171,6 +181,13 @@ async function createMeal(req, res, next) {
     ];
 
     const result = await pool.query(query, values);
+    await afterRecordSaved(pool, {
+      entityType: 'meal_distribution',
+      recordId: result.rows[0].id,
+      capture: { capturedBy: req.user?.id, deviceId: req.user?.deviceId, capturedAt: clock.now() },
+      lateReason,
+      late: entry.late,
+    });
 
     // Convert dates to DD-MM-YYYY format for API response
     const formattedRecord = {

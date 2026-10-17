@@ -82,6 +82,14 @@ CREATE TABLE IF NOT EXISTS attendance_records (
     total_registered    INTEGER NOT NULL,
     total_present       INTEGER NOT NULL,
     total_absent        INTEGER NOT NULL,
+    -- Who captured it, on which school device, when on the device, and when it reached
+    -- the server (#62). Empty for records saved before these were tracked.
+    captured_by         UUID,
+    device_id           UUID,
+    captured_at         TIMESTAMPTZ,
+    received_at         TIMESTAMPTZ,
+    -- Why a record for an older date was entered late
+    late_reason         TEXT,
     version             INTEGER NOT NULL DEFAULT 1,
     updated_by          UUID,
     client_id           TEXT,
@@ -115,6 +123,14 @@ CREATE TABLE IF NOT EXISTS meal_distributions (
     distribution_date   DATE NOT NULL,
     meals_prepared      INTEGER NOT NULL,
     meals_served        INTEGER NOT NULL,
+    -- Who captured it, on which school device, when on the device, and when it reached
+    -- the server (#62). Empty for records saved before these were tracked.
+    captured_by         UUID,
+    device_id           UUID,
+    captured_at         TIMESTAMPTZ,
+    received_at         TIMESTAMPTZ,
+    -- Why a record for an older date was entered late
+    late_reason         TEXT,
     version             INTEGER NOT NULL DEFAULT 1,
     updated_by          UUID,
     client_id           TEXT,
@@ -441,6 +457,58 @@ CREATE TABLE IF NOT EXISTS held_operations (
 
 CREATE INDEX IF NOT EXISTS idx_held_operations_status
     ON held_operations (status);
+
+-- ---------------------------------------------------------------------------
+-- Record history and review flags (#62)
+-- Every saved version of an attendance or meal record, and records flagged for an
+-- administrator to check (flags never block a record).
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS record_history (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    entity_type     TEXT NOT NULL,
+    record_id       UUID NOT NULL,
+    version         INTEGER NOT NULL,
+    -- the counts and date as saved in this version
+    values          JSONB NOT NULL,
+    changed_by      UUID,
+    device_id       UUID,
+    captured_at     TIMESTAMPTZ,
+    changed_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT record_history_entity_type_check CHECK (entity_type IN ('attendance', 'meal_distribution')),
+    CONSTRAINT record_history_changed_by_fk
+        FOREIGN KEY (changed_by) REFERENCES users (id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS record_flags (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    entity_type     TEXT NOT NULL,
+    record_id       UUID NOT NULL,
+    version         INTEGER NOT NULL,
+    flag            TEXT NOT NULL,
+    detail          TEXT NOT NULL,
+    status          TEXT NOT NULL DEFAULT 'open',
+    note            TEXT,
+    checked_by      UUID,
+    checked_at      TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT record_flags_unique UNIQUE (entity_type, record_id, version, flag),
+    CONSTRAINT record_flags_entity_type_check CHECK (entity_type IN ('attendance', 'meal_distribution')),
+    CONSTRAINT record_flags_flag_check CHECK (flag IN ('outside_hours', 'entered_late', 'synced_late', 'served_exceeds_present', 'unusual_numbers')),
+    CONSTRAINT record_flags_status_check CHECK (status IN ('open', 'checked')),
+    CONSTRAINT record_flags_checked_by_fk
+        FOREIGN KEY (checked_by) REFERENCES users (id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_record_history_record
+    ON record_history (entity_type, record_id);
+
+CREATE INDEX IF NOT EXISTS idx_record_flags_status
+    ON record_flags (status);
 
 -- ---------------------------------------------------------------------------
 -- Indexes

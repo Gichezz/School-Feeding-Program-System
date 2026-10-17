@@ -102,9 +102,10 @@ psql -U postgres -d school_feeding -f database/migrations/002_user_accounts.sql
 psql -U postgres -d school_feeding -f database/migrations/003_admin_passkeys.sql
 psql -U postgres -d school_feeding -f database/migrations/004_staff_devices.sql
 psql -U postgres -d school_feeding -f database/migrations/005_offline_capture.sql
+psql -U postgres -d school_feeding -f database/migrations/006_record_integrity.sql
 ```
 
-`001` requires present + absent to equal registered for new and updated attendance records, and lists existing records that do not add up. Correct those records, then run `ALTER TABLE attendance_records VALIDATE CONSTRAINT attendance_present_absent_equals_registered;`. `002` adds the columns used to deactivate users and to end sessions after a password change. `003` adds the tables for administrator passkeys and recovery codes. `004` gives staff a school (existing staff get the only school, when there is one), and adds school devices, staff PINs and activation codes. `005` records who captured each synced record and on which device, and adds held records for administrators to review.
+`001` requires present + absent to equal registered for new and updated attendance records, and lists existing records that do not add up. Correct those records, then run `ALTER TABLE attendance_records VALIDATE CONSTRAINT attendance_present_absent_equals_registered;`. `002` adds the columns used to deactivate users and to end sessions after a password change. `003` adds the tables for administrator passkeys and recovery codes. `004` gives staff a school (existing staff get the only school, when there is one), and adds school devices, staff PINs and activation codes. `005` records who captured each synced record and on which device, and adds held records for administrators to review. `006` stores who captured each attendance and meal record, on which device, when it was captured and when it reached the server, and adds the record history and the flags administrators check under Record review.
 
 ### 2. Backend API (port 5000)
 

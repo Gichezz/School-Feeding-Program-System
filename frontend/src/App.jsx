@@ -7,6 +7,7 @@ import Attendance from './pages/Attendance';
 import MealDistribution from './pages/MealDistribution';
 import SyncStatus from './pages/SyncStatus';
 import Conflicts from './pages/Conflicts';
+import Review from './pages/Review';
 import Reports from './pages/Reports';
 import Forecast from './pages/Forecast';
 import Login from './pages/Login';
@@ -64,6 +65,7 @@ function App() {
         <Route path="/meals" element={<MealDistribution />} />
         <Route path="/sync" element={<SyncStatus />} />
         <Route path="/conflicts" element={<Conflicts />} />
+        <Route path="/review" element={<Review />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/forecast" element={<Forecast />} />
         <Route path="/settings" element={<Settings />} />
