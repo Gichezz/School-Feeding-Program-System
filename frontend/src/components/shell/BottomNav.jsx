@@ -5,6 +5,7 @@ import NavItemLink from './NavItemLink';
 import { allItems } from '../../navigation/navConfig';
 import { useSession } from '../../hooks/useSession';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
+import { useOpenFlagCount } from '../../features/review/useOpenFlagCount';
 import { useSignOut } from './UserMenu';
 import { formatNumber } from '../../utils/format';
 
@@ -81,7 +82,8 @@ function BottomNav() {
   const items = allItems({ isAdmin });
   const tabs = items.filter((item) => item.mobileTab);
   const moreItems = items.filter((item) => !item.mobileTab);
-  const counts = { conflicts: unresolvedConflicts };
+  const openFlags = useOpenFlagCount();
+  const counts = { conflicts: unresolvedConflicts, review: openFlags };
   const moreActive = moreItems.some((item) => location.pathname.startsWith(item.to));
   const moreCount = moreItems.reduce((sum, item) => sum + (item.badge ? counts[item.badge] || 0 : 0), 0);
 

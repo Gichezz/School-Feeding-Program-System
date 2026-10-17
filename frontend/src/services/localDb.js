@@ -165,7 +165,9 @@ export async function updateLocalAttendance(id, updates) {
         attendanceDate: existing.attendanceDate,
         totalRegistered: updates.totalRegistered !== undefined ? updates.totalRegistered : existing.totalRegistered,
         totalPresent: updates.totalPresent !== undefined ? updates.totalPresent : existing.totalPresent,
-        totalAbsent: updates.totalAbsent !== undefined ? updates.totalAbsent : existing.totalAbsent
+        totalAbsent: updates.totalAbsent !== undefined ? updates.totalAbsent : existing.totalAbsent,
+        // Why this edit is for a date more than 3 school days ago (#62)
+        ...(updates.lateReason ? { lateReason: updates.lateReason } : {})
       };
       
       await addToSyncQueue({
@@ -308,7 +310,9 @@ export async function updateLocalMeal(id, updates) {
         schoolId: existing.schoolId,
         distributionDate: existing.distributionDate,
         mealsPrepared: updates.mealsPrepared !== undefined ? updates.mealsPrepared : existing.mealsPrepared,
-        mealsServed: updates.mealsServed !== undefined ? updates.mealsServed : existing.mealsServed
+        mealsServed: updates.mealsServed !== undefined ? updates.mealsServed : existing.mealsServed,
+        // Why this edit is for a date more than 3 school days ago (#62)
+        ...(updates.lateReason ? { lateReason: updates.lateReason } : {})
       };
       
       await addToSyncQueue({
