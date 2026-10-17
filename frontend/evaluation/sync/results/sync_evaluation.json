@@ -1,0 +1,212 @@
+{
+  "generatedAt": "2026-10-17T17:11:44.366Z",
+  "environment": {
+    "node": "v20.14.0",
+    "platform": "win32 x64"
+  },
+  "runtimeMs": 71503,
+  "scenarios": [
+    {
+      "name": "good_connection",
+      "label": "Good connection",
+      "profile": {
+        "delayMs": 100
+      },
+      "devices": 3,
+      "records": 60,
+      "onServerCorrect": 60,
+      "missingOnServer": 0,
+      "wrongValuesOnServer": 0,
+      "appliedMoreThanOnce": 0,
+      "extraRecordsOnServer": 0,
+      "conflictsRaised": 0,
+      "strandedOnDevice": 0,
+      "stuckAsFailed": 0,
+      "successRate": 1,
+      "snapshots": [
+        {
+          "after": "automatic sync",
+          "synced": 60,
+          "pending": 0,
+          "failed": 0,
+          "total": 60
+        }
+      ],
+      "latencyMs": {
+        "n": 60,
+        "median": 6448.6949,
+        "p95": 7702.2359,
+        "max": 7841.5901
+      },
+      "traffic": {
+        "requests": 66,
+        "droppedRequests": 0,
+        "lostResponses": 0,
+        "syncRequests": 60
+      }
+    },
+    {
+      "name": "slow_connection",
+      "label": "Slow connection (2G-like)",
+      "profile": {
+        "delayMs": 1200
+      },
+      "devices": 3,
+      "records": 60,
+      "onServerCorrect": 60,
+      "missingOnServer": 0,
+      "wrongValuesOnServer": 0,
+      "appliedMoreThanOnce": 0,
+      "extraRecordsOnServer": 0,
+      "conflictsRaised": 0,
+      "strandedOnDevice": 0,
+      "stuckAsFailed": 0,
+      "successRate": 1,
+      "snapshots": [
+        {
+          "after": "automatic sync",
+          "synced": 60,
+          "pending": 0,
+          "failed": 0,
+          "total": 60
+        }
+      ],
+      "latencyMs": {
+        "n": 60,
+        "median": 17356.2195,
+        "p95": 28448.4719,
+        "max": 29683.7909
+      },
+      "traffic": {
+        "requests": 66,
+        "droppedRequests": 0,
+        "lostResponses": 0,
+        "syncRequests": 60
+      }
+    },
+    {
+      "name": "flaky_connection",
+      "label": "Flaky connection",
+      "profile": {
+        "delayMs": 300,
+        "dropRequest": 0.25,
+        "dropResponse": 0.1
+      },
+      "devices": 3,
+      "records": 60,
+      "onServerCorrect": 59,
+      "missingOnServer": 1,
+      "wrongValuesOnServer": 0,
+      "appliedMoreThanOnce": 0,
+      "extraRecordsOnServer": 0,
+      "conflictsRaised": 0,
+      "strandedOnDevice": 1,
+      "stuckAsFailed": 1,
+      "successRate": 0.9833333333333333,
+      "snapshots": [
+        {
+          "after": "automatic sync",
+          "synced": 39,
+          "pending": 21,
+          "failed": 0,
+          "total": 60
+        },
+        {
+          "after": "Sync now x1",
+          "synced": 53,
+          "pending": 7,
+          "failed": 0,
+          "total": 60
+        },
+        {
+          "after": "Sync now x2",
+          "synced": 58,
+          "pending": 2,
+          "failed": 0,
+          "total": 60
+        },
+        {
+          "after": "Sync now x3",
+          "synced": 59,
+          "pending": 0,
+          "failed": 1,
+          "total": 60
+        }
+      ],
+      "latencyMs": {
+        "n": 59,
+        "median": 9573.964,
+        "p95": 18000.5779,
+        "max": 18829.0746
+      },
+      "traffic": {
+        "requests": 96,
+        "droppedRequests": 29,
+        "lostResponses": 2,
+        "syncRequests": 61
+      }
+    },
+    {
+      "name": "conflicts",
+      "label": "Conflict detection with known answers",
+      "operationsJudged": 60,
+      "confusion": {
+        "truePositive": 12,
+        "falsePositive": 6,
+        "trueNegative": 42,
+        "falseNegative": 0
+      },
+      "accuracy": 0.9,
+      "precision": 0.6666666666666666,
+      "recall": 1,
+      "byCase": [
+        {
+          "case": "same_record_different",
+          "label": "Both edit the same record, different numbers",
+          "expectConflict": true,
+          "repetitions": 6,
+          "conflictsReported": 6,
+          "correct": 6,
+          "serverValuesCorrect": 6
+        },
+        {
+          "case": "same_record_identical",
+          "label": "Both edit the same record to the same numbers",
+          "expectConflict": false,
+          "repetitions": 6,
+          "conflictsReported": 6,
+          "correct": 0,
+          "serverValuesCorrect": 6
+        },
+        {
+          "case": "different_records",
+          "label": "The two devices edit different records",
+          "expectConflict": false,
+          "repetitions": 6,
+          "conflictsReported": 0,
+          "correct": 6,
+          "serverValuesCorrect": 6
+        },
+        {
+          "case": "new_same_day_different",
+          "label": "Both record the same new day, different numbers",
+          "expectConflict": true,
+          "repetitions": 6,
+          "conflictsReported": 6,
+          "correct": 6,
+          "serverValuesCorrect": 6
+        },
+        {
+          "case": "new_same_day_identical",
+          "label": "Both record the same new day, same numbers",
+          "expectConflict": false,
+          "repetitions": 6,
+          "conflictsReported": 0,
+          "correct": 6,
+          "serverValuesCorrect": 6
+        }
+      ],
+      "recordsLost": 0
+    }
+  ]
+}
