@@ -33,7 +33,7 @@ Final-year project. A system for one selected Kenyan school that records daily a
                                        └────────────────────────┘
 ```
 
-Details: [docs/architecture.md](docs/architecture.md) (components and sync protocol), [docs/forecasting.md](docs/forecasting.md) (model and evaluation), [docs/synthetic-dataset.md](docs/synthetic-dataset.md) (training data).
+Details: [docs/architecture.md](docs/architecture.md) (components and sync protocol), [docs/forecasting.md](docs/forecasting.md) (model and evaluation), [docs/sync-evaluation.md](docs/sync-evaluation.md) (sync success rate, conflict detection and latency), [docs/synthetic-dataset.md](docs/synthetic-dataset.md) (training data).
 
 ## Technology stack
 
