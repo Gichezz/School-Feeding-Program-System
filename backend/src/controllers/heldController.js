@@ -2,6 +2,8 @@ const { pool } = require('../db/pool');
 const { isUuid } = require('../validation/records');
 const { HOLD_REASONS } = require('../services/captureCheck');
 const { handleCreateOperation, handleUpdateOperation } = require('./syncController');
+const { afterRecordSaved } = require('../services/integrity');
+const { checkEntryWindow } = require('../validation/entryWindow');
 
 /**
  * Held records (#61): records captured on a school device that the server did not
@@ -100,6 +102,15 @@ async function applyHeld(req, res, next) {
       [held.operation_id, held.entity_type, result.recordId, held.operation_type.toUpperCase(), JSON.stringify(held.payload),
         held.client_id, held.base_version, held.captured_by, held.device_id, held.captured_at]
     );
+    // Kept as captured, with its review flags, like any synced record (#62)
+    const recordDate = held.payload.attendanceDate || held.payload.distributionDate;
+    await afterRecordSaved(client, {
+      entityType: held.entity_type,
+      recordId: result.recordId,
+      capture: { capturedBy: held.captured_by, deviceId: held.device_id, capturedAt: held.captured_at },
+      lateReason: held.payload.lateReason,
+      late: checkEntryWindow(recordDate, { capturedAt: held.captured_at || undefined, lateReason: held.payload.lateReason || 'held' }).late,
+    });
     await client.query(
       "UPDATE held_operations SET status = 'applied', reviewed_by = $2, reviewed_at = NOW() WHERE id = $1",
       [held.id, req.user.id]

@@ -1,7 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { toCount, validateAttendance, validateMeals } from './validation';
 
 const base = { schoolId: 'school-1', date: '12-10-2026' };
+
+// The form checks the date against today (entry window, #62): pin today to the base date
+beforeAll(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date(2026, 9, 12, 9, 0)); });
+afterAll(() => vi.useRealTimers());
 
 describe('toCount', () => {
   it('accepts whole numbers including 0', () => {
@@ -73,5 +77,30 @@ describe('validateMeals', () => {
   it('reports missing fields', () => {
     expect(Object.keys(validateMeals({ schoolId: '', date: '', mealsPrepared: '', mealsServed: '' }).errors).sort())
       .toEqual(['date', 'mealsPrepared', 'mealsServed', 'schoolId']);
+  });
+});
+
+describe('entry window', () => {
+  const counts = { totalRegistered: '100', totalPresent: '90', totalAbsent: '10' };
+
+  it('refuses future dates', () => {
+    expect(validateAttendance({ ...base, ...counts, date: '13-10-2026' }).errors).toEqual({ date: 'The date cannot be in the future' });
+  });
+
+  it('needs a reason for a date more than 3 school days ago', () => {
+    // Tue 6 Oct is 4 school days before Mon 12 Oct
+    const late = validateMeals({ ...base, date: '06-10-2026', mealsPrepared: '100', mealsServed: '90' });
+    const explained = validateAttendance({ ...base, ...counts, date: '06-10-2026', lateReason: 'Register was at the head office' });
+
+    expect(late.entry).toMatchObject({ late: true, schoolDays: 4 });
+    expect(Object.keys(late.errors)).toEqual(['lateReason']);
+    expect(explained.errors).toEqual({});
+  });
+
+  it('does not ask for a reason within the window', () => {
+    const { errors, entry } = validateAttendance({ ...base, ...counts, date: '07-10-2026' });
+
+    expect(entry.late).toBe(false);
+    expect(errors).toEqual({});
   });
 });

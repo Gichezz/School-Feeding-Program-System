@@ -29,6 +29,7 @@ function emptyValues(type, schoolId = '') {
   return {
     schoolId,
     date: todayDate(),
+    lateReason: '',
     ...Object.fromEntries(type.fields.map((field) => [field.name, ''])),
   };
 }
@@ -129,7 +130,7 @@ function RecordingPage({ type }) {
       .sort((a, b) => (toDate(b.date)?.getTime() || 0) - (toDate(a.date)?.getTime() || 0));
   }, [localRecords, serverRecords, schoolNames, type]);
 
-  const { errors, check } = type.validate(values);
+  const { errors, check, entry } = type.validate(values);
   const errorFor = (name) => {
     // The totals rule shows as soon as every number is entered; other errors after leaving a field
     if (name === type.checkField && check && !check.ok) return errors[name];
@@ -169,6 +170,7 @@ function RecordingPage({ type }) {
       schoolId: values.schoolId,
       [type.dateField]: values.date,
       ...Object.fromEntries(type.fields.map((field) => [field.name, parseInt(values[field.name], 10)])),
+      ...(entry.late ? { lateReason: values.lateReason.trim() } : {}),
     };
     try {
       if (editing) {
@@ -207,6 +209,7 @@ function RecordingPage({ type }) {
     setValues({
       schoolId: row.raw.schoolId || row.raw.school_id || values.schoolId,
       date: row.date,
+      lateReason: '',
       ...Object.fromEntries(type.fields.map((field) => [field.name, String(row[field.name])])),
     });
     setTouched(Object.fromEntries(type.fields.map((field) => [field.name, true])));
@@ -220,6 +223,7 @@ function RecordingPage({ type }) {
   const summaryRows = [
     ...(schoolName ? [{ key: 'school', label: 'School', value: schoolName }] : []),
     { key: 'date', label: 'Date', value: values.date },
+    ...(entry.late ? [{ key: 'lateReason', label: 'Reason for late entry', value: values.lateReason.trim() }] : []),
     ...type.fields.map((field) => ({
       key: field.name,
       label: field.label,
@@ -303,13 +307,29 @@ function RecordingPage({ type }) {
                     id={fieldId('date')}
                     label="Date"
                     required
-                    hint="DD-MM-YYYY. Today, unless you are catching up on an earlier day"
+                    hint="DD-MM-YYYY. Today, or up to 3 school days back; older dates need a reason"
                     value={values.date}
                     onChange={(date) => setField('date', date)}
                     onBlur={() => touch('date')}
                     error={errorFor('date')}
                   />
                 </div>
+
+                {entry.late && (
+                  <FormField
+                    id={fieldId('lateReason')}
+                    label="Reason for entering this date late"
+                    hint={`This date is ${entry.schoolDays} school days ago. An administrator will check the record against the school's register.`}
+                    as="textarea"
+                    rows={2}
+                    maxLength={300}
+                    required
+                    value={values.lateReason}
+                    onChange={(e) => setField('lateReason', e.target.value)}
+                    onBlur={() => touch('lateReason')}
+                    error={errorFor('lateReason')}
+                  />
+                )}
 
                 <div className={`ui-grid ui-grid--${type.fields.length === 3 ? 3 : 2}`}>
                   {type.fields.map((field) => (

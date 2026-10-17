@@ -2,6 +2,9 @@ const { pool } = require('../db/pool');
 const { ValidationError, DatabaseError, NotFoundError } = require('../utils/errors');
 const { isUuid, syncPayloadError } = require('../validation/records');
 const { captureError, decideCapture } = require('../services/captureCheck');
+const { checkEntryWindow } = require('../validation/entryWindow');
+const { afterRecordSaved } = require('../services/integrity');
+const clock = require('../utils/clock');
 
 // Upper bound on operations per POST /api/sync (the client sends one at a time)
 const MAX_OPERATIONS_PER_REQUEST = 100;
@@ -70,6 +73,16 @@ async function syncOperations(req, res, next) {
       if (badCapture) {
         throw new ValidationError(`Operation ${op.id}: ${badCapture}`);
       }
+      // Entry window, measured from when the record was captured on the device (#62)
+      const recordDate = op.entityType === 'attendance' ? op.payload.attendanceDate : op.payload.distributionDate;
+      const entry = checkEntryWindow(recordDate, {
+        capturedAt: op.capturedAt ? new Date(op.capturedAt) : undefined,
+        lateReason: op.payload.lateReason,
+      });
+      if (entry.error) {
+        throw new ValidationError(`Operation ${op.id}: ${entry.error}`);
+      }
+      op.late = entry.late;
       // School staff can only send records for their own school (#60)
       if (req.user?.role === 'school_staff' && op.payload.schoolId !== req.user.schoolId) {
         throw new ValidationError(`Operation ${op.id}: you can only record for your own school`);
@@ -214,6 +227,15 @@ async function syncOperations(req, res, next) {
             capture.capturedAt
           ]
         );
+
+        // Who captured it, the saved version, and any review flags (#62)
+        await afterRecordSaved(client, {
+          entityType: dbEntityType,
+          recordId: result.recordId,
+          capture,
+          lateReason: operation.payload.lateReason,
+          late: operation.late,
+        });
 
         results.push({
           success: true,
@@ -723,6 +745,14 @@ async function resolveConflict(req, res, next) {
         resultRecord = updateResult.record;
         newVersion = updateResult.version;
       }
+
+      // The administrator's decision is a new version in the record's history (not flagged)
+      await afterRecordSaved(client, {
+        entityType: conflict.entity_type,
+        recordId: resultRecord.id,
+        capture: { capturedBy: resolvedBy, capturedAt: clock.now() },
+        flag: false,
+      });
 
       // Mark conflict as resolved
       await client.query(

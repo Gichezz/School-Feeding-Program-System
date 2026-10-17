@@ -336,3 +336,21 @@ export async function applyHeldRecord(id) {
 export async function discardHeldRecord(id) {
   return apiRequest(`/sync/held/${id}/discard`, { method: 'POST' });
 }
+
+/**
+ * Record review (administrators, #62)
+ */
+export async function getReviewFlags(status = 'open') {
+  return apiRequest(`/review/flags?status=${status === 'checked' ? 'checked' : 'open'}`);
+}
+
+export async function checkReviewFlag(id, note) {
+  return apiRequest(`/review/flags/${id}/check`, {
+    method: 'POST',
+    body: JSON.stringify({ note }),
+  });
+}
+
+export async function getRecordHistory(entityType, id) {
+  return apiRequest(`/review/records/${entityType}/${id}/history`);
+}

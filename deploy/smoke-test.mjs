@@ -9,13 +9,16 @@
  * SMOKE_EMAIL and SMOKE_PASSWORD must belong to an active account. Each run writes one
  * attendance record and one meal record at the first school, on a random day between
  * 2000 and 2009 (or SMOKE_DATE, DD-MM-YYYY), so real school days are never touched and
- * the test can be run again. Needs Node 18 or later (built-in fetch).
+ * the test can be run again. Those dates are long past the entry window (#62), so the
+ * records carry a late-entry reason and are flagged under Record review, where an
+ * administrator can see they came from the smoke test. Needs Node 18 or later (built-in fetch).
  */
 
 const BASE_URL = (process.env.BASE_URL || 'http://localhost:8080').replace(/\/+$/, '');
 const EMAIL = process.env.SMOKE_EMAIL;
 const PASSWORD = process.env.SMOKE_PASSWORD;
 const DATE = process.env.SMOKE_DATE || randomPastDate();
+const LATE_REASON = 'Smoke test of the deployment';
 
 /**
  * A random day between 01-01-2000 and 31-12-2009, as DD-MM-YYYY.
@@ -92,7 +95,7 @@ async function main() {
   const online = await request('/api/attendance', {
     token,
     method: 'POST',
-    body: { school_id: school.id, attendance_date: DATE, total_registered: 100, total_present: 92, total_absent: 8, client_id: 'smoke-test' },
+    body: { school_id: school.id, attendance_date: DATE, total_registered: 100, total_present: 92, total_absent: 8, client_id: 'smoke-test', late_reason: LATE_REASON },
   });
   check(online.status === 201, `records attendance for ${DATE}`, JSON.stringify(online.data));
 
@@ -107,7 +110,7 @@ async function main() {
         entityType: 'mealDistribution',
         operation: 'create',
         baseVersion: 0,
-        payload: { schoolId: school.id, distributionDate: DATE, mealsPrepared: 100, mealsServed: 95 },
+        payload: { schoolId: school.id, distributionDate: DATE, mealsPrepared: 100, mealsServed: 95, lateReason: LATE_REASON },
       }],
     },
   });
@@ -116,6 +119,16 @@ async function main() {
 
   const report = await request(`/api/reports/meals?startDate=${DATE}&endDate=${DATE}`, { token });
   check(report.status === 200 && report.data.meals?.some((m) => m.meals_served === 95), 'the synced record appears in reports', JSON.stringify(report.data));
+
+  if (login.data.user?.role === 'admin') {
+    console.log('Record review');
+    const flags = await request('/api/review/flags', { token });
+    check(
+      flags.status === 200 && flags.data.flags?.some((f) => f.flag === 'entered_late' && f.values?.date === DATE && f.lateReason === LATE_REASON),
+      'late entries are flagged for review with their reason',
+      JSON.stringify(flags.data).slice(0, 300)
+    );
+  }
 
   console.log('Forecast');
   const forecast = await request(`/api/forecasts?school_id=${school.id}&horizon_days=7`, { token });
