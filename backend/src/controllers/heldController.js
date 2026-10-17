@@ -104,7 +104,8 @@ async function applyHeld(req, res, next) {
     );
     // Kept as captured, with its review flags, like any synced record (#62)
     const recordDate = held.payload.attendanceDate || held.payload.distributionDate;
-    await afterRecordSaved(client, {
+    // A duplicate of a record already on the server keeps the original's details (#70)
+    if (!result.duplicate) await afterRecordSaved(client, {
       entityType: held.entity_type,
       recordId: result.recordId,
       capture: { capturedBy: held.captured_by, deviceId: held.device_id, capturedAt: held.captured_at },

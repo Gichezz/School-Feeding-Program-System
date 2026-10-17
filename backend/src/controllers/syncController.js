@@ -228,14 +228,17 @@ async function syncOperations(req, res, next) {
           ]
         );
 
-        // Who captured it, the saved version, and any review flags (#62)
-        await afterRecordSaved(client, {
-          entityType: dbEntityType,
-          recordId: result.recordId,
-          capture,
-          lateReason: operation.payload.lateReason,
-          late: operation.late,
-        });
+        // Who captured it, the saved version, and any review flags (#62). A duplicate of a
+        // record already on the server keeps the original's details (#70).
+        if (!result.duplicate) {
+          await afterRecordSaved(client, {
+            entityType: dbEntityType,
+            recordId: result.recordId,
+            capture,
+            lateReason: operation.payload.lateReason,
+            late: operation.late,
+          });
+        }
 
         results.push({
           success: true,
@@ -403,6 +406,21 @@ function mapEntityType(entityType) {
 }
 
 /**
+ * A create for a school and date that already has a record (#70), for example the same
+ * day recorded on two devices while offline. With the same numbers it is the same record:
+ * report the existing one, marked as a duplicate so who captured it is left unchanged.
+ * With different numbers, neither copy is overwritten: the error is reported as a conflict
+ * for an administrator to resolve, with both versions kept.
+ * pairs: [submitted value, stored value] for each count.
+ */
+function sameDayRecord(row, pairs) {
+  if (pairs.every(([submitted, stored]) => Number(submitted) === Number(stored))) {
+    return { recordId: row.id, version: row.version, duplicate: true };
+  }
+  throw new Error('Same-day conflict: a record for this school and date was already synced with different numbers');
+}
+
+/**
  * Create attendance record
  */
 async function createAttendanceRecord(client, payload, clientId, userId) {
@@ -411,18 +429,20 @@ async function createAttendanceRecord(client, payload, clientId, userId) {
   // Convert DD-MM-YYYY to YYYY-MM-DD
   const formattedDate = convertDateFormat(attendanceDate);
 
-  // Check if record already exists (idempotency)
+  // Another device may already have synced a record for this school and date (#70)
   const existing = await client.query(
-    'SELECT id, version FROM attendance_records WHERE school_id = $1 AND attendance_date = $2',
+    `SELECT id, version, total_registered, total_present, total_absent
+     FROM attendance_records WHERE school_id = $1 AND attendance_date = $2`,
     [schoolId, formattedDate]
   );
 
   if (existing.rows.length > 0) {
-    // Record already exists, return it
-    return {
-      recordId: existing.rows[0].id,
-      version: existing.rows[0].version
-    };
+    const row = existing.rows[0];
+    return sameDayRecord(row, [
+      [totalRegistered, row.total_registered],
+      [totalPresent, row.total_present],
+      [totalAbsent, row.total_absent],
+    ]);
   }
 
   // Create new record
@@ -491,18 +511,19 @@ async function createMealDistributionRecord(client, payload, clientId, userId) {
   // Convert DD-MM-YYYY to YYYY-MM-DD
   const formattedDate = convertDateFormat(distributionDate);
 
-  // Check if record already exists (idempotency)
+  // Another device may already have synced a record for this school and date (#70)
   const existing = await client.query(
-    'SELECT id, version FROM meal_distributions WHERE school_id = $1 AND distribution_date = $2',
+    `SELECT id, version, meals_prepared, meals_served
+     FROM meal_distributions WHERE school_id = $1 AND distribution_date = $2`,
     [schoolId, formattedDate]
   );
 
   if (existing.rows.length > 0) {
-    // Record already exists, return it
-    return {
-      recordId: existing.rows[0].id,
-      version: existing.rows[0].version
-    };
+    const row = existing.rows[0];
+    return sameDayRecord(row, [
+      [mealsPrepared, row.meals_prepared],
+      [mealsServed, row.meals_served],
+    ]);
   }
 
   // Create new record

@@ -212,3 +212,73 @@ describe('resolving conflicts', () => {
     expect(await attendanceRow()).toEqual({ total_present: 85, version: 3 });
   });
 });
+
+// #70: the same school and date recorded on two devices while offline. The second create
+// used to be reported as synced while its numbers were silently dropped.
+describe('the same day recorded on two devices', () => {
+  const createOn = (clientId, opId, payload, entityType = 'attendance') =>
+    sync(clientId, [syncOperation(opId, entityType, 'create', payload, 0)]);
+
+  it('reports different numbers as a conflict and keeps both versions', async () => {
+    await createOn('device-a', 'op-a', attendancePayload());
+
+    const res = await createOn('device-b', 'op-b', attendancePayload({ totalPresent: 80, totalAbsent: 20 }));
+
+    const result = res.body.results[0];
+    expect(result).toMatchObject({ success: false, status: 'conflict', baseVersion: 0, serverVersion: 1 });
+    expect(result.localPayload).toMatchObject({ totalPresent: 80 });
+    expect(await attendanceRow()).toEqual({ total_present: 90, version: 1 });
+    const conflict = await pool.query('SELECT status, base_version, server_version, local_payload FROM conflicts WHERE conflict_id = $1', [result.conflictId]);
+    expect(conflict.rows[0]).toMatchObject({ status: 'unresolved', base_version: 0, server_version: 1, local_payload: expect.objectContaining({ totalPresent: 80 }) });
+  });
+
+  it('treats identical numbers as the same record, keeping the original details', async () => {
+    const first = (await createOn('device-a', 'op-a', attendancePayload())).body.results[0];
+
+    const second = (await createOn('device-b', 'op-b', attendancePayload())).body.results[0];
+
+    expect(second).toMatchObject({ success: true, status: 'synced', recordId: first.recordId, version: 1 });
+    expect((await pool.query('SELECT count(*)::int AS n FROM conflicts')).rows[0].n).toBe(0);
+    const history = await pool.query('SELECT version FROM record_history WHERE record_id = $1', [first.recordId]);
+    expect(history.rows).toEqual([{ version: 1 }]);
+  });
+
+  it('works the same way for meal records', async () => {
+    await createOn('device-a', 'op-a', mealPayload(), 'mealDistribution');
+
+    const different = (await createOn('device-b', 'op-b', mealPayload({ mealsServed: 70 }), 'mealDistribution')).body.results[0];
+    const identical = (await createOn('device-c', 'op-c', mealPayload(), 'mealDistribution')).body.results[0];
+
+    expect(different).toMatchObject({ status: 'conflict', serverVersion: 1 });
+    expect(identical).toMatchObject({ status: 'synced', version: 1 });
+  });
+
+  it('returns the same conflict when the second device sends it again', async () => {
+    await createOn('device-a', 'op-a', attendancePayload());
+    const first = (await createOn('device-b', 'op-b', attendancePayload({ totalPresent: 80, totalAbsent: 20 }))).body.results[0];
+
+    const again = (await createOn('device-b', 'op-b', attendancePayload({ totalPresent: 80, totalAbsent: 20 }))).body.results[0];
+
+    expect(again).toMatchObject({ status: 'conflict', conflictId: first.conflictId });
+    expect((await pool.query('SELECT count(*)::int AS n FROM conflicts')).rows[0].n).toBe(1);
+  });
+
+  it('lets an administrator keep the second device’s numbers', async () => {
+    await createOn('device-a', 'op-a', attendancePayload());
+    const { conflictId } = (await createOn('device-b', 'op-b', attendancePayload({ totalPresent: 80, totalAbsent: 20 }))).body.results[0];
+
+    const res = await asAdmin.post(`/api/sync/conflicts/${conflictId}/resolve`).send({ resolution: 'keep_local', clientId: 'device-b' });
+
+    expect(res.status).toBe(200);
+    expect(await attendanceRow()).toEqual({ total_present: 80, version: 2 });
+  });
+
+  it('lets an administrator keep the numbers already on the server', async () => {
+    await createOn('device-a', 'op-a', attendancePayload());
+    const { conflictId } = (await createOn('device-b', 'op-b', attendancePayload({ totalPresent: 80, totalAbsent: 20 }))).body.results[0];
+
+    await asAdmin.post(`/api/sync/conflicts/${conflictId}/resolve`).send({ resolution: 'keep_server', clientId: 'device-b' });
+
+    expect(await attendanceRow()).toEqual({ total_present: 90, version: 1 });
+  });
+});

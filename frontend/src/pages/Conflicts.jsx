@@ -224,8 +224,10 @@ function Conflicts() {
                 {type.title} · {dateOf(selected)}
               </h2>
               <p className="conflicts__meta">
-                {schoolNames[selected.localPayload?.schoolId] || 'School'}. This device changed version {selected.baseVersion},
-                but the server had already moved on to version {selected.serverVersion}.
+                {schoolNames[selected.localPayload?.schoolId] || 'School'}.{' '}
+                {selected.baseVersion === 0
+                  ? 'This device recorded this day as a new record, but another device had already synced different numbers for the same day.'
+                  : `This device changed version ${selected.baseVersion}, but the server had already moved on to version ${selected.serverVersion}.`}
               </p>
               <div className="conflicts__compare-scroll">
                 <table className="conflicts__compare">
