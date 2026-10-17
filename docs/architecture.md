@@ -46,6 +46,7 @@ Version-based optimistic concurrency, not a CRDT: the server never silently over
    - an operation id it has already applied is answered from `sync_operations` (idempotent replay)
    - a create, or an update whose `baseVersion` equals the server's version, is applied; the version increases by 1
    - an update with an older `baseVersion` is recorded as a **conflict**, and the server record is left unchanged
+   - a create for a school and date that already has a record (the same day recorded on two devices while offline, #70) is the same record if the numbers match; if they differ it is recorded as a **conflict**, so neither device's numbers are lost
 4. **Record the outcome.** The device marks the operation `synced` and stores the new version and the server id, or marks it `conflict` and saves the conflict locally. Network or server errors leave it `pending` and add one retry; after 3 retries it is marked `failed`. An expired or rejected sign-in pauses sync without counting a retry.
 
 ## Conflict resolution
@@ -54,6 +55,7 @@ An administrator opens the conflict, which shows the device's values beside the 
 
 - **Keep server version:** the server record stays as it is; the device takes the server values.
 - **Keep local version:** the device's values are applied on the server as a new version.
+- **Edit and merge:** the administrator enters the correct values, which are checked like any other record and applied as a new version.
 
 The server rejects a resolution if the record has changed again since the conflict was recorded (409), so a decision is always made against current data. The conflict stores who resolved it and when.
 
