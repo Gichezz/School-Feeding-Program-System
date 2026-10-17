@@ -6,6 +6,7 @@ import {
   TrendingUp,
   RefreshCw,
   GitCompareArrows,
+  Flag,
   Settings,
 } from 'lucide-react';
 
@@ -41,6 +42,7 @@ export const NAV_GROUPS = [
     items: [
       { to: '/sync', label: 'Sync Status', shortLabel: 'Sync', icon: RefreshCw, mobileTab: true },
       { to: '/conflicts', label: 'Conflicts', icon: GitCompareArrows, adminOnly: true, badge: 'conflicts' },
+      { to: '/review', label: 'Record review', shortLabel: 'Review', icon: Flag, adminOnly: true, badge: 'review' },
     ],
   },
   {

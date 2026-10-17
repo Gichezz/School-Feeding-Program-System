@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CheckCircle2, CloudAlert, GitCompareArrows } from 'lucide-react';
+import { CheckCircle2, CloudAlert, Flag, GitCompareArrows } from 'lucide-react';
 import {
   Alert,
   Button,
@@ -15,15 +15,16 @@ import InsightStatCards from '../features/insights/InsightStatCards';
 import { useInsights } from '../features/insights/useInsights';
 import { useSyncStatus } from '../hooks/useSyncStatus';
 import { useSession } from '../hooks/useSession';
+import { useOpenFlagCount } from '../features/review/useOpenFlagCount';
 import { formatNumber, formatPercent } from '../utils/format';
 
 const shortDate = (date) => date.slice(0, 5);
 const percent = (value) => formatPercent(value, { isRatio: false });
 
 /**
- * Conflicts and failed syncs that someone needs to act on.
+ * Conflicts, failed syncs and flagged records that someone needs to act on.
  */
-function NeedsAttention({ unresolvedConflicts, failedCount, failure, isAdmin }) {
+function NeedsAttention({ unresolvedConflicts, failedCount, failure, openFlags, isAdmin }) {
   const items = [];
   if (unresolvedConflicts > 0) {
     items.push({
@@ -34,6 +35,15 @@ function NeedsAttention({ unresolvedConflicts, failedCount, failure, isAdmin }) 
       action: isAdmin
         ? <Button as={Link} to="/conflicts" variant="secondary" size="sm">Resolve</Button>
         : <span className="dashboard__attention-note">An administrator will resolve these.</span>,
+    });
+  }
+  if (isAdmin && openFlags > 0) {
+    items.push({
+      key: 'review',
+      icon: Flag,
+      title: openFlags === 1 ? '1 flagged record to check' : `${formatNumber(openFlags)} flagged records to check`,
+      description: 'Records that look unusual, such as late entries or more meals served than learners present.',
+      action: <Button as={Link} to="/review" variant="secondary" size="sm">Review</Button>,
     });
   }
   if (failedCount > 0 && failure) {
@@ -76,6 +86,7 @@ function Dashboard() {
   const { loading, totals, previousTotals, daily, fromDevice } = useInsights(range);
   const { pendingCount, failedCount, failure, unresolvedConflicts } = useSyncStatus();
   const { isAdmin } = useSession();
+  const openFlags = useOpenFlagCount();
 
   return (
     <>
@@ -128,6 +139,7 @@ function Dashboard() {
           unresolvedConflicts={unresolvedConflicts}
           failedCount={failedCount}
           failure={failure}
+          openFlags={openFlags}
           isAdmin={isAdmin}
         />
       </div>

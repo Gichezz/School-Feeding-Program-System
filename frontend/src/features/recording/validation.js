@@ -3,6 +3,8 @@
  * by the API and the database; checking here gives immediate feedback on the device.
  */
 
+import { checkEntryWindow, lateReasonError } from './entryWindow';
+
 const WHOLE_NUMBER = /^\d+$/;
 
 /**
@@ -19,19 +21,33 @@ function countError(value, label) {
   return null;
 }
 
-function dateError(date) {
-  return date ? null : 'Enter the date';
+/**
+ * The date and the entry window (#62): no future dates, and a reason when the date is
+ * more than 3 school days ago. Adds any errors and returns the window for the form.
+ */
+function checkDate(date, lateReason, now, errors) {
+  if (!date) {
+    errors.date = 'Enter the date';
+    return { future: false, late: false, schoolDays: 0 };
+  }
+  const entry = checkEntryWindow(date, now);
+  if (entry.future) errors.date = 'The date cannot be in the future';
+  if (entry.late) {
+    const reasonError = lateReasonError(lateReason);
+    if (reasonError) errors.lateReason = reasonError;
+  }
+  return entry;
 }
 
 /**
  * Attendance: every registered learner is counted as either present or absent.
- * Returns { errors: { field: message }, check } where check describes the totals.
+ * Returns { errors: { field: message }, check, entry } where check describes the totals
+ * and entry the date's entry window.
  */
-export function validateAttendance({ schoolId, date, totalRegistered, totalPresent, totalAbsent }) {
+export function validateAttendance({ schoolId, date, lateReason, totalRegistered, totalPresent, totalAbsent }, now = new Date()) {
   const errors = {};
   if (!schoolId) errors.schoolId = 'Select the school';
-  const missingDate = dateError(date);
-  if (missingDate) errors.date = missingDate;
+  const entry = checkDate(date, lateReason, now, errors);
   const registeredError = countError(totalRegistered, 'registered learners');
   const presentError = countError(totalPresent, 'learners present');
   const absentError = countError(totalAbsent, 'learners absent');
@@ -52,17 +68,16 @@ export function validateAttendance({ schoolId, date, totalRegistered, totalPrese
         : `Present and absent add up to ${counted}; ${registered - counted} of the ${registered} registered learners ${registered - counted === 1 ? 'is' : 'are'} not counted`;
     }
   }
-  return { errors, check };
+  return { errors, check, entry };
 }
 
 /**
  * Meals: meals served cannot exceed meals prepared.
  */
-export function validateMeals({ schoolId, date, mealsPrepared, mealsServed }) {
+export function validateMeals({ schoolId, date, lateReason, mealsPrepared, mealsServed }, now = new Date()) {
   const errors = {};
   if (!schoolId) errors.schoolId = 'Select the school';
-  const missingDate = dateError(date);
-  if (missingDate) errors.date = missingDate;
+  const entry = checkDate(date, lateReason, now, errors);
   const preparedError = countError(mealsPrepared, 'meals prepared');
   const servedError = countError(mealsServed, 'meals served');
   if (preparedError) errors.mealsPrepared = preparedError;
@@ -75,5 +90,5 @@ export function validateMeals({ schoolId, date, mealsPrepared, mealsServed }) {
     check = { ok: served <= prepared, prepared, served, leftover: prepared - served };
     if (!check.ok) errors.mealsServed = `Meals served (${served}) cannot be more than meals prepared (${prepared})`;
   }
-  return { errors, check };
+  return { errors, check, entry };
 }

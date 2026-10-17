@@ -115,7 +115,10 @@ function Conflicts() {
   const mergeCheck = useMemo(() => {
     if (!selected || choice !== 'merge') return null;
     const validate = selected.entityType === 'attendance' ? validateAttendance : validateMeals;
-    return validate({ schoolId: 'set', date: dateOf(selected), ...mergeValues });
+    const result = validate({ schoolId: 'set', date: dateOf(selected), ...mergeValues });
+    // An administrator's decision on an existing record needs no late-entry reason (#62)
+    const { lateReason, ...errors } = result.errors;
+    return { ...result, errors };
   }, [selected, choice, mergeValues]);
   const mergeErrors = mergeCheck?.errors || {};
   const canContinue = choice && (choice !== 'merge' || Object.keys(mergeErrors).length === 0);

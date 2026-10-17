@@ -5,6 +5,7 @@ import NavItemLink from './NavItemLink';
 import { visibleGroups } from '../../navigation/navConfig';
 import { useSession } from '../../hooks/useSession';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
+import { useOpenFlagCount } from '../../features/review/useOpenFlagCount';
 
 /**
  * Left navigation. Desktop: full sidebar. Tablet: a narrow icon strip that expands
@@ -14,7 +15,8 @@ function Sidebar() {
   const { isAdmin } = useSession();
   const { unresolvedConflicts } = useSyncStatus();
   const [expanded, setExpanded] = useState(false);
-  const counts = { conflicts: unresolvedConflicts };
+  const openFlags = useOpenFlagCount();
+  const counts = { conflicts: unresolvedConflicts, review: openFlags };
 
   return (
     <aside className="app-sidebar" data-expanded={expanded}>

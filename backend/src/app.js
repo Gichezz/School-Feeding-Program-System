@@ -10,6 +10,7 @@ const forecastRoutes = require('./routes/forecastRoutes');
 const authRoutes = require('./routes/authRoutes');
 const usersRoutes = require('./routes/usersRoutes');
 const devicesRoutes = require('./routes/devicesRoutes');
+const reviewRoutes = require('./routes/reviewRoutes');
 const { requireAuth } = require('./middleware/auth');
 const errorHandler = require('./middleware/errorHandler');
 
@@ -42,6 +43,7 @@ app.use('/api/sync', syncRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/forecasts', forecastRoutes);
 app.use('/api/users', usersRoutes);
+app.use('/api/review', reviewRoutes);
 
 // Placeholder mount points for later phases
 // app.use('/api/students', studentRoutes);
