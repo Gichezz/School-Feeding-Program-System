@@ -282,3 +282,31 @@ describe('the same day recorded on two devices', () => {
     expect(await attendanceRow()).toEqual({ total_present: 90, version: 1 });
   });
 });
+
+// #74: a change based on an older version, when the server already has exactly those numbers
+describe('the same change made on two devices', () => {
+  it('is applied as the same record, not reported as a conflict', async () => {
+    await sync('device-a', [syncOperation('op-1', 'attendance', 'create', attendancePayload(), 0)]);
+    await sync('device-b', [syncOperation('op-2', 'attendance', 'update', attendancePayload({ totalPresent: 85, totalAbsent: 15 }), 1)]);
+
+    const res = await sync('device-a', [syncOperation('op-3', 'attendance', 'update', attendancePayload({ totalPresent: 85, totalAbsent: 15 }), 1)]);
+
+    expect(res.body.results[0]).toMatchObject({ success: true, status: 'synced', version: 2 });
+    expect(await attendanceRow()).toEqual({ total_present: 85, version: 2 });
+    expect((await pool.query('SELECT count(*)::int AS n FROM conflicts')).rows[0].n).toBe(0);
+    const record = (await pool.query("SELECT id FROM attendance_records WHERE attendance_date = '2026-10-06'")).rows[0];
+    const history = await pool.query('SELECT version FROM record_history WHERE record_id = $1 ORDER BY version', [record.id]);
+    expect(history.rows).toEqual([{ version: 1 }, { version: 2 }]);
+  });
+
+  it('works the same way for meals, and different numbers are still a conflict', async () => {
+    await sync('device-a', [syncOperation('op-1', 'mealDistribution', 'create', mealPayload(), 0)]);
+    await sync('device-b', [syncOperation('op-2', 'mealDistribution', 'update', mealPayload({ mealsServed: 70 }), 1)]);
+
+    const identical = (await sync('device-a', [syncOperation('op-3', 'mealDistribution', 'update', mealPayload({ mealsServed: 70 }), 1)])).body.results[0];
+    const different = (await sync('device-c', [syncOperation('op-4', 'mealDistribution', 'update', mealPayload({ mealsServed: 60 }), 1)])).body.results[0];
+
+    expect(identical).toMatchObject({ status: 'synced', version: 2 });
+    expect(different).toMatchObject({ status: 'conflict', baseVersion: 1, serverVersion: 2 });
+  });
+});

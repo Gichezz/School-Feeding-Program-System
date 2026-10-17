@@ -57,10 +57,11 @@ const commands = {
     return { action: existing ? 'edit' : 'new' };
   },
 
-  /** Change the connection; going back online fires the browser's "online" event. */
+  /** Change the connection; the browser fires "offline" and "online" events. */
   async network({ mode, delayMs = 0, dropRequest = 0, dropResponse = 0 }) {
     const wasOffline = network.mode === 'offline';
     Object.assign(network, { mode, delayMs, dropRequest, dropResponse });
+    if (!wasOffline && mode === 'offline') window.dispatchEvent(new Event('offline'));
     if (wasOffline && mode !== 'offline') {
       reconnectedAt = performance.now();
       window.dispatchEvent(new Event('online'));
@@ -68,8 +69,9 @@ const commands = {
     return { mode };
   },
 
-  /** The "Sync now" button. */
+  /** The "Sync now" button, pressed once any automatic sync already running has finished. */
   async sync() {
+    while (syncManager.isSyncInProgress()) await new Promise((resolve) => setTimeout(resolve, 50));
     return syncManager.manualSync();
   },
 

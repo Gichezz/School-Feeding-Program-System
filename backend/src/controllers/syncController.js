@@ -413,8 +413,12 @@ function mapEntityType(entityType) {
  * for an administrator to resolve, with both versions kept.
  * pairs: [submitted value, stored value] for each count.
  */
+function sameNumbers(pairs) {
+  return pairs.every(([submitted, stored]) => Number(submitted) === Number(stored));
+}
+
 function sameDayRecord(row, pairs) {
-  if (pairs.every(([submitted, stored]) => Number(submitted) === Number(stored))) {
+  if (sameNumbers(pairs)) {
     return { recordId: row.id, version: row.version, duplicate: true };
   }
   throw new Error('Same-day conflict: a record for this school and date was already synced with different numbers');
@@ -471,7 +475,8 @@ async function updateAttendanceRecord(client, payload, baseVersion, clientId, us
 
   // Get current record
   const current = await client.query(
-    'SELECT id, version FROM attendance_records WHERE school_id = $1 AND attendance_date = $2',
+    `SELECT id, version, total_registered, total_present, total_absent
+     FROM attendance_records WHERE school_id = $1 AND attendance_date = $2`,
     [schoolId, formattedDate]
   );
 
@@ -483,6 +488,14 @@ async function updateAttendanceRecord(client, payload, baseVersion, clientId, us
 
   // Version check
   if (currentRecord.version !== baseVersion) {
+    // Based on an older version, but the server already has these numbers: nothing to decide (#74)
+    if (sameNumbers([
+      [totalRegistered, currentRecord.total_registered],
+      [totalPresent, currentRecord.total_present],
+      [totalAbsent, currentRecord.total_absent],
+    ])) {
+      return { recordId: currentRecord.id, version: currentRecord.version, duplicate: true };
+    }
     throw new Error(`Version mismatch: base version ${baseVersion}, server version ${currentRecord.version}`);
   }
 
@@ -552,7 +565,8 @@ async function updateMealDistributionRecord(client, payload, baseVersion, client
 
   // Get current record
   const current = await client.query(
-    'SELECT id, version FROM meal_distributions WHERE school_id = $1 AND distribution_date = $2',
+    `SELECT id, version, meals_prepared, meals_served
+     FROM meal_distributions WHERE school_id = $1 AND distribution_date = $2`,
     [schoolId, formattedDate]
   );
 
@@ -564,6 +578,10 @@ async function updateMealDistributionRecord(client, payload, baseVersion, client
 
   // Version check
   if (currentRecord.version !== baseVersion) {
+    // Based on an older version, but the server already has these numbers: nothing to decide (#74)
+    if (sameNumbers([[mealsPrepared, currentRecord.meals_prepared], [mealsServed, currentRecord.meals_served]])) {
+      return { recordId: currentRecord.id, version: currentRecord.version, duplicate: true };
+    }
     throw new Error(`Version mismatch: base version ${baseVersion}, server version ${currentRecord.version}`);
   }
 

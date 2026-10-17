@@ -6,6 +6,8 @@ import {
   markOperationFailed,
   markOperationConflict,
   incrementRetryCount,
+  noteConnectionProblem,
+  requeueConnectionFailures,
   getSyncQueueStats
 } from './syncQueue';
 import { updateLocalAttendance, updateLocalMeal, setLocalSyncStatus } from '../services/localDb';
@@ -19,7 +21,14 @@ import { isSessionValid } from '../services/session';
  */
 
 const MAX_RETRIES = 3;
-const RETRY_DELAY = 5000; // 5 seconds
+const AUTO_SYNC_DELAY_MS = 5000; // after reconnecting or opening the app, let the connection settle
+// While online, records still waiting are retried automatically (#74): soon after a sync that
+// got some through, then less often while nothing gets through
+const RETRY_DELAYS_MS = [5000, 15000, 30000, 60000, 120000, 300000];
+// A pass stops after this many dropped connections in a row; the retry schedule takes over
+const MAX_CONNECTION_PROBLEMS_PER_PASS = 3;
+// Gateway errors while the server restarts are connection problems, not answers about the record
+const GATEWAY_ERRORS = new Set([502, 503, 504]);
 const SIGN_IN_TO_SYNC = 'Sign in again to sync. Your records are saved on this device.';
 
 let isSyncing = false;
@@ -36,6 +45,48 @@ let syncProgress = {
  */
 export function getSyncProgress() {
   return { ...syncProgress };
+}
+
+/**
+ * A request that never reached the server or got no answer from it (#74). It says nothing
+ * about the record, so it does not count towards the retry limit.
+ */
+function isConnectionProblem(result) {
+  return result.status === 'failed' && (result.httpStatus === undefined || GATEWAY_ERRORS.has(result.httpStatus));
+}
+
+// Automatic retries are only scheduled once the app has set up automatic sync
+let autoRetry = false;
+let retryTimer = null;
+let retryStep = 0;
+let lastPass = null;
+
+function clearRetry() {
+  if (retryTimer) clearTimeout(retryTimer);
+  retryTimer = null;
+}
+
+function syncLater(delay) {
+  clearRetry();
+  retryTimer = setTimeout(() => {
+    retryTimer = null;
+    processSyncQueue().catch(() => {});
+  }, delay);
+}
+
+/**
+ * After a sync pass: if records are still waiting while online, try again on the retry
+ * schedule; once nothing is waiting, the schedule starts again from the beginning.
+ */
+function planNextSync(pass) {
+  if (!autoRetry || !pass) return;
+  if (pass.waiting === 0 || !isOnline() || !isSessionValid()) {
+    clearRetry();
+    retryStep = 0;
+    return;
+  }
+  retryStep = pass.madeProgress ? 0 : Math.min(retryStep + 1, RETRY_DELAYS_MS.length - 1);
+  syncLater(RETRY_DELAYS_MS[retryStep]);
 }
 
 /**
@@ -78,6 +129,7 @@ export async function processSyncQueue() {
 
   try {
     isSyncing = true;
+    lastPass = null;
     
     // Reset progress
     syncProgress = {
@@ -105,12 +157,24 @@ export async function processSyncQueue() {
     console.log(`Processing ${pendingOperations.length} pending operations`);
 
     // Process operations in order
+    const deferredIds = new Set();
+    let connectionProblems = 0;
     for (const operation of pendingOperations) {
       console.log(`Processing operation:`, operation);
       try {
         const result = await processSingleOperation(operation);
         console.log(`Operation result:`, result);
         syncProgress.processed++;
+
+        if (isConnectionProblem(result)) {
+          // Stays pending without using up a retry; stop for now if the connection seems down
+          await noteConnectionProblem(operation.id, result.error);
+          syncProgress.waiting = (syncProgress.waiting || 0) + 1;
+          connectionProblems++;
+          if (connectionProblems >= MAX_CONNECTION_PROBLEMS_PER_PASS) break;
+          continue;
+        }
+        connectionProblems = 0;
 
         if (result.success) {
           // Update local record with server version
@@ -147,6 +211,7 @@ export async function processSyncQueue() {
         } else if (result.status === 'deferred') {
           // Captured by a colleague on this device: it waits until they sync it themselves
           syncProgress.deferred = (syncProgress.deferred || 0) + 1;
+          deferredIds.add(operation.id);
         } else if (result.status === 'held') {
           // Kept on the server for an administrator to review; stop sending it
           await markOperationHeld(operation.id, result.reason);
@@ -194,6 +259,13 @@ export async function processSyncQueue() {
       }
     }
 
+    // Still waiting: anything pending except a colleague's records, which only they can send
+    const waiting = (await getPendingOperations()).filter((op) => !deferredIds.has(op.id)).length;
+    lastPass = {
+      waiting,
+      madeProgress: syncProgress.successful + syncProgress.conflicts + (syncProgress.held || 0) > 0
+    };
+
     return {
       success: true,
       message: 'Sync completed',
@@ -209,6 +281,7 @@ export async function processSyncQueue() {
   } finally {
     isSyncing = false;
     console.log('Sync process completed, isSyncing set to false');
+    planNextSync(lastPass);
   }
 }
 
@@ -280,29 +353,39 @@ export async function getComprehensiveSyncStatus() {
 }
 
 /**
- * Setup automatic sync when connectivity returns
+ * Automatic sync: when the connection returns, when the app opens or comes back into view,
+ * and while online, retries for records still waiting (#74). Returns a cleanup function.
  */
 export function setupAutoSync() {
-  const handleOnline = async () => {
+  autoRetry = true;
+
+  const syncSoon = () => {
+    if (!isOnline()) return;
+    // A fresh start for the retry schedule; wait a moment for the connection to settle
+    retryStep = 0;
+    syncLater(AUTO_SYNC_DELAY_MS);
+  };
+  const handleOnline = () => {
     console.log('Connection restored, triggering automatic sync in 5 seconds');
-    // 5 second delay to ensure connection is stable and allow pending operations to queue
-    setTimeout(async () => {
-      try {
-        const result = await processSyncQueue();
-        console.log('Auto sync result:', result);
-        // Dispatch event to notify UI that sync completed
-        window.dispatchEvent(new CustomEvent('syncCompleted', { detail: result }));
-      } catch (error) {
-        console.error('Auto sync failed:', error);
-        window.dispatchEvent(new CustomEvent('syncFailed', { detail: error }));
-      }
-    }, 5000); // Changed from 1000ms to 5000ms (5 seconds)
+    syncSoon();
+  };
+  const handleOffline = () => clearRetry();
+  const handleVisible = () => {
+    if (document.visibilityState === 'visible' && !retryTimer && !isSyncing) syncSoon();
   };
 
   window.addEventListener('online', handleOnline);
+  window.addEventListener('offline', handleOffline);
+  if (typeof document !== 'undefined') document.addEventListener('visibilitychange', handleVisible);
 
-  // Return cleanup function
+  // Records stranded by older versions of the app go back in the queue; then sync what is waiting
+  requeueConnectionFailures().finally(syncSoon);
+
   return () => {
+    autoRetry = false;
+    clearRetry();
     window.removeEventListener('online', handleOnline);
+    window.removeEventListener('offline', handleOffline);
+    if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', handleVisible);
   };
 }

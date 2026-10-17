@@ -125,6 +125,44 @@ export async function markOperationFailed(operationId, errorMessage) {
 }
 
 /**
+ * Note an attempt that never reached the server or never got an answer (#74). The
+ * operation stays pending and the attempt does not count towards the retry limit: a
+ * dropped connection says nothing about the record itself.
+ */
+export async function noteConnectionProblem(operationId, errorMessage) {
+  try {
+    await db.syncQueue.update(operationId, {
+      lastAttemptAt: new Date().toISOString(),
+      errorMessage
+    });
+    return true;
+  } catch (error) {
+    console.error('Error noting a connection problem:', error);
+    throw new Error('Failed to update the sync queue');
+  }
+}
+
+// Older versions of the app marked an operation failed after 3 dropped connections
+const CONNECTION_FAILURE = /network error|failed to fetch|unable to connect/i;
+
+/**
+ * Put operations that only failed because of the connection back in the queue (#74), so
+ * records stranded by older versions of the app are sent again. Operations the server
+ * rejected stay failed. Returns how many were requeued.
+ */
+export async function requeueConnectionFailures() {
+  try {
+    const failed = await db.syncQueue.where('status').equals('failed').toArray();
+    const stranded = failed.filter((op) => CONNECTION_FAILURE.test(op.errorMessage || ''));
+    await Promise.all(stranded.map((op) => db.syncQueue.update(op.id, { status: 'pending', retryCount: 0 })));
+    return stranded.length;
+  } catch (error) {
+    console.error('Error requeueing operations:', error);
+    return 0;
+  }
+}
+
+/**
  * Mark an operation as conflict
  */
 export async function markOperationConflict(operationId, conflictData) {
