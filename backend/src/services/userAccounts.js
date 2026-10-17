@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { getJwtSecret, getJwtExpiresIn } = require('../config/auth');
 const { countPasskeys } = require('./passkeys');
+const { isTotpEnabled } = require('./totp');
 
 const BCRYPT_ROUNDS = 10;
 
@@ -25,6 +26,7 @@ function publicUser(user) {
     createdAt: user.created_at,
     updatedAt: user.updated_at,
     ...(user.passkey_count !== undefined && { passkeyCount: Number(user.passkey_count) }),
+    ...(user.totp_enabled !== undefined && { totpEnabled: Boolean(user.totp_enabled) }),
   };
 }
 
@@ -53,10 +55,12 @@ function issueSession(user, extra = {}, claims = {}) {
 
 /**
  * A session plus what the app needs to know about the account's sign-in methods:
- * administrators without a passkey are asked to add one.
+ * administrators with neither a passkey nor an authenticator app are asked to add one.
  */
 async function sessionFor(user, { deviceId } = {}) {
-  const needsPasskey = user.role === 'admin' && (await countPasskeys(user.id)) === 0;
+  const needsPasskey = user.role === 'admin'
+    && (await countPasskeys(user.id)) === 0
+    && !(await isTotpEnabled(user.id));
   const extra = { needsPasskey };
   if (user.school_id) extra.schoolId = user.school_id;
   if (deviceId) extra.deviceId = deviceId;

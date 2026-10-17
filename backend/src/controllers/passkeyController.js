@@ -9,6 +9,7 @@ const { pool } = require('../db/pool');
 const { getWebAuthnConfig } = require('../config/webauthn');
 const { sessionFor } = require('../services/userAccounts');
 const passkeys = require('../services/passkeys');
+const { isTotpEnabled } = require('../services/totp');
 
 /**
  * Passkey (WebAuthn) sign-in for administrators (#57). The browser creates a key pair
@@ -25,12 +26,13 @@ function isResponse(value) {
 }
 
 /**
- * GET /api/auth/passkeys → { passkeys, recoveryCodesLeft }
+ * GET /api/auth/passkeys → { passkeys, totpEnabled, recoveryCodesLeft }
  */
 async function listPasskeys(req, res, next) {
   try {
     res.json({
       passkeys: await passkeys.listPasskeys(req.user.id),
+      totpEnabled: await isTotpEnabled(req.user.id),
       recoveryCodesLeft: await passkeys.countRecoveryCodes(req.user.id),
     });
   } catch (error) {
@@ -65,7 +67,8 @@ async function registrationOptions(req, res, next) {
 /**
  * POST /api/auth/passkeys/register/verify
  * Body: { response, name } → 201 { passkey, recoveryCodes? }
- * Recovery codes are returned once, with the account's first passkey.
+ * Recovery codes are returned once, with the account's first passkey (unless it already
+ * has them from an authenticator app, #63).
  */
 async function registerPasskey(req, res, next) {
   try {
@@ -94,7 +97,7 @@ async function registerPasskey(req, res, next) {
 
     const { credential } = verification.registrationInfo;
     const label = typeof name === 'string' && name.trim() ? name.trim().slice(0, MAX_NAME_LENGTH) : 'Passkey';
-    const isFirst = (await passkeys.countPasskeys(req.user.id)) === 0;
+    const isFirst = (await passkeys.countPasskeys(req.user.id)) === 0 && !(await isTotpEnabled(req.user.id));
 
     const inserted = await pool.query(
       `INSERT INTO passkey_credentials (user_id, credential_id, public_key, counter, transports, name)
@@ -143,8 +146,8 @@ async function removePasskey(req, res, next) {
  */
 async function regenerateRecoveryCodes(req, res, next) {
   try {
-    if ((await passkeys.countPasskeys(req.user.id)) === 0) {
-      return res.status(400).json({ error: 'Add a passkey first; recovery codes come with it' });
+    if ((await passkeys.countPasskeys(req.user.id)) === 0 && !(await isTotpEnabled(req.user.id))) {
+      return res.status(400).json({ error: 'Add a passkey or an authenticator app first; recovery codes come with it' });
     }
     res.json({ recoveryCodes: await passkeys.replaceRecoveryCodes(req.user.id) });
   } catch (error) {

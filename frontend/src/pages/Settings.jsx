@@ -6,6 +6,7 @@ import { APP_NAME, Button, Card, PageHeader, SummaryList } from '../components/u
 import LisheLogo from '../components/shell/LisheLogo';
 import ChangePasswordCard from '../features/users/ChangePasswordCard';
 import PasskeysCard from '../features/passkeys/PasskeysCard';
+import AuthenticatorCard from '../features/totp/AuthenticatorCard';
 import DevicesCard from '../features/devices/DevicesCard';
 import { getDeviceIdentity } from '../features/devices/deviceIdentity';
 import UsersSection from '../features/users/UsersSection';
@@ -84,6 +85,8 @@ function Settings() {
         </Card>
 
         {isAdmin && <PasskeysCard />}
+
+        {isAdmin && <AuthenticatorCard />}
 
         <ChangePasswordCard />
 

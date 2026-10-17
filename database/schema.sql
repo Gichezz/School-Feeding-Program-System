@@ -309,6 +309,28 @@ CREATE INDEX IF NOT EXISTS idx_recovery_codes_user
     ON recovery_codes (user_id);
 
 -- ---------------------------------------------------------------------------
+-- Authenticator app codes (TOTP) for administrators (#63)
+-- One row per administrator. The secret is encrypted by the API (AES-256-GCM) and
+-- never returned after set-up; confirmed_at is empty until the first code is checked.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS totp_credentials (
+    user_id             UUID PRIMARY KEY,
+    secret_encrypted    TEXT NOT NULL,
+    confirmed_at        TIMESTAMPTZ,
+    -- the 30-second step of the last accepted code; a code is never accepted twice
+    last_used_step      BIGINT,
+    failed_attempts     INTEGER NOT NULL DEFAULT 0,
+    locked_until        TIMESTAMPTZ,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT totp_user_fk
+        FOREIGN KEY (user_id) REFERENCES users (id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+    CONSTRAINT totp_failed_nonneg CHECK (failed_attempts >= 0)
+);
+
+-- ---------------------------------------------------------------------------
 -- School devices and staff PINs (#60)
 -- Staff record on designated school devices. Each device holds a private key that
 -- never leaves it; the server keeps the public key. An administrator approves each

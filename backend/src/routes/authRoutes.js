@@ -11,6 +11,7 @@ const {
   signInWithPasskey,
   signInWithRecoveryCode,
 } = require('../controllers/passkeyController');
+const { getTotpStatus, setupTotp, confirmTotp, removeTotp, signInWithTotp } = require('../controllers/totpController');
 const { requireAuth, requireRole } = require('../middleware/auth');
 
 /**
@@ -44,6 +45,12 @@ router.post('/passkeys/login/verify', signInWithPasskey);
 router.post('/recovery', signInWithRecoveryCode);
 
 /**
+ * POST /api/auth/totp/login
+ * Password + a code from an authenticator app, for administrators who set one up (public)
+ */
+router.post('/totp/login', signInWithTotp);
+
+/**
  * Managing your own passkeys and recovery codes (administrators)
  */
 const adminOnly = [requireAuth, requireRole('admin')];
@@ -52,5 +59,13 @@ router.post('/passkeys/register/options', adminOnly, registrationOptions);
 router.post('/passkeys/register/verify', adminOnly, registerPasskey);
 router.delete('/passkeys/:id', adminOnly, removePasskey);
 router.post('/recovery-codes', adminOnly, regenerateRecoveryCodes);
+
+/**
+ * Setting up an authenticator app (administrators, #63)
+ */
+router.get('/totp', adminOnly, getTotpStatus);
+router.post('/totp/setup', adminOnly, setupTotp);
+router.post('/totp/confirm', adminOnly, confirmTotp);
+router.delete('/totp', adminOnly, removeTotp);
 
 module.exports = router;

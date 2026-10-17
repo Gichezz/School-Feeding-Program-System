@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Fingerprint, KeyRound, LifeBuoy, LogIn, Tablet } from 'lucide-react';
 import { Alert, APP_NAME, Button, Card, FormField, useToast } from '../components/ui';
 import LisheLogo from '../components/shell/LisheLogo';
-import { login, signInWithRecoveryCode } from '../services/api';
+import { login, signInWithRecoveryCode, signInWithTotp } from '../services/api';
 import { saveSession } from '../services/session';
 import { manualSync } from '../sync/syncManager';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
@@ -12,14 +12,16 @@ import { passkeyErrorMessage, passkeysSupported, signInWithPasskey } from '../fe
 import { getDeviceIdentity } from '../features/devices/deviceIdentity';
 import { signInWithPin } from '../features/devices/deviceClient';
 import { signInOffline } from '../features/devices/offlineSignIn';
+import { isCompleteCode, normaliseCode } from '../features/totp/totpFormat';
 
 const OFFLINE_MESSAGE = 'Could not reach the server. Try again when you are online.';
 
 /**
  * Sign-in page. Needs a connection; records captured offline stay on the device
  * and sync after signing in. School staff sign in on a set-up school device with their
- * email and PIN (#60). Administrators sign in with a passkey (#57); if they cannot use
- * one, they sign in with their password and a recovery code.
+ * email and PIN (#60). Administrators sign in with a passkey (#57), or with their password
+ * and a code from their authenticator app (#63); if they cannot use either, with their
+ * password and a recovery code.
  */
 function Login() {
   const navigate = useNavigate();
@@ -27,7 +29,7 @@ function Login() {
   const isOnline = useOnlineStatus();
   const { user } = useSession();
   const canUsePasskeys = passkeysSupported();
-  const [mode, setMode] = useState(null); // 'device' | 'password' | 'recovery'
+  const [mode, setMode] = useState(null); // 'device' | 'password' | 'totp' | 'recovery'
   const [identity, setIdentity] = useState(undefined);
   const [pin, setPin] = useState('');
   const [deviceRequired, setDeviceRequired] = useState(false);
@@ -36,7 +38,7 @@ function Login() {
   const [code, setCode] = useState('');
   const [error, setError] = useState(null);
   const [passkeyRequired, setPasskeyRequired] = useState(false);
-  const [busy, setBusy] = useState(null); // 'device' | 'password' | 'passkey' | 'recovery'
+  const [busy, setBusy] = useState(null); // 'device' | 'password' | 'passkey' | 'totp' | 'recovery'
 
   useEffect(() => {
     document.title = `Sign in · ${APP_NAME}`;
@@ -70,6 +72,13 @@ function Login() {
       try {
         finish(await login(email.trim(), password));
       } catch (err) {
+        // The password was right; the account also needs a code from its authenticator app
+        if (err.data?.totpRequired) {
+          setPasskeyRequired(Boolean(err.data.passkeyRequired));
+          setCode('');
+          setMode('totp');
+          return;
+        }
         if (err.data?.passkeyRequired) {
           setPasskeyRequired(true);
           return;
@@ -120,6 +129,22 @@ function Login() {
       setError(err.status ? err.message : passkeyErrorMessage(err));
     }
   });
+
+  const handleTotp = (event) => {
+    event.preventDefault();
+    if (!isCompleteCode(code)) {
+      setError('Enter the 6-digit code from your authenticator app');
+      return undefined;
+    }
+    return run('totp', async () => {
+      try {
+        finish(await signInWithTotp(email.trim(), password, code));
+      } catch (err) {
+        setCode('');
+        setError(err.status ? err.message : OFFLINE_MESSAGE);
+      }
+    });
+  };
 
   const handleRecovery = (event) => {
     event.preventDefault();
@@ -272,7 +297,7 @@ function Login() {
                   Sign in with a passkey
                 </Button>
                 <Button variant="ghost" icon={LifeBuoy} fullWidth onClick={() => switchMode('recovery')}>
-                  Can’t use your passkey?
+                  Can’t use your passkey or app?
                 </Button>
               </>
             )}
@@ -284,13 +309,49 @@ function Login() {
               <Button as={Link} to="/activate" variant="secondary" icon={Tablet} fullWidth>Set up this school device</Button>
             )}
           </div>
+        ) : mode === 'totp' ? (
+          <form className="login__form" onSubmit={handleTotp} noValidate>
+            <div>
+              <h1 className="login__title">Enter your code</h1>
+              <p className="login__intro">
+                Open your authenticator app and enter the 6-digit code it shows for Lishe ({email.trim()}).
+              </p>
+            </div>
+            {!isOnline && <Alert tone="neutral" title="You are offline">Signing in needs a connection.</Alert>}
+            {error && <Alert tone="danger" title="Could not sign in">{error}</Alert>}
+            <FormField
+              id="login-totp-code"
+              label="Code"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              size="lg"
+              autoFocus
+              value={code}
+              onChange={(e) => setCode(normaliseCode(e.target.value))}
+              required
+            />
+            <Button type="submit" icon={LogIn} fullWidth loading={busy === 'totp'} disabled={!isOnline || Boolean(busy)}>
+              Sign in
+            </Button>
+            {passkeyRequired && canUsePasskeys && (
+              <Button variant="secondary" icon={Fingerprint} fullWidth onClick={handlePasskey} loading={busy === 'passkey'} disabled={!isOnline || Boolean(busy)}>
+                Use a passkey instead
+              </Button>
+            )}
+            <Button variant="ghost" icon={LifeBuoy} fullWidth onClick={() => switchMode('recovery')}>
+              Can’t use your app? Use a recovery code
+            </Button>
+            <Button variant="ghost" icon={ArrowLeft} fullWidth onClick={() => switchMode('password')}>
+              Back to sign in
+            </Button>
+          </form>
         ) : (
           <form className="login__form" onSubmit={handleRecovery}>
             <div>
               <h1 className="login__title">Use a recovery code</h1>
               <p className="login__intro">
-                For administrators who cannot use any of their passkeys. Each code works once. If you have no codes
-                left, ask another administrator to reset your passkeys.
+                For administrators who cannot use their passkeys or authenticator app. Each code works once. If you
+                have no codes left, ask another administrator to reset your passkeys and app.
               </p>
             </div>
             {!isOnline && <Alert tone="neutral" title="You are offline">Signing in needs a connection.</Alert>}

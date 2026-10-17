@@ -12,6 +12,7 @@ const { verifyRegistrationResponse, verifyAuthenticationResponse } = require('@s
 const app = require('../src/app');
 const { api, USERS } = require('./helpers/auth');
 const { pool, resetDatabase } = require('./helpers/fixtures');
+const { replaceRecoveryCodes } = require('../src/services/passkeys');
 
 const asAdmin = api(app, 'admin');
 const asStaff = api(app, 'staff');
@@ -56,6 +57,17 @@ function login(email, password) {
 }
 
 describe('registering a passkey', () => {
+  it('keeps the recovery codes an administrator already has from an authenticator app (#63)', async () => {
+    await pool.query("INSERT INTO totp_credentials (user_id, secret_encrypted, confirmed_at) VALUES ($1, 'encrypted', NOW())", [USERS.admin.id]);
+    const saved = await replaceRecoveryCodes(USERS.admin.id);
+
+    const res = await registerPasskey();
+
+    expect(res.status).toBe(201);
+    expect(res.body.recoveryCodes).toBeUndefined();
+    expect((await request(app).post('/api/auth/recovery').send({ email: USERS.admin.email, password: USERS.admin.password, code: saved[0] })).status).toBe(200);
+  });
+
   it('is for signed-in administrators only', async () => {
     expect((await request(app).post('/api/auth/passkeys/register/options')).status).toBe(401);
     expect((await asStaff.post('/api/auth/passkeys/register/options')).status).toBe(403);

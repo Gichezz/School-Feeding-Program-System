@@ -590,6 +590,62 @@
   }
 }
 
+/* ---------- Settings: authenticator app ---------- */
+#authenticator {
+  scroll-margin-top: calc(var(--topbar-height) + var(--space-4));
+}
+
+.totp__setup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.totp__title {
+  font-size: var(--font-size-lg);
+}
+
+.totp__title:focus {
+  outline: none;
+}
+
+.totp__qr-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-5);
+}
+
+.totp__qr {
+  flex: none;
+  width: 200px;
+  height: 200px;
+  padding: var(--space-2);
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  /* QR codes need a light background to scan, also in dark mode */
+  background: #fff;
+}
+
+.totp__manual {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  flex: 1 1 16rem;
+}
+
+.totp__secret {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-lg);
+  overflow-wrap: anywhere;
+}
+
+.totp__hint {
+  font-size: var(--font-size-sm);
+  color: var(--color-ink-muted);
+}
+
 /* ---------- Setting up a school device ---------- */
 .activate__method {
   display: flex;
