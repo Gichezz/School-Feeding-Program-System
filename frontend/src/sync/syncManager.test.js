@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import db from '../db/database';
 import { saveLocalAttendance, updateLocalAttendance } from '../services/localDb';
 import { syncOperations } from '../services/api';
-import { processSyncQueue } from './syncManager';
+import { isSyncInProgress, processSyncQueue, setupAutoSync } from './syncManager';
+import { requeueConnectionFailures } from './syncQueue';
 import { saveSession, clearSession, isSessionValid } from '../services/session';
 
 vi.mock('../services/api', () => ({
@@ -20,6 +21,10 @@ const attendance = {
 
 function serverResult(result) {
   return { success: true, results: [result] };
+}
+
+function serverError(status, message) {
+  return Object.assign(new Error(message), { status });
 }
 
 function synced(operationId, version) {
@@ -66,14 +71,14 @@ describe('processSyncQueue', () => {
     expect(await db.attendance.get(saved.id)).toMatchObject({ syncStatus: 'synced', version: 1, serverId: 'server-record-id' });
   });
 
-  it('keeps a failed operation pending and counts the retry', async () => {
+  it('keeps an operation the server could not apply pending and counts the retry', async () => {
     await saveLocalAttendance(attendance);
-    syncOperations.mockRejectedValue(new Error('Network error'));
+    syncOperations.mockRejectedValue(serverError(500, 'Internal server error'));
 
     await processSyncQueue();
 
     const [operation] = await db.syncQueue.toArray();
-    expect(operation).toMatchObject({ status: 'pending', retryCount: 1, errorMessage: 'Network error' });
+    expect(operation).toMatchObject({ status: 'pending', retryCount: 1, errorMessage: 'Internal server error' });
   });
 
   it('marks an operation as failed once retries are used up, and still syncs the rest', async () => {
@@ -82,7 +87,7 @@ describe('processSyncQueue', () => {
     const [first, second] = await db.syncQueue.toArray();
     await db.syncQueue.update(first.id, { retryCount: 3 });
     syncOperations.mockImplementation(async ({ operations }) =>
-      operations[0].id === first.id ? Promise.reject(new Error('Network error')) : synced(second.id, 1)
+      operations[0].id === first.id ? Promise.reject(serverError(500, 'Internal server error')) : synced(second.id, 1)
     );
 
     const result = await processSyncQueue();
@@ -239,5 +244,96 @@ describe('records tied to who captured them (#61)', () => {
     expect(await db.syncQueue.get(operation.id)).toMatchObject({ status: 'held', heldReason: 'user_deactivated' });
     expect((await db.attendance.get(saved.id)).syncStatus).toBe('held');
     expect(await db.offlineUsers.get('user-mary')).toBeUndefined();
+  });
+});
+
+describe('dropped connections and automatic retries (#74)', () => {
+  it('keeps a record waiting without using up a retry when the connection drops', async () => {
+    await saveLocalAttendance(attendance);
+    syncOperations.mockRejectedValue(new Error('Network error - unable to connect to server'));
+
+    const result = await processSyncQueue();
+
+    expect(result.progress).toMatchObject({ waiting: 1, failed: 0 });
+    const [operation] = await db.syncQueue.toArray();
+    expect(operation).toMatchObject({ status: 'pending', retryCount: 0, errorMessage: 'Network error - unable to connect to server' });
+  });
+
+  it('treats a gateway error while the server restarts as a dropped connection', async () => {
+    await saveLocalAttendance(attendance);
+    syncOperations.mockRejectedValue(serverError(503, 'Service unavailable'));
+
+    await processSyncQueue();
+
+    expect((await db.syncQueue.toArray())[0]).toMatchObject({ status: 'pending', retryCount: 0 });
+  });
+
+  it('stops trying after three dropped connections in a row, leaving everything waiting', async () => {
+    for (const day of ['05', '06', '07', '08', '09']) {
+      await saveLocalAttendance({ ...attendance, attendanceDate: `${day}-10-2026` });
+    }
+    syncOperations.mockRejectedValue(new Error('Network error - unable to connect to server'));
+
+    await processSyncQueue();
+
+    expect(syncOperations).toHaveBeenCalledTimes(3);
+    const operations = await db.syncQueue.toArray();
+    expect(operations.every((op) => op.status === 'pending' && op.retryCount === 0)).toBe(true);
+  });
+
+  it('puts records that older versions stranded after dropped connections back in the queue', async () => {
+    await saveLocalAttendance(attendance);
+    await saveLocalAttendance({ ...attendance, attendanceDate: '07-10-2026' });
+    const [stranded, rejected] = await db.syncQueue.toArray();
+    await db.syncQueue.update(stranded.id, { status: 'failed', retryCount: 4, errorMessage: 'Network error - unable to connect to server' });
+    await db.syncQueue.update(rejected.id, { status: 'failed', retryCount: 4, errorMessage: 'Validation failed' });
+
+    expect(await requeueConnectionFailures()).toBe(1);
+
+    expect(await db.syncQueue.get(stranded.id)).toMatchObject({ status: 'pending', retryCount: 0 });
+    expect(await db.syncQueue.get(rejected.id)).toMatchObject({ status: 'failed' });
+  });
+
+  it('retries automatically while records wait: soon after progress, later when nothing gets through', async () => {
+    vi.stubGlobal('window', new EventTarget());
+    const realSetTimeout = globalThis.setTimeout;
+    const scheduled = [];
+    const timers = vi.spyOn(globalThis, 'setTimeout').mockImplementation((fn, ms, ...args) => {
+      if (ms >= 5000) {
+        scheduled.push({ fn, ms });
+        return scheduled.length;
+      }
+      return realSetTimeout(fn, ms, ...args);
+    });
+    const runNextRetry = async () => {
+      const { fn, ms } = scheduled.shift();
+      fn();
+      await vi.waitFor(() => expect(isSyncInProgress()).toBe(false));
+      return ms;
+    };
+    const stop = setupAutoSync();
+    try {
+      await saveLocalAttendance(attendance);
+      await saveLocalAttendance({ ...attendance, attendanceDate: '07-10-2026' });
+      const [first, second] = await db.syncQueue.toArray();
+      const dropped = () => Promise.reject(new Error('Network error - unable to connect to server'));
+      syncOperations.mockImplementation(({ operations }) => (operations[0].id === first.id ? synced(first.id, 1) : dropped()));
+      await vi.waitFor(() => expect(scheduled).toHaveLength(1));
+
+      // Opening the app syncs after 5 s: one record gets through, so try again soon
+      expect(await runNextRetry()).toBe(5000);
+      expect(scheduled.map((t) => t.ms)).toEqual([5000]);
+      // Nothing gets through this time: wait longer
+      expect(await runNextRetry()).toBe(5000);
+      expect(scheduled.map((t) => t.ms)).toEqual([15000]);
+      // The connection is back: the last record syncs and no more retries are planned
+      syncOperations.mockImplementation(async () => synced(second.id, 1));
+      expect(await runNextRetry()).toBe(15000);
+      expect(scheduled).toEqual([]);
+      expect(await db.syncQueue.get(second.id)).toMatchObject({ status: 'synced', retryCount: 0 });
+    } finally {
+      stop();
+      timers.mockRestore();
+    }
   });
 });

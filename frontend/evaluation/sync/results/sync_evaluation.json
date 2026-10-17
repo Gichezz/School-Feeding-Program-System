@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-10-17T17:11:44.366Z",
+  "generatedAt": "2026-10-17T17:35:17.787Z",
   "environment": {
     "node": "v20.14.0",
     "platform": "win32 x64"
   },
-  "runtimeMs": 71503,
+  "runtimeMs": 101354,
   "scenarios": [
     {
       "name": "good_connection",
@@ -25,7 +25,7 @@
       "successRate": 1,
       "snapshots": [
         {
-          "after": "automatic sync",
+          "after": "automatic sync and retries",
           "synced": 60,
           "pending": 0,
           "failed": 0,
@@ -34,9 +34,9 @@
       ],
       "latencyMs": {
         "n": 60,
-        "median": 6448.6949,
-        "p95": 7702.2359,
-        "max": 7841.5901
+        "median": 6445.3619,
+        "p95": 7693.4932,
+        "max": 7834.0837
       },
       "traffic": {
         "requests": 66,
@@ -64,7 +64,7 @@
       "successRate": 1,
       "snapshots": [
         {
-          "after": "automatic sync",
+          "after": "automatic sync and retries",
           "synced": 60,
           "pending": 0,
           "failed": 0,
@@ -73,9 +73,9 @@
       ],
       "latencyMs": {
         "n": 60,
-        "median": 17356.2195,
-        "p95": 28448.4719,
-        "max": 29683.7909
+        "median": 17365.3243,
+        "p95": 28467.527,
+        "max": 29701.677
       },
       "traffic": {
         "requests": 66,
@@ -94,56 +94,35 @@
       },
       "devices": 3,
       "records": 60,
-      "onServerCorrect": 59,
-      "missingOnServer": 1,
+      "onServerCorrect": 60,
+      "missingOnServer": 0,
       "wrongValuesOnServer": 0,
       "appliedMoreThanOnce": 0,
       "extraRecordsOnServer": 0,
       "conflictsRaised": 0,
-      "strandedOnDevice": 1,
-      "stuckAsFailed": 1,
-      "successRate": 0.9833333333333333,
+      "strandedOnDevice": 0,
+      "stuckAsFailed": 0,
+      "successRate": 1,
       "snapshots": [
         {
-          "after": "automatic sync",
-          "synced": 39,
-          "pending": 21,
-          "failed": 0,
-          "total": 60
-        },
-        {
-          "after": "Sync now x1",
-          "synced": 53,
-          "pending": 7,
-          "failed": 0,
-          "total": 60
-        },
-        {
-          "after": "Sync now x2",
-          "synced": 58,
-          "pending": 2,
-          "failed": 0,
-          "total": 60
-        },
-        {
-          "after": "Sync now x3",
-          "synced": 59,
+          "after": "automatic sync and retries",
+          "synced": 60,
           "pending": 0,
-          "failed": 1,
+          "failed": 0,
           "total": 60
         }
       ],
       "latencyMs": {
-        "n": 59,
-        "median": 9573.964,
-        "p95": 18000.5779,
-        "max": 18829.0746
+        "n": 60,
+        "median": 10416.4517,
+        "p95": 28164.8904,
+        "max": 49218.4377
       },
       "traffic": {
-        "requests": 96,
+        "requests": 97,
         "droppedRequests": 29,
         "lostResponses": 2,
-        "syncRequests": 61
+        "syncRequests": 62
       }
     },
     {
@@ -152,12 +131,12 @@
       "operationsJudged": 60,
       "confusion": {
         "truePositive": 12,
-        "falsePositive": 6,
-        "trueNegative": 42,
+        "falsePositive": 0,
+        "trueNegative": 48,
         "falseNegative": 0
       },
-      "accuracy": 0.9,
-      "precision": 0.6666666666666666,
+      "accuracy": 1,
+      "precision": 1,
       "recall": 1,
       "byCase": [
         {
@@ -174,8 +153,8 @@
           "label": "Both edit the same record to the same numbers",
           "expectConflict": false,
           "repetitions": 6,
-          "conflictsReported": 6,
-          "correct": 0,
+          "conflictsReported": 0,
+          "correct": 6,
           "serverValuesCorrect": 6
         },
         {

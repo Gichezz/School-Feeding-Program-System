@@ -18,7 +18,7 @@ Generated results: [`frontend/evaluation/sync/results/sync_evaluation_report.md`
 
 Lost responses are the hardest case: the server has saved the record but the device never hears about it, so it sends it again. Losses use a seeded random number generator, so every run makes the same choices.
 
-**The app's own timings apply.** After reconnecting, the app waits 5 s and then sends its queue once. An operation whose request fails is retried at the next sync and marked failed after 3 retries. In the scenarios, users press "Sync now" at most 3 times when records are left over.
+**The app's own timings apply.** After reconnecting, the app waits 5 s and then sends its queue. Since #74, while records are still waiting it retries automatically: 5 s after a sync that got some through, then after 15 s, 30 s, 1, 2 and 5 minutes while nothing gets through. A dropped connection does not count as a failed attempt; an operation the server rejects is marked failed after 3 retries. The automatic sync is left alone for up to 3 minutes; users press "Sync now" (at most 3 times) only if records are still waiting after that. (Before #74, the app sent its queue once after reconnecting, counted dropped connections as failed attempts, and never retried on its own.)
 
 **Known answers.** Every scenario has a correct outcome decided in advance, and afterwards the server's database is checked record by record: is each record there, with exactly the numbers the device saved, applied only once (one version in its history)?
 
@@ -44,29 +44,35 @@ A's 30 changes (never conflicts) and B's 30 changes are judged: 60 operations in
 - **Conflict detection accuracy:** accuracy = (TP + TN) / all; precision = TP / (TP + FP), the share of reported conflicts that were real; recall = TP / (TP + FN), the share of real conflicts that were caught.
 - **Sync latency:** time from reconnecting until the device receives the server's answer for each record (median and 95th percentile). It includes the app's deliberate 5 s wait after reconnecting.
 
-## 4. Results (first run)
+## 4. Results
 
-| Scenario | Records | On the server, correct | Missing | Applied twice | Stuck as failed | Median latency | 95th percentile |
+The evaluation was run before and after the fixes in #74 (section 5), on the same scenarios with the same seeded network losses.
+
+**Sync success rate and latency**
+
+| Scenario | Records | Correct on the server, before | Correct on the server, after | "Sync now" presses needed, before → after | Median latency, after | 95th percentile, after |
+|---|---|---|---|---|---|---|
+| Good connection | 60 | 60 (100%) | 60 (100%) | 0 → 0 | 6.4 s | 7.7 s |
+| Slow connection | 60 | 60 (100%) | 60 (100%) | 0 → 0 | 17.4 s | 28.5 s |
+| Flaky connection | 60 | **59 (98.3%)**, 1 stranded as failed | **60 (100%)** | **3 → 0** | 10.4 s | 28.2 s |
+
+In every run, no record was missing, altered or applied twice. On the flaky connection, 2 responses were lost after the server had applied the change; both records were sent again and recognised by their operation id. Before the fixes, the automatic sync delivered 39 of 60 records there, "Sync now" was needed three times for 19 more, and 1 record was left marked failed, never to be sent again. After the fixes, the app's own retries delivered all 60 with nobody pressing anything. The flaky connection's 95th percentile rose from 18.0 s to 28.2 s because the last records now arrive through the automatic retries; before, they were only measured once someone pressed "Sync now", and one never arrived.
+
+Latency includes the app's deliberate 5 s wait after reconnecting, so on a good connection a record reaches the server about 1.5 s after the sync starts.
+
+**Conflict detection accuracy** (60 judged operations)
+
+| | True positives | False positives | True negatives | False negatives | Accuracy | Precision | Recall |
 |---|---|---|---|---|---|---|---|
-| Good connection | 60 | 60 (100%) | 0 | 0 | 0 | 6.5 s | 7.7 s |
-| Slow connection | 60 | 60 (100%) | 0 | 0 | 0 | 17.4 s | 28.5 s |
-| Flaky connection | 60 | 59 (98.3%) | 1 | 0 | 1 | 9.6 s | 18.0 s |
+| Before | 12 | 6 | 42 | 0 | 90.0% | 66.7% | 100% |
+| After | 12 | 0 | 48 | 0 | **100%** | **100%** | **100%** |
 
-On the flaky connection, the automatic sync delivered 39 of the 60 records; "Sync now" was needed three times to deliver 19 more, and 1 record was left marked failed. Two responses were lost after the server had applied the change; both were sent again and recognised by their operation id, so nothing was applied twice.
+Every real conflict was caught in both runs, and no record was ever overwritten: when a conflict is reported, the server keeps the first device's numbers until an administrator decides. The 6 false positives before the fix were all the same case: both devices changing a record to the same numbers.
 
-| | Conflict reported | No conflict reported |
-|---|---|---|
-| **Real conflict** | 12 (true positives) | 0 (false negatives) |
-| **No real conflict** | 6 (false positives) | 42 (true negatives) |
+## 5. Findings and fixes
 
-Accuracy 90.0%, precision 66.7%, recall 100%. Every real conflict was caught, and no record was overwritten: when a conflict is reported, the server keeps the first device's numbers until an administrator decides. All 6 false positives come from one case: both devices changing a record to the **same** numbers.
-
-## 5. Findings
-
-1. **A record can be stranded on a flaky connection.** A request that never gets a response counts as a failed attempt; after 3 the operation is marked failed and never sent again, although the Sync Status page says failed records are retried automatically. The app also does not retry on its own while online: records left after the automatic sync wait until someone presses "Sync now".
-2. **Identical changes are reported as conflicts.** When two devices change a record to the same numbers, the second change is based on an older version, so it is reported as a conflict although there is nothing to decide. It adds work for administrators but loses no data.
-
-Both are being fixed, after which the evaluation is run again and the results compared.
+1. **A record could be stranded on a flaky connection** (fixed in #74). A request that never got a response counted as a failed attempt; after 3 the operation was marked failed and never sent again, although the Sync Status page said failed records were retried automatically. The app also did not retry on its own while online. Now a dropped connection (or a gateway error while the server restarts) does not count as an attempt, the app keeps retrying on the schedule in section 1 while records are waiting, and it also syncs when it is opened or comes back into view. Records that older versions marked failed because of the connection are put back in the queue.
+2. **Identical changes were reported as conflicts** (fixed in #74). A change based on an older version whose numbers already match the server's is now treated as the same record: it syncs without a conflict and without a new version. Different numbers are still a conflict.
 
 ## 6. Running it
 
@@ -75,7 +81,7 @@ cd frontend
 npm run evaluate:sync
 ```
 
-It needs PostgreSQL with the connection settings in `backend/.env`, and the backend's and frontend's packages installed. It creates its own database (`school_feeding_sync_evaluation`) and API server on port 5065, removes both at the end, and takes about 70 seconds.
+It needs PostgreSQL with the connection settings in `backend/.env`, and the backend's and frontend's packages installed. It creates its own database (`school_feeding_sync_evaluation`) and API server on port 5065, removes both at the end, and takes under 2 minutes.
 
 ## 7. Limitations
 
