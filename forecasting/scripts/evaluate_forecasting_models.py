@@ -3,10 +3,12 @@ Phase 10: rolling-origin evaluation of the forecasting approaches.
 
   1. Load and preprocess the synthetic dataset (school days only).
   2. Chronological split: train / validation / test (config/forecasting.yaml).
-  3. VALIDATION: compare historical-average variants, moving-average windows
-     and Prophet configurations; select the best of each by mean MAE over
+  3. VALIDATION: compare historical-average variants, moving-average windows,
+     a seasonal naive benchmark, Prophet configurations and the alternative
+     models from the literature review (issue #48): SARIMA, Random Forest and
+     gradient-boosted trees. Select the best of each family by mean MAE over
      the configured horizons.
-  4. TEST: evaluate only the selected configurations, once.
+  4. TEST: evaluate only the selected configuration of each family, once.
   5. Write the comparison report, metrics JSON and per-forecast predictions.
 
 Usage
@@ -26,11 +28,25 @@ sys.path.insert(0, str(FORECASTING_DIR))
 import pandas as pd  # noqa: E402
 
 from common import md_table, sha256_of  # noqa: E402
-from models.baselines import HistoricalAverage, MovingAverage  # noqa: E402
+from models.baselines import HistoricalAverage, MovingAverage, SeasonalNaive  # noqa: E402
 from models.data import load_forecast_config, load_school_days, resolve, split_by_dates  # noqa: E402
 from models.evaluation import (  # noqa: E402
-    forecast_windows, mean_metric, run_baseline, run_prophet, summarise, summary_records)
+    forecast_windows, head_to_head, mean_metric, run_baseline, run_forecaster, run_prophet, summarise,
+    summary_records)
 from models.features import add_calendar_features, future_school_days  # noqa: E402
+from models.ml_models import GradientBoostingForecaster, RandomForestForecaster  # noqa: E402
+from models.sarima_model import SarimaForecaster  # noqa: E402
+
+# Report order and labels of the model families
+FAMILIES = [
+    ("historical_average", "Historical average (baseline)"),
+    ("moving_average", "Moving average (baseline)"),
+    ("seasonal_naive", "Seasonal naive (baseline)"),
+    ("sarima", "SARIMA (statistical)"),
+    ("random_forest", "Random Forest (machine learning)"),
+    ("gradient_boosting", "Gradient boosting (machine learning)"),
+    ("prophet", "Prophet (selected for the system)"),
+]
 
 
 def prophet_specs(cfg):
@@ -47,6 +63,22 @@ def tuned_specs(best, cfg):
                           for k, v in change.items())
         specs.append({"name": f"{best['name']}__{suffix}", "regressors": best["regressors"], "params": params})
     return specs
+
+
+def alternative_models(cfg, target):
+    """The alternative models of issue #48, by family, from config/forecasting.yaml."""
+    ml = cfg["machine_learning"]
+    seed = ml["random_seed"]
+    sar = cfg["sarima"]
+    strip = lambda c: {k: v for k, v in c.items() if k != "name"}  # noqa: E731
+    return {
+        "sarima": [SarimaForecaster(c["name"], target, c["order"], c["seasonal_order"], c.get("trend", "c"),
+                                    sar["history_school_days"]) for c in sar["candidates"]],
+        "random_forest": [RandomForestForecaster(c["name"], target, seed, **strip(c))
+                          for c in ml["random_forest"]["candidates"]],
+        "gradient_boosting": [GradientBoostingForecaster(c["name"], target, seed, **strip(c))
+                              for c in ml["gradient_boosting"]["candidates"]],
+    }
 
 
 def check_calendar_consistency(school):
@@ -100,7 +132,15 @@ def main():
     # ---- Validation: baselines ------------------------------------------------
     ha_models = [HistoricalAverage(v.get("window_days")) for v in cfg["baselines"]["historical_average"]["variants"]]
     ma_models = [MovingAverage(w) for w in cfg["baselines"]["moving_average"]["windows_school_days"]]
-    val_preds = [run_baseline(m, val_windows, target) for m in ha_models + ma_models]
+    naive_models = [SeasonalNaive()] if cfg.get("seasonal_naive", {}).get("enabled", True) else []
+    val_preds = [run_baseline(m, val_windows, target) for m in ha_models + ma_models + naive_models]
+
+    # ---- Validation: alternative models (issue #48) -----------------------------
+    alternatives = alternative_models(cfg, target)
+    for family_models in alternatives.values():
+        for m in family_models:
+            print(f"  validating {m.name} ...", flush=True)
+            val_preds.append(run_forecaster(m, val_windows, target))
 
     # ---- Validation: Prophet stage 1 (regressor sets) then stage 2 (tuning) -----
     stage1 = prophet_specs(cfg)
@@ -121,12 +161,21 @@ def main():
     sel_ma = pick([m.name for m in ma_models])
     prophet_all = stage1 + stage2
     sel_p = next(s for s in prophet_all if s["name"] == pick([s["name"] for s in prophet_all]))
-    best_overall = pick([sel_ha, sel_ma, sel_p["name"]])
-    print(f"Selected on validation: {sel_ha}, {sel_ma}, {sel_p['name']} (lowest overall: {best_overall})")
+    sel_alt = {family: next(m for m in models if m.name == pick([x.name for x in models]))
+               for family, models in alternatives.items()}
+    selected = {"historical_average": sel_ha, "moving_average": sel_ma,
+                **({"seasonal_naive": naive_models[0].name} if naive_models else {}),
+                **{family: m.name for family, m in sel_alt.items()}, "prophet": sel_p["name"]}
+    best_overall = pick(list(selected.values()))
+    print(f"Selected on validation: {', '.join(selected.values())} (lowest overall: {best_overall})")
 
     # ---- Test: selected configurations only ------------------------------------
     test_preds = [run_baseline(next(m for m in ha_models if m.name == sel_ha), test_windows, target),
                   run_baseline(next(m for m in ma_models if m.name == sel_ma), test_windows, target)]
+    test_preds += [run_baseline(m, test_windows, target) for m in naive_models]
+    for m in sel_alt.values():
+        print(f"  testing {m.name} ...", flush=True)
+        test_preds.append(run_forecaster(m, test_windows, target))
     print(f"  testing {sel_p['name']} ...", flush=True)
     test_preds.append(run_prophet(sel_p, test_windows, target, cfg["prophet"], covs))
     test_all = pd.concat(test_preds, ignore_index=True)
@@ -150,8 +199,10 @@ def main():
         "evaluation_design": {"origin_step_days": step, "horizons_days": horizons,
                               "validation_origins": len(val_windows), "test_origins": len(test_windows),
                               "selection_metric": f"mean {ev['selection_metric']} over horizons (validation)"},
-        "selected": {"historical_average": sel_ha, "moving_average": sel_ma, "prophet": sel_p,
-                     "lowest_validation_error": best_overall},
+        "selected": {**selected, "prophet": sel_p, "lowest_validation_error": best_overall},
+        "selected_by_family": selected,
+        # Per test origin, over the longest horizon: is Prophet's error lower than each other model's?
+        "head_to_head_vs_prophet": head_to_head(test_all, sel_p["name"], max_h),
         "validation": summary_records(val_summary),
         "test": summary_records(test_summary),
         "runtime_seconds": round(time.time() - t0, 1),
@@ -162,6 +213,39 @@ def main():
     print(f"Done in {result['runtime_seconds']} s")
     for k in ("evaluation_json", "evaluation_report", "evaluation_predictions"):
         print(f"  wrote {resolve(art[k])}")
+
+
+def summary_section(r, by_family):
+    """One row per family: test errors averaged over the horizons, rank, speed and skill vs seasonal naive."""
+    test = pd.DataFrame(r["test"])
+    rows = []
+    for family, label in FAMILIES:
+        if family not in by_family:
+            continue
+        t = test[test["model"] == by_family[family]]
+        seconds = t["seconds_per_origin"].dropna() if "seconds_per_origin" in t else pd.Series(dtype=float)
+        rows.append({"family": label, "model": by_family[family], "mae": t["mae"].mean(), "rmse": t["rmse"].mean(),
+                     "mape": t["mape"].mean(), "bias": t["bias"].mean(),
+                     "seconds": float(seconds.mean()) if len(seconds) else None})
+    naive = next((x["mae"] for x in rows if x["model"] == by_family.get("seasonal_naive")), None)
+    h2h = r.get("head_to_head_vs_prophet", {})
+    ranked = sorted(rows, key=lambda x: x["mae"])
+    table = [[i + 1, x["family"], f"`{x['model']}`", fmt(x["mae"]), fmt(x["rmse"]), fmt(x["mape"], True),
+              fmt(x["bias"]),
+              fmt(100 * (1 - x["mae"] / naive)) + "%" if naive else "n/a",
+              (f"{h2h[x['model']]['reference_better']} of {h2h[x['model']]['origins']}"
+               if x["model"] in h2h else "-"),
+              f"{x['seconds']:.2f}" if x["seconds"] is not None else "under 0.01"]
+             for i, x in enumerate(ranked)]
+    text = md_table(table, ["Rank", "Family", "Model", "MAE", "RMSE", "MAPE", "Bias",
+                            "MAE better than seasonal naive", "Origins where Prophet is more accurate",
+                            "Seconds per origin"])
+    return (text + "\n\nErrors are averaged over the 7, 14 and 30-day horizons. \"MAE better than seasonal naive\" "
+            "is the reduction in MAE against the same-weekday-last-week benchmark (positive is better). \"Origins "
+            "where Prophet is more accurate\" counts the test forecast origins at which Prophet's mean absolute error "
+            "over the 30-day window was lower than that model's, showing whether the difference is consistent. "
+            "Seconds per origin is the mean time to fit the model and forecast one window on this machine "
+            "(baselines need no fitting).\n")
 
 
 def render_report(r, cfg):
@@ -207,14 +291,15 @@ def render_report(r, cfg):
     L.append(table(r["validation"], None))
     L.append("\nBias = mean(forecast - actual); positive values mean over-forecasting.\n")
     sel = r["selected"]
-    L.append(f"Selected on validation (lowest mean MAE over horizons): **{sel['historical_average']}**, "
-             f"**{sel['moving_average']}**, **{sel['prophet']['name']}**. Lowest validation error overall: "
-             f"**{sel['lowest_validation_error']}**.\n")
+    by_family = r["selected_by_family"]
+    L.append("Selected on validation (lowest mean MAE over horizons), one per family: " + ", ".join(
+        f"**{by_family[f]}**" for f, _ in FAMILIES if f in by_family) +
+        f". Lowest validation error overall: **{sel['lowest_validation_error']}**.\n")
     L.append(f"Selected Prophet configuration: regressors `{sel['prophet']['regressors']}`, "
              f"parameters `{sel['prophet']['params']}`.\n")
 
     L.append("## 4. Model comparison (validation vs final test)\n")
-    names = [sel["historical_average"], sel["moving_average"], sel["prophet"]["name"]]
+    names = [by_family[f] for f, _ in FAMILIES if f in by_family]
     val = {(x["model"], x["horizon_days"]): x for x in r["validation"]}
     rows = []
     for x in r["test"]:
@@ -234,7 +319,10 @@ def render_report(r, cfg):
     L.append("### Test results with MAPE and bias\n")
     L.append(table(r["test"], None))
 
-    L.append("\n## 5. Prophet prediction-interval coverage\n")
+    L.append("\n## 5. Comparison summary (test period)\n")
+    L.append(summary_section(r, by_family))
+
+    L.append("\n## 6. Prophet prediction-interval coverage\n")
     L.append("Share of actual values inside Prophet's intervals. Nominal coverage is what the interval width "
              "claims; empirical coverage is what was observed on held-out data.\n")
     rows = []
