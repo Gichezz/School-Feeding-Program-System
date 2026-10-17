@@ -10,6 +10,8 @@ For each forecast origin o (a forecast made using data up to o - 1 day):
 A horizon of H days scores the targets with days_ahead <= H.
 """
 
+import time
+
 import numpy as np
 import pandas as pd
 
@@ -52,6 +54,26 @@ def run_baseline(model, windows, target):
     return pd.concat(rows, ignore_index=True)
 
 
+def run_forecaster(model, windows, target):
+    """
+    Models that are refitted at each origin and forecast the whole window at once
+    (SARIMA, Random Forest, gradient boosting): model.predict_window(history,
+    targets, enrollment). Also records the mean fit-and-forecast time per origin.
+    """
+    rows = []
+    for origin, history, targets in windows:
+        enrollment = last_known_enrollment(history, origin)
+        started = time.perf_counter()
+        yhat = model.predict_window(history, targets, enrollment)
+        elapsed = time.perf_counter() - started
+        rows.append(pd.DataFrame({
+            "model": model.name, "origin": origin, "date": targets["date"].values,
+            "days_ahead": targets["days_ahead"].values, "actual": targets[target].values, "yhat": yhat,
+            "fit_seconds": elapsed,
+        }))
+    return pd.concat(rows, ignore_index=True)
+
+
 def prophet_future_frame(targets, regressors, enrollment):
     future = pd.DataFrame({"ds": targets["date"].values})
     for r in regressors:
@@ -64,16 +86,19 @@ def run_prophet(spec, windows, target, prophet_cfg, coverage_levels=()):
     regs = spec["regressors"]
     rows = []
     for origin, history, targets in windows:
+        started = time.perf_counter()
         train = training_frame(history, target, regs)
         m = fit_prophet(train, spec["params"], regs, prophet_cfg["interval_width"],
                         prophet_cfg["uncertainty_samples"])
         enrollment = last_known_enrollment(history, origin) if "students_enrolled" in regs else None
         future = prophet_future_frame(targets, regs, enrollment)
         fc = predict_prophet(m, future, seed=prophet_cfg["random_seed"])
+        # Fit plus point forecast, comparable with run_forecaster (interval runs below are extra)
+        elapsed = time.perf_counter() - started
         part = pd.DataFrame({
             "model": spec["name"], "origin": origin, "date": targets["date"].values,
             "days_ahead": targets["days_ahead"].values, "actual": targets[target].values,
-            "yhat": fc["yhat"].values,
+            "yhat": fc["yhat"].values, "fit_seconds": elapsed,
         })
         for level in coverage_levels:
             iv = predict_prophet(m, future, seed=prophet_cfg["random_seed"], interval_width=level)
@@ -95,6 +120,9 @@ def summarise(preds, horizons, mape_min_actual):
                    "origins": int(s["origin"].nunique()),
                    "first_target": str(s["date"].min().date()) if len(s) else None,
                    "last_target": str(s["date"].max().date()) if len(s) else None}
+            if "fit_seconds" in s.columns and s["fit_seconds"].notna().any():
+                # Mean time to fit and forecast once per origin (models refitted at each origin)
+                row["seconds_per_origin"] = float(s.drop_duplicates("origin")["fit_seconds"].mean())
             for col in s.columns:
                 if col.startswith("lower_"):
                     tag = col.split("_")[1]
@@ -115,3 +143,21 @@ def summary_records(summary):
 
 def mean_metric(summary, model, metric):
     return float(np.mean(summary.loc[summary["model"] == model, metric]))
+
+
+def head_to_head(preds, reference, horizon):
+    """
+    For each model, the forecast origins at which `reference` had the lower mean
+    absolute error over targets up to `horizon` days ahead, out of the origins
+    both models forecast. Shows whether a lower average error is consistent or
+    driven by a few origins.
+    """
+    scored = preds[preds["days_ahead"] <= horizon].assign(ae=lambda d: (d["yhat"] - d["actual"]).abs())
+    per_origin = scored.groupby(["model", "origin"])["ae"].mean().unstack(0)
+    out = {}
+    for model in per_origin.columns:
+        if model == reference:
+            continue
+        both = per_origin[[reference, model]].dropna()
+        out[model] = {"reference_better": int((both[reference] < both[model]).sum()), "origins": int(len(both))}
+    return out

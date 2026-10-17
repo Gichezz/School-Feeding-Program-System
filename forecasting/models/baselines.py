@@ -73,3 +73,24 @@ class MovingAverage:
     def predict(self, dates, values, origin, target_dates):
         level = self.forecast_level(dates, values, origin)
         return np.full(len(target_dates), level)
+
+
+class SeasonalNaive:
+    """
+    Same weekday last week: each target day gets the demand of the most recent
+    school day before the origin that fell on the same weekday (weekly season,
+    the textbook benchmark for daily data). If no such day exists, the last
+    observation before the origin is used.
+    """
+
+    name = "seasonal_naive_weekly"
+
+    def predict(self, dates, values, origin, target_dates):
+        d, v = _history_before(dates, values, origin)
+        if v.empty:
+            raise InsufficientHistoryError("No school days before the forecast origin")
+        last_by_weekday = {}
+        for date, value in zip(d, v):
+            last_by_weekday[date.dayofweek] = float(value)
+        fallback = float(v.iloc[-1])
+        return np.array([last_by_weekday.get(t.dayofweek, fallback) for t in pd.to_datetime(pd.Series(target_dates))])

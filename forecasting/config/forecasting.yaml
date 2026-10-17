@@ -2,7 +2,8 @@
 # Forecasting configuration (Phase 10)
 #
 # Used by:
-#   scripts/evaluate_forecasting_models.py  (rolling-origin validation + test)
+#   scripts/evaluate_forecasting_models.py  (rolling-origin validation + test,
+#                                            Prophet vs baselines and alternatives)
 #   scripts/train_forecasting_model.py      (final model artifact)
 #   app.py / services/forecast_service.py   (Flask API)
 #
@@ -80,6 +81,33 @@ prophet:
     - {changepoint_prior_scale: 0.01}
     - {changepoint_prior_scale: 0.5}
     - {seasonality_mode: multiplicative}
+
+# ---------------------------------------------------------------------------
+# Alternative models compared with Prophet (issue #48). Evaluation only: the
+# production service keeps serving Prophet. Each family has a few candidates;
+# validation picks one per family, which is then tested once like the others.
+# ---------------------------------------------------------------------------
+seasonal_naive:
+  enabled: true                      # same weekday last week
+
+sarima:
+  # Series = school days in order, so the weekly season is 5 steps.
+  history_school_days: 750           # refit on about three school years at each origin
+  candidates:
+    - {name: sarima_101_101_5, order: [1, 0, 1], seasonal_order: [1, 0, 1, 5], trend: c}
+    - {name: sarima_201_101_5, order: [2, 0, 1], seasonal_order: [1, 0, 1, 5], trend: c}
+    - {name: sarima_011_011_5, order: [0, 1, 1], seasonal_order: [0, 1, 1, 5], trend: n}
+
+machine_learning:
+  random_seed: 20250901
+  random_forest:
+    candidates:
+      - {name: random_forest_leaf1, n_estimators: 300, min_samples_leaf: 1, max_features: 0.5}
+      - {name: random_forest_leaf10, n_estimators: 300, min_samples_leaf: 10, max_features: 0.5}
+  gradient_boosting:
+    candidates:
+      - {name: gradient_boosting_lr005, learning_rate: 0.05, max_iter: 400, max_leaf_nodes: 15}
+      - {name: gradient_boosting_lr01, learning_rate: 0.1, max_iter: 200, max_leaf_nodes: 31}
 
 artifacts:
   dir: models/artifacts                     # relative to forecasting/

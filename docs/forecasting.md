@@ -33,7 +33,7 @@ The split from the Phase 9 report is fully covered by the data. Validation is us
 
 ## 5. Baselines (`forecasting/models/baselines.py`)
 
-Both baselines compute one level from school days **strictly before** the forecast origin and use it for every school day in the horizon. Later days never use actual values from earlier days in the same horizon.
+The average baselines compute one level from school days **strictly before** the forecast origin and use it for every school day in the horizon. Later days never use actual values from earlier days in the same horizon.
 
 - **Historical average**, two variants:
   - `expanding`: mean of all previous school days.
@@ -41,6 +41,7 @@ Both baselines compute one level from school days **strictly before** the foreca
 
   The expanding mean is included to show the cost of ignoring the enrollment trend. Validation chooses between the two.
 - **Moving average** over the last 5, 10 or 20 school days; validation chooses the window. With fewer past school days than the window it averages those available. With none it raises `InsufficientHistoryError`, and that origin is skipped for that model. This never happens with this dataset, because evaluation origins start after 24 years of history.
+- **Seasonal naive** (same weekday last week): each school day gets the demand of the most recent school day before the origin that fell on the same weekday. It is the textbook minimum benchmark for daily data: a model that cannot beat it is not worth deploying.
 
 ## 6. Prophet configuration (`forecasting/models/prophet_model.py`)
 
@@ -68,12 +69,29 @@ The grid is deliberately small, to avoid over-tuning on synthetic data.
 
 During evaluation, training rows use each day's recorded enrollment. Forecast rows use the enrollment from the last school day before the origin, not the actual (future) value.
 
-## 8. Evaluation methodology (`forecasting/models/evaluation.py`)
+## 8. Alternative models compared with Prophet (issue #48)
+
+The literature review compares Prophet with ARIMA, LSTM and Random Forest. The evaluation tests those claims with evidence: every alternative is run through the same rolling-origin windows, splits, horizons and metrics as Prophet, and validation picks one configuration per family before the test period is scored once. Gradient-boosted trees are included as well, as the strongest widely used tree method.
+
+| Family | Module | How it sees time | Candidates (validation picks one) |
+|---|---|---|---|
+| Seasonal naive | `models/baselines.py` | Same weekday last week | – |
+| SARIMA (statistical) | `models/sarima_model.py` | ARIMA on the sequence of school days with a 5-step weekly season. Calendar regressors: first day/week of term, exam period, enrollment (last known value held constant), position in the year (sine/cosine). Refitted at each origin on the latest 750 school days (about three school years). | (1,0,1)(1,0,1)₅, (2,0,1)(1,0,1)₅, (0,1,1)(0,1,1)₅ |
+| Random Forest (machine learning) | `models/ml_models.py` | Features: weekday, month, position in the year, term number, week of term, the term and exam flags, enrollment, and lagged demand (mean over 30–58 days back, and the value 35 days back, the same weekday). Refitted at each origin on all earlier school days. | 300 trees, `min_samples_leaf` 1 or 10 |
+| Gradient boosting (machine learning) | `models/ml_models.py` | Same features as Random Forest; scikit-learn's histogram gradient boosting (the LightGBM algorithm). | learning rate 0.05 / 400 rounds / 15 leaves, or 0.1 / 200 / 31 |
+
+**No leakage.** Lagged demand always comes from at least 30 days before the day being forecast, which is the longest horizon. Every day in a 30-day window can therefore be forecast from history before the origin alone, with the same features the model was trained on, and no forecast is fed back as an input. SARIMA forecasts the window in one step from history before the origin. Tests check that hiding the actual values being forecast does not change any model's forecast (`tests/test_alternative_models.py`).
+
+**Not included: LSTM.** The project's delimitations exclude deep-learning models such as LSTM because of their data and computing needs, which do not suit a lightweight service for low-resource schools.
+
+These models are used for evaluation only: `scikit-learn` and `statsmodels` are listed in `requirements-dev.txt`, and the production service and Docker image serve Prophet alone.
+
+## 9. Evaluation methodology (`forecasting/models/evaluation.py`)
 
 Rolling-origin evaluation with an expanding window:
 
 - Forecast origins are placed every 14 calendar days through the validation (or test) period. A forecast made at origin *o* uses data up to *o − 1 day*.
-- At each origin every model forecasts all school days in the next 30 calendar days that fall in the same split. Prophet is refitted at every origin.
+- At each origin every model forecasts all school days in the next 30 calendar days that fall in the same split. Prophet, SARIMA, Random Forest and gradient boosting are refitted at every origin.
 - Horizon *H* ∈ {7, 14, 30} scores the forecasts for targets up to *H* days ahead. Because no model feeds its own predictions or later actuals back in, a target's forecast is the same whichever horizon it is scored under.
 - All models are scored on exactly the same origins and target dates.
 - Metrics:
@@ -81,40 +99,50 @@ Rolling-origin evaluation with an expanding window:
   - **WAPE** = Σ|error| / Σ|actual| (the primary percentage metric).
   - MAPE, computed only over actuals ≥ 1 so it never divides by zero (demand is never below 333 here, so no observations are excluded).
   - Bias = mean(forecast − actual).
-- Selection: the lowest mean MAE across the three horizons on validation.
+- Selection: the lowest mean MAE across the three horizons on validation, one configuration per model family.
+- Consistency: for each model, the number of test origins at which Prophet's error over the 30-day window was lower.
+- Speed: the mean time to fit a model and forecast one window (seconds per origin).
 - Prophet intervals: empirical coverage of 80% and 95% intervals on validation and test.
 
-## 9. Evaluation results
+## 10. Evaluation results
 
-Full tables: [`forecasting/data/reports/forecast_evaluation_report.md`](../forecasting/data/reports/forecast_evaluation_report.md). Per-forecast predictions: `forecast_evaluation_predictions.csv`. Design: 45 validation origins and 45 test origins, a 14-day step, and a Prophet refit at every origin. The run took 404 s.
+Full tables: [`forecasting/data/reports/forecast_evaluation_report.md`](../forecasting/data/reports/forecast_evaluation_report.md). Per-forecast predictions: `forecast_evaluation_predictions.csv`. Design: 45 validation origins and 45 test origins, a 14-day step, and every fitted model refitted at every origin. The run took about 18 minutes.
 
-**Selected on validation:**
-- `historical_average_trailing_365d` (the expanding mean had MAE ≈ 74, because it ignores enrollment growth);
-- `moving_average_20` (windows 5 / 10 / 20 had mean MAE 14.35 / 12.73 / 12.58);
-- `prophet_calendar_enrollment` with `changepoint_prior_scale = 0.01`: calendar regressors plus enrollment, weekly and yearly seasonality, additive.
+**Selected on validation (one per family, mean MAE over the three horizons):**
+- `historical_average_trailing_365d` (13.08; the expanding mean had MAE ≈ 74, because it ignores enrollment growth);
+- `moving_average_20` (12.58; windows 5 / 10 / 20 had 14.35 / 12.73 / 12.58);
+- `seasonal_naive_weekly` (16.75);
+- `sarima_201_101_5` (11.70; the other orders had 11.73 and 12.10);
+- `random_forest_leaf1` (12.87; `min_samples_leaf` 10 had 13.31);
+- `gradient_boosting_lr005` (11.99; the faster learning rate had 12.11);
+- `prophet_calendar_enrollment` with `changepoint_prior_scale = 0.01` (10.99): calendar regressors plus enrollment, weekly and yearly seasonality, additive.
 
-| Model | Horizon | Val MAE | Val RMSE | Val WAPE | Val n | Test MAE | Test RMSE | Test WAPE | Test n |
-|---|---|---|---|---|---|---|---|---|---|
-| Historical average (trailing 365 d) | 7 | 12.94 | 15.94 | 2.47% | 176 | 13.26 | 17.28 | 2.55% | 168 |
-| Moving average (20 school days) | 7 | 12.42 | 15.32 | 2.37% | 176 | 13.57 | 17.69 | 2.61% | 168 |
-| Prophet (selected) | 7 | 11.24 | 14.03 | 2.15% | 176 | 11.85 | 15.10 | 2.28% | 168 |
-| Historical average (trailing 365 d) | 14 | 13.18 | 16.34 | 2.52% | 347 | 13.84 | 17.91 | 2.66% | 347 |
-| Moving average (20 school days) | 14 | 12.68 | 15.89 | 2.42% | 347 | 14.61 | 18.63 | 2.81% | 347 |
-| Prophet (selected) | 14 | 10.88 | 13.83 | 2.08% | 347 | 11.86 | 15.40 | 2.28% | 347 |
-| Historical average (trailing 365 d) | 30 | 13.13 | 16.27 | 2.51% | 684 | 13.74 | 17.74 | 2.64% | 752 |
-| Moving average (20 school days) | 30 | 12.63 | 15.82 | 2.41% | 684 | 14.26 | 18.20 | 2.74% | 752 |
-| Prophet (selected) | 30 | 10.84 | 13.76 | 2.07% | 684 | 11.91 | 15.48 | 2.29% | 752 |
+**Test period (2024–2025), averaged over the 7, 14 and 30-day horizons:**
 
-The validation forecasts target 2022–2023 school days. The test forecasts target 2024-01-08 to 2025-10-31 for the 14- and 30-day horizons, and 2024-01-15 to 2025-10-24 for the 7-day horizon. The 7-day range is shorter because 8–12 January 2024 and 27–31 October 2025 fall 8 or more days after the nearest earlier origin (2024-01-01 and 2025-10-20), so they are only scored at the 14- and 30-day horizons. Within each split, all three models are scored on identical dates.
+| Rank | Model | MAE | RMSE | MAPE | Bias | MAE better than seasonal naive | Test origins where Prophet is more accurate | Seconds per origin |
+|---|---|---|---|---|---|---|---|---|
+| 1 | **Prophet** (calendar + enrollment) | **11.87** | **15.33** | **2.32%** | +3.17 | 39.0% | – | 0.86 |
+| 2 | SARIMA (2,0,1)(1,0,1)₅ | 12.37 | 16.12 | 2.41% | +3.20 | 36.5% | 30 of 45 | 2.68 |
+| 3 | Gradient boosting | 12.83 | 16.30 | 2.50% | +2.43 | 34.1% | 33 of 45 | 0.55 |
+| 4 | Random Forest | 13.49 | 16.79 | 2.61% | −0.25 | 30.7% | 40 of 45 | 0.83 |
+| 5 | Historical average (trailing 365 d) | 13.61 | 17.64 | 2.64% | −0.17 | 30.1% | 37 of 45 | – |
+| 6 | Moving average (20 school days) | 14.15 | 18.17 | 2.75% | +0.38 | 27.4% | 38 of 45 | – |
+| 7 | Seasonal naive (same weekday last week) | 19.48 | 25.00 | 3.77% | +0.97 | – | 43 of 45 | – |
 
-`n` counts forecasts, not unique dates. Origins are 14 days apart but forecasts look up to 30 days ahead, so one date can be forecast from up to three origins. For example, the 752 test forecasts at the 30-day horizon cover 347 unique school days, each scored 1–3 times. This is normal for rolling-origin evaluation, but the forecasts are not independent samples. For the selected models, MAPE is within 0.05 percentage points of WAPE. No actuals were excluded from MAPE, because the lowest demand is 333 meals.
+Prophet also has the lowest test MAE at each horizon on its own: 11.85 / 11.86 / 11.91 at 7 / 14 / 30 days, against SARIMA's 12.21 / 12.46 / 12.44 and gradient boosting's 12.63 / 12.93 / 12.93. Prophet, SARIMA and gradient boosting rank in the same order on validation as on test. Per-horizon tables for every model are in the full report.
+
+The validation forecasts target 2022–2023 school days. The test forecasts target 2024-01-08 to 2025-10-31 for the 14- and 30-day horizons, and 2024-01-15 to 2025-10-24 for the 7-day horizon. The 7-day range is shorter because 8–12 January 2024 and 27–31 October 2025 fall 8 or more days after the nearest earlier origin (2024-01-01 and 2025-10-20), so they are only scored at the 14- and 30-day horizons. Within each split, all models are scored on identical dates.
+
+`n` counts forecasts, not unique dates. Origins are 14 days apart but forecasts look up to 30 days ahead, so one date can be forecast from up to three origins. For example, the 752 test forecasts at the 30-day horizon cover 347 unique school days, each scored 1–3 times. This is normal for rolling-origin evaluation, but the forecasts are not independent samples, which is why the origin-by-origin comparison is reported as well. MAPE is within about 0.05 percentage points of WAPE for every model. No actuals were excluded from MAPE, because the lowest demand is 333 meals.
 
 **What this means, in plain language:**
-- On the held-out test years, the selected Prophet model is off by about **12 meals per school day** on average (about 2.3% of demand). The best baseline is off by about **13–14 meals** (2.6–2.8%). Prophet's advantage is real but small: roughly 1.4–2.8 meals per day.
-- Simple baselines are already strong here because the simulated demand is stable from week to week. Prophet's gain comes mainly from **enrollment**. Without it, Prophet was no better than the moving average on validation (`prophet_basic` MAE 13.1–13.3, `prophet_calendar` 12.8–12.9, versus moving average 12.4–12.7).
-- Tuning made almost no difference: all four enrollment variants were within 0.1 MAE of each other on validation. The selected `changepoint_prior_scale = 0.01` won by a margin that is not meaningful.
+- On the held-out test years, Prophet is off by about **12 meals per school day** on average (about 2.3% of demand). SARIMA, the closest rival, is off by about **12.4 meals**, gradient boosting by **12.8**, Random Forest by **13.5**, and the best simple baseline by **13.6**.
+- Prophet's lead is **small but consistent**: it is more accurate than SARIMA at 30 of the 45 test origins, and than every other model at 33 or more. Every model beats the seasonal naive benchmark by 27–39%.
+- **SARIMA comes close** once it is given the same calendar and enrollment information, as expected of a well-specified statistical model. It is about three times slower to fit than Prophet here and needs the most recent 750 days of actual demand at every forecast.
+- **The tree models need feature engineering to see time**, as the literature review notes. Even with lagged demand and calendar features, Random Forest is barely better than a trailing average; gradient boosting does better but still trails SARIMA and Prophet.
+- Prophet's gain over the simple baselines comes mainly from **enrollment**. Without it, Prophet was no better than the moving average on validation (`prophet_basic` MAE 13.1–13.3, `prophet_calendar` 12.8–12.9, versus moving average 12.4–12.7). Tuning made almost no difference: all four enrollment variants were within 0.1 MAE of each other.
 - Error barely grows from 7 to 30 days, because the series has no short-term shocks a model could exploit.
-- Prophet over-forecasts slightly on test (bias +2.8 to +3.8 meals); the baselines are nearly unbiased there. Over-forecasting is usually safer for food preparation than under-forecasting, but this is an observation, not a design guarantee.
+- Prophet and SARIMA over-forecast slightly on test (bias about +3 meals); the averages and Random Forest are nearly unbiased. Over-forecasting is usually safer for food preparation than under-forecasting, but this is an observation, not a design guarantee.
 - All models do somewhat worse on test than on validation (Prophet MAE 10.8–11.2 rising to 11.9). The cause was not investigated, so no explanation is offered here.
 
 **Prediction intervals (selected Prophet configuration):**
@@ -126,9 +154,16 @@ The validation forecasts target 2022–2023 school days. The test forecasts targ
 
 The intervals are somewhat too narrow, especially on test: about 74–77% of actuals fell inside the nominal 80% interval, and about 87–89% inside the nominal 95% interval. Treat them as rough indications of spread, not guaranteed bounds. Because the noise is synthetic, this coverage says nothing reliable about real-world uncertainty.
 
-**Selection and practical considerations.** Prophet had the lowest validation error and also the lowest test error, and it can produce forecasts for any future date range from the calendar alone. The moving average needs the latest actual demand values, which this service does not hold, because it is designed not to read PostgreSQL. Prophet is therefore the model served by the API. The baselines remain useful reference points, and they could be served in the integration phase if the backend supplies recent demand.
+**Decision: keep Prophet in production.**
+1. **Most accurate:** the lowest error on validation and on test, at every horizon, against both alternatives from the literature review (SARIMA, Random Forest) and gradient boosting.
+2. **Consistently so:** more accurate than each rival at most test origins (30 to 43 of 45), so the lower average is not driven by a few periods.
+3. **Works from the calendar alone:** Prophet forecasts any future date range from the school calendar and the latest enrollment. SARIMA and the tree models need recent actual demand at every forecast (the last 750 school days, or lags 30–58 days back), which this service does not hold, because it is designed not to read PostgreSQL.
+4. **Fast enough to refit:** under a second per fit, against about 2.7 seconds for SARIMA (timings vary a little between runs).
+5. **Explainable:** it separates trend, weekly and yearly patterns and the calendar effects, and it gives prediction intervals; the tree models give neither.
 
-## 10. Model artifact
+**Caveat.** The margins are small: about 0.5 meals per day over SARIMA (4%). The synthetic data was generated from additive trend, seasonal, calendar and enrollment effects, a structure Prophet models directly, so the data may favour it. The comparison should be repeated on real school records before treating the ranking as settled; `scripts/evaluate_forecasting_models.py` reruns it unchanged on any dataset with the same columns.
+
+## 11. Model artifact
 
 | File | Contents |
 |---|---|
@@ -139,7 +174,7 @@ The deployed model is the validation-selected Prophet configuration, refitted on
 
 **Reproducibility.** Prophet's Stan optimiser (L-BFGS) starts from fixed initial values, so the fitted parameters are deterministic for the same data and library versions. Interval sampling uses NumPy's global RNG, which is seeded before every prediction (`prophet.random_seed`). Remaining sources of nondeterminism are differences in library or CmdStan versions and floating-point differences between platforms.
 
-## 11. Commands
+## 12. Commands
 
 From the repository root, using the forecasting virtualenv:
 
@@ -153,9 +188,9 @@ python forecasting/scripts/evaluate_forecasting_models.py
 python forecasting/scripts/train_forecasting_model.py
 ```
 
-`train_forecasting_model.py` reads the selected configuration from `forecasting/data/reports/forecast_evaluation.json`, so evaluation must run first. Training alone takes seconds; the full evaluation takes several minutes.
+`train_forecasting_model.py` reads the selected configuration from `forecasting/data/reports/forecast_evaluation.json`, so evaluation must run first. Training alone takes seconds; the full evaluation, with all seven model families, takes about 18 minutes.
 
-## 12. Starting the Flask service
+## 13. Starting the Flask service
 
 ```bash
 cd forecasting
@@ -167,7 +202,7 @@ The model loads once at startup and is never retrained per request. If the artif
 
 **Port note:** Flask runs on 5001 (`FLASK_RUN_PORT`) and the Express backend on 5000 (`PORT` in `backend/.env.example`), so both can run side by side. The backend reaches this service through `FORECASTING_SERVICE_URL=http://localhost:5001`.
 
-## 13. Forecast endpoint
+## 14. Forecast endpoint
 
 `GET /api/forecast` (the existing route). Query parameters, all optional:
 
@@ -208,26 +243,27 @@ curl "http://localhost:5001/api/forecast?start_date=2026-10-05&horizon_days=7&en
 
 Dates are ISO `YYYY-MM-DD`. The Express API presents dates to the frontend as `DD-MM-YYYY`, so converting dates will be part of the later integration phase. Predictions are rounded to whole meals and clipped at zero. The bounds are Prophet's 80% prediction interval.
 
-## 14. Tests
+## 15. Tests
 
 ```bash
 cd forecasting
 venv\Scripts\python -m pytest tests
 ```
 
-The tests use a small two-year fixture built from the configured calendar and a tiny Prophet model trained in about a second. One test checks the real dataset's documented structure and is skipped if the dataset has not been generated.
+The tests use a small two-year fixture built from the configured calendar and a tiny Prophet model trained in about a second. `test_alternative_models.py` covers the seasonal naive baseline, the SARIMA, Random Forest and gradient-boosting forecasters (no leakage, reproducibility, horizon limits) and the comparison helpers. One test checks the real dataset's documented structure and is skipped if the dataset has not been generated.
 
-## 15. Known limitations
+## 16. Known limitations
 
 - **Synthetic data.** The data-generating process is known and relatively smooth, so every model can at best rediscover the Phase 9 assumptions. Good scores do not transfer to a real school.
 - **Interval coverage is measured against synthetic noise** and does not describe real-world uncertainty.
+- **The model comparison may favour Prophet**, because the synthetic data was generated from the kind of additive structure Prophet models; the margins over SARIMA and gradient boosting are small.
 - **Enrollment is held constant over the horizon.** Term-start intake changes inside a horizon are not anticipated unless the caller supplies the new value.
 - **Special events and weather are not used,** because no future event schedule or weather forecast is integrated yet.
 - **The future calendar uses the illustrative Phase 9 rules.** A real deployment needs the school's actual term dates (`calendar.term_overrides`).
 - **The deployed model is trained to 2025-10-31.** Forecasts far beyond that (up to 730 days are allowed) rely on trend extrapolation and should be retrained with recent data.
 - **The service does not read PostgreSQL.** The Express backend calls it through `GET /api/forecasts`, supplies the enrollment from attendance records and stores the results; the React Forecast page displays them. The model itself is not retrained from records collected by the system.
 
-## 16. Running the demonstration notebook in Google Colab
+## 17. Running the demonstration notebook in Google Colab
 
 `forecasting/notebooks/forecasting_demo_colab.ipynb` walks through the whole pipeline by importing this project's own code (no separate implementation). It loads the saved evaluation results by default and can recompute them with `RUN_FULL_EVALUATION = True`.
 

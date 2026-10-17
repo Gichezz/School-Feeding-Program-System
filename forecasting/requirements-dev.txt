@@ -1,3 +1,10 @@
 # Test dependencies for the forecasting service
 -r requirements.txt
 pytest>=8
+
+# Model comparison (issue #48): the alternatives evaluated against Prophet.
+# Evaluation and tests only; the production image (requirements.txt) serves Prophet.
+scikit-learn==1.6.1
+statsmodels==0.14.6
+# statsmodels 0.14.4 and older fail with SciPy 1.15+; pinned for reproducible results
+scipy==1.18.1

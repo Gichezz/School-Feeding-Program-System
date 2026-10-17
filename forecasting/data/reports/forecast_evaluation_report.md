@@ -50,6 +50,30 @@ Rolling-origin evaluation: a forecast origin every 14 calendar days (45 validati
 | moving_average_20 | 7 | 176 | 37 | 12.42 | 15.32 | 2.37% | 2.37% | -1.82 |
 | moving_average_20 | 14 | 347 | 40 | 12.68 | 15.89 | 2.42% | 2.44% | -0.95 |
 | moving_average_20 | 30 | 684 | 45 | 12.63 | 15.82 | 2.41% | 2.43% | -0.72 |
+| seasonal_naive_weekly | 7 | 176 | 37 | 16.55 | 21.04 | 3.16% | 3.16% | -1.88 |
+| seasonal_naive_weekly | 14 | 347 | 40 | 17.14 | 21.75 | 3.28% | 3.29% | -0.65 |
+| seasonal_naive_weekly | 30 | 684 | 45 | 16.56 | 21.15 | 3.17% | 3.18% | 0.22 |
+| sarima_101_101_5 | 7 | 176 | 37 | 11.97 | 14.97 | 2.28% | 2.29% | -0.69 |
+| sarima_101_101_5 | 14 | 347 | 40 | 11.64 | 14.87 | 2.22% | 2.24% | 0.49 |
+| sarima_101_101_5 | 30 | 684 | 45 | 11.58 | 14.78 | 2.21% | 2.23% | 0.98 |
+| sarima_201_101_5 | 7 | 176 | 37 | 11.91 | 14.82 | 2.27% | 2.28% | -0.60 |
+| sarima_201_101_5 | 14 | 347 | 40 | 11.62 | 14.79 | 2.22% | 2.24% | 0.53 |
+| sarima_201_101_5 | 30 | 684 | 45 | 11.57 | 14.73 | 2.21% | 2.23% | 1.01 |
+| sarima_011_011_5 | 7 | 176 | 37 | 12.37 | 15.42 | 2.36% | 2.36% | -1.45 |
+| sarima_011_011_5 | 14 | 347 | 40 | 12.04 | 15.10 | 2.30% | 2.31% | -0.93 |
+| sarima_011_011_5 | 30 | 684 | 45 | 11.88 | 14.81 | 2.27% | 2.28% | -0.89 |
+| random_forest_leaf1 | 7 | 176 | 37 | 13.58 | 17.20 | 2.59% | 2.59% | -3.97 |
+| random_forest_leaf1 | 14 | 347 | 40 | 12.66 | 16.22 | 2.42% | 2.42% | -2.58 |
+| random_forest_leaf1 | 30 | 684 | 45 | 12.38 | 15.54 | 2.37% | 2.37% | -1.84 |
+| random_forest_leaf10 | 7 | 176 | 37 | 13.68 | 17.38 | 2.61% | 2.61% | -3.66 |
+| random_forest_leaf10 | 14 | 347 | 40 | 13.26 | 17.09 | 2.53% | 2.54% | -2.70 |
+| random_forest_leaf10 | 30 | 684 | 45 | 12.98 | 16.40 | 2.48% | 2.49% | -2.12 |
+| gradient_boosting_lr005 | 7 | 176 | 37 | 12.65 | 15.21 | 2.41% | 2.42% | -0.23 |
+| gradient_boosting_lr005 | 14 | 347 | 40 | 11.72 | 14.54 | 2.24% | 2.25% | 0.68 |
+| gradient_boosting_lr005 | 30 | 684 | 45 | 11.60 | 14.34 | 2.22% | 2.23% | 1.00 |
+| gradient_boosting_lr01 | 7 | 176 | 37 | 12.88 | 15.51 | 2.46% | 2.46% | 0.76 |
+| gradient_boosting_lr01 | 14 | 347 | 40 | 11.79 | 14.66 | 2.25% | 2.27% | 1.46 |
+| gradient_boosting_lr01 | 30 | 684 | 45 | 11.66 | 14.46 | 2.23% | 2.24% | 1.86 |
 | prophet_basic | 7 | 176 | 37 | 13.08 | 16.26 | 2.50% | 2.53% | 6.72 |
 | prophet_basic | 14 | 347 | 40 | 13.29 | 16.81 | 2.54% | 2.58% | 7.94 |
 | prophet_basic | 30 | 684 | 45 | 13.32 | 16.87 | 2.54% | 2.59% | 8.33 |
@@ -71,7 +95,7 @@ Rolling-origin evaluation: a forecast origin every 14 calendar days (45 validati
 
 Bias = mean(forecast - actual); positive values mean over-forecasting.
 
-Selected on validation (lowest mean MAE over horizons): **historical_average_trailing_365d**, **moving_average_20**, **prophet_calendar_enrollment__cps_0.01**. Lowest validation error overall: **prophet_calendar_enrollment__cps_0.01**.
+Selected on validation (lowest mean MAE over horizons), one per family: **historical_average_trailing_365d**, **moving_average_20**, **seasonal_naive_weekly**, **sarima_201_101_5**, **random_forest_leaf1**, **gradient_boosting_lr005**, **prophet_calendar_enrollment__cps_0.01**. Lowest validation error overall: **prophet_calendar_enrollment__cps_0.01**.
 
 Selected Prophet configuration: regressors `['first_day_of_term', 'first_week_of_term', 'exam_period', 'students_enrolled']`, parameters `{'weekly_seasonality': True, 'yearly_seasonality': True, 'daily_seasonality': False, 'changepoint_prior_scale': 0.01, 'seasonality_mode': 'additive'}`.
 
@@ -81,12 +105,24 @@ Selected Prophet configuration: regressors `['first_day_of_term', 'first_week_of
 |---|---|---|---|---|---|---|---|---|---|
 | historical_average_trailing_365d | 7 | 12.94 | 15.94 | 2.47% | 176 | 13.26 | 17.28 | 2.55% | 168 |
 | moving_average_20 | 7 | 12.42 | 15.32 | 2.37% | 176 | 13.57 | 17.69 | 2.61% | 168 |
+| seasonal_naive_weekly | 7 | 16.55 | 21.04 | 3.16% | 176 | 19.43 | 24.79 | 3.74% | 168 |
+| sarima_201_101_5 | 7 | 11.91 | 14.82 | 2.27% | 176 | 12.21 | 15.95 | 2.35% | 168 |
+| random_forest_leaf1 | 7 | 13.58 | 17.20 | 2.59% | 176 | 13.23 | 16.45 | 2.55% | 168 |
+| gradient_boosting_lr005 | 7 | 12.65 | 15.21 | 2.41% | 176 | 12.63 | 16.11 | 2.43% | 168 |
 | prophet_calendar_enrollment__cps_0.01 | 7 | 11.24 | 14.03 | 2.15% | 176 | 11.85 | 15.10 | 2.28% | 168 |
 | historical_average_trailing_365d | 14 | 13.18 | 16.34 | 2.52% | 347 | 13.84 | 17.91 | 2.66% | 347 |
 | moving_average_20 | 14 | 12.68 | 15.89 | 2.42% | 347 | 14.61 | 18.63 | 2.81% | 347 |
+| seasonal_naive_weekly | 14 | 17.14 | 21.75 | 3.28% | 347 | 19.87 | 25.66 | 3.82% | 347 |
+| sarima_201_101_5 | 14 | 11.62 | 14.79 | 2.22% | 347 | 12.46 | 16.22 | 2.39% | 347 |
+| random_forest_leaf1 | 14 | 12.66 | 16.22 | 2.42% | 347 | 13.63 | 17.03 | 2.62% | 347 |
+| gradient_boosting_lr005 | 14 | 11.72 | 14.54 | 2.24% | 347 | 12.93 | 16.39 | 2.48% | 347 |
 | prophet_calendar_enrollment__cps_0.01 | 14 | 10.88 | 13.83 | 2.08% | 347 | 11.86 | 15.40 | 2.28% | 347 |
 | historical_average_trailing_365d | 30 | 13.13 | 16.27 | 2.51% | 684 | 13.74 | 17.74 | 2.64% | 752 |
 | moving_average_20 | 30 | 12.63 | 15.82 | 2.41% | 684 | 14.26 | 18.20 | 2.74% | 752 |
+| seasonal_naive_weekly | 30 | 16.56 | 21.15 | 3.17% | 684 | 19.13 | 24.55 | 3.68% | 752 |
+| sarima_201_101_5 | 30 | 11.57 | 14.73 | 2.21% | 684 | 12.44 | 16.18 | 2.39% | 752 |
+| random_forest_leaf1 | 30 | 12.38 | 15.54 | 2.37% | 684 | 13.61 | 16.89 | 2.62% | 752 |
+| gradient_boosting_lr005 | 30 | 11.60 | 14.34 | 2.22% | 684 | 12.93 | 16.39 | 2.48% | 752 |
 | prophet_calendar_enrollment__cps_0.01 | 30 | 10.84 | 13.76 | 2.07% | 684 | 11.91 | 15.48 | 2.29% | 752 |
 
 Test target dates by horizon: 7 days: 2024-01-15 to 2025-10-24; 14 days: 2024-01-08 to 2025-10-31; 30 days: 2024-01-08 to 2025-10-31. All models are scored on the same origins and target dates. With origins every 14 days, longer horizons overlap, so a date can be forecast from more than one origin; each forecast is counted.
@@ -101,11 +137,38 @@ Test target dates by horizon: 7 days: 2024-01-15 to 2025-10-24; 14 days: 2024-01
 | moving_average_20 | 7 | 168 | 36 | 13.57 | 17.69 | 2.61% | 2.64% | 0.80 |
 | moving_average_20 | 14 | 347 | 40 | 14.61 | 18.63 | 2.81% | 2.83% | -0.04 |
 | moving_average_20 | 30 | 752 | 45 | 14.26 | 18.20 | 2.74% | 2.77% | 0.37 |
+| seasonal_naive_weekly | 7 | 168 | 36 | 19.43 | 24.79 | 3.74% | 3.76% | 0.32 |
+| seasonal_naive_weekly | 14 | 347 | 40 | 19.87 | 25.66 | 3.82% | 3.85% | 0.81 |
+| seasonal_naive_weekly | 30 | 752 | 45 | 19.13 | 24.55 | 3.68% | 3.71% | 1.77 |
+| sarima_201_101_5 | 7 | 168 | 36 | 12.21 | 15.95 | 2.35% | 2.38% | 3.59 |
+| sarima_201_101_5 | 14 | 347 | 40 | 12.46 | 16.22 | 2.39% | 2.43% | 2.83 |
+| sarima_201_101_5 | 30 | 752 | 45 | 12.44 | 16.18 | 2.39% | 2.43% | 3.18 |
+| random_forest_leaf1 | 7 | 168 | 36 | 13.23 | 16.45 | 2.55% | 2.56% | 0.74 |
+| random_forest_leaf1 | 14 | 347 | 40 | 13.63 | 17.03 | 2.62% | 2.64% | -0.99 |
+| random_forest_leaf1 | 30 | 752 | 45 | 13.61 | 16.89 | 2.62% | 2.63% | -0.50 |
+| gradient_boosting_lr005 | 7 | 168 | 36 | 12.63 | 16.11 | 2.43% | 2.46% | 2.97 |
+| gradient_boosting_lr005 | 14 | 347 | 40 | 12.93 | 16.39 | 2.48% | 2.51% | 1.99 |
+| gradient_boosting_lr005 | 30 | 752 | 45 | 12.93 | 16.39 | 2.48% | 2.51% | 2.35 |
 | prophet_calendar_enrollment__cps_0.01 | 7 | 168 | 36 | 11.85 | 15.10 | 2.28% | 2.31% | 3.82 |
 | prophet_calendar_enrollment__cps_0.01 | 14 | 347 | 40 | 11.86 | 15.40 | 2.28% | 2.31% | 2.75 |
 | prophet_calendar_enrollment__cps_0.01 | 30 | 752 | 45 | 11.91 | 15.48 | 2.29% | 2.32% | 2.93 |
 
-## 5. Prophet prediction-interval coverage
+## 5. Comparison summary (test period)
+
+| Rank | Family | Model | MAE | RMSE | MAPE | Bias | MAE better than seasonal naive | Origins where Prophet is more accurate | Seconds per origin |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | Prophet (selected for the system) | `prophet_calendar_enrollment__cps_0.01` | 11.87 | 15.33 | 2.32% | 3.17 | 39.04% | - | 0.86 |
+| 2 | SARIMA (statistical) | `sarima_201_101_5` | 12.37 | 16.12 | 2.41% | 3.20 | 36.49% | 30 of 45 | 2.68 |
+| 3 | Gradient boosting (machine learning) | `gradient_boosting_lr005` | 12.83 | 16.30 | 2.50% | 2.43 | 34.13% | 33 of 45 | 0.55 |
+| 4 | Random Forest (machine learning) | `random_forest_leaf1` | 13.49 | 16.79 | 2.61% | -0.25 | 30.74% | 40 of 45 | 0.83 |
+| 5 | Historical average (baseline) | `historical_average_trailing_365d` | 13.61 | 17.64 | 2.64% | -0.17 | 30.12% | 37 of 45 | under 0.01 |
+| 6 | Moving average (baseline) | `moving_average_20` | 14.15 | 18.17 | 2.75% | 0.38 | 27.37% | 38 of 45 | under 0.01 |
+| 7 | Seasonal naive (baseline) | `seasonal_naive_weekly` | 19.48 | 25.00 | 3.77% | 0.97 | 0.00% | 43 of 45 | under 0.01 |
+
+Errors are averaged over the 7, 14 and 30-day horizons. "MAE better than seasonal naive" is the reduction in MAE against the same-weekday-last-week benchmark (positive is better). "Origins where Prophet is more accurate" counts the test forecast origins at which Prophet's mean absolute error over the 30-day window was lower than that model's, showing whether the difference is consistent. Seconds per origin is the mean time to fit the model and forecast one window on this machine (baselines need no fitting).
+
+
+## 6. Prophet prediction-interval coverage
 
 Share of actual values inside Prophet's intervals. Nominal coverage is what the interval width claims; empirical coverage is what was observed on held-out data.
 
@@ -121,4 +184,4 @@ Share of actual values inside Prophet's intervals. Nominal coverage is what the 
 Prediction intervals reflect Prophet's trend uncertainty and residual noise, assuming the future behaves like the training data. They are not guaranteed bounds. Because the data is synthetic, coverage here says nothing reliable about uncertainty for a real school.
 
 
-Runtime: 419.1 s.
+Runtime: 1068.4 s.
