@@ -15,6 +15,8 @@ import { saveConflict } from './conflictService';
 import { forgetOfflineUser } from '../features/devices/offlineSignIn';
 import { isSessionValid } from '../services/session';
 import db from '../db/database';
+import { getDeviceIdentity } from '../features/devices/deviceIdentity';
+import { pullChanges } from './pullChanges';
 
 /**
  * Sync Manager - Phase 6
@@ -141,6 +143,10 @@ export async function processSyncQueue() {
       conflicts: 0
     };
 
+    // Download the school's changes first, so edits are made on the latest copy
+    const schoolId = await deviceSchoolId();
+    await download(schoolId);
+
     console.log('Getting pending operations...');
     const pendingOperations = await getPendingOperations();
     console.log('Pending operations:', pendingOperations);
@@ -154,6 +160,9 @@ export async function processSyncQueue() {
         progress: syncProgress
       };
     }
+
+    // The records sent in this pass share one sync batch on the server
+    const syncBatchId = crypto.randomUUID();
 
     console.log(`Processing ${pendingOperations.length} pending operations`);
 
@@ -173,7 +182,7 @@ export async function processSyncQueue() {
       }
       console.log(`Processing operation:`, operation);
       try {
-        const result = await processSingleOperation(await withBaseRecord(operation));
+        const result = await processSingleOperation(await withBaseRecord(operation), { syncBatchId });
         if (!result.success) blockedRecords.add(key);
         console.log(`Operation result:`, result);
         syncProgress.processed++;
@@ -227,7 +236,7 @@ export async function processSyncQueue() {
         } else if (result.status === 'held') {
           // Kept on the server for an administrator to review; stop sending it
           await markOperationHeld(operation.id, result.reason);
-          await setLocalSyncStatus(operation.entityType, operation.recordId, 'held').catch(() => {});
+          await setStatus(operation.entityType, operation.recordId, 'held').catch(() => {});
           // The person can no longer sign in offline here until they sign in online
           if (result.capturedBy && (result.reason === 'user_deactivated' || result.reason === 'password_reset')) {
             await forgetOfflineUser(result.capturedBy).catch(() => {});
@@ -271,6 +280,9 @@ export async function processSyncQueue() {
         syncProgress.processed++;
       }
     }
+
+    // What went up is now on the server: download it with the rest of the school's changes
+    if (syncProgress.successful > 0) await download(schoolId);
 
     // Still waiting: anything pending except a colleague's records, which only they can send,
     // and changes held back behind a conflict, which wait for an administrator
@@ -317,7 +329,47 @@ async function recordsWithUnfinishedChanges() {
   return keys;
 }
 
-const LOCAL_TABLES = { attendance: 'attendance', mealDistribution: 'mealDistribution' };
+// Editable records on the device, by sync entity type
+const LOCAL_TABLES = {
+  attendance: 'attendance',
+  mealDistribution: 'mealDistribution',
+  enrolment: 'enrolment',
+  dailyFeeding: 'dailyFeeding',
+};
+// The record types added with the stock ledger, and their tables
+const FEEDING_TABLES = {
+  enrolment: 'enrolment',
+  dailyFeeding: 'dailyFeeding',
+  stockMovement: 'stockMovements',
+  stockCount: 'stockCounts',
+};
+
+async function setStatus(entityType, recordId, syncStatus) {
+  if (FEEDING_TABLES[entityType]) {
+    await db[FEEDING_TABLES[entityType]].update(recordId, { syncStatus });
+    return;
+  }
+  await setLocalSyncStatus(entityType, recordId, syncStatus);
+}
+
+/** The school this device is set up for, or null (an administrator's own computer). */
+async function deviceSchoolId() {
+  try {
+    return (await getDeviceIdentity())?.schoolId || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Download the school's changes; a failed download never stops records being sent. */
+async function download(schoolId) {
+  if (!schoolId) return;
+  try {
+    syncProgress.downloaded = (syncProgress.downloaded || 0) + (await pullChanges(schoolId));
+  } catch (error) {
+    console.error('Error downloading changes:', error);
+  }
+}
 
 /**
  * An update says which server record it was based on, once that is known, so the server
@@ -344,6 +396,9 @@ async function updateLocalRecordAfterSync(operation, syncResult) {
       await updateLocalAttendance(operation.recordId, updates);
     } else if (operation.entityType === 'mealDistribution') {
       await updateLocalMeal(operation.recordId, updates);
+    } else if (FEEDING_TABLES[operation.entityType]) {
+      // Status and server copy only: an edit through feedingDb would queue another change
+      await db[FEEDING_TABLES[operation.entityType]].update(operation.recordId, updates);
     }
   } catch (error) {
     console.error('Error updating local record after sync:', error);
@@ -356,7 +411,7 @@ async function updateLocalRecordAfterSync(operation, syncResult) {
 async function updateLocalRecordConflictStatus(operation) {
   try {
     // Status only: an edit here would bump the version and queue another stale update
-    await setLocalSyncStatus(operation.entityType, operation.recordId, 'conflict');
+    await setStatus(operation.entityType, operation.recordId, 'conflict');
   } catch (error) {
     console.error('Error updating local record conflict status:', error);
   }

@@ -17,7 +17,7 @@ export const SYNC_STATUS = {
 /**
  * Send synchronization operations to the backend
  */
-export async function syncOperations(operations) {
+export async function syncOperations(operations, { syncBatchId } = {}) {
   try {
     console.log('syncOperations called with operations:', operations);
     const clientId = await getOrCreateClientId();
@@ -25,6 +25,8 @@ export async function syncOperations(operations) {
     
     const payload = {
       clientId,
+      // The device's sync session: the server groups the records it applies into one batch
+      ...(syncBatchId && { syncBatchId }),
       operations: operations.map(op => ({
         id: op.id,
         entityType: op.entityType,
@@ -56,9 +58,9 @@ export async function syncOperations(operations) {
 /**
  * Process a single synchronization operation
  */
-export async function processSingleOperation(operation) {
+export async function processSingleOperation(operation, options = {}) {
   try {
-    const response = await syncOperations([operation]);
+    const response = await syncOperations([operation], options);
     
     if (response.success && response.results && response.results.length > 0) {
       const result = response.results[0];

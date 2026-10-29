@@ -122,6 +122,13 @@ export async function syncOperations(data) {
 /**
  * Conflicts API
  */
+/**
+ * The school's records changed since a download cursor (see sync/pullChanges.js).
+ */
+export async function getChanges({ schoolId, since }) {
+  return apiRequest(`/sync/changes?${new URLSearchParams({ schoolId, since })}`);
+}
+
 export async function getConflicts(params = {}) {
   const queryString = new URLSearchParams(params).toString();
   const endpoint = queryString ? `/sync/conflicts?${queryString}` : '/sync/conflicts';
