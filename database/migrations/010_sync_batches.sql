@@ -6,7 +6,10 @@
 -- last cursor they saw (server order, never device clocks). A plain counter is not
 -- enough: two saves can take numbers 10 and 11 and commit as 11 then 10, and a
 -- device that read 11 would never receive 10.
--- The entity types are widened for the records added by migrations 011 and 012.
+-- Conflicts record their school, so each person sees and resolves only their schools'
+-- conflicts, and the transaction that resolved them, so devices at the school download
+-- the decision. The entity types are widened for the records added by migrations 011
+-- and 012.
 -- New databases get these from schema.sql and do not need this script.
 --
 -- Run with: psql -U postgres -d <database> -f database/migrations/010_sync_batches.sql
@@ -57,6 +60,20 @@ ALTER TABLE sync_operations ADD CONSTRAINT sync_operations_batch_fk
     FOREIGN KEY (sync_batch_id) REFERENCES sync_batches (id)
     ON UPDATE CASCADE
     ON DELETE SET NULL;
+
+-- Conflicts belong to the school of the record they are about
+ALTER TABLE conflicts ADD COLUMN IF NOT EXISTS school_id UUID;
+ALTER TABLE conflicts ADD COLUMN IF NOT EXISTS resolved_xid XID8;
+UPDATE conflicts c SET school_id = s.id
+FROM schools s
+WHERE c.school_id IS NULL AND s.id::text = c.local_payload ->> 'schoolId';
+ALTER TABLE conflicts DROP CONSTRAINT IF EXISTS conflicts_school_fk;
+ALTER TABLE conflicts ADD CONSTRAINT conflicts_school_fk
+    FOREIGN KEY (school_id) REFERENCES schools (id)
+    ON UPDATE CASCADE
+    ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_conflicts_school ON conflicts (school_id, status);
+CREATE INDEX IF NOT EXISTS idx_conflicts_resolved_xid ON conflicts (resolved_xid);
 
 -- Entity types: the records synced from school devices
 ALTER TABLE sync_operations DROP CONSTRAINT IF EXISTS sync_operations_entity_type_check;

@@ -675,12 +675,27 @@ CREATE TABLE IF NOT EXISTS sync_batches (
 );
 
 ALTER TABLE sync_operations ADD COLUMN IF NOT EXISTS sync_batch_id UUID;
+
+-- Conflicts belong to the school of the record they are about; resolved_xid is the
+-- transaction that resolved one, so devices at the school download the decision
+ALTER TABLE conflicts ADD COLUMN IF NOT EXISTS school_id UUID;
+ALTER TABLE conflicts ADD COLUMN IF NOT EXISTS resolved_xid XID8;
+CREATE INDEX IF NOT EXISTS idx_conflicts_school ON conflicts (school_id, status);
+CREATE INDEX IF NOT EXISTS idx_conflicts_resolved_xid ON conflicts (resolved_xid);
+
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'sync_operations_batch_fk') THEN
         ALTER TABLE sync_operations
             ADD CONSTRAINT sync_operations_batch_fk
             FOREIGN KEY (sync_batch_id) REFERENCES sync_batches (id)
+            ON UPDATE CASCADE
+            ON DELETE SET NULL;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'conflicts_school_fk') THEN
+        ALTER TABLE conflicts
+            ADD CONSTRAINT conflicts_school_fk
+            FOREIGN KEY (school_id) REFERENCES schools (id)
             ON UPDATE CASCADE
             ON DELETE SET NULL;
     END IF;

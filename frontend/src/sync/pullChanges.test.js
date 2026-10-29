@@ -85,3 +85,57 @@ describe('pullChanges', () => {
     ]);
   });
 });
+
+describe('conflicts resolved elsewhere', () => {
+  const day = { schoolId: SCHOOL_ID, feedingDate: '06-10-2026', feedingHappened: true, learnersFed: 380, cerealsKg: 57, pulsesKg: 15.2 };
+
+  /** This device's create came back as a conflict; optionally an edit was made after it. */
+  async function inConflict({ editAfter = false } = {}) {
+    const local = await saveDailyFeeding(day);
+    const [create] = await db.syncQueue.toArray();
+    await db.syncQueue.update(create.id, { status: 'conflict' });
+    await db.dailyFeeding.update(local.id, { syncStatus: 'conflict' });
+    await db.conflicts.add({ operationId: create.id, entityType: 'dailyFeeding', recordId: local.id, conflictId: 'c-1', status: 'unresolved' });
+    if (editAfter) await saveDailyFeeding({ ...day, learnersFed: 385, cerealsKg: 57.75 });
+    return { local, create };
+  }
+
+  function decided(create, resolution, record) {
+    return download({
+      resolvedConflicts: [{ conflictId: 'c-1', operationId: create.id, entityType: 'dailyFeeding', resolution, record }],
+      dailyFeeding: [record],
+    });
+  }
+
+  it('closes the conflict and takes the server copy when nothing else is waiting', async () => {
+    const { local, create } = await inConflict();
+
+    await applyChanges(SCHOOL_ID, decided(create, 'keep_server', { ...serverDay, version: 1 }));
+
+    expect(await db.conflicts.toArray()).toEqual([expect.objectContaining({ status: 'resolved', resolution: 'keep_server' })]);
+    expect(await db.syncQueue.get(create.id)).toMatchObject({ status: 'synced' });
+    expect(await db.dailyFeeding.get(local.id)).toMatchObject({ learnersFed: 400, serverId: 'server-day-1', version: 1, syncStatus: 'synced' });
+  });
+
+  it("re-bases a later edit on the new version after keeping the device's version", async () => {
+    const { local } = await inConflict({ editAfter: true });
+    const queue = await db.syncQueue.toArray();
+    const [create, edit] = ['create', 'update'].map((kind) => queue.find((op) => op.operation === kind));
+
+    await applyChanges(SCHOOL_ID, decided(create, 'keep_local', { ...serverDay, learnersFed: 380, version: 2 }));
+
+    expect(await db.syncQueue.get(edit.id)).toMatchObject({ status: 'pending', baseVersion: 2 });
+    expect(await db.dailyFeeding.get(local.id)).toMatchObject({ learnersFed: 385, serverId: 'server-day-1', version: 3, syncStatus: 'pending' });
+  });
+
+  it("leaves a later edit as it was after keeping the server's version, so it is reviewed again", async () => {
+    const { local } = await inConflict({ editAfter: true });
+    const queue = await db.syncQueue.toArray();
+    const [create, edit] = ['create', 'update'].map((kind) => queue.find((op) => op.operation === kind));
+
+    await applyChanges(SCHOOL_ID, decided(create, 'keep_server', { ...serverDay, version: 1 }));
+
+    expect(await db.syncQueue.get(edit.id)).toMatchObject({ status: 'pending', baseVersion: 1 });
+    expect(await db.dailyFeeding.get(local.id)).toMatchObject({ learnersFed: 385, serverId: 'server-day-1', syncStatus: 'pending' });
+  });
+});

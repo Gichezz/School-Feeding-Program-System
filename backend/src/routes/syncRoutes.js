@@ -31,9 +31,10 @@ router.get('/conflicts/:conflictId', getConflictById);
 
 /**
  * POST /api/sync/conflicts/:conflictId/resolve
- * Resolve a conflict by choosing local or server version
+ * Resolve a conflict by choosing local or server version (administrators, and programme
+ * officers for schools in their sub-county)
  */
-router.post('/conflicts/:conflictId/resolve', requireRole('admin'), resolveConflict);
+router.post('/conflicts/:conflictId/resolve', requireRole('admin', 'programme_officer'), resolveConflict);
 
 /**
  * Held records (#61): records an administrator must apply or discard

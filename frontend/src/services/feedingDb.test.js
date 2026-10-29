@@ -31,7 +31,7 @@ describe('saveDailyFeeding', () => {
 
     expect(await db.dailyFeeding.count()).toBe(1);
     expect(await db.dailyFeeding.get(first.id)).toMatchObject({ learnersFed: 395, version: 2 });
-    const [, update] = await db.syncQueue.orderBy('createdAt').toArray();
+    const update = (await db.syncQueue.toArray()).find((op) => op.operation === 'update');
     expect(update).toMatchObject({ operation: 'update', baseVersion: 1, recordId: first.id });
   });
 

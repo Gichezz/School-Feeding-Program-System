@@ -425,7 +425,8 @@ describe('feeding records and the stock ledger', () => {
   it('sends every record of one pass in the same sync batch and marks them synced', async () => {
     const saved = await saveDailyFeeding(day);
     const entry = await addStockMovement(delivery);
-    const [feedOp, stockOp] = await db.syncQueue.orderBy('createdAt').toArray();
+    const queue = await db.syncQueue.toArray();
+    const [feedOp, stockOp] = ['dailyFeeding', 'stockMovement'].map((type) => queue.find((op) => op.entityType === type));
     syncOperations
       .mockResolvedValueOnce(serverResult({ success: true, operationId: feedOp.id, status: 'synced', version: 1, recordId: 'server-day' }))
       .mockResolvedValueOnce(serverResult({ success: true, operationId: stockOp.id, status: 'synced', version: 1, recordId: entry.id }));

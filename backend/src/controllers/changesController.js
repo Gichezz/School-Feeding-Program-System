@@ -19,6 +19,10 @@ const { visibleSchool } = require('../services/schoolAccess');
  *
  * Nothing in these tables is deleted (ledger entries are reversed, feeding records
  * and enrolment are edited), so a download never has to report removals.
+ *
+ * A download also carries the school's conflicts resolved since the cursor, each with
+ * the record as the server now has it, so a device whose change was in conflict learns
+ * the decision even when someone else made it on another computer.
  */
 
 function displayDate(value) {
@@ -58,6 +62,9 @@ const TABLES = {
   stockCounts: 'stock_counts',
 };
 
+// Conflicts can only be on editable records: database entity type → download list
+const CONFLICT_TYPES = { enrolment: 'enrolment', daily_feeding: 'dailyFeeding' };
+
 function schoolSettings(s) {
   return {
     id: s.id,
@@ -75,7 +82,8 @@ function schoolSettings(s) {
 
 /**
  * GET /api/sync/changes?schoolId=&since=
- * → { cursor, school, terms, calendarEvents, enrolment, dailyFeeding, stockMovements, stockCounts }
+ * → { cursor, school, terms, calendarEvents, enrolment, dailyFeeding, stockMovements, stockCounts,
+ *     resolvedConflicts }
  * since: the cursor from the previous download, or 0 (or nothing) for everything.
  */
 async function getChanges(req, res, next) {
@@ -106,6 +114,27 @@ async function getChanges(req, res, next) {
       changes[name] = rows.map(SHAPES[name]);
     }
 
+    const resolvedConflicts = [];
+    const resolved = (await client.query(
+      `SELECT conflict_id, operation_id, entity_type, record_id, resolution FROM conflicts
+       WHERE school_id = $1 AND status = 'resolved'
+         AND resolved_xid >= $2::xid8 AND resolved_xid < $3::xid8
+       ORDER BY resolved_xid`,
+      [schoolId, since, cursor]
+    )).rows;
+    for (const c of resolved) {
+      const name = CONFLICT_TYPES[c.entity_type];
+      if (!name) continue;
+      const record = (await client.query(`SELECT * FROM ${TABLES[name]} WHERE id = $1`, [c.record_id])).rows[0];
+      resolvedConflicts.push({
+        conflictId: c.conflict_id,
+        operationId: c.operation_id,
+        entityType: name,
+        resolution: c.resolution,
+        record: record ? SHAPES[name](record) : null,
+      });
+    }
+
     // Reference data is small and always sent whole
     const terms = (await client.query('SELECT * FROM school_terms ORDER BY opens_on')).rows.map((t) => ({
       id: t.id, year: t.year, term: t.term, opensOn: displayDate(t.opens_on), closesOn: displayDate(t.closes_on),
@@ -119,7 +148,7 @@ async function getChanges(req, res, next) {
     }));
 
     await client.query('COMMIT');
-    res.json({ cursor, school: schoolSettings(school), terms, calendarEvents, ...changes });
+    res.json({ cursor, school: schoolSettings(school), terms, calendarEvents, ...changes, resolvedConflicts });
   } catch (error) {
     await client.query('ROLLBACK').catch(() => {});
     next(error);

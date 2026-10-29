@@ -6,6 +6,7 @@ const { checkEntryWindow } = require('../validation/entryWindow');
 const { afterRecordSaved } = require('../services/integrity');
 const { afterSyncedRecord } = require('../services/recordChecks');
 const { RECORD_TYPES } = require('../sync/recordTypes');
+const { visibleSchool } = require('../services/schoolAccess');
 const clock = require('../utils/clock');
 
 // Upper bound on operations per POST /api/sync (the client sends one at a time)
@@ -17,6 +18,9 @@ const ENTITY_TYPES = {
   mealDistribution: 'meal_distribution',
   ...Object.fromEntries(Object.entries(RECORD_TYPES).map(([name, type]) => [name, type.dbType])),
 };
+
+// Database entity type → client entity type
+const CLIENT_TYPES = Object.fromEntries(Object.entries(ENTITY_TYPES).map(([name, dbType]) => [dbType, name]));
 
 /** The date a record describes (DD-MM-YYYY), or null for records that are not for a date. */
 function recordDateOf(entityType, payload) {
@@ -34,7 +38,7 @@ function recordDateOf(entityType, payload) {
  */
 async function syncOperations(req, res, next) {
   const client = await pool.connect();
-  
+
   try {
     const { clientId, operations, syncBatchId } = req.body;
     // Recorded as updated_by on every record this request writes
@@ -155,7 +159,7 @@ async function syncOperations(req, res, next) {
 
         if (existingSyncOp.rows.length > 0) {
           const existingOp = existingSyncOp.rows[0];
-          
+
           if (existingOp.status === 'applied') {
             // Return the previous successful result
             const currentVersion = await getRecordVersion(operation.entityType, existingOp.record_id, client);
@@ -175,7 +179,7 @@ async function syncOperations(req, res, next) {
               'SELECT * FROM conflicts WHERE operation_id = $1',
               [operation.id]
             );
-            
+
             const serverRecord = await getServerRecord(operation.entityType, operation.payload, client);
             results.push({
               success: false,
@@ -255,9 +259,9 @@ async function syncOperations(req, res, next) {
           'DELETE FROM sync_operations WHERE operation_id = $1',
           [operation.id]
         );
-        
+
         await client.query(
-          `INSERT INTO sync_operations 
+          `INSERT INTO sync_operations
            (operation_id, entity_type, record_id, operation_type, payload, client_id, base_version, status, processed_at,
             captured_by, device_id, captured_at, sync_batch_id)
            VALUES ($1, $2, $3, $4, $5, $6, $7, 'applied', NOW(), $8, $9, $10, $11)`,
@@ -296,13 +300,13 @@ async function syncOperations(req, res, next) {
       } catch (error) {
         // Rollback the current transaction due to error
         await client.query('ROLLBACK');
-        
+
         // Start a new transaction for error handling
         await client.query('BEGIN');
-        
+
         // Handle individual operation errors
         const serverRecord = await getServerRecord(operation.entityType, operation.payload, client);
-        
+
         // Determine if this is a conflict (version mismatch) or other error
         let status = 'failed';
         let conflictId = null;
@@ -331,7 +335,7 @@ async function syncOperations(req, res, next) {
               'DELETE FROM sync_operations WHERE operation_id = $1',
               [operation.id]
             );
-  
+
             await client.query(
               `INSERT INTO sync_operations
                (operation_id, entity_type, record_id, operation_type, payload, client_id, base_version, status, processed_at)
@@ -347,14 +351,14 @@ async function syncOperations(req, res, next) {
                 status
               ]
             );
-  
+
             if (status === 'conflict') {
               // Create conflict record in database
               const conflictResult = await client.query(
                 `INSERT INTO conflicts
                  (entity_type, record_id, operation_id, client_id, base_version, server_version,
-                  local_payload, server_payload, status)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'unresolved')
+                  local_payload, server_payload, status, school_id)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'unresolved', $9)
                  RETURNING conflict_id`,
                 [
                   dbEntityType,
@@ -364,7 +368,8 @@ async function syncOperations(req, res, next) {
                   operation.baseVersion,
                   serverRecord?.version || null,
                   JSON.stringify(operation.payload),
-                  JSON.stringify(serverRecord)
+                  JSON.stringify(serverRecord),
+                  operation.payload.schoolId
                 ]
               );
               conflictId = conflictResult.rows[0].conflict_id;
@@ -405,7 +410,7 @@ async function syncOperations(req, res, next) {
     } catch (rollbackError) {
       console.error('Error during rollback:', rollbackError);
     }
-    
+
     if (error instanceof ValidationError) {
       return res.status(400).json({ error: error.message });
     }
@@ -536,7 +541,7 @@ async function createAttendanceRecord(client, payload, clientId, userId) {
 
   // Create new record
   const result = await client.query(
-    `INSERT INTO attendance_records 
+    `INSERT INTO attendance_records
      (school_id, attendance_date, total_registered, total_present, total_absent, client_id, version, updated_by)
      VALUES ($1, $2, $3, $4, $5, $6, 1, $7)
      RETURNING id, version`,
@@ -587,8 +592,8 @@ async function updateAttendanceRecord(client, payload, baseVersion, clientId, us
 
   // Update record with incremented version
   const result = await client.query(
-    `UPDATE attendance_records 
-     SET total_registered = $1, total_present = $2, total_absent = $3, 
+    `UPDATE attendance_records
+     SET total_registered = $1, total_present = $2, total_absent = $3,
          version = version + 1, updated_at = NOW(), client_id = $4, updated_by = $6
      WHERE id = $5
      RETURNING id, version`,
@@ -627,7 +632,7 @@ async function createMealDistributionRecord(client, payload, clientId, userId) {
 
   // Create new record
   const result = await client.query(
-    `INSERT INTO meal_distributions 
+    `INSERT INTO meal_distributions
      (school_id, distribution_date, meals_prepared, meals_served, client_id, version, updated_by)
      VALUES ($1, $2, $3, $4, $5, 1, $6)
      RETURNING id, version`,
@@ -674,7 +679,7 @@ async function updateMealDistributionRecord(client, payload, baseVersion, client
 
   // Update record with incremented version
   const result = await client.query(
-    `UPDATE meal_distributions 
+    `UPDATE meal_distributions
      SET meals_prepared = $1, meals_served = $2, version = version + 1, updated_at = NOW(), client_id = $3, updated_by = $5
      WHERE id = $4
      RETURNING id, version`,
@@ -696,22 +701,22 @@ async function getServerRecord(entityType, payload, client) {
     if (entityType === 'attendance') {
       const { schoolId, attendanceDate } = payload;
       const formattedDate = convertDateFormat(attendanceDate);
-      
+
       const result = await client.query(
         'SELECT * FROM attendance_records WHERE school_id = $1 AND attendance_date = $2',
         [schoolId, formattedDate]
       );
-      
+
       return result.rows[0] || null;
     } else if (entityType === 'mealDistribution') {
       const { schoolId, distributionDate } = payload;
       const formattedDate = convertDateFormat(distributionDate);
-      
+
       const result = await client.query(
         'SELECT * FROM meal_distributions WHERE school_id = $1 AND distribution_date = $2',
         [schoolId, formattedDate]
       );
-      
+
       return result.rows[0] || null;
     }
   } catch (error) {
@@ -766,6 +771,8 @@ function convertDateFormat(dateString) {
 const MERGE_FIELDS = {
   attendance: ['totalRegistered', 'totalPresent', 'totalAbsent'],
   meal_distribution: ['mealsPrepared', 'mealsServed'],
+  enrolment: ['learners'],
+  daily_feeding: ['feedingHappened', 'learnersPresent', 'learnersFed', 'cerealsKg', 'pulsesKg', 'reasonCode', 'note'],
 };
 
 /**
@@ -780,18 +787,22 @@ function mergedPayload(conflict, values) {
   }
   const payload = { ...conflict.local_payload };
   for (const field of fields) payload[field] = values[field];
-  const invalid = syncPayloadError(conflict.entity_type === 'attendance' ? 'attendance' : 'mealDistribution', payload);
+  const type = CLIENT_TYPES[conflict.entity_type];
+  const invalid = RECORD_TYPES[type] ? RECORD_TYPES[type].validate(payload) : syncPayloadError(type, payload);
   if (invalid) throw new ValidationError(invalid);
   return payload;
 }
 
 /**
  * Resolve a conflict: keep the device's version, keep the server's version, or
- * merge (an administrator's edited values, checked like any other record).
+ * merge (the resolver's edited values, checked like any other record). Administrators
+ * resolve any school's conflicts; programme officers those of schools in their
+ * sub-county. The decision is stamped with its transaction (resolved_xid), so the
+ * school's devices download it.
  */
 async function resolveConflict(req, res, next) {
   const client = await pool.connect();
-  
+
   try {
     const { conflictId } = req.params;
     if (!isUuid(conflictId)) {
@@ -821,6 +832,10 @@ async function resolveConflict(req, res, next) {
     }
 
     const conflict = conflictResult.rows[0];
+    if (!(await visibleSchool(client, req.user, conflict.school_id || conflict.local_payload?.schoolId))) {
+      throw new NotFoundError('Conflict not found');
+    }
+    const entityType = CLIENT_TYPES[conflict.entity_type];
 
     // Check if conflict is already resolved
     if (conflict.status !== 'unresolved') {
@@ -828,11 +843,7 @@ async function resolveConflict(req, res, next) {
     }
 
     // Get current server record to prevent stale resolutions
-    const currentServerRecord = await getServerRecord(
-      conflict.entity_type === 'attendance' ? 'attendance' : 'mealDistribution',
-      conflict.local_payload,
-      client
-    );
+    const currentServerRecord = await getServerRecord(entityType, conflict.local_payload, client);
 
     // Verify the conflict is still valid (server version hasn't changed)
     if (currentServerRecord && currentServerRecord.version !== conflict.server_version) {
@@ -856,11 +867,12 @@ async function resolveConflict(req, res, next) {
 
       // Mark conflict as resolved
       await client.query(
-        `UPDATE conflicts 
-         SET status = 'resolved', 
-             resolution = $1, 
+        `UPDATE conflicts
+         SET status = 'resolved',
+             resolution = $1,
              resolved_at = NOW(),
-             resolved_by = $2
+             resolved_by = $2,
+             resolved_xid = pg_current_xact_id()
          WHERE conflict_id = $3`,
         ['keep_server', resolvedBy, conflictId]
       );
@@ -868,8 +880,16 @@ async function resolveConflict(req, res, next) {
     } else {
       // keep_local applies the device's values; merge applies the administrator's edited values
       const localPayload = resolution === 'merge' ? mergedPayload(conflict, values) : conflict.local_payload;
-      
-      if (conflict.entity_type === 'attendance') {
+
+      const capture = { capturedBy: resolvedBy, deviceId: null, capturedAt: clock.now() };
+      if (RECORD_TYPES[entityType]) {
+        const type = RECORD_TYPES[entityType];
+        if (!currentServerRecord) throw new NotFoundError('The record in this conflict no longer exists');
+        const saved = await type.update(client, localPayload, currentServerRecord.version, currentServerRecord.id,
+          saveContext(clientId, resolvedBy, capture, null));
+        resultRecord = (await client.query(`SELECT * FROM ${type.table} WHERE id = $1`, [saved.recordId])).rows[0];
+        newVersion = saved.version;
+      } else if (conflict.entity_type === 'attendance') {
         const updateResult = await applyLocalAttendanceUpdate(client, localPayload, conflict.server_version, clientId, resolvedBy);
         resultRecord = updateResult.record;
         newVersion = updateResult.version;
@@ -879,21 +899,17 @@ async function resolveConflict(req, res, next) {
         newVersion = updateResult.version;
       }
 
-      // The administrator's decision is a new version in the record's history (not flagged)
-      await afterRecordSaved(client, {
-        entityType: conflict.entity_type,
-        recordId: resultRecord.id,
-        capture: { capturedBy: resolvedBy, capturedAt: clock.now() },
-        flag: false,
-      });
+      // The resolver's decision is a new version in the record's history (not flagged)
+      await afterSave(client, { entityType, payload: localPayload }, { recordId: resultRecord.id }, { capture, flag: false });
 
       // Mark conflict as resolved
       await client.query(
-        `UPDATE conflicts 
-         SET status = 'resolved', 
-             resolution = $1, 
+        `UPDATE conflicts
+         SET status = 'resolved',
+             resolution = $1,
              resolved_at = NOW(),
-             resolved_by = $2
+             resolved_by = $2,
+             resolved_xid = pg_current_xact_id()
          WHERE conflict_id = $3`,
         [resolution, resolvedBy, conflictId]
       );
@@ -901,8 +917,8 @@ async function resolveConflict(req, res, next) {
 
     // Update the associated sync operation status
     await client.query(
-      `UPDATE sync_operations 
-       SET status = 'applied', 
+      `UPDATE sync_operations
+       SET status = 'applied',
            processed_at = NOW()
        WHERE operation_id = $1`,
       [conflict.operation_id]
@@ -921,7 +937,7 @@ async function resolveConflict(req, res, next) {
 
   } catch (error) {
     await client.query('ROLLBACK');
-    
+
     if (error instanceof ValidationError) {
       return res.status(400).json({ error: error.message });
     }
@@ -955,8 +971,8 @@ async function applyLocalAttendanceUpdate(client, payload, currentServerVersion,
 
   // Update record with incremented version
   const result = await client.query(
-    `UPDATE attendance_records 
-     SET total_registered = $1, total_present = $2, total_absent = $3, 
+    `UPDATE attendance_records
+     SET total_registered = $1, total_present = $2, total_absent = $3,
          version = version + 1, updated_at = NOW(), client_id = $4, updated_by = $6
      WHERE id = $5
      RETURNING *`,
@@ -990,7 +1006,7 @@ async function applyLocalMealUpdate(client, payload, currentServerVersion, clien
 
   // Update record with incremented version
   const result = await client.query(
-    `UPDATE meal_distributions 
+    `UPDATE meal_distributions
      SET meals_prepared = $1, meals_served = $2, version = version + 1, updated_at = NOW(), client_id = $3, updated_by = $5
      WHERE id = $4
      RETURNING *`,
@@ -1004,19 +1020,38 @@ async function applyLocalMealUpdate(client, payload, currentServerVersion, clien
 }
 
 /**
- * Get all unresolved conflicts for a client
+ * Conflicts, optionally filtered by device (clientId), status and school. Each person
+ * sees only their schools' conflicts: school staff their own school, programme officers
+ * the schools in their sub-county, administrators every school.
  */
 async function getConflicts(req, res, next) {
   const client = await pool.connect();
-  
+
   try {
-    const { clientId } = req.query;
+    const { clientId, schoolId } = req.query;
     const { status } = req.query;
 
     let query = 'SELECT * FROM conflicts';
     const conditions = [];
     const params = [];
     let paramIndex = 1;
+
+    if (req.user.role === 'school_staff') {
+      conditions.push(`school_id = $${paramIndex}`);
+      params.push(req.user.schoolId);
+      paramIndex++;
+    } else if (req.user.role === 'programme_officer') {
+      conditions.push(`school_id IN (SELECT id FROM schools WHERE sub_county = $${paramIndex})`);
+      params.push(req.user.subCounty);
+      paramIndex++;
+    }
+
+    if (schoolId) {
+      if (!isUuid(schoolId)) throw new ValidationError('Invalid school ID format');
+      conditions.push(`school_id = $${paramIndex}`);
+      params.push(schoolId);
+      paramIndex++;
+    }
 
     if (clientId) {
       conditions.push(`client_id = $${paramIndex}`);
@@ -1044,6 +1079,9 @@ async function getConflicts(req, res, next) {
     });
 
   } catch (error) {
+    if (error instanceof ValidationError) {
+      return res.status(400).json({ error: error.message });
+    }
     next(error);
   } finally {
     client.release();
@@ -1055,7 +1093,7 @@ async function getConflicts(req, res, next) {
  */
 async function getConflictById(req, res, next) {
   const client = await pool.connect();
-  
+
   try {
     const { conflictId } = req.params;
     if (!isUuid(conflictId)) {
@@ -1067,13 +1105,14 @@ async function getConflictById(req, res, next) {
       [conflictId]
     );
 
-    if (result.rows.length === 0) {
+    const conflict = result.rows[0];
+    if (!conflict || !(await visibleSchool(client, req.user, conflict.school_id || conflict.local_payload?.schoolId))) {
       throw new NotFoundError('Conflict not found');
     }
 
     res.json({
       success: true,
-      conflict: result.rows[0]
+      conflict
     });
 
   } catch (error) {
