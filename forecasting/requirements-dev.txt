@@ -8,3 +8,6 @@ scikit-learn==1.6.1
 statsmodels==0.14.6
 # statsmodels 0.14.4 and older fail with SciPy 1.15+; pinned for reproducible results
 scipy==1.18.1
+
+# Reads the Swedish school lunch dataset (.xlsx), used by the planning evaluation
+openpyxl

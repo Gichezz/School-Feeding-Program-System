@@ -45,3 +45,9 @@ coverage/
 
 # Generated Colab bundle
 school_feeding_forecasting_colab.zip
+
+# Open datasets: downloaded and verified by forecasting/scripts/fetch_open_datasets.py
+forecasting/data/raw/swedish_guest_attendance/
+forecasting/data/raw/wfp_food_prices_kenya/*.csv
+forecasting/data/processed/swedish_school_lunch_daily.csv
+forecasting/data/processed/swedish_prophet_window_*.csv

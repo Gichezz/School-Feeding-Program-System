@@ -1,0 +1,707 @@
+{
+  "dataset_sha256": "f56c40130f3990212d01d9659a189ec32a12410f7528f54b5ebc991e79851e88",
+  "selection": {
+    "moving_average_window": 10,
+    "day_effect_half_life": 5,
+    "validation_wape": {
+      "moving_average": {
+        "5": 0.0628,
+        "10": 0.0624,
+        "20": 0.0633
+      },
+      "day_effect": {
+        "5": 0.053,
+        "10": 0.0537,
+        "20": 0.055,
+        "40": 0.0584
+      }
+    }
+  },
+  "day_ahead": {
+    "by_day_type": [
+      {
+        "day_type": "all",
+        "days": 5636,
+        "cook_for_enrolled": 0.1553,
+        "cook_for_enrolled_bias": 0.1288,
+        "last_day": 0.0636,
+        "last_day_bias": 0.0245,
+        "moving_average": 0.057,
+        "moving_average_bias": 0.0267,
+        "day_effect": 0.053,
+        "day_effect_bias": 0.0106,
+        "gradient_boosting": 0.0591,
+        "gradient_boosting_bias": -0.0013
+      },
+      {
+        "day_type": "ordinary",
+        "days": 4425,
+        "cook_for_enrolled": 0.1511,
+        "cook_for_enrolled_bias": 0.1054,
+        "last_day": 0.0569,
+        "last_day_bias": 0.0075,
+        "moving_average": 0.0527,
+        "moving_average_bias": 0.0073,
+        "day_effect": 0.0488,
+        "day_effect_bias": 0.0075,
+        "gradient_boosting": 0.052,
+        "gradient_boosting_bias": 0.0014
+      },
+      {
+        "day_type": "first days after a break",
+        "days": 585,
+        "cook_for_enrolled": 0.1498,
+        "cook_for_enrolled_bias": 0.0941,
+        "last_day": 0.0688,
+        "last_day_bias": -0.0016,
+        "moving_average": 0.0578,
+        "moving_average_bias": -0.0072,
+        "day_effect": 0.0528,
+        "day_effect_bias": 0.0083,
+        "gradient_boosting": 0.0608,
+        "gradient_boosting_bias": -0.0058
+      },
+      {
+        "day_type": "last days before a break",
+        "days": 556,
+        "cook_for_enrolled": 0.1689,
+        "cook_for_enrolled_bias": 0.1194,
+        "last_day": 0.0679,
+        "last_day_bias": 0.0152,
+        "moving_average": 0.0589,
+        "moving_average_bias": 0.0162,
+        "day_effect": 0.058,
+        "day_effect_bias": 0.0152,
+        "gradient_boosting": 0.0865,
+        "gradient_boosting_bias": -0.0192
+      },
+      {
+        "day_type": "first day of school year",
+        "days": 28,
+        "cook_for_enrolled": 0.1057,
+        "cook_for_enrolled_bias": 0.0286,
+        "last_day": 0.4448,
+        "last_day_bias": -0.3754,
+        "moving_average": 0.1496,
+        "moving_average_bias": -0.113,
+        "day_effect": 0.0818,
+        "day_effect_bias": -0.0309,
+        "gradient_boosting": 0.1277,
+        "gradient_boosting_bias": -0.0996
+      },
+      {
+        "day_type": "last day of school year",
+        "days": 24,
+        "cook_for_enrolled": 1.0143,
+        "cook_for_enrolled_bias": 5.2495,
+        "last_day": 0.5967,
+        "last_day_bias": 4.1279,
+        "moving_average": 0.7181,
+        "moving_average_bias": 4.4954,
+        "day_effect": 0.7713,
+        "day_effect_bias": 0.3356,
+        "gradient_boosting": 0.7277,
+        "gradient_boosting_bias": 0.1036
+      },
+      {
+        "day_type": "event noted",
+        "days": 18,
+        "cook_for_enrolled": 0.3447,
+        "cook_for_enrolled_bias": 0.607,
+        "last_day": 0.3459,
+        "last_day_bias": 0.478,
+        "moving_average": 0.3216,
+        "moving_average_bias": 0.4945,
+        "day_effect": 0.2811,
+        "day_effect_bias": 0.3288,
+        "gradient_boosting": 0.2456,
+        "gradient_boosting_bias": 0.0646
+      }
+    ],
+    "bootstrap_vs_moving_average": {
+      "day_effect": {
+        "difference": -0.004,
+        "ci_low": -0.006,
+        "ci_high": -0.0022
+      },
+      "gradient_boosting": {
+        "difference": 0.0021,
+        "ci_low": -0.0007,
+        "ci_high": 0.0047
+      }
+    }
+  },
+  "two_week": {
+    "by_day_type": [
+      {
+        "day_type": "all",
+        "days": 5265,
+        "cook_for_enrolled": 0.1552,
+        "cook_for_enrolled_bias": 0.1304,
+        "last_day": 0.0725,
+        "last_day_bias": 0.0266,
+        "moving_average": 0.0599,
+        "moving_average_bias": 0.0298,
+        "day_effect": 0.0567,
+        "day_effect_bias": 0.012,
+        "gradient_boosting": 0.0707,
+        "gradient_boosting_bias": -0.0101,
+        "prophet": 0.0717,
+        "prophet_bias": 0.0093
+      },
+      {
+        "day_type": "ordinary",
+        "days": 4167,
+        "cook_for_enrolled": 0.1506,
+        "cook_for_enrolled_bias": 0.1051,
+        "last_day": 0.0684,
+        "last_day_bias": 0.0062,
+        "moving_average": 0.0565,
+        "moving_average_bias": 0.0077,
+        "day_effect": 0.0529,
+        "day_effect_bias": 0.0087,
+        "gradient_boosting": 0.063,
+        "gradient_boosting_bias": -0.0059,
+        "prophet": 0.0682,
+        "prophet_bias": 0.004
+      },
+      {
+        "day_type": "first days after a break",
+        "days": 500,
+        "cook_for_enrolled": 0.1541,
+        "cook_for_enrolled_bias": 0.0988,
+        "last_day": 0.0682,
+        "last_day_bias": -0.0043,
+        "moving_average": 0.0535,
+        "moving_average_bias": -0.0002,
+        "day_effect": 0.0514,
+        "day_effect_bias": 0.013,
+        "gradient_boosting": 0.0656,
+        "gradient_boosting_bias": -0.0055,
+        "prophet": 0.0654,
+        "prophet_bias": 0.0027
+      },
+      {
+        "day_type": "last days before a break",
+        "days": 528,
+        "cook_for_enrolled": 0.1654,
+        "cook_for_enrolled_bias": 0.1165,
+        "last_day": 0.0786,
+        "last_day_bias": 0.0077,
+        "moving_average": 0.0629,
+        "moving_average_bias": 0.0149,
+        "day_effect": 0.0629,
+        "day_effect_bias": 0.013,
+        "gradient_boosting": 0.0906,
+        "gradient_boosting_bias": -0.0312,
+        "prophet": 0.0788,
+        "prophet_bias": -0.0041
+      },
+      {
+        "day_type": "first day of school year",
+        "days": 28,
+        "cook_for_enrolled": 0.1057,
+        "cook_for_enrolled_bias": 0.0286,
+        "last_day": 0.1098,
+        "last_day_bias": -0.0745,
+        "moving_average": 0.0973,
+        "moving_average_bias": -0.0759,
+        "day_effect": 0.0743,
+        "day_effect_bias": -0.0349,
+        "gradient_boosting": 0.4206,
+        "gradient_boosting_bias": -0.4098,
+        "prophet": 0.0839,
+        "prophet_bias": -0.0356
+      },
+      {
+        "day_type": "last day of school year",
+        "days": 24,
+        "cook_for_enrolled": 1.0143,
+        "cook_for_enrolled_bias": 5.2495,
+        "last_day": 0.724,
+        "last_day_bias": 4.3837,
+        "moving_average": 0.7762,
+        "moving_average_bias": 4.5816,
+        "day_effect": 0.7796,
+        "day_effect_bias": 0.3702,
+        "gradient_boosting": 0.7458,
+        "gradient_boosting_bias": 0.0848,
+        "prophet": 0.7021,
+        "prophet_bias": 1.301
+      },
+      {
+        "day_type": "event noted",
+        "days": 18,
+        "cook_for_enrolled": 0.3447,
+        "cook_for_enrolled_bias": 0.607,
+        "last_day": 0.3519,
+        "last_day_bias": 0.5127,
+        "moving_average": 0.2994,
+        "moving_average_bias": 0.5055,
+        "day_effect": 0.2793,
+        "day_effect_bias": 0.3242,
+        "gradient_boosting": 0.2794,
+        "gradient_boosting_bias": 0.0049,
+        "prophet": 0.3009,
+        "prophet_bias": 0.1581
+      }
+    ],
+    "bootstrap_vs_moving_average": {
+      "last_day": {
+        "difference": 0.0125,
+        "ci_low": 0.0083,
+        "ci_high": 0.0167
+      },
+      "day_effect": {
+        "difference": -0.0032,
+        "ci_low": -0.0055,
+        "ci_high": -0.0011
+      },
+      "gradient_boosting": {
+        "difference": 0.0107,
+        "ci_low": 0.0065,
+        "ci_high": 0.0147
+      },
+      "prophet": {
+        "difference": 0.0118,
+        "ci_low": 0.0077,
+        "ci_high": 0.0158
+      }
+    },
+    "origins": 538
+  },
+  "decision": [
+    {
+      "target_shortage_rate": 0.02,
+      "plan": "cook_for_enrolled",
+      "shortage_day_rate": 0.1409,
+      "meals_short_pct": 0.0123,
+      "surplus_pct": 0.143,
+      "by_day_type": {
+        "ordinary": {
+          "shortage_day_rate": 0.1412,
+          "meals_short_pct": 0.0121,
+          "surplus_pct": 0.1389
+        },
+        "first days after a break": {
+          "shortage_day_rate": 0.1299,
+          "meals_short_pct": 0.0121,
+          "surplus_pct": 0.1377
+        },
+        "last days before a break": {
+          "shortage_day_rate": 0.1475,
+          "meals_short_pct": 0.0119,
+          "surplus_pct": 0.1571
+        },
+        "first day of school year": {
+          "shortage_day_rate": 0.1786,
+          "meals_short_pct": 0.0225,
+          "surplus_pct": 0.0831
+        },
+        "last day of school year": {
+          "shortage_day_rate": 0.0833,
+          "meals_short_pct": 0.0162,
+          "surplus_pct": 0.9981
+        },
+        "event noted": {
+          "shortage_day_rate": 0.2222,
+          "meals_short_pct": 0.0482,
+          "surplus_pct": 0.2965
+        }
+      }
+    },
+    {
+      "target_shortage_rate": 0.02,
+      "plan": "moving_average_fixed_buffer",
+      "shortage_day_rate": 0.0195,
+      "meals_short_pct": 0.0022,
+      "surplus_pct": 0.2033,
+      "by_day_type": {
+        "ordinary": {
+          "shortage_day_rate": 0.0174,
+          "meals_short_pct": 0.0018,
+          "surplus_pct": 0.2011
+        },
+        "first days after a break": {
+          "shortage_day_rate": 0.0274,
+          "meals_short_pct": 0.0036,
+          "surplus_pct": 0.1931
+        },
+        "last days before a break": {
+          "shortage_day_rate": 0.0054,
+          "meals_short_pct": 0.0003,
+          "surplus_pct": 0.212
+        },
+        "first day of school year": {
+          "shortage_day_rate": 0.3571,
+          "meals_short_pct": 0.0328,
+          "surplus_pct": 0.0664
+        },
+        "last day of school year": {
+          "shortage_day_rate": 0.0,
+          "meals_short_pct": 0.0,
+          "surplus_pct": 1.0138
+        },
+        "event noted": {
+          "shortage_day_rate": 0.2222,
+          "meals_short_pct": 0.0473,
+          "surplus_pct": 0.3762
+        }
+      }
+    },
+    {
+      "target_shortage_rate": 0.02,
+      "plan": "day_effect_type_buffer",
+      "shortage_day_rate": 0.0296,
+      "meals_short_pct": 0.0043,
+      "surplus_pct": 0.1619,
+      "by_day_type": {
+        "ordinary": {
+          "shortage_day_rate": 0.0273,
+          "meals_short_pct": 0.0025,
+          "surplus_pct": 0.158
+        },
+        "first days after a break": {
+          "shortage_day_rate": 0.0274,
+          "meals_short_pct": 0.0036,
+          "surplus_pct": 0.1803
+        },
+        "last days before a break": {
+          "shortage_day_rate": 0.0126,
+          "meals_short_pct": 0.0006,
+          "surplus_pct": 0.1738
+        },
+        "first day of school year": {
+          "shortage_day_rate": 0.1429,
+          "meals_short_pct": 0.007,
+          "surplus_pct": 0.1284
+        },
+        "last day of school year": {
+          "shortage_day_rate": 0.625,
+          "meals_short_pct": 0.6313,
+          "surplus_pct": 0.1149
+        },
+        "event noted": {
+          "shortage_day_rate": 0.2222,
+          "meals_short_pct": 0.0879,
+          "surplus_pct": 0.2389
+        }
+      }
+    },
+    {
+      "target_shortage_rate": 0.05,
+      "plan": "cook_for_enrolled",
+      "shortage_day_rate": 0.1409,
+      "meals_short_pct": 0.0123,
+      "surplus_pct": 0.143,
+      "by_day_type": {
+        "ordinary": {
+          "shortage_day_rate": 0.1412,
+          "meals_short_pct": 0.0121,
+          "surplus_pct": 0.1389
+        },
+        "first days after a break": {
+          "shortage_day_rate": 0.1299,
+          "meals_short_pct": 0.0121,
+          "surplus_pct": 0.1377
+        },
+        "last days before a break": {
+          "shortage_day_rate": 0.1475,
+          "meals_short_pct": 0.0119,
+          "surplus_pct": 0.1571
+        },
+        "first day of school year": {
+          "shortage_day_rate": 0.1786,
+          "meals_short_pct": 0.0225,
+          "surplus_pct": 0.0831
+        },
+        "last day of school year": {
+          "shortage_day_rate": 0.0833,
+          "meals_short_pct": 0.0162,
+          "surplus_pct": 0.9981
+        },
+        "event noted": {
+          "shortage_day_rate": 0.2222,
+          "meals_short_pct": 0.0482,
+          "surplus_pct": 0.2965
+        }
+      }
+    },
+    {
+      "target_shortage_rate": 0.05,
+      "plan": "moving_average_fixed_buffer",
+      "shortage_day_rate": 0.046,
+      "meals_short_pct": 0.0046,
+      "surplus_pct": 0.1376,
+      "by_day_type": {
+        "ordinary": {
+          "shortage_day_rate": 0.0414,
+          "meals_short_pct": 0.004,
+          "surplus_pct": 0.1353
+        },
+        "first days after a break": {
+          "shortage_day_rate": 0.0718,
+          "meals_short_pct": 0.0064,
+          "surplus_pct": 0.1286
+        },
+        "last days before a break": {
+          "shortage_day_rate": 0.027,
+          "meals_short_pct": 0.0017,
+          "surplus_pct": 0.1448
+        },
+        "first day of school year": {
+          "shortage_day_rate": 0.5357,
+          "meals_short_pct": 0.0631,
+          "surplus_pct": 0.038
+        },
+        "last day of school year": {
+          "shortage_day_rate": 0.0,
+          "meals_short_pct": 0.0,
+          "surplus_pct": 0.8985
+        },
+        "event noted": {
+          "shortage_day_rate": 0.2222,
+          "meals_short_pct": 0.0665,
+          "surplus_pct": 0.3212
+        }
+      }
+    },
+    {
+      "target_shortage_rate": 0.05,
+      "plan": "day_effect_type_buffer",
+      "shortage_day_rate": 0.0566,
+      "meals_short_pct": 0.007,
+      "surplus_pct": 0.1033,
+      "by_day_type": {
+        "ordinary": {
+          "shortage_day_rate": 0.0542,
+          "meals_short_pct": 0.0049,
+          "surplus_pct": 0.101
+        },
+        "first days after a break": {
+          "shortage_day_rate": 0.0547,
+          "meals_short_pct": 0.0065,
+          "surplus_pct": 0.1064
+        },
+        "last days before a break": {
+          "shortage_day_rate": 0.0378,
+          "meals_short_pct": 0.0033,
+          "surplus_pct": 0.1162
+        },
+        "first day of school year": {
+          "shortage_day_rate": 0.2143,
+          "meals_short_pct": 0.0145,
+          "surplus_pct": 0.0753
+        },
+        "last day of school year": {
+          "shortage_day_rate": 0.625,
+          "meals_short_pct": 0.6514,
+          "surplus_pct": 0.1082
+        },
+        "event noted": {
+          "shortage_day_rate": 0.2778,
+          "meals_short_pct": 0.1042,
+          "surplus_pct": 0.2145
+        }
+      }
+    },
+    {
+      "target_shortage_rate": 0.1,
+      "plan": "cook_for_enrolled",
+      "shortage_day_rate": 0.1409,
+      "meals_short_pct": 0.0123,
+      "surplus_pct": 0.143,
+      "by_day_type": {
+        "ordinary": {
+          "shortage_day_rate": 0.1412,
+          "meals_short_pct": 0.0121,
+          "surplus_pct": 0.1389
+        },
+        "first days after a break": {
+          "shortage_day_rate": 0.1299,
+          "meals_short_pct": 0.0121,
+          "surplus_pct": 0.1377
+        },
+        "last days before a break": {
+          "shortage_day_rate": 0.1475,
+          "meals_short_pct": 0.0119,
+          "surplus_pct": 0.1571
+        },
+        "first day of school year": {
+          "shortage_day_rate": 0.1786,
+          "meals_short_pct": 0.0225,
+          "surplus_pct": 0.0831
+        },
+        "last day of school year": {
+          "shortage_day_rate": 0.0833,
+          "meals_short_pct": 0.0162,
+          "surplus_pct": 0.9981
+        },
+        "event noted": {
+          "shortage_day_rate": 0.2222,
+          "meals_short_pct": 0.0482,
+          "surplus_pct": 0.2965
+        }
+      }
+    },
+    {
+      "target_shortage_rate": 0.1,
+      "plan": "moving_average_fixed_buffer",
+      "shortage_day_rate": 0.0914,
+      "meals_short_pct": 0.0076,
+      "surplus_pct": 0.0957,
+      "by_day_type": {
+        "ordinary": {
+          "shortage_day_rate": 0.085,
+          "meals_short_pct": 0.0068,
+          "surplus_pct": 0.0933
+        },
+        "first days after a break": {
+          "shortage_day_rate": 0.1299,
+          "meals_short_pct": 0.0103,
+          "surplus_pct": 0.0875
+        },
+        "last days before a break": {
+          "shortage_day_rate": 0.0701,
+          "meals_short_pct": 0.0045,
+          "surplus_pct": 0.1018
+        },
+        "first day of school year": {
+          "shortage_day_rate": 0.6786,
+          "meals_short_pct": 0.088,
+          "surplus_pct": 0.0233
+        },
+        "last day of school year": {
+          "shortage_day_rate": 0.0417,
+          "meals_short_pct": 0.0006,
+          "surplus_pct": 0.8204
+        },
+        "event noted": {
+          "shortage_day_rate": 0.2222,
+          "meals_short_pct": 0.0797,
+          "surplus_pct": 0.2847
+        }
+      }
+    },
+    {
+      "target_shortage_rate": 0.1,
+      "plan": "day_effect_type_buffer",
+      "shortage_day_rate": 0.1132,
+      "meals_short_pct": 0.0097,
+      "surplus_pct": 0.0734,
+      "by_day_type": {
+        "ordinary": {
+          "shortage_day_rate": 0.1112,
+          "meals_short_pct": 0.0074,
+          "surplus_pct": 0.0716
+        },
+        "first days after a break": {
+          "shortage_day_rate": 0.1111,
+          "meals_short_pct": 0.0092,
+          "surplus_pct": 0.0749
+        },
+        "last days before a break": {
+          "shortage_day_rate": 0.0953,
+          "meals_short_pct": 0.0071,
+          "surplus_pct": 0.082
+        },
+        "first day of school year": {
+          "shortage_day_rate": 0.25,
+          "meals_short_pct": 0.0304,
+          "surplus_pct": 0.046
+        },
+        "last day of school year": {
+          "shortage_day_rate": 0.625,
+          "meals_short_pct": 0.6651,
+          "surplus_pct": 0.102
+        },
+        "event noted": {
+          "shortage_day_rate": 0.3333,
+          "meals_short_pct": 0.115,
+          "surplus_pct": 0.2019
+        }
+      }
+    }
+  ],
+  "decision_equal_risk": {
+    "moving_average_fixed_buffer": {
+      "0.02": 0.201,
+      "0.05": 0.132,
+      "0.1": 0.0915
+    },
+    "day_effect_type_buffer": {
+      "0.02": 0.2109,
+      "0.05": 0.113,
+      "0.1": 0.0777
+    }
+  },
+  "kenya_illustration": {
+    "cost_per_meal_kes": 15.51,
+    "ration_kg_per_meal": 0.197,
+    "school_days_per_year": 170
+  },
+  "example_parameters": {
+    "half_life_days": 5,
+    "level_clip": 0.25,
+    "type_effects": {
+      "ordinary": 1.0,
+      "first days after a break": 1.0161065435530017,
+      "last days before a break": 0.9987309998608842,
+      "first day of school year": 0.9371488814323508,
+      "last day of school year": 0.2942995907010416,
+      "event noted": 0.9032689985995475
+    },
+    "weekday_effects": {
+      "0": 0.9982647663292865,
+      "1": 0.9957665685348879,
+      "2": 1.004255376677386,
+      "3": 1.005151499932615,
+      "4": 0.9966891247295567
+    },
+    "error_quantiles": {
+      "ordinary": {
+        "0.05": 0.8991581029222999,
+        "0.1": 0.940718210745811,
+        "0.5": 1.0053188053674242,
+        "0.9": 1.0704700916204117,
+        "0.95": 1.095383072534851
+      },
+      "first days after a break": {
+        "0.05": 0.8403363339617352,
+        "0.1": 0.9297256933098079,
+        "0.5": 1.0099490540528007,
+        "0.9": 1.0737911285942185,
+        "0.95": 1.0952143579957667
+      },
+      "last days before a break": {
+        "0.05": 0.7775125322542058,
+        "0.1": 0.8827245452578223,
+        "0.5": 1.010583224135412,
+        "0.9": 1.0744173009411782,
+        "0.95": 1.0947748183474553
+      },
+      "first day of school year": {
+        "0.05": 0.6725406091695211,
+        "0.1": 0.8869513094880009,
+        "0.5": 1.0101270845891313,
+        "0.9": 1.0797152528601675,
+        "0.95": 1.1172920640416253
+      },
+      "last day of school year": {
+        "0.05": 0.6725406091695211,
+        "0.1": 0.8869513094880009,
+        "0.5": 1.0101270845891313,
+        "0.9": 1.0797152528601675,
+        "0.95": 1.1172920640416253
+      },
+      "event noted": {
+        "0.05": 0.6725406091695211,
+        "0.1": 0.8869513094880009,
+        "0.5": 1.0101270845891313,
+        "0.9": 1.0797152528601675,
+        "0.95": 1.1172920640416253
+      }
+    }
+  },
+  "runtime_seconds": 71
+}
