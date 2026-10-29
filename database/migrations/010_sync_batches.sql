@@ -1,9 +1,11 @@
--- Migration 010: sync batches and the change sequence.
+-- Migration 010: sync batches and change tracking.
 -- Every sync request is a batch; the records it applies carry the batch id, so a
 -- backdated bulk entry is visible as many dates arriving in one batch.
--- record_change_seq numbers every insert and update of a synced record; devices
--- download what changed after the last number they saw (server order, never
--- device clocks).
+-- change_xid stamps every insert and update of a synced record with the transaction
+-- that wrote it. Devices download changes from transactions that finished after the
+-- last cursor they saw (server order, never device clocks). A plain counter is not
+-- enough: two saves can take numbers 10 and 11 and commit as 11 then 10, and a
+-- device that read 11 would never receive 10.
 -- The entity types are widened for the records added by migrations 011 and 012.
 -- New databases get these from schema.sql and do not need this script.
 --
@@ -11,12 +13,10 @@
 
 BEGIN;
 
-CREATE SEQUENCE IF NOT EXISTS record_change_seq;
-
--- Gives the row the next change number on every insert and update
-CREATE OR REPLACE FUNCTION set_change_seq() RETURNS trigger AS $$
+-- Stamps the row with the transaction that wrote it, on every insert and update
+CREATE OR REPLACE FUNCTION set_change_xid() RETURNS trigger AS $$
 BEGIN
-    NEW.change_seq := nextval('record_change_seq');
+    NEW.change_xid := pg_current_xact_id();
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;

@@ -633,15 +633,13 @@ CREATE INDEX IF NOT EXISTS idx_calendar_events_dates ON calendar_events (starts_
 CREATE INDEX IF NOT EXISTS idx_calendar_events_school ON calendar_events (school_id);
 
 -- ---------------------------------------------------------------------------
--- Sync batches, change sequence and append-only guard (migration 010)
+-- Sync batches, change tracking and append-only guard (migration 010)
 -- ---------------------------------------------------------------------------
 
-CREATE SEQUENCE IF NOT EXISTS record_change_seq;
-
--- Gives the row the next change number on every insert and update
-CREATE OR REPLACE FUNCTION set_change_seq() RETURNS trigger AS $$
+-- Stamps the row with the transaction that wrote it, on every insert and update
+CREATE OR REPLACE FUNCTION set_change_xid() RETURNS trigger AS $$
 BEGIN
-    NEW.change_seq := nextval('record_change_seq');
+    NEW.change_xid := pg_current_xact_id();
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -709,7 +707,7 @@ CREATE TABLE IF NOT EXISTS enrolment (
     version         INTEGER NOT NULL DEFAULT 1,
     updated_by      UUID,
     client_id       TEXT,
-    change_seq      BIGINT,
+    change_xid      XID8,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT enrolment_unique UNIQUE (school_id, term_id, class, sex),
@@ -751,7 +749,7 @@ CREATE TABLE IF NOT EXISTS daily_feeding (
     version             INTEGER NOT NULL DEFAULT 1,
     updated_by          UUID,
     client_id           TEXT,
-    change_seq          BIGINT,
+    change_xid          XID8,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT daily_feeding_unique UNIQUE (school_id, feeding_date),
@@ -781,16 +779,16 @@ CREATE TABLE IF NOT EXISTS daily_feeding (
 );
 
 CREATE INDEX IF NOT EXISTS idx_enrolment_school_term ON enrolment (school_id, term_id);
-CREATE INDEX IF NOT EXISTS idx_enrolment_change_seq ON enrolment (change_seq);
+CREATE INDEX IF NOT EXISTS idx_enrolment_change_xid ON enrolment (change_xid);
 CREATE INDEX IF NOT EXISTS idx_daily_feeding_school_date ON daily_feeding (school_id, feeding_date);
-CREATE INDEX IF NOT EXISTS idx_daily_feeding_change_seq ON daily_feeding (change_seq);
+CREATE INDEX IF NOT EXISTS idx_daily_feeding_change_xid ON daily_feeding (change_xid);
 
-DROP TRIGGER IF EXISTS enrolment_change_seq ON enrolment;
-CREATE TRIGGER enrolment_change_seq BEFORE INSERT OR UPDATE ON enrolment
-    FOR EACH ROW EXECUTE FUNCTION set_change_seq();
-DROP TRIGGER IF EXISTS daily_feeding_change_seq ON daily_feeding;
-CREATE TRIGGER daily_feeding_change_seq BEFORE INSERT OR UPDATE ON daily_feeding
-    FOR EACH ROW EXECUTE FUNCTION set_change_seq();
+DROP TRIGGER IF EXISTS enrolment_change_xid ON enrolment;
+CREATE TRIGGER enrolment_change_xid BEFORE INSERT OR UPDATE ON enrolment
+    FOR EACH ROW EXECUTE FUNCTION set_change_xid();
+DROP TRIGGER IF EXISTS daily_feeding_change_xid ON daily_feeding;
+CREATE TRIGGER daily_feeding_change_xid BEFORE INSERT OR UPDATE ON daily_feeding
+    FOR EACH ROW EXECUTE FUNCTION set_change_xid();
 
 -- ---------------------------------------------------------------------------
 -- Stock ledger (migration 012)
@@ -817,7 +815,7 @@ CREATE TABLE IF NOT EXISTS stock_movements (
     received_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     sync_batch_id   UUID,
     client_id       TEXT,
-    change_seq      BIGINT,
+    change_xid      XID8,
     CONSTRAINT stock_movements_commodity_check CHECK (commodity IN ('cereals', 'pulses', 'oil', 'salt')),
     -- delivery and purchase add stock; loss and return remove it; reversal undoes an entry
     CONSTRAINT stock_movements_kind_check CHECK (kind IN ('delivery', 'purchase', 'loss', 'return', 'reversal')),
@@ -851,7 +849,7 @@ CREATE TABLE IF NOT EXISTS stock_counts (
     received_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     sync_batch_id   UUID,
     client_id       TEXT,
-    change_seq      BIGINT,
+    change_xid      XID8,
     CONSTRAINT stock_counts_commodity_check CHECK (commodity IN ('cereals', 'pulses', 'oil', 'salt')),
     CONSTRAINT stock_counts_nonneg CHECK (counted_kg >= 0),
     CONSTRAINT stock_counts_school_fk FOREIGN KEY (school_id) REFERENCES schools (id)
@@ -861,19 +859,19 @@ CREATE TABLE IF NOT EXISTS stock_counts (
 );
 
 CREATE INDEX IF NOT EXISTS idx_stock_movements_school_date ON stock_movements (school_id, movement_date);
-CREATE INDEX IF NOT EXISTS idx_stock_movements_change_seq ON stock_movements (change_seq);
+CREATE INDEX IF NOT EXISTS idx_stock_movements_change_xid ON stock_movements (change_xid);
 CREATE INDEX IF NOT EXISTS idx_stock_counts_school_date ON stock_counts (school_id, count_date);
-CREATE INDEX IF NOT EXISTS idx_stock_counts_change_seq ON stock_counts (change_seq);
+CREATE INDEX IF NOT EXISTS idx_stock_counts_change_xid ON stock_counts (change_xid);
 
-DROP TRIGGER IF EXISTS stock_movements_change_seq ON stock_movements;
-CREATE TRIGGER stock_movements_change_seq BEFORE INSERT ON stock_movements
-    FOR EACH ROW EXECUTE FUNCTION set_change_seq();
+DROP TRIGGER IF EXISTS stock_movements_change_xid ON stock_movements;
+CREATE TRIGGER stock_movements_change_xid BEFORE INSERT ON stock_movements
+    FOR EACH ROW EXECUTE FUNCTION set_change_xid();
 DROP TRIGGER IF EXISTS stock_movements_append_only ON stock_movements;
 CREATE TRIGGER stock_movements_append_only BEFORE UPDATE OR DELETE ON stock_movements
     FOR EACH ROW EXECUTE FUNCTION refuse_change();
-DROP TRIGGER IF EXISTS stock_counts_change_seq ON stock_counts;
-CREATE TRIGGER stock_counts_change_seq BEFORE INSERT ON stock_counts
-    FOR EACH ROW EXECUTE FUNCTION set_change_seq();
+DROP TRIGGER IF EXISTS stock_counts_change_xid ON stock_counts;
+CREATE TRIGGER stock_counts_change_xid BEFORE INSERT ON stock_counts
+    FOR EACH ROW EXECUTE FUNCTION set_change_xid();
 DROP TRIGGER IF EXISTS stock_counts_append_only ON stock_counts;
 CREATE TRIGGER stock_counts_append_only BEFORE UPDATE OR DELETE ON stock_counts
     FOR EACH ROW EXECUTE FUNCTION refuse_change();

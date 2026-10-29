@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS enrolment (
     version         INTEGER NOT NULL DEFAULT 1,
     updated_by      UUID,
     client_id       TEXT,
-    change_seq      BIGINT,
+    change_xid      XID8,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT enrolment_unique UNIQUE (school_id, term_id, class, sex),
@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS daily_feeding (
     version             INTEGER NOT NULL DEFAULT 1,
     updated_by          UUID,
     client_id           TEXT,
-    change_seq          BIGINT,
+    change_xid          XID8,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT daily_feeding_unique UNIQUE (school_id, feeding_date),
@@ -101,15 +101,15 @@ CREATE TABLE IF NOT EXISTS daily_feeding (
 );
 
 CREATE INDEX IF NOT EXISTS idx_enrolment_school_term ON enrolment (school_id, term_id);
-CREATE INDEX IF NOT EXISTS idx_enrolment_change_seq ON enrolment (change_seq);
+CREATE INDEX IF NOT EXISTS idx_enrolment_change_xid ON enrolment (change_xid);
 CREATE INDEX IF NOT EXISTS idx_daily_feeding_school_date ON daily_feeding (school_id, feeding_date);
-CREATE INDEX IF NOT EXISTS idx_daily_feeding_change_seq ON daily_feeding (change_seq);
+CREATE INDEX IF NOT EXISTS idx_daily_feeding_change_xid ON daily_feeding (change_xid);
 
-DROP TRIGGER IF EXISTS enrolment_change_seq ON enrolment;
-CREATE TRIGGER enrolment_change_seq BEFORE INSERT OR UPDATE ON enrolment
-    FOR EACH ROW EXECUTE FUNCTION set_change_seq();
-DROP TRIGGER IF EXISTS daily_feeding_change_seq ON daily_feeding;
-CREATE TRIGGER daily_feeding_change_seq BEFORE INSERT OR UPDATE ON daily_feeding
-    FOR EACH ROW EXECUTE FUNCTION set_change_seq();
+DROP TRIGGER IF EXISTS enrolment_change_xid ON enrolment;
+CREATE TRIGGER enrolment_change_xid BEFORE INSERT OR UPDATE ON enrolment
+    FOR EACH ROW EXECUTE FUNCTION set_change_xid();
+DROP TRIGGER IF EXISTS daily_feeding_change_xid ON daily_feeding;
+CREATE TRIGGER daily_feeding_change_xid BEFORE INSERT OR UPDATE ON daily_feeding
+    FOR EACH ROW EXECUTE FUNCTION set_change_xid();
 
 COMMIT;

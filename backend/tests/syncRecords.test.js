@@ -69,7 +69,7 @@ describe('daily feeding records', () => {
     expect(res.body).toMatchObject({ syncBatchId: BATCH_ID, results: [{ status: 'synced', version: 1 }] });
     const row = (await pool.query('SELECT * FROM daily_feeding')).rows[0];
     expect(row).toMatchObject({ learners_fed: 400, sync_batch_id: BATCH_ID, captured_by: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1' });
-    expect(Number(row.change_seq)).toBeGreaterThan(0);
+    expect(row.change_xid).not.toBeNull();
     expect(row.received_at).not.toBeNull();
     const batch = (await pool.query('SELECT operation_count FROM sync_batches WHERE id = $1', [BATCH_ID])).rows[0];
     expect(batch.operation_count).toBe(1);

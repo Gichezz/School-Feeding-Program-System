@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS stock_movements (
     received_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     sync_batch_id   UUID,
     client_id       TEXT,
-    change_seq      BIGINT,
+    change_xid      XID8,
     CONSTRAINT stock_movements_commodity_check CHECK (commodity IN ('cereals', 'pulses', 'oil', 'salt')),
     -- delivery and purchase add stock; loss and return remove it; reversal undoes an entry
     CONSTRAINT stock_movements_kind_check CHECK (kind IN ('delivery', 'purchase', 'loss', 'return', 'reversal')),
@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS stock_counts (
     received_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     sync_batch_id   UUID,
     client_id       TEXT,
-    change_seq      BIGINT,
+    change_xid      XID8,
     CONSTRAINT stock_counts_commodity_check CHECK (commodity IN ('cereals', 'pulses', 'oil', 'salt')),
     CONSTRAINT stock_counts_nonneg CHECK (counted_kg >= 0),
     CONSTRAINT stock_counts_school_fk FOREIGN KEY (school_id) REFERENCES schools (id)
@@ -79,19 +79,19 @@ CREATE TABLE IF NOT EXISTS stock_counts (
 );
 
 CREATE INDEX IF NOT EXISTS idx_stock_movements_school_date ON stock_movements (school_id, movement_date);
-CREATE INDEX IF NOT EXISTS idx_stock_movements_change_seq ON stock_movements (change_seq);
+CREATE INDEX IF NOT EXISTS idx_stock_movements_change_xid ON stock_movements (change_xid);
 CREATE INDEX IF NOT EXISTS idx_stock_counts_school_date ON stock_counts (school_id, count_date);
-CREATE INDEX IF NOT EXISTS idx_stock_counts_change_seq ON stock_counts (change_seq);
+CREATE INDEX IF NOT EXISTS idx_stock_counts_change_xid ON stock_counts (change_xid);
 
-DROP TRIGGER IF EXISTS stock_movements_change_seq ON stock_movements;
-CREATE TRIGGER stock_movements_change_seq BEFORE INSERT ON stock_movements
-    FOR EACH ROW EXECUTE FUNCTION set_change_seq();
+DROP TRIGGER IF EXISTS stock_movements_change_xid ON stock_movements;
+CREATE TRIGGER stock_movements_change_xid BEFORE INSERT ON stock_movements
+    FOR EACH ROW EXECUTE FUNCTION set_change_xid();
 DROP TRIGGER IF EXISTS stock_movements_append_only ON stock_movements;
 CREATE TRIGGER stock_movements_append_only BEFORE UPDATE OR DELETE ON stock_movements
     FOR EACH ROW EXECUTE FUNCTION refuse_change();
-DROP TRIGGER IF EXISTS stock_counts_change_seq ON stock_counts;
-CREATE TRIGGER stock_counts_change_seq BEFORE INSERT ON stock_counts
-    FOR EACH ROW EXECUTE FUNCTION set_change_seq();
+DROP TRIGGER IF EXISTS stock_counts_change_xid ON stock_counts;
+CREATE TRIGGER stock_counts_change_xid BEFORE INSERT ON stock_counts
+    FOR EACH ROW EXECUTE FUNCTION set_change_xid();
 DROP TRIGGER IF EXISTS stock_counts_append_only ON stock_counts;
 CREATE TRIGGER stock_counts_append_only BEFORE UPDATE OR DELETE ON stock_counts
     FOR EACH ROW EXECUTE FUNCTION refuse_change();
