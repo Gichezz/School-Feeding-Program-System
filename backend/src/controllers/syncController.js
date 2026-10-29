@@ -4,10 +4,25 @@ const { isUuid, syncPayloadError } = require('../validation/records');
 const { captureError, decideCapture } = require('../services/captureCheck');
 const { checkEntryWindow } = require('../validation/entryWindow');
 const { afterRecordSaved } = require('../services/integrity');
+const { afterSyncedRecord } = require('../services/recordChecks');
+const { RECORD_TYPES } = require('../sync/recordTypes');
 const clock = require('../utils/clock');
 
 // Upper bound on operations per POST /api/sync (the client sends one at a time)
 const MAX_OPERATIONS_PER_REQUEST = 100;
+
+// Client entity type → database entity type
+const ENTITY_TYPES = {
+  attendance: 'attendance',
+  mealDistribution: 'meal_distribution',
+  ...Object.fromEntries(Object.entries(RECORD_TYPES).map(([name, type]) => [name, type.dbType])),
+};
+
+/** The date a record describes (DD-MM-YYYY), or null for records that are not for a date. */
+function recordDateOf(entityType, payload) {
+  if (RECORD_TYPES[entityType]) return RECORD_TYPES[entityType].date(payload);
+  return entityType === 'attendance' ? payload.attendanceDate : payload.distributionDate;
+}
 
 /**
  * Synchronization controller for Phase 6
@@ -21,9 +36,14 @@ async function syncOperations(req, res, next) {
   const client = await pool.connect();
   
   try {
-    const { clientId, operations } = req.body;
+    const { clientId, operations, syncBatchId } = req.body;
     // Recorded as updated_by on every record this request writes
     const userId = req.user?.id || null;
+
+    // Programme officers review records; only schools and administrators send them
+    if (req.user?.role === 'programme_officer') {
+      return res.status(403).json({ error: 'Programme officers cannot send records' });
+    }
 
     // Validate request structure
     if (!clientId || typeof clientId !== 'string') {
@@ -32,6 +52,12 @@ async function syncOperations(req, res, next) {
 
     if (!Array.isArray(operations)) {
       throw new ValidationError('Operations must be an array');
+    }
+
+    // One sync session on the device: the records it sends share a batch id, so many
+    // dates arriving together (a backdated bulk entry) can be seen
+    if (syncBatchId !== undefined && !isUuid(syncBatchId)) {
+      throw new ValidationError('syncBatchId must be an id');
     }
 
     if (operations.length > MAX_OPERATIONS_PER_REQUEST) {
@@ -46,7 +72,7 @@ async function syncOperations(req, res, next) {
     }
 
     // Validate each operation
-    const allowedEntityTypes = ['attendance', 'mealDistribution'];
+    const allowedEntityTypes = Object.keys(ENTITY_TYPES);
     const allowedOperations = ['create', 'update'];
 
     for (const op of operations) {
@@ -59,6 +85,10 @@ async function syncOperations(req, res, next) {
       if (!op.operation || !allowedOperations.includes(op.operation)) {
         throw new ValidationError(`Invalid operation type: ${op.operation}`);
       }
+      // Stock entries are only ever added; a mistake is corrected by a reversing entry
+      if (RECORD_TYPES[op.entityType]?.appendOnly && op.operation !== 'create') {
+        throw new ValidationError(`Operation ${op.id}: stock entries cannot be edited; record a reversing entry instead`);
+      }
       if (!op.payload || typeof op.payload !== 'object') {
         throw new ValidationError('Each operation must have a valid payload');
       }
@@ -68,7 +98,9 @@ async function syncOperations(req, res, next) {
       if (op.baseRecordId !== undefined && !isUuid(op.baseRecordId)) {
         throw new ValidationError(`Operation ${op.id}: baseRecordId must be a record id`);
       }
-      const invalidPayload = syncPayloadError(op.entityType, op.payload);
+      const invalidPayload = RECORD_TYPES[op.entityType]
+        ? RECORD_TYPES[op.entityType].validate(op.payload)
+        : syncPayloadError(op.entityType, op.payload);
       if (invalidPayload) {
         throw new ValidationError(`Operation ${op.id}: ${invalidPayload}`);
       }
@@ -76,27 +108,38 @@ async function syncOperations(req, res, next) {
       if (badCapture) {
         throw new ValidationError(`Operation ${op.id}: ${badCapture}`);
       }
-      // Entry window, measured from when the record was captured on the device (#62)
-      const recordDate = op.entityType === 'attendance' ? op.payload.attendanceDate : op.payload.distributionDate;
-      const entry = checkEntryWindow(recordDate, {
-        capturedAt: op.capturedAt ? new Date(op.capturedAt) : undefined,
-        lateReason: op.payload.lateReason,
-      });
-      if (entry.error) {
-        throw new ValidationError(`Operation ${op.id}: ${entry.error}`);
+      // Entry window, measured from when the record was captured on the device (#62).
+      // Enrolment is for a term, not a date, so it has none.
+      const recordDate = recordDateOf(op.entityType, op.payload);
+      op.late = false;
+      if (recordDate) {
+        const entry = checkEntryWindow(recordDate, {
+          capturedAt: op.capturedAt ? new Date(op.capturedAt) : undefined,
+          lateReason: op.payload.lateReason,
+        });
+        if (entry.error) {
+          throw new ValidationError(`Operation ${op.id}: ${entry.error}`);
+        }
+        op.late = entry.late;
       }
-      op.late = entry.late;
       // School staff can only send records for their own school (#60)
       if (req.user?.role === 'school_staff' && op.payload.schoolId !== req.user.schoolId) {
         throw new ValidationError(`Operation ${op.id}: you can only record for your own school`);
       }
     }
 
-    // Map frontend entity types to database entity types
-    const entityTypeMap = {
-      'attendance': 'attendance',
-      'mealDistribution': 'meal_distribution'
-    };
+    const entityTypeMap = ENTITY_TYPES;
+
+    // Every record this request applies carries the device's sync session id
+    const batchId = syncBatchId || null;
+    if (batchId) {
+      await client.query(
+        `INSERT INTO sync_batches (id, school_id, device_id, user_id, operation_count)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (id) DO UPDATE SET operation_count = sync_batches.operation_count + EXCLUDED.operation_count`,
+        [batchId, req.user?.schoolId || operations[0].payload.schoolId || null, req.user?.deviceId || null, userId, operations.length]
+      );
+    }
 
     const results = [];
 
@@ -196,11 +239,12 @@ async function syncOperations(req, res, next) {
         const { capture } = decision;
 
         // Process the operation based on type
+        const saveContext = { capture, batchId };
         let result;
         if (operation.operation === 'create') {
-          result = await handleCreateOperation(client, operation, clientId, userId);
+          result = await handleCreateOperation(client, operation, clientId, userId, saveContext);
         } else if (operation.operation === 'update') {
-          result = await handleUpdateOperation(client, operation, clientId, userId);
+          result = await handleUpdateOperation(client, operation, clientId, userId, saveContext);
         }
 
         // Map entity type for database
@@ -215,8 +259,8 @@ async function syncOperations(req, res, next) {
         await client.query(
           `INSERT INTO sync_operations 
            (operation_id, entity_type, record_id, operation_type, payload, client_id, base_version, status, processed_at,
-            captured_by, device_id, captured_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, 'applied', NOW(), $8, $9, $10)`,
+            captured_by, device_id, captured_at, sync_batch_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, 'applied', NOW(), $8, $9, $10, $11)`,
           [
             operation.id,
             dbEntityType,
@@ -227,20 +271,15 @@ async function syncOperations(req, res, next) {
             operation.baseVersion,
             capture.capturedBy,
             capture.deviceId,
-            capture.capturedAt
+            capture.capturedAt,
+            batchId
           ]
         );
 
         // Who captured it, the saved version, and any review flags (#62). A duplicate of a
         // record already on the server keeps the original's details (#70).
         if (!result.duplicate) {
-          await afterRecordSaved(client, {
-            entityType: dbEntityType,
-            recordId: result.recordId,
-            capture,
-            lateReason: operation.payload.lateReason,
-            late: operation.late,
-          });
+          await afterSave(client, operation, result, { capture, late: operation.late });
         }
 
         results.push({
@@ -355,6 +394,7 @@ async function syncOperations(req, res, next) {
 
     res.json({
       success: true,
+      ...(batchId && { syncBatchId: batchId }),
       results
     });
 
@@ -378,7 +418,11 @@ async function syncOperations(req, res, next) {
 /**
  * Handle CREATE operation
  */
-async function handleCreateOperation(client, operation, clientId, userId) {
+async function handleCreateOperation(client, operation, clientId, userId, { capture, batchId = null } = {}) {
+  const type = RECORD_TYPES[operation.entityType];
+  if (type) {
+    return type.create(client, operation.payload, saveContext(clientId, userId, capture, batchId));
+  }
   if (operation.entityType === 'attendance') {
     return await createAttendanceRecord(client, operation.payload, clientId, userId);
   } else if (operation.entityType === 'mealDistribution') {
@@ -389,7 +433,12 @@ async function handleCreateOperation(client, operation, clientId, userId) {
 /**
  * Handle UPDATE operation with version checking
  */
-async function handleUpdateOperation(client, operation, clientId, userId) {
+async function handleUpdateOperation(client, operation, clientId, userId, { capture, batchId = null } = {}) {
+  const type = RECORD_TYPES[operation.entityType];
+  if (type) {
+    return type.update(client, operation.payload, operation.baseVersion, operation.baseRecordId,
+      saveContext(clientId, userId, capture, batchId));
+  }
   if (operation.entityType === 'attendance') {
     return await updateAttendanceRecord(client, operation.payload, operation.baseVersion, clientId, userId, operation.baseRecordId);
   } else if (operation.entityType === 'mealDistribution') {
@@ -398,14 +447,43 @@ async function handleUpdateOperation(client, operation, clientId, userId) {
 }
 
 /**
+ * What the new record types store with each record (#62)
+ */
+function saveContext(clientId, userId, capture, batchId) {
+  return {
+    clientId,
+    userId,
+    batchId,
+    now: clock.now(),
+    capture: capture || { capturedBy: userId, deviceId: null, capturedAt: null },
+  };
+}
+
+/**
+ * After a record is created or edited: its history and review flags (#62).
+ * flag: false for an administrator's own decision
+ */
+async function afterSave(client, operation, result, { capture, late = false, flag = true }) {
+  const type = RECORD_TYPES[operation.entityType];
+  if (type) {
+    await afterSyncedRecord(client, { recordType: type, recordId: result.recordId, capture, late, flag });
+    return;
+  }
+  await afterRecordSaved(client, {
+    entityType: ENTITY_TYPES[operation.entityType],
+    recordId: result.recordId,
+    capture,
+    lateReason: operation.payload.lateReason,
+    late,
+    flag,
+  });
+}
+
+/**
  * Map frontend entity types to database entity types
  */
 function mapEntityType(entityType) {
-  const entityTypeMap = {
-    'attendance': 'attendance',
-    'mealDistribution': 'meal_distribution'
-  };
-  return entityTypeMap[entityType] || entityType;
+  return ENTITY_TYPES[entityType] || entityType;
 }
 
 /**
@@ -614,6 +692,7 @@ async function updateMealDistributionRecord(client, payload, baseVersion, client
  */
 async function getServerRecord(entityType, payload, client) {
   try {
+    if (RECORD_TYPES[entityType]) return await RECORD_TYPES[entityType].find(client, payload);
     if (entityType === 'attendance') {
       const { schoolId, attendanceDate } = payload;
       const formattedDate = convertDateFormat(attendanceDate);
@@ -646,6 +725,12 @@ async function getServerRecord(entityType, payload, client) {
  */
 async function getRecordVersion(entityType, recordId, client) {
   try {
+    const type = RECORD_TYPES[entityType];
+    if (type) {
+      if (type.appendOnly) return 1;
+      const result = await client.query(`SELECT version FROM ${type.table} WHERE id = $1`, [recordId]);
+      return result.rows[0]?.version || null;
+    }
     if (entityType === 'attendance') {
       const result = await client.query(
         'SELECT version FROM attendance_records WHERE id = $1',
@@ -1005,8 +1090,11 @@ async function getConflictById(req, res, next) {
 }
 
 module.exports = {
+  ENTITY_TYPES,
+  afterSave,
   handleCreateOperation,
   handleUpdateOperation,
+  recordDateOf,
   syncOperations,
   resolveConflict,
   getConflicts,

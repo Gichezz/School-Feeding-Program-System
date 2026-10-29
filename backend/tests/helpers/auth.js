@@ -5,10 +5,17 @@ const request = require('supertest');
 const USERS = {
   admin: {
     id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1',
-    name: 'Programme Administrator',
+    name: 'System Administrator',
     email: 'admin@demo-school.local',
     password: 'ChangeMeAdmin1',
     role: 'admin',
+  },
+  officer: {
+    id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3',
+    name: 'Sub-County Programme Officer',
+    email: 'officer@demo-school.local',
+    password: 'ChangeMeOfficer1',
+    role: 'programme_officer',
   },
   staff: {
     id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2',

@@ -8,6 +8,13 @@ const MISSING_ID = '99999999-9999-9999-9999-999999999999';
 const TEST_DEVICE_ID = 'dddddddd-dddd-dddd-dddd-dddddddddddd';
 
 const TABLES = [
+  'stock_counts',
+  'stock_movements',
+  'daily_feeding',
+  'enrolment',
+  'calendar_events',
+  'school_terms',
+  'sync_batches',
   'totp_credentials',
   'record_flags',
   'record_history',
@@ -29,10 +36,11 @@ const TABLES = [
 ];
 
 /**
- * Empty every table and reload the seed data.
+ * Empty every table and reload the national calendar and the seed data.
  */
 async function resetDatabase() {
   await pool.query(`TRUNCATE ${TABLES.join(', ')} CASCADE`);
+  await pool.query(readSql('calendar_kenya.sql'));
   await pool.query(readSql('seed.sql'));
   await pool.query(
     `INSERT INTO devices (id, school_id, name, status, public_key, approved_at)

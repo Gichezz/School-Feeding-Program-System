@@ -19,6 +19,11 @@ const FLAGS = {
   synced_late: 'Kept offline for a long time before it synced',
   served_exceeds_present: 'More meals served than learners present',
   unusual_numbers: "Far from the school's usual numbers",
+  fed_exceeds_enrolled: 'More learners fed than enrolled',
+  fed_exceeds_present: 'More learners fed than present',
+  issue_exceeds_stock: 'More issued than the store held',
+  usage_far_from_ration: 'Food issued far from the ration for learners fed',
+  delivery_short: 'Less received than the delivery note says',
 };
 
 // Meals served may exceed learners present a little (staff, visitors) before it is flagged
@@ -105,7 +110,11 @@ async function servedVersusPresent(client, mealRow) {
   return `${mealRow.meals_served} meals served but ${present} learners present`;
 }
 
-async function flagRecord(client, entityType, row, { late }) {
+/**
+ * When a record was captured and reached the server: outside school hours, entered late
+ * (dateColumn names the date it describes), or kept offline for a long time.
+ */
+async function timingFlags(client, entityType, row, { late, dateColumn }) {
   const { timeZone, dayStart, dayEnd, offlineHours } = settings();
   const moment = row.captured_at || row.received_at;
 
@@ -114,10 +123,11 @@ async function flagRecord(client, entityType, row, { late }) {
     await addFlag(client, entityType, row, 'outside_hours', `Captured at ${time}, outside school hours (${dayStart}–${dayEnd})`);
   }
 
-  if (late) {
-    const recordIso = isoDate(row[DATE_COLUMNS[entityType]]);
+  if (late && dateColumn) {
+    const recordIso = isoDate(row[dateColumn]);
     const days = schoolDaysBetween(recordIso, localDate(moment || new Date(), timeZone));
-    await addFlag(client, entityType, row, 'entered_late', `Entered ${days} school days after the date. Reason: ${row.late_reason}`);
+    const reason = row.late_reason ? ` Reason: ${row.late_reason}` : '';
+    await addFlag(client, entityType, row, 'entered_late', `Entered ${days} school days after the date.${reason}`);
   }
 
   if (row.captured_at && row.received_at) {
@@ -126,6 +136,10 @@ async function flagRecord(client, entityType, row, { late }) {
       await addFlag(client, entityType, row, 'synced_late', `Kept on the device for ${Math.floor(hours / 24)} days before it synced`);
     }
   }
+}
+
+async function flagRecord(client, entityType, row, { late }) {
+  await timingFlags(client, entityType, row, { late, dateColumn: DATE_COLUMNS[entityType] });
 
   if (entityType === 'meal_distribution') {
     const detail = await servedVersusPresent(client, row);
@@ -171,6 +185,9 @@ async function afterRecordSaved(client, { entityType, recordId, capture = {}, la
 
 module.exports = {
   FLAGS,
+  addFlag,
   afterRecordSaved,
+  isoDate,
+  timingFlags,
   valuesOf,
 };
