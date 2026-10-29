@@ -199,6 +199,77 @@ describe('processSyncQueue', () => {
       expect(syncOperations).not.toHaveBeenCalled();
     });
   });
+
+  describe('later changes to a record that is waiting or in conflict', () => {
+    // Two devices record the same day offline. This device's create comes back as a
+    // same-day conflict; its own correction, queued with base version 1, must not reach
+    // the server, where version 1 is the other device's record.
+    async function createThenEditOffline() {
+      const saved = await saveLocalAttendance(attendance);
+      await updateLocalAttendance(saved.id, { totalPresent: 85, totalAbsent: 15 });
+      const [create, update] = await db.syncQueue.orderBy('id').toArray();
+      return { saved, create, update };
+    }
+
+    function sameDayConflict(operationId) {
+      return serverResult({
+        success: false,
+        operationId,
+        status: 'conflict',
+        message: 'Same-day conflict',
+        conflictId: 'server-conflict-id',
+        serverRecord: { id: 'other-device-record', version: 1, total_present: 70 },
+        baseVersion: 0,
+        serverVersion: 1,
+        localPayload: attendance,
+      });
+    }
+
+    it('does not send an edit after its record’s create came back as a conflict', async () => {
+      const { create, update } = await createThenEditOffline();
+      syncOperations.mockResolvedValueOnce(sameDayConflict(create.id));
+
+      await processSyncQueue();
+
+      expect(syncOperations).toHaveBeenCalledTimes(1);
+      expect(await db.syncQueue.get(update.id)).toMatchObject({ status: 'pending' });
+    });
+
+    it('keeps the edit back on later syncs while the conflict is unresolved, without retrying', async () => {
+      const { create, update } = await createThenEditOffline();
+      syncOperations.mockResolvedValueOnce(sameDayConflict(create.id));
+      await processSyncQueue();
+      syncOperations.mockClear();
+
+      const result = await processSyncQueue();
+
+      expect(syncOperations).not.toHaveBeenCalled();
+      expect(await db.syncQueue.get(update.id)).toMatchObject({ status: 'pending', retryCount: 0 });
+      expect(result.progress).toMatchObject({ blocked: 1 });
+    });
+
+    it('does not send an edit while its record’s create is still waiting for a retry', async () => {
+      const { update } = await createThenEditOffline();
+      syncOperations.mockRejectedValueOnce(serverError(500, 'Internal server error'));
+
+      await processSyncQueue();
+
+      expect(syncOperations).toHaveBeenCalledTimes(1);
+      expect(await db.syncQueue.get(update.id)).toMatchObject({ status: 'pending', retryCount: 0 });
+    });
+
+    it('sends the edit with the server record it is based on once the create has synced', async () => {
+      const { create, update } = await createThenEditOffline();
+      syncOperations.mockResolvedValueOnce(synced(create.id, 1)).mockResolvedValueOnce(synced(update.id, 2));
+
+      await processSyncQueue();
+
+      expect(syncOperations).toHaveBeenCalledTimes(2);
+      expect(syncOperations.mock.calls[1][0].operations[0]).toMatchObject({
+        id: update.id, baseVersion: 1, baseRecordId: 'server-record-id',
+      });
+    });
+  });
 });
 
 describe('records tied to who captured them (#61)', () => {

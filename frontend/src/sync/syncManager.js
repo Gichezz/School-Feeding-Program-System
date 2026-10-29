@@ -14,6 +14,7 @@ import { updateLocalAttendance, updateLocalMeal, setLocalSyncStatus } from '../s
 import { saveConflict } from './conflictService';
 import { forgetOfflineUser } from '../features/devices/offlineSignIn';
 import { isSessionValid } from '../services/session';
+import db from '../db/database';
 
 /**
  * Sync Manager - Phase 6
@@ -156,13 +157,24 @@ export async function processSyncQueue() {
 
     console.log(`Processing ${pendingOperations.length} pending operations`);
 
-    // Process operations in order
+    // Process operations in order. A record's later changes wait while an earlier change
+    // to it is in conflict, still waiting or has failed: they were made on top of it, and
+    // sending them could overwrite another device's record with the same version number.
     const deferredIds = new Set();
+    const blockedRecords = await recordsWithUnfinishedChanges();
+    const blockedIds = new Set();
     let connectionProblems = 0;
     for (const operation of pendingOperations) {
+      const key = recordKey(operation);
+      if (blockedRecords.has(key)) {
+        blockedIds.add(operation.id);
+        syncProgress.blocked = (syncProgress.blocked || 0) + 1;
+        continue;
+      }
       console.log(`Processing operation:`, operation);
       try {
-        const result = await processSingleOperation(operation);
+        const result = await processSingleOperation(await withBaseRecord(operation));
+        if (!result.success) blockedRecords.add(key);
         console.log(`Operation result:`, result);
         syncProgress.processed++;
 
@@ -245,7 +257,8 @@ export async function processSyncQueue() {
         }
       } catch (error) {
         console.error(`Error processing operation ${operation.id}:`, error);
-        
+        blockedRecords.add(key);
+
         const currentRetryCount = operation.retryCount || 0;
         
         if (currentRetryCount < MAX_RETRIES) {
@@ -259,8 +272,10 @@ export async function processSyncQueue() {
       }
     }
 
-    // Still waiting: anything pending except a colleague's records, which only they can send
-    const waiting = (await getPendingOperations()).filter((op) => !deferredIds.has(op.id)).length;
+    // Still waiting: anything pending except a colleague's records, which only they can send,
+    // and changes held back behind a conflict, which wait for an administrator
+    const waiting = (await getPendingOperations())
+      .filter((op) => !deferredIds.has(op.id) && !blockedIds.has(op.id)).length;
     lastPass = {
       waiting,
       madeProgress: syncProgress.successful + syncProgress.conflicts + (syncProgress.held || 0) > 0
@@ -283,6 +298,35 @@ export async function processSyncQueue() {
     console.log('Sync process completed, isSyncing set to false');
     planNextSync(lastPass);
   }
+}
+
+function recordKey(operation) {
+  return `${operation.entityType}:${operation.recordId}`;
+}
+
+/**
+ * Records with an unresolved conflict, or a queued change that is in conflict or has
+ * failed: their later changes are held back.
+ */
+async function recordsWithUnfinishedChanges() {
+  const keys = new Set();
+  const conflicts = await db.conflicts.where('status').equals('unresolved').toArray();
+  conflicts.forEach((c) => keys.add(recordKey(c)));
+  const stuck = await db.syncQueue.where('status').anyOf('conflict', 'failed').toArray();
+  stuck.forEach((op) => keys.add(recordKey(op)));
+  return keys;
+}
+
+const LOCAL_TABLES = { attendance: 'attendance', mealDistribution: 'mealDistribution' };
+
+/**
+ * An update says which server record it was based on, once that is known, so the server
+ * can refuse an edit that would land on a different record with the same version.
+ */
+async function withBaseRecord(operation) {
+  if (operation.operation !== 'update' || !LOCAL_TABLES[operation.entityType]) return operation;
+  const record = await db[LOCAL_TABLES[operation.entityType]].get(operation.recordId);
+  return record?.serverId ? { ...operation, baseRecordId: record.serverId } : operation;
 }
 
 /**

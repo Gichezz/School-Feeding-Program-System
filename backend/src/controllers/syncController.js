@@ -65,6 +65,9 @@ async function syncOperations(req, res, next) {
       if (op.baseVersion === undefined || op.baseVersion === null || typeof op.baseVersion !== 'number') {
         throw new ValidationError('Each operation must have a valid baseVersion');
       }
+      if (op.baseRecordId !== undefined && !isUuid(op.baseRecordId)) {
+        throw new ValidationError(`Operation ${op.id}: baseRecordId must be a record id`);
+      }
       const invalidPayload = syncPayloadError(op.entityType, op.payload);
       if (invalidPayload) {
         throw new ValidationError(`Operation ${op.id}: ${invalidPayload}`);
@@ -388,9 +391,9 @@ async function handleCreateOperation(client, operation, clientId, userId) {
  */
 async function handleUpdateOperation(client, operation, clientId, userId) {
   if (operation.entityType === 'attendance') {
-    return await updateAttendanceRecord(client, operation.payload, operation.baseVersion, clientId, userId);
+    return await updateAttendanceRecord(client, operation.payload, operation.baseVersion, clientId, userId, operation.baseRecordId);
   } else if (operation.entityType === 'mealDistribution') {
-    return await updateMealDistributionRecord(client, operation.payload, operation.baseVersion, clientId, userId);
+    return await updateMealDistributionRecord(client, operation.payload, operation.baseVersion, clientId, userId, operation.baseRecordId);
   }
 }
 
@@ -415,6 +418,10 @@ function mapEntityType(entityType) {
  */
 function sameNumbers(pairs) {
   return pairs.every(([submitted, stored]) => Number(submitted) === Number(stored));
+}
+
+function basedOnCurrent(record, baseVersion, baseRecordId) {
+  return record.version === baseVersion && (!baseRecordId || baseRecordId === record.id);
 }
 
 function sameDayRecord(row, pairs) {
@@ -467,7 +474,7 @@ async function createAttendanceRecord(client, payload, clientId, userId) {
 /**
  * Update attendance record with version checking
  */
-async function updateAttendanceRecord(client, payload, baseVersion, clientId, userId) {
+async function updateAttendanceRecord(client, payload, baseVersion, clientId, userId, baseRecordId) {
   const { schoolId, attendanceDate, totalRegistered, totalPresent, totalAbsent } = payload;
 
   // Convert DD-MM-YYYY to YYYY-MM-DD
@@ -486,8 +493,9 @@ async function updateAttendanceRecord(client, payload, baseVersion, clientId, us
 
   const currentRecord = current.rows[0];
 
-  // Version check
-  if (currentRecord.version !== baseVersion) {
+  // Version check. An edit based on another server record (the same day recorded on two
+  // devices) is stale even when the version numbers happen to match.
+  if (!basedOnCurrent(currentRecord, baseVersion, baseRecordId)) {
     // Based on an older version, but the server already has these numbers: nothing to decide (#74)
     if (sameNumbers([
       [totalRegistered, currentRecord.total_registered],
@@ -557,7 +565,7 @@ async function createMealDistributionRecord(client, payload, clientId, userId) {
 /**
  * Update meal distribution record with version checking
  */
-async function updateMealDistributionRecord(client, payload, baseVersion, clientId, userId) {
+async function updateMealDistributionRecord(client, payload, baseVersion, clientId, userId, baseRecordId) {
   const { schoolId, distributionDate, mealsPrepared, mealsServed } = payload;
 
   // Convert DD-MM-YYYY to YYYY-MM-DD
@@ -576,8 +584,9 @@ async function updateMealDistributionRecord(client, payload, baseVersion, client
 
   const currentRecord = current.rows[0];
 
-  // Version check
-  if (currentRecord.version !== baseVersion) {
+  // Version check. An edit based on another server record (the same day recorded on two
+  // devices) is stale even when the version numbers happen to match.
+  if (!basedOnCurrent(currentRecord, baseVersion, baseRecordId)) {
     // Based on an older version, but the server already has these numbers: nothing to decide (#74)
     if (sameNumbers([[mealsPrepared, currentRecord.meals_prepared], [mealsServed, currentRecord.meals_served]])) {
       return { recordId: currentRecord.id, version: currentRecord.version, duplicate: true };

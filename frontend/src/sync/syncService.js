@@ -33,6 +33,8 @@ export async function syncOperations(operations) {
         payload: op.payload,
         baseVersion: op.baseVersion,
         createdAt: op.createdAt,
+        // The server record an update was based on, once known
+        ...(op.baseRecordId && { baseRecordId: op.baseRecordId }),
         // Who captured it, on which device and when (#61); older queue items have none
         ...(op.capturedBy && { capturedBy: op.capturedBy }),
         ...(op.deviceId && { deviceId: op.deviceId }),
