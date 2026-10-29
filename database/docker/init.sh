@@ -1,5 +1,6 @@
 #!/bin/sh
 # First start of the Docker database only (an empty data volume): create the tables,
+# load the national school calendar,
 # and load the demo school and demo accounts when LOAD_DEMO_DATA=true.
 # The demo accounts have published passwords: keep LOAD_DEMO_DATA=false on any
 # server other people can reach, and create the first administrator with
@@ -7,6 +8,7 @@
 set -e
 
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" -f /database/schema.sql
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" -f /database/calendar_kenya.sql
 
 if [ "$LOAD_DEMO_DATA" = "true" ]; then
   echo "Loading demo data (local use only)"

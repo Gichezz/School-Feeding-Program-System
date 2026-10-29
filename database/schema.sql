@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS users (
     -- School staff belong to one school (foreign key added after the schools table);
     -- administrators have none and can see every school
     school_id       UUID,
+    -- Programme officers oversee every school in their sub-county
+    sub_county      TEXT,
     -- Deactivated users cannot sign in and their sessions stop working
     is_active       BOOLEAN NOT NULL DEFAULT TRUE,
     -- Sessions issued before this time are rejected (set on password change or reset)
@@ -36,9 +38,10 @@ CREATE TABLE IF NOT EXISTS users (
     CONSTRAINT users_email_format CHECK (
         email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
     ),
-    CONSTRAINT users_role_check CHECK (role IN ('admin', 'school_staff')),
+    CONSTRAINT users_role_check CHECK (role IN ('admin', 'programme_officer', 'school_staff')),
     CONSTRAINT users_password_hash_present CHECK (char_length(password_hash) >= 20),
-    CONSTRAINT users_staff_school CHECK (role <> 'school_staff' OR school_id IS NOT NULL)
+    CONSTRAINT users_staff_school CHECK (role <> 'school_staff' OR school_id IS NOT NULL),
+    CONSTRAINT users_officer_sub_county CHECK (role <> 'programme_officer' OR sub_county IS NOT NULL)
 );
 
 -- ---------------------------------------------------------------------------
@@ -50,8 +53,20 @@ CREATE TABLE IF NOT EXISTS schools (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name            TEXT NOT NULL,
     location        TEXT,
+    county          TEXT,
+    sub_county      TEXT,
+    -- food delivered in kind, or a cash transfer the school buys food with
+    programme_type  TEXT NOT NULL DEFAULT 'in_kind',
+    -- grams per learner per day; the School Meals Programme ration by default
+    ration_cereals_g NUMERIC(6, 1) NOT NULL DEFAULT 150,
+    ration_pulses_g NUMERIC(6, 1) NOT NULL DEFAULT 40,
+    ration_oil_g    NUMERIC(6, 1) NOT NULL DEFAULT 5,
+    ration_salt_g   NUMERIC(6, 1) NOT NULL DEFAULT 2,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT schools_programme_type_check CHECK (programme_type IN ('in_kind', 'cash_transfer')),
+    CONSTRAINT schools_ration_positive
+        CHECK (ration_cereals_g > 0 AND ration_pulses_g > 0 AND ration_oil_g >= 0 AND ration_salt_g >= 0)
 );
 
 -- Optional school roster from the architecture phase (not used by daily totals).
@@ -174,7 +189,7 @@ CREATE TABLE IF NOT EXISTS sync_operations (
     captured_at     TIMESTAMPTZ,
     CONSTRAINT sync_operations_operation_id_unique UNIQUE (operation_id),
     CONSTRAINT sync_operations_entity_type_check
-        CHECK (entity_type IN ('attendance', 'meal_distribution')),
+        CHECK (entity_type IN ('attendance', 'meal_distribution', 'enrolment', 'daily_feeding', 'stock_movement', 'stock_count')),
     CONSTRAINT sync_operations_operation_type_check
         CHECK (operation_type IN ('CREATE', 'UPDATE', 'DELETE')),
     CONSTRAINT sync_operations_status_check
@@ -211,7 +226,7 @@ CREATE TABLE IF NOT EXISTS conflicts (
         ON UPDATE CASCADE
         ON DELETE SET NULL,
     CONSTRAINT conflicts_entity_type_check
-        CHECK (entity_type IN ('attendance', 'meal_distribution')),
+        CHECK (entity_type IN ('attendance', 'meal_distribution', 'enrolment', 'daily_feeding')),
     CONSTRAINT conflicts_status_check
         CHECK (status IN ('unresolved', 'resolved')),
     CONSTRAINT conflicts_base_version_nonneg
@@ -459,7 +474,7 @@ CREATE TABLE IF NOT EXISTS held_operations (
     reviewed_at     TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT held_operations_operation_unique UNIQUE (operation_id),
-    CONSTRAINT held_operations_entity_type_check CHECK (entity_type IN ('attendance', 'meal_distribution')),
+    CONSTRAINT held_operations_entity_type_check CHECK (entity_type IN ('attendance', 'meal_distribution', 'enrolment', 'daily_feeding', 'stock_movement', 'stock_count')),
     CONSTRAINT held_operations_operation_type_check CHECK (operation_type IN ('create', 'update')),
     CONSTRAINT held_operations_reason_check CHECK (reason IN ('user_deactivated', 'password_reset', 'device_revoked')),
     CONSTRAINT held_operations_status_check CHECK (status IN ('pending', 'applied', 'discarded')),
@@ -497,7 +512,7 @@ CREATE TABLE IF NOT EXISTS record_history (
     device_id       UUID,
     captured_at     TIMESTAMPTZ,
     changed_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT record_history_entity_type_check CHECK (entity_type IN ('attendance', 'meal_distribution')),
+    CONSTRAINT record_history_entity_type_check CHECK (entity_type IN ('attendance', 'meal_distribution', 'enrolment', 'daily_feeding')),
     CONSTRAINT record_history_changed_by_fk
         FOREIGN KEY (changed_by) REFERENCES users (id)
         ON UPDATE CASCADE
@@ -517,8 +532,10 @@ CREATE TABLE IF NOT EXISTS record_flags (
     checked_at      TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT record_flags_unique UNIQUE (entity_type, record_id, version, flag),
-    CONSTRAINT record_flags_entity_type_check CHECK (entity_type IN ('attendance', 'meal_distribution')),
-    CONSTRAINT record_flags_flag_check CHECK (flag IN ('outside_hours', 'entered_late', 'synced_late', 'served_exceeds_present', 'unusual_numbers')),
+    CONSTRAINT record_flags_entity_type_check CHECK (entity_type IN ('attendance', 'meal_distribution', 'enrolment', 'daily_feeding', 'stock_movement', 'stock_count')),
+    CONSTRAINT record_flags_flag_check CHECK (flag IN ('outside_hours', 'entered_late', 'synced_late', 'served_exceeds_present',
+                                                       'unusual_numbers', 'fed_exceeds_enrolled', 'fed_exceeds_present',
+                                                       'issue_exceeds_stock', 'usage_far_from_ration', 'delivery_short')),
     CONSTRAINT record_flags_status_check CHECK (status IN ('open', 'checked')),
     CONSTRAINT record_flags_checked_by_fk
         FOREIGN KEY (checked_by) REFERENCES users (id)
@@ -559,3 +576,333 @@ CREATE INDEX IF NOT EXISTS idx_forecast_date
 
 CREATE INDEX IF NOT EXISTS idx_users_role
     ON users (role);
+
+
+-- ---------------------------------------------------------------------------
+-- School calendar (migration 009)
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS school_terms (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    year            SMALLINT NOT NULL,
+    term            SMALLINT NOT NULL,
+    opens_on        DATE NOT NULL,
+    closes_on       DATE NOT NULL,
+    -- the days learners are away for half-term, if the term has one
+    half_term_start DATE,
+    half_term_end   DATE,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT school_terms_unique UNIQUE (year, term),
+    CONSTRAINT school_terms_term_check CHECK (term BETWEEN 1 AND 3),
+    CONSTRAINT school_terms_dates_order CHECK (closes_on > opens_on),
+    CONSTRAINT school_terms_half_term CHECK (
+        (half_term_start IS NULL AND half_term_end IS NULL)
+        OR (half_term_start > opens_on AND half_term_end >= half_term_start AND half_term_end < closes_on)
+    )
+);
+
+CREATE TABLE IF NOT EXISTS calendar_events (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    -- empty for national dates that apply to every school
+    school_id       UUID,
+    starts_on       DATE NOT NULL,
+    ends_on         DATE NOT NULL,
+    kind            TEXT NOT NULL,
+    name            TEXT NOT NULL,
+    created_by      UUID,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT calendar_events_kind_check
+        CHECK (kind IN ('public_holiday', 'national_exam', 'school_closure', 'school_event')),
+    CONSTRAINT calendar_events_dates_order CHECK (ends_on >= starts_on),
+    -- closures and events belong to one school; holidays and exams are national
+    CONSTRAINT calendar_events_scope CHECK (
+        (kind IN ('public_holiday', 'national_exam') AND school_id IS NULL)
+        OR (kind IN ('school_closure', 'school_event') AND school_id IS NOT NULL)
+    ),
+    CONSTRAINT calendar_events_school_fk
+        FOREIGN KEY (school_id) REFERENCES schools (id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+    CONSTRAINT calendar_events_created_by_fk
+        FOREIGN KEY (created_by) REFERENCES users (id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_calendar_events_dates ON calendar_events (starts_on, ends_on);
+CREATE INDEX IF NOT EXISTS idx_calendar_events_school ON calendar_events (school_id);
+
+-- ---------------------------------------------------------------------------
+-- Sync batches, change sequence and append-only guard (migration 010)
+-- ---------------------------------------------------------------------------
+
+CREATE SEQUENCE IF NOT EXISTS record_change_seq;
+
+-- Gives the row the next change number on every insert and update
+CREATE OR REPLACE FUNCTION set_change_seq() RETURNS trigger AS $$
+BEGIN
+    NEW.change_seq := nextval('record_change_seq');
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- For append-only tables: entries are corrected by a reversing entry, never changed
+CREATE OR REPLACE FUNCTION refuse_change() RETURNS trigger AS $$
+BEGIN
+    RAISE EXCEPTION '% is append-only: add a correcting entry instead', TG_TABLE_NAME
+        USING ERRCODE = 'restrict_violation';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TABLE IF NOT EXISTS sync_batches (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    school_id       UUID,
+    device_id       UUID,
+    user_id         UUID,
+    operation_count INTEGER NOT NULL DEFAULT 0,
+    received_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT sync_batches_school_fk
+        FOREIGN KEY (school_id) REFERENCES schools (id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL,
+    CONSTRAINT sync_batches_device_fk
+        FOREIGN KEY (device_id) REFERENCES devices (id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL,
+    CONSTRAINT sync_batches_user_fk
+        FOREIGN KEY (user_id) REFERENCES users (id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL,
+    CONSTRAINT sync_batches_count_nonneg CHECK (operation_count >= 0)
+);
+
+ALTER TABLE sync_operations ADD COLUMN IF NOT EXISTS sync_batch_id UUID;
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'sync_operations_batch_fk') THEN
+        ALTER TABLE sync_operations
+            ADD CONSTRAINT sync_operations_batch_fk
+            FOREIGN KEY (sync_batch_id) REFERENCES sync_batches (id)
+            ON UPDATE CASCADE
+            ON DELETE SET NULL;
+    END IF;
+END $$;
+
+-- ---------------------------------------------------------------------------
+-- Termly enrolment and the daily feeding record (migration 011)
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS enrolment (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    school_id       UUID NOT NULL,
+    term_id         UUID NOT NULL,
+    class           TEXT NOT NULL,
+    sex             CHAR(1) NOT NULL,
+    learners        INTEGER NOT NULL,
+    verified_by     UUID,
+    verified_at     TIMESTAMPTZ,
+    captured_by     UUID,
+    device_id       UUID,
+    captured_at     TIMESTAMPTZ,
+    received_at     TIMESTAMPTZ,
+    sync_batch_id   UUID,
+    version         INTEGER NOT NULL DEFAULT 1,
+    updated_by      UUID,
+    client_id       TEXT,
+    change_seq      BIGINT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT enrolment_unique UNIQUE (school_id, term_id, class, sex),
+    CONSTRAINT enrolment_class_check CHECK (class IN (
+        'PP1', 'PP2', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6',
+        'Grade 7', 'Grade 8', 'Grade 9')),
+    CONSTRAINT enrolment_sex_check CHECK (sex IN ('F', 'M')),
+    CONSTRAINT enrolment_learners_nonneg CHECK (learners >= 0),
+    CONSTRAINT enrolment_version_positive CHECK (version >= 1),
+    CONSTRAINT enrolment_school_fk FOREIGN KEY (school_id) REFERENCES schools (id)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT enrolment_term_fk FOREIGN KEY (term_id) REFERENCES school_terms (id)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT enrolment_verified_by_fk FOREIGN KEY (verified_by) REFERENCES users (id)
+        ON UPDATE CASCADE ON DELETE SET NULL,
+    CONSTRAINT enrolment_updated_by_fk FOREIGN KEY (updated_by) REFERENCES users (id)
+        ON UPDATE CASCADE ON DELETE SET NULL,
+    CONSTRAINT enrolment_batch_fk FOREIGN KEY (sync_batch_id) REFERENCES sync_batches (id)
+        ON UPDATE CASCADE ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS daily_feeding (
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    school_id           UUID NOT NULL,
+    feeding_date        DATE NOT NULL,
+    feeding_happened    BOOLEAN NOT NULL,
+    learners_present    INTEGER,
+    learners_fed        INTEGER NOT NULL DEFAULT 0,
+    cereals_kg          NUMERIC(8, 2) NOT NULL DEFAULT 0,
+    pulses_kg           NUMERIC(8, 2) NOT NULL DEFAULT 0,
+    reason_code         TEXT,
+    note                TEXT,
+    late_reason         TEXT,
+    captured_by         UUID,
+    device_id           UUID,
+    captured_at         TIMESTAMPTZ,
+    received_at         TIMESTAMPTZ,
+    sync_batch_id       UUID,
+    version             INTEGER NOT NULL DEFAULT 1,
+    updated_by          UUID,
+    client_id           TEXT,
+    change_seq          BIGINT,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT daily_feeding_unique UNIQUE (school_id, feeding_date),
+    CONSTRAINT daily_feeding_counts_nonneg CHECK (
+        learners_fed >= 0 AND cereals_kg >= 0 AND pulses_kg >= 0
+        AND (learners_present IS NULL OR learners_present >= 0)),
+    CONSTRAINT daily_feeding_fed_within_present CHECK (
+        learners_present IS NULL OR learners_fed <= learners_present),
+    -- No feeding means nothing fed or issued, and a reason
+    CONSTRAINT daily_feeding_not_fed CHECK (
+        feeding_happened OR (learners_fed = 0 AND cereals_kg = 0 AND pulses_kg = 0 AND reason_code IS NOT NULL)),
+    CONSTRAINT daily_feeding_reason_check CHECK (reason_code IS NULL OR reason_code IN (
+        -- feeding did not happen
+        'no_food', 'school_closed', 'cook_absent', 'no_water_or_fuel', 'learners_sent_home',
+        -- feeding happened but the day was unusual
+        'half_day', 'school_event', 'exams', 'visitors_fed',
+        'other')),
+    CONSTRAINT daily_feeding_other_explained CHECK (
+        reason_code IS DISTINCT FROM 'other' OR (note IS NOT NULL AND btrim(note) <> '')),
+    CONSTRAINT daily_feeding_version_positive CHECK (version >= 1),
+    CONSTRAINT daily_feeding_school_fk FOREIGN KEY (school_id) REFERENCES schools (id)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT daily_feeding_updated_by_fk FOREIGN KEY (updated_by) REFERENCES users (id)
+        ON UPDATE CASCADE ON DELETE SET NULL,
+    CONSTRAINT daily_feeding_batch_fk FOREIGN KEY (sync_batch_id) REFERENCES sync_batches (id)
+        ON UPDATE CASCADE ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_enrolment_school_term ON enrolment (school_id, term_id);
+CREATE INDEX IF NOT EXISTS idx_enrolment_change_seq ON enrolment (change_seq);
+CREATE INDEX IF NOT EXISTS idx_daily_feeding_school_date ON daily_feeding (school_id, feeding_date);
+CREATE INDEX IF NOT EXISTS idx_daily_feeding_change_seq ON daily_feeding (change_seq);
+
+DROP TRIGGER IF EXISTS enrolment_change_seq ON enrolment;
+CREATE TRIGGER enrolment_change_seq BEFORE INSERT OR UPDATE ON enrolment
+    FOR EACH ROW EXECUTE FUNCTION set_change_seq();
+DROP TRIGGER IF EXISTS daily_feeding_change_seq ON daily_feeding;
+CREATE TRIGGER daily_feeding_change_seq BEFORE INSERT OR UPDATE ON daily_feeding
+    FOR EACH ROW EXECUTE FUNCTION set_change_seq();
+
+-- ---------------------------------------------------------------------------
+-- Stock ledger (migration 012)
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS stock_movements (
+    -- generated on the device, so a replayed entry is recognised
+    id              UUID PRIMARY KEY,
+    school_id       UUID NOT NULL,
+    movement_date   DATE NOT NULL,
+    commodity       TEXT NOT NULL,
+    kind            TEXT NOT NULL,
+    quantity_kg     NUMERIC(10, 2) NOT NULL,
+    -- what the delivery note or dispatch says was sent, when it differs
+    note_quantity_kg NUMERIC(10, 2),
+    reference       TEXT,
+    supplier        TEXT,
+    note            TEXT,
+    -- set on a reversing entry: the entry it cancels
+    reverses_id     UUID,
+    captured_by     UUID,
+    device_id       UUID,
+    captured_at     TIMESTAMPTZ,
+    received_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    sync_batch_id   UUID,
+    client_id       TEXT,
+    change_seq      BIGINT,
+    CONSTRAINT stock_movements_commodity_check CHECK (commodity IN ('cereals', 'pulses', 'oil', 'salt')),
+    -- delivery and purchase add stock; loss and return remove it; reversal undoes an entry
+    CONSTRAINT stock_movements_kind_check CHECK (kind IN ('delivery', 'purchase', 'loss', 'return', 'reversal')),
+    CONSTRAINT stock_movements_quantity_positive CHECK (quantity_kg > 0),
+    CONSTRAINT stock_movements_note_quantity CHECK (note_quantity_kg IS NULL OR note_quantity_kg > 0),
+    CONSTRAINT stock_movements_reference_required CHECK (
+        kind NOT IN ('delivery', 'purchase') OR (reference IS NOT NULL AND btrim(reference) <> '')),
+    CONSTRAINT stock_movements_loss_explained CHECK (
+        kind NOT IN ('loss', 'return') OR (note IS NOT NULL AND btrim(note) <> '')),
+    CONSTRAINT stock_movements_reversal CHECK ((kind = 'reversal') = (reverses_id IS NOT NULL)),
+    -- an entry can be reversed only once
+    CONSTRAINT stock_movements_reverses_unique UNIQUE (reverses_id),
+    CONSTRAINT stock_movements_school_fk FOREIGN KEY (school_id) REFERENCES schools (id)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT stock_movements_reverses_fk FOREIGN KEY (reverses_id) REFERENCES stock_movements (id)
+        ON UPDATE RESTRICT ON DELETE RESTRICT,
+    CONSTRAINT stock_movements_batch_fk FOREIGN KEY (sync_batch_id) REFERENCES sync_batches (id)
+        ON UPDATE CASCADE ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS stock_counts (
+    id              UUID PRIMARY KEY,
+    school_id       UUID NOT NULL,
+    count_date      DATE NOT NULL,
+    commodity       TEXT NOT NULL,
+    counted_kg      NUMERIC(10, 2) NOT NULL,
+    note            TEXT,
+    captured_by     UUID,
+    device_id       UUID,
+    captured_at     TIMESTAMPTZ,
+    received_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    sync_batch_id   UUID,
+    client_id       TEXT,
+    change_seq      BIGINT,
+    CONSTRAINT stock_counts_commodity_check CHECK (commodity IN ('cereals', 'pulses', 'oil', 'salt')),
+    CONSTRAINT stock_counts_nonneg CHECK (counted_kg >= 0),
+    CONSTRAINT stock_counts_school_fk FOREIGN KEY (school_id) REFERENCES schools (id)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT stock_counts_batch_fk FOREIGN KEY (sync_batch_id) REFERENCES sync_batches (id)
+        ON UPDATE CASCADE ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_stock_movements_school_date ON stock_movements (school_id, movement_date);
+CREATE INDEX IF NOT EXISTS idx_stock_movements_change_seq ON stock_movements (change_seq);
+CREATE INDEX IF NOT EXISTS idx_stock_counts_school_date ON stock_counts (school_id, count_date);
+CREATE INDEX IF NOT EXISTS idx_stock_counts_change_seq ON stock_counts (change_seq);
+
+DROP TRIGGER IF EXISTS stock_movements_change_seq ON stock_movements;
+CREATE TRIGGER stock_movements_change_seq BEFORE INSERT ON stock_movements
+    FOR EACH ROW EXECUTE FUNCTION set_change_seq();
+DROP TRIGGER IF EXISTS stock_movements_append_only ON stock_movements;
+CREATE TRIGGER stock_movements_append_only BEFORE UPDATE OR DELETE ON stock_movements
+    FOR EACH ROW EXECUTE FUNCTION refuse_change();
+DROP TRIGGER IF EXISTS stock_counts_change_seq ON stock_counts;
+CREATE TRIGGER stock_counts_change_seq BEFORE INSERT ON stock_counts
+    FOR EACH ROW EXECUTE FUNCTION set_change_seq();
+DROP TRIGGER IF EXISTS stock_counts_append_only ON stock_counts;
+CREATE TRIGGER stock_counts_append_only BEFORE UPDATE OR DELETE ON stock_counts
+    FOR EACH ROW EXECUTE FUNCTION refuse_change();
+
+-- Every flow in and out of a school's store, in kilograms (positive = in).
+-- Cereals and pulses issued come from the daily record; oil and salt are derived
+-- from the school's ration x learners fed.
+CREATE OR REPLACE VIEW stock_flows AS
+    SELECT m.school_id, m.movement_date AS flow_date, m.commodity, m.kind AS source,
+           CASE m.kind
+               WHEN 'delivery' THEN m.quantity_kg
+               WHEN 'purchase' THEN m.quantity_kg
+               WHEN 'reversal' THEN -(SELECT CASE r.kind WHEN 'delivery' THEN r.quantity_kg
+                                                          WHEN 'purchase' THEN r.quantity_kg
+                                                          ELSE -r.quantity_kg END
+                                     FROM stock_movements r WHERE r.id = m.reverses_id)
+               ELSE -m.quantity_kg
+           END AS quantity_kg
+    FROM stock_movements m
+    UNION ALL
+    SELECT f.school_id, f.feeding_date, 'cereals', 'issue', -f.cereals_kg FROM daily_feeding f
+    UNION ALL
+    SELECT f.school_id, f.feeding_date, 'pulses', 'issue', -f.pulses_kg FROM daily_feeding f
+    UNION ALL
+    SELECT f.school_id, f.feeding_date, 'oil', 'issue', -(f.learners_fed * s.ration_oil_g / 1000.0)
+    FROM daily_feeding f JOIN schools s ON s.id = f.school_id
+    UNION ALL
+    SELECT f.school_id, f.feeding_date, 'salt', 'issue', -(f.learners_fed * s.ration_salt_g / 1000.0)
+    FROM daily_feeding f JOIN schools s ON s.id = f.school_id;
+
+CREATE INDEX IF NOT EXISTS idx_schools_sub_county
+    ON schools (sub_county);

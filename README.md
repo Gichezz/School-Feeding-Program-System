@@ -51,7 +51,7 @@ Details: [docs/architecture.md](docs/architecture.md) (components and sync proto
 ├── frontend/      React PWA: pages, Dexie database, sync queue and manager, tests
 ├── backend/       Express REST API: auth, records, sync and conflicts, reports, forecasts, tests
 ├── forecasting/   Flask + Prophet service, dataset and training scripts, model artifacts, tests
-├── database/      schema.sql, seed.sql, migrations/, Docker first-start script
+├── database/      schema.sql, calendar_kenya.sql, seed.sql, migrations/, Docker first-start script
 ├── deploy/        Caddy (HTTPS) config and the deployment smoke test
 ├── docs/          Architecture, deployment, forecasting and dataset documentation
 └── .github/       CI workflow, issue forms, pull request template
@@ -89,10 +89,11 @@ Run each service in its own terminal, from the project folder.
 ```bash
 psql -U postgres -c "CREATE DATABASE school_feeding;"
 psql -U postgres -d school_feeding -f database/schema.sql
+psql -U postgres -d school_feeding -f database/calendar_kenya.sql
 psql -U postgres -d school_feeding -f database/seed.sql
 ```
 
-`seed.sql` creates one demo school and two demo accounts for **local development only**; their passwords are listed at the top of that file, so never load it on a hosted or shared database. The demo school's only attendance record has 3 registered learners, so forecasts are close to zero until realistic attendance is recorded.
+`calendar_kenya.sql` loads the national school calendar (term dates, half-terms, public holidays and national exams for 2024–2026), which every installation needs. `seed.sql` creates four fictional schools in one fictional sub-county and three demo accounts (administrator, programme officer, school staff) for **local development only**; their passwords are listed at the top of that file, so never load it on a hosted or shared database.
 
 **Existing databases:** `schema.sql` only creates missing tables. Apply later schema changes with the scripts in `database/migrations/`, in order:
 
@@ -104,9 +105,15 @@ psql -U postgres -d school_feeding -f database/migrations/004_staff_devices.sql
 psql -U postgres -d school_feeding -f database/migrations/005_offline_capture.sql
 psql -U postgres -d school_feeding -f database/migrations/006_record_integrity.sql
 psql -U postgres -d school_feeding -f database/migrations/007_admin_totp.sql
+psql -U postgres -d school_feeding -f database/migrations/008_schools_programme.sql
+psql -U postgres -d school_feeding -f database/migrations/009_calendar.sql
+psql -U postgres -d school_feeding -f database/migrations/010_sync_batches.sql
+psql -U postgres -d school_feeding -f database/migrations/011_enrolment_feeding.sql
+psql -U postgres -d school_feeding -f database/migrations/012_stock_ledger.sql
+psql -U postgres -d school_feeding -f database/calendar_kenya.sql
 ```
 
-`001` requires present + absent to equal registered for new and updated attendance records, and lists existing records that do not add up. Correct those records, then run `ALTER TABLE attendance_records VALIDATE CONSTRAINT attendance_present_absent_equals_registered;`. `002` adds the columns used to deactivate users and to end sessions after a password change. `003` adds the tables for administrator passkeys and recovery codes. `004` gives staff a school (existing staff get the only school, when there is one), and adds school devices, staff PINs and activation codes. `005` records who captured each synced record and on which device, and adds held records for administrators to review. `006` stores who captured each attendance and meal record, on which device, when it was captured and when it reached the server, and adds the record history and the flags administrators check under Record review. `007` adds authenticator app codes (TOTP) for administrators.
+`001` requires present + absent to equal registered for new and updated attendance records, and lists existing records that do not add up. Correct those records, then run `ALTER TABLE attendance_records VALIDATE CONSTRAINT attendance_present_absent_equals_registered;`. `002` adds the columns used to deactivate users and to end sessions after a password change. `003` adds the tables for administrator passkeys and recovery codes. `004` gives staff a school (existing staff get the only school, when there is one), and adds school devices, staff PINs and activation codes. `005` records who captured each synced record and on which device, and adds held records for administrators to review. `006` stores who captured each attendance and meal record, on which device, when it was captured and when it reached the server, and adds the record history and the flags administrators check under Record review. `007` adds authenticator app codes (TOTP) for administrators. `008` adds each school's county, sub-county, programme type (in kind or cash transfer) and ration, and the programme officer role. `009` adds the school calendar (terms, holidays, exams, school closures and events). `010` adds sync batches, the change sequence devices download changes by, and the append-only guard. `011` adds termly enrolment by class and sex and the daily feeding record. `012` adds the stock ledger (deliveries, purchases, losses and returns, corrected only by reversing entries) and physical stock counts. Then load `calendar_kenya.sql`.
 
 ### 2. Backend API (port 5000)
 
