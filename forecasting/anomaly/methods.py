@@ -36,6 +36,7 @@ class Rules:
         ("count_gap_change", lambda x: x < -2.0, -2.0, 1.0),               # 2 days of food missing
         ("entry_delay", lambda x: x > 5, 5, 5),
         ("batch_dates", lambda x: x >= 10, 10, 5),
+        ("enrolment_change", lambda x: x > np.log(1.25), np.log(1.25), 0.1),  # enrolment up a quarter in a term
     ]
 
     def __init__(self, **_):
@@ -63,12 +64,14 @@ class Rules:
         return out
 
 
-ZSCORE_FEATURES = ["fed_rate", "fed_vs_peers", "cereal_ratio", "pulse_ratio", "usage_trend", "count_gap_change",
-                   "entry_delay", "batch_dates", "round_share", "fed_steadiness"]
+ZSCORE_FEATURES = ["fed_rate", "fed_vs_peers", "fed_rate_vs_last_term", "enrolment_change", "uptake", "cereal_ratio",
+                   "pulse_ratio", "usage_trend", "count_gap_change", "entry_delay", "batch_dates", "outside_hours",
+                   "round_share", "fed_steadiness"]
 # Smallest spread used for a feature, so a very steady school does not flag tiny changes
 MIN_SPREAD = {"fed_rate": 0.02, "fed_vs_peers": 0.02, "cereal_ratio": 0.03, "pulse_ratio": 0.03,
               "usage_trend": 0.02, "count_gap_change": 0.5, "entry_delay": 1.0, "batch_dates": 1.0,
-              "round_share": 0.1, "fed_steadiness": 0.01}
+              "round_share": 0.1, "fed_steadiness": 0.01, "fed_rate_vs_last_term": 0.02,
+              "enrolment_change": 0.03, "uptake": 0.01, "outside_hours": 0.2}
 MIN_HISTORY = 20
 
 

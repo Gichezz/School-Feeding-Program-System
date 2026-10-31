@@ -67,6 +67,8 @@ def best_threshold(scores, truth):
     for q in np.linspace(0.80, 0.999, 120):
         t = np.quantile(scores, q)
         flag = scores >= t
+        if flag.all():
+            continue
         tp = (flag & truth).sum()
         if tp == 0:
             continue
@@ -132,7 +134,16 @@ def evaluate(data_dir=DATA_DIR, report_dir=REPORT_DIR, quiet=False):
                 tune_scores, test_scores = all_scores[tuning.index].to_numpy(), all_scores[test.index].to_numpy()
             else:
                 tune_scores, test_scores = model.score(tuning), model.score(test)
-            f1, threshold = best_threshold(tune_scores, (tuning.label != "").to_numpy())
+            if name == "rules":
+                # The protocol fixes the rules' thresholds by programme logic: a day is
+                # flagged when it breaks at least one rule. Nothing is tuned.
+                threshold = 1.0
+                flag = tune_scores >= threshold
+                truth = (tuning.label != "").to_numpy()
+                tp = (flag & truth).sum()
+                f1 = 2 * tp / (flag.sum() + truth.sum()) if tp else 0.0
+            else:
+                f1, threshold = best_threshold(tune_scores, (tuning.label != "").to_numpy())
             if best is None or f1 > best["tuning_f1"]:
                 best = {"params": params, "tuning_f1": f1, "threshold": threshold, "model": model, "test_scores": test_scores}
         flag = best["test_scores"] >= best["threshold"]
@@ -249,6 +260,8 @@ def write_report(out, protocol, report_dir=REPORT_DIR):
         f"{out['rows']['tuning']:,} school-days ({out['rows']['tuning_anomalous']} anomalous, tuning types only), test period "
         f"{out['rows']['test']:,} school-days ({out['rows']['test_anomalous']} anomalous, every type). "
         f"The held-out types ({', '.join(held)}) never appear before the test run.",
+        "",
+        "The fixed rules flag a day when it breaks at least one rule, as the protocol sets; their threshold is not tuned.",
         "",
         f"## Weekly review list (primary metric: precision@{out['k']})",
         "",

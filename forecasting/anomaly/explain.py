@@ -41,8 +41,16 @@ def describe(feature, row):
         return f"round numbers on {row['round_share'] * 100:.0f}% of recent days"
     if feature == "fed_steadiness":
         return "almost the same number of learners fed day after day"
-    if feature == "edits":
-        return "edited once" if row["edits"] == 1 else f"edited {row['edits']:.0f} times"
+    if feature == "fed_rate_vs_last_term":
+        diff = row["fed_rate_vs_last_term"]
+        return f"a share of learners fed {_pct(diff)} points {'above' if diff > 0 else 'below'} last term's"
+    if feature == "enrolment_change":
+        change = math.exp(row["enrolment_change"]) - 1
+        return f"enrolment {_pct(change)} {'up' if change > 0 else 'down'} on last term ({row['learners']} learners)"
+    if feature == "uptake":
+        return f"{row['learners_fed']} learners fed of {row['learners_present']:.0f} present ({_pct(row['uptake'])})"
+    if feature == "outside_hours":
+        return "captured outside school hours"
     return feature.replace("_", " ")
 
 

@@ -34,8 +34,9 @@ def test_held_out_anomaly_types_only_appear_in_the_test_year(tmp_path):
     labels = read(tmp_path, "labels").assign(date=lambda d: pd.to_datetime(d.date))
 
     early = labels[labels.date < "2026-01-01"].label
-    assert not early.isin(["backdated_bulk_entry", "round_number_entry"]).any()
-    assert labels[labels.date >= "2026-01-01"].label.isin(["backdated_bulk_entry", "round_number_entry"]).any()
+    held_out = ["backdated_bulk_entry", "round_number_entry", "ghost_learners"]
+    assert not early.isin(held_out).any()
+    assert labels[labels.date >= "2026-01-01"].label.isin(held_out).any()
 
 
 def test_records_follow_the_calendar_and_the_rules_schools_keep(tmp_path):

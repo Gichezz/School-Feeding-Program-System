@@ -1,151 +1,155 @@
 {
   "protocol": "forecasting\\config\\anomaly_evaluation.yaml",
   "dataset_sha256": {
-    "schools": "33a544658a89f5f8a21c4d84737eb0ed466050ced03daacfc81d1637a05ac68a",
-    "enrolment": "6ec3e9a51378aae769f58e3d9594143b0e85f6d64e53cab6ed8174de3226b708",
-    "feeding": "1976e766fbbf78a487cb67c9f8e04922163fad2f8793dc72743c08eca9314d71",
-    "stock_counts": "055209a5561d91cb3b3a00dd48bf76ce8cc8125ea1a9aba4c8ecb96a6a75eff0",
+    "schools": "531f53223fd38a600d3a5160b52287bbcd336bbe72335f33d8754501cd7f2512",
+    "enrolment": "f335641b3372940ad2b267ed16d22f57196661068cc368effbaf4586ccf99cb3",
+    "feeding": "05c2662680046e112c3d64a506fc650b0401e10673a82b0d81eb4584b65a5985",
+    "stock_counts": "1413d758a15142a555e347a357718356dbd36fd093722cc858ec744d8be81cd6",
     "school_days": "ad906f2e58b4cc8b066d7c0bc9082ca441d824b521940c92293bbc20881bae3b",
-    "labels": "a63ceba35c8b2b329cee07f295e50630416bba99da739fb0e4b83ab0e4429f38"
+    "labels": "43caa803284208befed0e2cb11e5ef581e9d70afb2ca9b071240902ec7bc9655"
   },
   "rows": {
     "tuning": 13600,
     "test": 6760,
-    "tuning_anomalous": 512,
-    "test_anomalous": 322
+    "tuning_anomalous": 588,
+    "test_anomalous": 417
   },
   "schools": 40,
   "k": 10,
   "results": {
     "rules": {
       "params": {},
-      "tuning_f1": 0.1294,
-      "threshold": 1.000394064312026,
+      "tuning_f1": 0.0714,
+      "threshold": 1.0,
       "test": {
-        "tp": 87,
-        "fp": 207,
-        "fn": 235,
-        "precision": 0.2959,
-        "recall": 0.2702,
-        "f1": 0.2825,
+        "tp": 183,
+        "fp": 165,
+        "fn": 234,
+        "precision": 0.5259,
+        "recall": 0.4388,
+        "f1": 0.4784,
         "recall_by_type": {
           "backdated_bulk_entry": 1.0,
-          "consumption_drift": 0.2034,
-          "inflated_headcount": 0.0606,
-          "round_number_entry": 0.0286,
-          "stock_leakage": 0.0492
+          "consumption_drift": 0.2258,
+          "ghost_learners": 0.7095,
+          "inflated_headcount": 0.0208,
+          "round_number_entry": 0.0182,
+          "stock_leakage": 0.0455
         },
-        "false_flags_per_1000_normal_days": 32.1528,
-        "recall_held_out": 0.5,
-        "stock_leakage_recall_on_count_days": 0.5
+        "false_flags_per_1000_normal_days": 26.0129,
+        "recall_held_out": 0.6312,
+        "stock_leakage_recall_on_count_days": 0.1667
       },
-      "precision_at_k": 0.125,
-      "anomalous_school_weeks_listed": 0.5357,
+      "precision_at_k": 0.1278,
+      "anomalous_school_weeks_listed": 0.46,
       "vs_leader": {
-        "leader": "one_class_svm",
-        "difference": -0.0528,
-        "ci_low": -0.0806,
-        "ci_high": -0.0278
+        "leader": "local_outlier_factor",
+        "difference": -0.075,
+        "ci_low": -0.1083,
+        "ci_high": -0.0444
       }
     },
     "robust_zscore": {
       "params": {
         "history_days": 80
       },
-      "tuning_f1": 0.1182,
-      "threshold": 4.8894633468828825,
+      "tuning_f1": 0.1298,
+      "threshold": 5.078859371088558,
       "test": {
-        "tp": 181,
-        "fp": 1225,
-        "fn": 141,
-        "precision": 0.1287,
-        "recall": 0.5621,
-        "f1": 0.2095,
+        "tp": 200,
+        "fp": 1102,
+        "fn": 217,
+        "precision": 0.1536,
+        "recall": 0.4796,
+        "f1": 0.2327,
         "recall_by_type": {
           "backdated_bulk_entry": 1.0,
-          "consumption_drift": 0.5593,
-          "inflated_headcount": 0.3636,
-          "round_number_entry": 0.7571,
-          "stock_leakage": 0.082
+          "consumption_drift": 0.5323,
+          "ghost_learners": 0.3649,
+          "inflated_headcount": 0.0833,
+          "round_number_entry": 0.6364,
+          "stock_leakage": 0.3182
         },
-        "false_flags_per_1000_normal_days": 190.2765,
-        "recall_held_out": 0.875,
-        "stock_leakage_recall_on_count_days": 0.5
+        "false_flags_per_1000_normal_days": 173.7348,
+        "recall_held_out": 0.5665,
+        "stock_leakage_recall_on_count_days": 0.3333
       },
-      "precision_at_k": 0.1444,
-      "anomalous_school_weeks_listed": 0.619,
+      "precision_at_k": 0.1333,
+      "anomalous_school_weeks_listed": 0.48,
       "vs_leader": {
-        "leader": "one_class_svm",
-        "difference": -0.0334,
-        "ci_low": -0.0583,
-        "ci_high": -0.0111
+        "leader": "local_outlier_factor",
+        "difference": -0.0695,
+        "ci_low": -0.1,
+        "ci_high": -0.0417
       }
     },
     "isolation_forest": {
       "params": {
-        "n_estimators": 300,
+        "n_estimators": 100,
         "max_samples": 1024
       },
-      "tuning_f1": 0.1862,
-      "threshold": 0.49879775715471086,
+      "tuning_f1": 0.2101,
+      "threshold": 0.48624250905550026,
       "test": {
-        "tp": 115,
-        "fp": 315,
-        "fn": 207,
-        "precision": 0.2674,
-        "recall": 0.3571,
-        "f1": 0.3059,
+        "tp": 130,
+        "fp": 312,
+        "fn": 287,
+        "precision": 0.2941,
+        "recall": 0.3118,
+        "f1": 0.3027,
         "recall_by_type": {
-          "backdated_bulk_entry": 0.9394,
-          "consumption_drift": 0.2542,
-          "inflated_headcount": 0.303,
-          "round_number_entry": 0.2,
-          "stock_leakage": 0.0656
+          "backdated_bulk_entry": 0.9,
+          "consumption_drift": 0.2903,
+          "ghost_learners": 0.223,
+          "inflated_headcount": 0.2083,
+          "round_number_entry": 0.2364,
+          "stock_leakage": 0.0455
         },
-        "false_flags_per_1000_normal_days": 48.9282,
-        "recall_held_out": 0.5588,
-        "stock_leakage_recall_on_count_days": 0.5
+        "false_flags_per_1000_normal_days": 49.1881,
+        "recall_held_out": 0.3802,
+        "stock_leakage_recall_on_count_days": 0.3333
       },
-      "precision_at_k": 0.1722,
-      "anomalous_school_weeks_listed": 0.7381,
+      "precision_at_k": 0.1806,
+      "anomalous_school_weeks_listed": 0.65,
       "vs_leader": {
-        "leader": "one_class_svm",
-        "difference": -0.0056,
-        "ci_low": -0.0222,
-        "ci_high": 0.0084
+        "leader": "local_outlier_factor",
+        "difference": -0.0222,
+        "ci_low": -0.0472,
+        "ci_high": 0.0001
       }
     },
     "local_outlier_factor": {
       "params": {
         "n_neighbors": 50
       },
-      "tuning_f1": 0.1511,
-      "threshold": 1.2323028554000428,
+      "tuning_f1": 0.1707,
+      "threshold": 1.1960527139695838,
       "test": {
-        "tp": 176,
-        "fp": 734,
-        "fn": 146,
-        "precision": 0.1934,
-        "recall": 0.5466,
-        "f1": 0.2857,
+        "tp": 300,
+        "fp": 1129,
+        "fn": 117,
+        "precision": 0.2099,
+        "recall": 0.7194,
+        "f1": 0.325,
         "recall_by_type": {
           "backdated_bulk_entry": 1.0,
-          "consumption_drift": 0.339,
-          "inflated_headcount": 0.4394,
-          "round_number_entry": 0.7857,
-          "stock_leakage": 0.0984
+          "consumption_drift": 0.3065,
+          "ghost_learners": 0.9932,
+          "inflated_headcount": 0.375,
+          "round_number_entry": 0.8182,
+          "stock_leakage": 0.25
         },
-        "false_flags_per_1000_normal_days": 114.0106,
-        "recall_held_out": 0.8897,
-        "stock_leakage_recall_on_count_days": 0.8333
+        "false_flags_per_1000_normal_days": 177.9915,
+        "recall_held_out": 0.9582,
+        "stock_leakage_recall_on_count_days": 0.3333
       },
-      "precision_at_k": 0.1583,
-      "anomalous_school_weeks_listed": 0.6786,
+      "precision_at_k": 0.2028,
+      "anomalous_school_weeks_listed": 0.73,
       "vs_leader": {
-        "leader": "one_class_svm",
-        "difference": -0.0195,
-        "ci_low": -0.0389,
-        "ci_high": 0.0028
+        "leader": "local_outlier_factor",
+        "difference": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.0
       }
     },
     "one_class_svm": {
@@ -153,118 +157,119 @@
         "nu": 0.05,
         "gamma": "scale"
       },
-      "tuning_f1": 0.2566,
-      "threshold": -0.25878894608619335,
+      "tuning_f1": 0.2778,
+      "threshold": -0.07219712402247039,
       "test": {
-        "tp": 185,
-        "fp": 501,
-        "fn": 137,
-        "precision": 0.2697,
-        "recall": 0.5745,
-        "f1": 0.3671,
+        "tp": 299,
+        "fp": 477,
+        "fn": 118,
+        "precision": 0.3853,
+        "recall": 0.717,
+        "f1": 0.5013,
         "recall_by_type": {
           "backdated_bulk_entry": 1.0,
-          "consumption_drift": 0.5424,
-          "inflated_headcount": 0.4394,
-          "round_number_entry": 0.7857,
-          "stock_leakage": 0.0492
+          "consumption_drift": 0.4194,
+          "ghost_learners": 1.0,
+          "inflated_headcount": 0.4167,
+          "round_number_entry": 0.8182,
+          "stock_leakage": 0.0
         },
-        "false_flags_per_1000_normal_days": 77.8192,
-        "recall_held_out": 0.8897,
-        "stock_leakage_recall_on_count_days": 0.3333
+        "false_flags_per_1000_normal_days": 75.201,
+        "recall_held_out": 0.962,
+        "stock_leakage_recall_on_count_days": 0.0
       },
-      "precision_at_k": 0.1778,
-      "anomalous_school_weeks_listed": 0.7619,
+      "precision_at_k": 0.1972,
+      "anomalous_school_weeks_listed": 0.71,
       "vs_leader": {
-        "leader": "one_class_svm",
-        "difference": 0.0,
-        "ci_low": 0.0,
-        "ci_high": 0.0
+        "leader": "local_outlier_factor",
+        "difference": -0.0056,
+        "ci_low": -0.0222,
+        "ci_high": 0.0083
       }
     },
     "autoencoder": {
       "params": {
         "hidden": [
-          16,
-          8,
-          16
+          8
         ]
       },
-      "tuning_f1": 0.1468,
-      "threshold": 0.13031394382488337,
+      "tuning_f1": 0.1746,
+      "threshold": 0.31155090658289336,
       "test": {
-        "tp": 92,
-        "fp": 210,
-        "fn": 230,
-        "precision": 0.3046,
-        "recall": 0.2857,
-        "f1": 0.2949,
+        "tp": 281,
+        "fp": 554,
+        "fn": 136,
+        "precision": 0.3365,
+        "recall": 0.6739,
+        "f1": 0.4489,
         "recall_by_type": {
-          "backdated_bulk_entry": 0.9848,
-          "consumption_drift": 0.1356,
-          "inflated_headcount": 0.1667,
-          "round_number_entry": 0.0286,
-          "stock_leakage": 0.0984
+          "backdated_bulk_entry": 1.0,
+          "consumption_drift": 0.0484,
+          "ghost_learners": 1.0,
+          "inflated_headcount": 0.4167,
+          "round_number_entry": 0.8727,
+          "stock_leakage": 0.0455
         },
-        "false_flags_per_1000_normal_days": 32.6188,
-        "recall_held_out": 0.4926,
-        "stock_leakage_recall_on_count_days": 0.8333
+        "false_flags_per_1000_normal_days": 87.3404,
+        "recall_held_out": 0.9734,
+        "stock_leakage_recall_on_count_days": 0.1667
       },
-      "precision_at_k": 0.1361,
-      "anomalous_school_weeks_listed": 0.5833,
+      "precision_at_k": 0.1972,
+      "anomalous_school_weeks_listed": 0.71,
       "vs_leader": {
-        "leader": "one_class_svm",
-        "difference": -0.0417,
-        "ci_low": -0.0667,
-        "ci_high": -0.0167
+        "leader": "local_outlier_factor",
+        "difference": -0.0056,
+        "ci_low": -0.025,
+        "ci_high": 0.0167
       }
     }
   },
-  "leader": "one_class_svm",
-  "recommended": "one_class_svm",
+  "leader": "local_outlier_factor",
+  "recommended": "local_outlier_factor",
   "tied_with_leader": [
+    "autoencoder",
     "isolation_forest",
-    "local_outlier_factor"
+    "one_class_svm"
   ],
-  "precision_at_k_ceiling": 0.2333,
+  "precision_at_k_ceiling": 0.2778,
   "leak_count_days": 6,
   "examples": [
     {
-      "school": "S23",
-      "date": "2026-03-30",
+      "school": "S19",
+      "date": "2026-07-07",
       "truth": "backdated_bulk_entry",
-      "explanation": "Needs review: 34 different dates sent together in one sync; entered 23 school days after the date"
+      "explanation": "Needs review: 0 learners fed of 806 enrolled (0%); 32 different dates sent together in one sync"
     },
     {
-      "school": "S23",
-      "date": "2026-03-27",
+      "school": "S19",
+      "date": "2026-07-23",
       "truth": "backdated_bulk_entry",
-      "explanation": "Needs review: 34 different dates sent together in one sync; entered 24 school days after the date"
+      "explanation": "Needs review: 32 different dates sent together in one sync; entered 21 school days after the date"
     },
     {
-      "school": "S23",
-      "date": "2026-03-19",
+      "school": "S19",
+      "date": "2026-07-17",
       "truth": "backdated_bulk_entry",
-      "explanation": "Needs review: 34 different dates sent together in one sync; entered 29 school days after the date"
+      "explanation": "Needs review: 32 different dates sent together in one sync; entered 25 school days after the date"
     },
     {
-      "school": "S23",
-      "date": "2026-04-27",
+      "school": "S19",
+      "date": "2026-07-01",
       "truth": "backdated_bulk_entry",
-      "explanation": "Needs review: 34 different dates sent together in one sync; entered 19 school days after the date"
+      "explanation": "Needs review: 32 different dates sent together in one sync; entered 37 school days after the date"
     },
     {
-      "school": "S28",
-      "date": "2026-10-23",
+      "school": "S19",
+      "date": "2026-09-10",
       "truth": "none",
-      "explanation": "Needs review: learners fed 62% below the school's usual number; cereals issued at 0.55 times the ration for learners fed"
+      "explanation": "Needs review: 32 different dates sent together in one sync; learners fed 2% above the school's usual number"
     },
     {
-      "school": "S23",
-      "date": "2026-05-18",
+      "school": "S10",
+      "date": "2026-05-04",
       "truth": "none",
-      "explanation": "Needs review: 34 different dates sent together in one sync; round numbers on 60% of recent days"
+      "explanation": "Needs review: 22 different dates sent together in one sync; almost the same number of learners fed day after day"
     }
   ],
-  "runtime_seconds": 20
+  "runtime_seconds": 12
 }
