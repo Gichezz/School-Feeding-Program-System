@@ -18,7 +18,7 @@ def _pct(x):
 def describe(feature, row):
     """One sentence about one feature of a school-day."""
     if feature == "fed_rate":
-        return f"{row['learners_fed']} learners fed of {row['learners']} enrolled ({_pct(row['fed_rate'])})"
+        return f"{row['learners_fed']} learners fed of {row['learners']} enrolled ({_pct(row['share_fed'])})"
     if feature == "fed_vs_own":
         change = math.exp(row["fed_vs_own"]) - 1
         return f"learners fed {_pct(change)} {'above' if change > 0 else 'below'} the school's usual number"
@@ -49,14 +49,14 @@ def describe(feature, row):
         return f"enrolment {_pct(change)} {'up' if change > 0 else 'down'} on last term ({row['learners']} learners)"
     if feature == "uptake":
         return f"{row['learners_fed']} learners fed of {row['learners_present']:.0f} present ({_pct(row['uptake'])})"
-    if feature == "outside_hours":
-        return "captured outside school hours"
+    if feature == "after_hours_share":
+        return f"{row['after_hours_share'] * 100:.0f}% of the school's recent records entered outside school hours"
     return feature.replace("_", " ")
 
 
 def explain(row, contributions):
     """'Needs review: …' naming the features that raised the score most."""
-    top = [f for f, _ in sorted(contributions.items(), key=lambda kv: -kv[1]) if f not in ("term_position", "closing_day", "opening_days")][:TOP]
+    top = [f for f, _ in sorted(contributions.items(), key=lambda kv: -kv[1])][:TOP]
     if not top:
         return "Needs review: unusual combination of this day's figures"
     return "Needs review: " + "; ".join(describe(f, row) for f in top)

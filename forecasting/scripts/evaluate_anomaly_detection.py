@@ -1,6 +1,7 @@
 """
-Evaluate six anomaly detection methods on synthetic school feeding records, following
-the protocol committed before any method was run (config/anomaly_evaluation.yaml).
+Evaluate anomaly detection methods (two baselines, three candidates) on synthetic school
+feeding records, following the protocol committed before any method was run
+(config/anomaly_evaluation.yaml).
 
   1. Tuning period (2024-2025, tuning anomaly types only): each method's grid setting
      and flag threshold are chosen to maximise F1 against the tuning labels.
@@ -38,12 +39,15 @@ from generate_feeding_dataset import OUT_DIR as DATA_DIR, PROTOCOL  # noqa: E402
 
 REPORT_DIR = REPORTS_DIR / "anomaly"
 # Report order, simplest first
-SIMPLICITY = ["rules", "robust_zscore", "isolation_forest", "local_outlier_factor", "one_class_svm", "autoencoder"]
+SIMPLICITY = ["rules", "robust_zscore", "isolation_forest", "one_class_svm", "local_outlier_factor"]
 # The protocol's simplicity order: rules < robust z-score < the learned methods. It does
 # not rank the learned methods against each other.
-TIER = {"rules": 0, "robust_zscore": 1, "isolation_forest": 2, "local_outlier_factor": 2, "one_class_svm": 2, "autoencoder": 2}
+TIER = {"rules": 0, "robust_zscore": 1, "isolation_forest": 2, "local_outlier_factor": 2, "one_class_svm": 2}
+# Rows for the timing benchmark (fitting), and rows scored in it
+BENCHMARK_ROWS = [5000, 20000, 50000]
+BENCHMARK_SCORE_ROWS = 5000
 LABELS = {"rules": "Fixed rules", "robust_zscore": "Robust z-score", "isolation_forest": "Isolation Forest",
-          "local_outlier_factor": "Local Outlier Factor", "one_class_svm": "One-class SVM", "autoencoder": "Autoencoder"}
+          "local_outlier_factor": "Local Outlier Factor", "one_class_svm": "One-class SVM"}
 
 
 def load(data_dir=DATA_DIR):
@@ -184,10 +188,16 @@ def evaluate(data_dir=DATA_DIR, report_dir=REPORT_DIR, quiet=False):
                                       "ci_low": round(float(lo), 4), "ci_high": round(float(hi), 4)}
 
     # Decision rule: among methods whose interval against the leader includes zero, the
-    # simplest tier; within a tier, the one with the highest precision@k
+    # simplest tier; among learned methods, the one that fits fastest on 50,000 rows
+    timings = benchmark(models, tuning, seed)
     tied = [n for n in results if results[n]["vs_leader"]["ci_high"] >= 0]
     simplest = min(TIER[n] for n in tied)
-    recommended = max((n for n in tied if TIER[n] == simplest), key=lambda n: results[n]["precision_at_k"])
+    candidates = [n for n in tied if TIER[n] == simplest]
+    if simplest == 2:
+        largest = str(BENCHMARK_ROWS[-1])
+        recommended = min(candidates, key=lambda n: timings[n][largest]["fit_seconds"])
+    else:
+        recommended = max(candidates, key=lambda n: results[n]["precision_at_k"])
     tied_with_leader = sorted(n for n in tied if n != leader)
 
     # Context: the best precision@k any method could reach, given how few school-weeks
@@ -227,6 +237,7 @@ def evaluate(data_dir=DATA_DIR, report_dir=REPORT_DIR, quiet=False):
         "schools": int(frames["schools"].shape[0]),
         "k": k, "results": results, "leader": leader, "recommended": recommended,
         "tied_with_leader": tied_with_leader, "precision_at_k_ceiling": round(ceiling, 4),
+        "timings": timings,
         "leak_count_days": int(leak_count.sum()), "examples": examples,
         "runtime_seconds": round(time.time() - started),
     }
@@ -236,6 +247,31 @@ def evaluate(data_dir=DATA_DIR, report_dir=REPORT_DIR, quiet=False):
         write_report(out, protocol, report_dir)
         if not quiet:
             print(f"Leader: {leader}; recommended: {recommended}. Wrote {report_dir / 'anomaly_evaluation.md'}")
+    return out
+
+
+def benchmark(models, tuning, seed):
+    """Seconds to fit each method's chosen setting on n rows (sampled from the tuning
+    period, with a little jitter so repeated rows are not identical), and to score 5,000."""
+    rng = np.random.default_rng(seed)
+    from anomaly.features import FEATURES
+    out = {}
+    for name, best in models.items():
+        cls = type(best["model"])
+        out[name] = {}
+        for n in BENCHMARK_ROWS:
+            rows = tuning.iloc[rng.integers(0, len(tuning), n)].reset_index(drop=True)
+            cols = [c for c in FEATURES if c in rows]
+            rows[cols] = rows[cols] + rng.normal(0, 1e-3, (n, len(cols)))
+            kwargs = dict(best["params"])
+            if name not in ("rules", "robust_zscore"):
+                kwargs["random_state"] = seed
+            start = time.perf_counter()
+            model = cls(**kwargs).fit(rows)
+            fit_s = time.perf_counter() - start
+            start = time.perf_counter()
+            model.score(rows.iloc[:BENCHMARK_SCORE_ROWS])
+            out[name][str(n)] = {"fit_seconds": round(fit_s, 3), "score_seconds": round(time.perf_counter() - start, 3)}
     return out
 
 
@@ -274,7 +310,8 @@ def write_report(out, protocol, report_dir=REPORT_DIR):
                   for n in names],
                  ["Method", f"Precision@{out['k']}", "Anomalous school-weeks listed", "Difference from the best (points, 95% interval)"]),
         "",
-        f"**Recommended under the decision rule: {LABELS[out['recommended']]}** (best precision@{out['k']}: {LABELS[out['leader']]}). "
+        f"**Recommended under the decision rule: {LABELS[out['recommended']]}** (best precision@{out['k']}: {LABELS[out['leader']]}; "
+        "among learned methods not distinguishable from the best, the rule prefers the fastest to fit on 50,000 rows). "
         + (f"Not distinguishable from it at 95%: {', '.join(LABELS[n] for n in out['tied_with_leader'])}." if out["tied_with_leader"] else ""),
         "",
         f"The best precision@{out['k']} any method could reach is {pct(out['precision_at_k_ceiling'])}: most weeks have fewer than "
@@ -299,6 +336,15 @@ def write_report(out, protocol, report_dir=REPORT_DIR):
         "",
         md_table([[LABELS[n], ", ".join(f"{k}={v}" for k, v in r[n]["params"].items()) or "fixed", f"{r[n]['tuning_f1']:.3f}"] for n in names],
                  ["Method", "Setting", "Tuning F1"]),
+        "",
+        "## Time to fit and score",
+        "",
+        "Seconds to fit the chosen setting on n school-days, and to score 5,000. The one-class SVM fits on a sample of "
+        "5,000 rows and Isolation Forest on its max_samples, so their fitting time levels off by design.",
+        "",
+        md_table([[LABELS[n]] + [f"{out['timings'][n][str(b)]['fit_seconds']:.2f}" for b in BENCHMARK_ROWS]
+                  + [f"{out['timings'][n][str(BENCHMARK_ROWS[-1])]['score_seconds']:.2f}"] for n in names],
+                 ["Method"] + [f"Fit, {b:,} rows" for b in BENCHMARK_ROWS] + ["Score 5,000 rows"]),
         "",
         f"## Example review-list entries ({LABELS[out['recommended']]})",
         "",

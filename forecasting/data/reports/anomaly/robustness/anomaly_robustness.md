@@ -8,12 +8,11 @@ Plan: [`forecasting\config\anomaly_robustness.yaml`](../../../../config/anomaly_
 
 | Method | Average rank | Precision@k (mean) | Range | Share of best possible | F1 | Recall, held-out types | Recommended (of 18) | Recommended or tied (of 18) |
 |---|---|---|---|---|---|---|---|---|
-| One-class SVM | 1.22 | 25.0% | 19.7% – 37.8% | 74.9% | 41.5% | 86.7% | 14 | 18 |
-| Local Outlier Factor | 2.03 | 23.2% | 19.7% – 32.2% | 70.0% | 36.8% | 88.6% | 3 | 12 |
-| Isolation Forest | 3.39 | 20.9% | 14.2% – 31.7% | 62.4% | 28.5% | 54.9% | 1 | 3 |
-| Autoencoder | 3.58 | 19.9% | 15.3% – 25.6% | 59.8% | 33.9% | 67.9% | 0 | 5 |
-| Fixed rules | 5.19 | 13.8% | 8.6% – 16.7% | 41.9% | 28.6% | 39.6% | 0 | 0 |
-| Robust z-score | 5.58 | 13.3% | 10.6% – 17.2% | 40.2% | 19.1% | 42.9% | 0 | 0 |
+| One-class SVM | 1.11 | 24.6% | 19.7% – 37.5% | 73.5% | 40.7% | 87.0% | 18 | 18 |
+| Isolation Forest | 2.36 | 22.2% | 16.9% – 32.2% | 66.6% | 34.6% | 56.0% | 0 | 9 |
+| Local Outlier Factor | 2.78 | 21.0% | 16.9% – 27.5% | 63.4% | 30.4% | 88.1% | 0 | 4 |
+| Robust z-score | 3.86 | 17.5% | 14.4% – 20.6% | 52.9% | 26.6% | 55.8% | 0 | 0 |
+| Fixed rules | 4.89 | 13.8% | 8.6% – 16.7% | 41.9% | 28.6% | 39.6% | 0 | 0 |
 
 Rank is by precision@k within each run (1 = best). "Share of best possible" divides precision@k by the most any method could reach in that run, given how many school-weeks contain an anomaly.
 
@@ -21,12 +20,11 @@ Rank is by precision@k within each run (1 = best). "Share of best possible" divi
 
 | Method | baseline | noisier_days | subtle_anomalies | larger_programme | fortnightly_counts | irregular_entry |
 |---|---|---|---|---|---|---|
-| One-class SVM | 1.3 | 1.3 | 1.3 | 1.0 | 1.3 | 1.0 |
-| Local Outlier Factor | 2.0 | 1.7 | 2.0 | 2.3 | 1.8 | 2.3 |
-| Isolation Forest | 3.0 | 4.7 | 3.0 | 3.0 | 3.3 | 3.3 |
-| Autoencoder | 3.7 | 3.7 | 3.7 | 3.7 | 3.5 | 3.3 |
-| Fixed rules | 5.5 | 4.0 | 5.3 | 5.7 | 5.0 | 5.7 |
-| Robust z-score | 5.5 | 5.7 | 5.7 | 5.3 | 6.0 | 5.3 |
+| One-class SVM | 1.0 | 1.3 | 1.3 | 1.0 | 1.0 | 1.0 |
+| Isolation Forest | 2.2 | 2.8 | 3.0 | 2.2 | 2.0 | 2.0 |
+| Local Outlier Factor | 2.8 | 2.0 | 2.7 | 2.8 | 3.3 | 3.0 |
+| Robust z-score | 4.3 | 4.2 | 3.0 | 4.0 | 3.7 | 4.0 |
+| Fixed rules | 4.7 | 4.7 | 5.0 | 5.0 | 5.0 | 5.0 |
 
 Scenarios: **baseline**: The main dataset's assumptions, with new seeds; **noisier_days**: More day-to-day variation in learners fed (upper end of what real schools show); **subtle_anomalies**: Every anomaly half as strong, so harder to see; **larger_programme**: Twice as many schools (80 in 8 sub-counties), the same number of anomaly episodes per school; **fortnightly_counts**: Store counted every 10 school days instead of 20; **irregular_entry**: Schools that often enter late and sync rarely, so ordinary records look more like backdating.
 

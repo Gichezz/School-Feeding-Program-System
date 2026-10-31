@@ -1,20 +1,20 @@
 """
-Six ways to score school-days for review, with one interface:
+Five ways to score school-days for review, with one interface:
 
     method.fit(train)          learn from the tuning period (no labels are used)
     method.score(frame)        higher = more in need of review
     method.contributions(row)  {feature: how much it raised the score}, for explanations
 
-Methods that learn (Isolation Forest, Local Outlier Factor, One-Class SVM, autoencoder)
-all see the same features, scaled the same way, and are pooled across schools. The
-rules and the robust z-score do not learn a model.
+Two baselines that learn no model (fixed rules, a robust z-score) and three candidates,
+one from each main family of unsupervised detectors: Isolation Forest (isolation), the
+one-class SVM (boundary) and Local Outlier Factor (density). The candidates all see the
+same features, scaled the same way, and are pooled across schools.
 """
 
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import IsolationForest
 from sklearn.neighbors import LocalOutlierFactor
-from sklearn.neural_network import MLPRegressor
 from sklearn.preprocessing import RobustScaler
 from sklearn.svm import OneClassSVM
 
@@ -30,7 +30,7 @@ class Rules:
     name = "rules"
     # (feature, test, threshold, scale for the tie-break)
     RULES = [
-        ("fed_rate", lambda x: x > 1.0, 1.0, 0.05),                        # more fed than enrolled
+        ("share_fed", lambda x: x > 1.0, 1.0, 0.05),                       # more fed than enrolled
         ("cereal_ratio", lambda x: np.abs(x) > np.log(1.3), np.log(1.3), 0.1),
         ("pulse_ratio", lambda x: np.abs(x) > np.log(1.3), np.log(1.3), 0.1),
         ("count_gap_change", lambda x: x < -2.0, -2.0, 1.0),               # 2 days of food missing
@@ -65,13 +65,13 @@ class Rules:
 
 
 ZSCORE_FEATURES = ["fed_rate", "fed_vs_peers", "fed_rate_vs_last_term", "enrolment_change", "uptake", "cereal_ratio",
-                   "pulse_ratio", "usage_trend", "count_gap_change", "entry_delay", "batch_dates", "outside_hours",
+                   "pulse_ratio", "usage_trend", "count_gap_change", "entry_delay", "batch_dates", "after_hours_share",
                    "round_share", "fed_steadiness"]
 # Smallest spread used for a feature, so a very steady school does not flag tiny changes
 MIN_SPREAD = {"fed_rate": 0.02, "fed_vs_peers": 0.02, "cereal_ratio": 0.03, "pulse_ratio": 0.03,
               "usage_trend": 0.02, "count_gap_change": 0.5, "entry_delay": 1.0, "batch_dates": 1.0,
               "round_share": 0.1, "fed_steadiness": 0.01, "fed_rate_vs_last_term": 0.02,
-              "enrolment_change": 0.03, "uptake": 0.01, "outside_hours": 0.2}
+              "enrolment_change": 0.03, "uptake": 0.01, "after_hours_share": 0.1}
 MIN_HISTORY = 20
 
 
@@ -184,27 +184,10 @@ class OneClassSVMMethod(_Learned):
         return -self.model.decision_function(x)
 
 
-class AutoencoderMethod(_Learned):
-    """A small network trained to reproduce ordinary days; a day it reproduces badly is unusual."""
-
-    name = "autoencoder"
-
-    def __init__(self, hidden=(8,), random_state=0):
-        self.model = MLPRegressor(hidden_layer_sizes=tuple(hidden), max_iter=400, early_stopping=True,
-                                  random_state=random_state)
-
-    def _fit(self, x):
-        self.model.fit(x, x)
-
-    def _score(self, x):
-        return ((self.model.predict(x) - x) ** 2).mean(axis=1)
-
-
 METHODS = {
     "rules": Rules,
     "robust_zscore": RobustZScore,
     "isolation_forest": IsolationForestMethod,
     "local_outlier_factor": LocalOutlierFactorMethod,
     "one_class_svm": OneClassSVMMethod,
-    "autoencoder": AutoencoderMethod,
 }
