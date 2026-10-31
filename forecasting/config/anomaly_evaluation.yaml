@@ -1,0 +1,69 @@
+# Evaluation protocol for anomaly detection on school feeding records.
+#
+# Written and committed before any detector was run, so the choice of method cannot
+# be fitted to the results. Changing anything here after results exist must be
+# recorded as a deviation in the evaluation report.
+
+question: >
+  Which method best helps a sub-county programme officer find the school-days that
+  need review, from records schools already keep (enrolment, daily feeding, deliveries,
+  stock counts, and when and how records were entered)?
+
+data:
+  generator_config: forecasting/config/feeding_dataset.yaml
+  # Tuning: injected anomalies of the tuning types only. Test: new anomalies of every
+  # type, including the held-out types, which no method or threshold ever sees before
+  # the single test run.
+  tuning_period: {start: 2024-01-01, end: 2025-12-31}
+  test_period: {start: 2026-01-01, end: 2026-10-31}
+
+anomaly_types:
+  tuning:
+    - inflated_headcount      # more learners recorded as fed than were fed
+    - consumption_drift       # food issued per learner creeps up over weeks
+    - stock_leakage           # food leaves the store with no record; shows at counts
+  held_out:
+    - backdated_bulk_entry    # many past days entered together, long after the fact
+    - round_number_entry      # figures made up rather than counted
+
+methods:
+  - rules                     # fixed programme rules (no learning)
+  - robust_zscore             # each school against its own history; peers when new
+  - isolation_forest          # pooled across schools
+  - local_outlier_factor
+  - one_class_svm
+  - autoencoder               # reconstruction error of a small neural network
+
+tuning:
+  # Each learning method gets the same small, fixed grid and the same features.
+  # The flag threshold is the score quantile that maximises F1 on the tuning period,
+  # using tuning-type labels only.
+  isolation_forest: {n_estimators: [100, 300], max_samples: [256, 1024]}
+  local_outlier_factor: {n_neighbors: [20, 50]}
+  one_class_svm: {nu: [0.02, 0.05], gamma: [scale]}
+  autoencoder: {hidden: [[8], [16, 8, 16]]}
+  robust_zscore: {history_days: [40, 80]}
+  rules: {}                   # thresholds fixed by programme logic, not tuned
+  random_seed: 20261031
+
+scoring:
+  unit: school-day
+  # A programme officer reviews a short list each week, so the primary metric is the
+  # share of listed school-weeks that really contain an anomaly.
+  primary_metric: precision_at_k
+  review_list: {per: week, k: 10}  # top 10 school-weeks a week across the programme
+  secondary_metrics: [precision, recall, f1, recall_on_held_out_types]
+  bootstrap: {samples: 1000, block: week}
+
+decision_rule: >
+  The recommended method has the highest test precision@k. If another method's 95%
+  bootstrap interval for the difference includes zero, the simpler method is preferred
+  (rules < robust z-score < the learned methods), because an officer must be able to
+  understand why a school was listed. Recall on the held-out types is reported for
+  every method and discussed, but does not decide the ranking.
+
+reporting:
+  - every method's metrics, whether it wins or not
+  - per anomaly type, so a method strong on one type and blind to another is visible
+  - the share of false flags on ordinary days, because each one costs an officer a visit
+  - flags are worded "needs review", never as an accusation
