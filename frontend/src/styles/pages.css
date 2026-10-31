@@ -108,39 +108,6 @@
   align-self: center;
 }
 
-/* ---------- Forecast ---------- */
-.forecast__settings {
-  display: grid;
-  gap: var(--space-4);
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-items: start;
-}
-
-.forecast__note {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  max-width: var(--measure-wide);
-}
-
-.forecast__meta {
-  font-size: var(--font-size-sm);
-  color: var(--color-ink-muted);
-}
-
-.forecast__assumptions {
-  margin: 0;
-  padding-left: var(--space-5);
-  font-size: var(--font-size-sm);
-  color: var(--color-ink-muted);
-}
-
-@media (max-width: 1023px) {
-  .forecast__settings {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
 /* ---------- Sync status ---------- */
 .sync-status__notes {
   display: flex;

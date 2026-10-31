@@ -180,15 +180,6 @@ export async function getMealsTrend(params = {}) {
 }
 
 /**
- * Forecasts API
- * params: school_id (required), start_date (DD-MM-YYYY), horizon_days, enrollment
- */
-export async function getForecast(params = {}) {
-  const queryString = new URLSearchParams(params).toString();
-  return apiRequest(`/forecasts?${queryString}`);
-}
-
-/**
  * Auth API
  */
 export async function login(email, password) {

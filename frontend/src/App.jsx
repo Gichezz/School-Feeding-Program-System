@@ -9,7 +9,6 @@ import SyncStatus from './pages/SyncStatus';
 import Conflicts from './pages/Conflicts';
 import Review from './pages/Review';
 import Reports from './pages/Reports';
-import Forecast from './pages/Forecast';
 import Today from './pages/Today';
 import Stock from './pages/Stock';
 import Enrolment from './pages/Enrolment';
@@ -76,7 +75,6 @@ function App() {
         <Route path="/conflicts" element={<Conflicts />} />
         <Route path="/review" element={<Review />} />
         <Route path="/reports" element={<Reports />} />
-        <Route path="/forecast" element={<Forecast />} />
         <Route path="/settings" element={<Settings />} />
       </Route>
     </Routes>

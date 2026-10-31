@@ -99,6 +99,27 @@ class SchoolFeedingDB extends Dexie {
       schoolSettings: 'id',
       syncCursors: 'schoolId'
     });
+
+    // Version 8: meal-demand forecasting was removed; drop its offline cache
+    this.version(8).stores({
+      attendance: '++id, schoolId, attendanceDate, syncStatus, clientId, updatedAt',
+      mealDistribution: '++id, schoolId, distributionDate, syncStatus, clientId, updatedAt',
+      schools: 'id, name',
+      metadata: 'key, value',
+      syncQueue: '++id, entityType, recordId, status, clientId, createdAt',
+      conflicts: '++id, operationId, entityType, recordId, status, createdAt',
+      forecasts: null,
+      deviceIdentity: 'key',
+      offlineUsers: 'userId, email',
+      enrolment: '++id, serverId, termId, syncStatus, [schoolId+termId], [schoolId+termId+class+sex]',
+      dailyFeeding: '++id, serverId, feedingDate, syncStatus, [schoolId+feedingDate]',
+      stockMovements: 'id, schoolId, movementDate, syncStatus',
+      stockCounts: 'id, schoolId, countDate, syncStatus',
+      terms: 'id, year',
+      calendarEvents: 'id, startsOn',
+      schoolSettings: 'id',
+      syncCursors: 'schoolId'
+    });
   }
 }
 
