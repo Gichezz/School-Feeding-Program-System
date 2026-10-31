@@ -1,0 +1,51 @@
+# Robustness study for the anomaly detection comparison.
+#
+# Written and committed before it was run. The main evaluation used one synthetic
+# dataset and one seed; this repeats the same protocol (anomaly_evaluation.yaml:
+# same methods, grid, periods, held-out types, metric and decision rule) on datasets
+# generated differently, to see whether the ranking of methods holds or was luck.
+# Nothing here changes the main evaluation's result.
+
+base: forecasting/config/feeding_dataset.yaml
+seeds: [101, 202, 303]
+
+scenarios:
+  baseline:
+    description: The main dataset's assumptions, with new seeds
+    overrides: {}
+  noisier_days:
+    description: More day-to-day variation in learners fed (upper end of what real schools show)
+    overrides:
+      noise: {log_sd: 0.08}
+      issuing: {log_sd: 0.06}
+  subtle_anomalies:
+    description: Every anomaly half as strong, so harder to see
+    overrides:
+      anomalies:
+        inflated_headcount: {inflation: {min: 0.06, max: 0.18}}
+        consumption_drift: {final_excess: {min: 0.10, max: 0.22}}
+        stock_leakage: {share_of_daily_use: {min: 0.08, max: 0.20}}
+        backdated_bulk_entry: {delay_school_days: {min: 4, max: 12}}
+  larger_programme:
+    description: Twice as many schools (80 in 8 sub-counties), the same number of anomaly episodes per school
+    overrides:
+      sub_counties: [Mfano North, Mfano South, Mfano East, Mfano West, Kati North, Kati South, Kati East, Kati West]
+      anomalies: {episodes_per_year: 28}
+  fortnightly_counts:
+    description: Store counted every 10 school days instead of 20
+    overrides:
+      stock: {count_every_school_days: 10}
+  irregular_entry:
+    description: Schools that often enter late and sync rarely, so ordinary records look more like backdating
+    overrides:
+      entry: {same_day_probability: 0.6, sync_every_school_days: {min: 1, max: 10}}
+
+summary:
+  # Per run: each method's precision@k, its share of the best possible precision@k,
+  # F1 and recall on the held-out types. Across runs: the mean, the range, the average
+  # rank by precision@k, and how often each method is recommended by the decision rule.
+  metrics: [precision_at_k, precision_at_k_share_of_ceiling, f1, recall_held_out]
+  conclusion_rule: >
+    A method is called robustly best only if it has the best average rank and is
+    recommended (or tied with the recommended method) in at least two thirds of runs.
+    Otherwise the study reports that no single method is robustly best.
