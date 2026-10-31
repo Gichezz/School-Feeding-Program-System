@@ -23,7 +23,7 @@ changes_from_version_2:
     statistically best across 57 datasets) - ECOD (no settings to tune, per-feature
     scores) and k-nearest-neighbour distance.
   - Fit and scoring times are measured for every method at 5,000, 20,000 and 50,000 rows.
-  - Tie-break added to the decision rule: among learned methods not distinguishable from
+  - Tie-break added to the decision rule - among learned methods not distinguishable from
     the leader, the one that fits fastest on 50,000 rows, because it must scale to a
     county's records.
   - Periods, held-out types, tuning-grid sizes for the existing methods and the metric are
