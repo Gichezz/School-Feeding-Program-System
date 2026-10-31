@@ -15,10 +15,16 @@ Outputs
   data/reports/anomaly/deployment/anomaly_deployment_test.json
   data/reports/anomaly/deployment/anomaly_deployment_test.md
 
+Precision is also reported by kind of week (the week holding the last day of the school
+year, the week holding the first, and the rest), with each kind's best possible.
+
 Usage
   python forecasting/scripts/run_anomaly_deployment_test.py
+  # Only some methods, into another folder (for example a baseline under older features)
+  python forecasting/scripts/run_anomaly_deployment_test.py --methods one_class_svm --report-dir <folder>
 """
 
+import argparse
 import copy
 import json
 import sys
@@ -42,6 +48,8 @@ PLAN = FORECASTING_DIR / "config" / "anomaly_deployment_test.yaml"
 EVALUATION = REPORTS_DIR / "anomaly" / "anomaly_evaluation.json"
 DATA_ROOT = PROCESSED_DIR / "feeding_deployment"
 REPORT_DIR = REPORTS_DIR / "anomaly" / "deployment"
+BASELINE = REPORT_DIR / "version_4_week_types" / "anomaly_deployment_test.json"
+WEEK_TYPES = {"last day of school year": "school_year_end", "first day of school year": "school_year_start"}
 LABELS = {"rules": "Fixed rules", "isolation_forest": "Isolation Forest", "extended_isolation_forest": "Extended Isolation Forest",
           "one_class_svm": "One-class SVM", "local_outlier_factor": "Local Outlier Factor"}
 
@@ -55,6 +63,8 @@ def load_dataset(data_dir):
     days = pd.to_datetime(r("school_days").date)
     feats["day_index"] = feats.date.map({d: i for i, d in enumerate(days)})
     feats["week"] = feats.date.dt.strftime("%G-%V")
+    kinds = feats[feats.day_type.isin(WEEK_TYPES)].drop_duplicates("week").set_index("week").day_type.map(WEEK_TYPES)
+    feats["week_type"] = feats.week.map(kinds).fillna("other")
     return feats
 
 
@@ -89,12 +99,13 @@ def run(feats, method, params, model_seed, plan):
                 if model is not None:
                     scores = model.score(week_rows)
             weekly = (week_rows.assign(score=scores)
-                      .groupby("school_id").agg(score=("score", "max"), labels=("label", lambda s: sorted(set(s) - {""})))
+                      .groupby("school_id").agg(score=("score", "max"), labels=("label", lambda s: sorted(set(s) - {""})),
+                                                week_type=("week_type", "first"))
                       .reset_index())
             top = weekly.sort_values("score", ascending=False).head(k)
             for row in top.itertuples():
                 listed.append({"sub_county": sub_county, "week": week, "school_id": row.school_id,
-                               "anomalous": bool(row.labels), "types": row.labels})
+                               "anomalous": bool(row.labels), "types": row.labels, "week_type": row.week_type})
                 if row.labels and dep["exclude_follow_up_from_training"]:
                     follow_up.add((row.school_id, week))
     return pd.DataFrame(listed), (float(np.mean(fit_seconds)) if fit_seconds else 0.0)
@@ -103,7 +114,8 @@ def run(feats, method, params, model_seed, plan):
 def truth_weeks(feats, plan):
     dep = plan["deployment"]
     scored = feats[(feats.date >= pd.Timestamp(dep["scored_period"]["start"])) & (feats.date <= pd.Timestamp(dep["scored_period"]["end"]))]
-    weeks = scored.groupby(["sub_county", "week", "school_id"]).label.agg(lambda s: sorted(set(s) - {""})).reset_index()
+    weeks = (scored.groupby(["sub_county", "week", "school_id"])
+             .agg(label=("label", lambda s: sorted(set(s) - {""})), week_type=("week_type", "first")).reset_index())
     weeks["anomalous"] = weeks.label.map(bool)
     return weeks
 
@@ -119,13 +131,34 @@ def measure(listed, truth, k):
     for t in sorted({x for xs in truth.label for x in xs}):
         of_type = truth[truth.label.map(lambda xs, t=t: t in xs)].set_index(["sub_county", "week", "school_id"]).index
         by_type[t] = float(of_type.isin(caught).mean())
+    by_week_type = {}
+    for kind, of_kind in truth.groupby("week_type"):
+        per_kind_week = of_kind.groupby(["sub_county", "week"]).anomalous.sum()
+        kind_ceiling = float(np.minimum(per_kind_week, k).sum() / (k * len(per_kind_week)))
+        kind_precision = float(listed[listed.week_type == kind].anomalous.mean())
+        by_week_type[kind] = {"precision_at_k": kind_precision, "ceiling": kind_ceiling,
+                              "share_of_ceiling": kind_precision / kind_ceiling if kind_ceiling else float("nan"),
+                              "weeks": int(len(per_kind_week))}
     return {"precision_at_k": precision, "share_of_ceiling": precision / ceiling, "anomalous_weeks_listed": recall,
-            "listed_by_type": by_type, "ceiling": ceiling}
+            "listed_by_type": by_type, "by_week_type": by_week_type, "ceiling": ceiling}
+
+
+def week_type_table(df):
+    """Mean precision, best possible and share of it, per method and kind of week."""
+    rows = [{"method": r.method, "week_type": kind, **v} for r in df.itertuples() for kind, v in r.by_week_type.items()]
+    return pd.DataFrame(rows).groupby(["method", "week_type"])[["precision_at_k", "ceiling", "share_of_ceiling"]].mean()
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--methods", nargs="*", help="only these methods (default: the plan's)")
+    parser.add_argument("--report-dir", type=Path, default=REPORT_DIR)
+    args = parser.parse_args()
+    report_dir = args.report_dir
     started = time.time()
     plan = yaml.safe_load(open(PLAN, encoding="utf-8"))
+    if args.methods:
+        plan["methods"] = args.methods
     evaluation = json.load(open(EVALUATION, encoding="utf-8"))
     params = {m: evaluation["results"][m]["params"] for m in plan["methods"] if m in evaluation["results"]}
     base = yaml.safe_load(open(FORECASTING_DIR.parent / plan["datasets"]["main"], encoding="utf-8"))
@@ -154,9 +187,23 @@ def main():
         fit_seconds=("fit_seconds", "mean")).sort_values("precision_at_k", ascending=False)
     by_type = pd.DataFrame([{**{"method": r.method}, **r.listed_by_type} for r in df.itertuples()]).groupby("method").mean()
     by_dataset = df.pivot_table(index="method", columns="dataset", values="precision_at_k", aggfunc="mean")
+    by_week = week_type_table(df)
     best = summary.index[0]
     recommended = evaluation["recommended"]
     holds = summary.loc[recommended, "precision_at_k"] >= summary.loc[best, "precision_at_k"] - 0.01
+
+    # The closing-week check (plan: week_type_check), for the recommended method
+    week_check = None
+    if recommended in by_week.index.get_level_values(0) and "school_year_end" in by_week.loc[recommended].index:
+        mine = by_week.loc[recommended]
+        gap = mine.loc["other", "share_of_ceiling"] - mine.loc["school_year_end", "share_of_ceiling"]
+        baseline = None
+        if BASELINE.exists() and report_dir.resolve() != BASELINE.parent.resolve():
+            old = pd.DataFrame(json.load(open(BASELINE, encoding="utf-8"))["by_week_type"]).set_index(["method", "week_type"])
+            if recommended in old.index.get_level_values(0):
+                baseline = old.loc[recommended].share_of_ceiling.to_dict()
+        week_check = {"method": recommended, "gap_points": round(float(gap) * 100, 1), "fixed": bool(gap <= 0.10),
+                      "share_of_ceiling": mine.share_of_ceiling.round(4).to_dict(), "version_4": baseline}
     conclusion = (f"The evaluation's conclusion holds in deployment: {LABELS[recommended]} "
                   + ("has the highest mean precision@k." if best == recommended else
                      f"is within 1 point of the best ({LABELS[best]}).")
@@ -165,12 +212,14 @@ def main():
                   f"{(summary.loc[best, 'precision_at_k'] - summary.loc[recommended, 'precision_at_k']) * 100:.1f} points "
                   f"above {LABELS[recommended]}.")
 
-    REPORT_DIR.mkdir(parents=True, exist_ok=True)
-    write_json(REPORT_DIR / "anomaly_deployment_test.json", {
+    report_dir.mkdir(parents=True, exist_ok=True)
+    write_json(report_dir / "anomaly_deployment_test.json", {
         "plan": str(PLAN.relative_to(FORECASTING_DIR.parent)), "settings": params,
         "summary": summary.round(4).reset_index().to_dict(orient="records"),
         "listed_by_type": by_type.round(4).reset_index().to_dict(orient="records"),
-        "per_run": df.drop(columns="listed_by_type").round(4).to_dict(orient="records"),
+        "by_week_type": by_week.round(4).reset_index().to_dict(orient="records"),
+        "week_type_check": week_check,
+        "per_run": df.drop(columns=["listed_by_type", "by_week_type"]).round(4).to_dict(orient="records"),
         "evaluation_recommended": recommended, "deployed_best": best, "conclusion": conclusion,
         "runtime_seconds": round(time.time() - started),
     })
@@ -200,6 +249,22 @@ def main():
         "",
         md_table([[LABELS[m]] + [pct(by_type.loc[m, t]) for t in types] for m in names], ["Method"] + types),
         "",
+        "## Precision by kind of week",
+        "",
+        "Weeks holding the last day of the school year (closing day), the first day, and all others. The best possible "
+        "differs by kind of week, so the share of it is the fair comparison.",
+        "",
+        md_table([[LABELS[m], kind, pct(r.precision_at_k), pct(r.ceiling), pct(r.share_of_ceiling)]
+                  for (m, kind), r in by_week.iterrows()],
+                 ["Method", "Kind of week", f"Precision@{dep['review_list']['k']}", "Best possible", "Share of best possible"]),
+        "",
+        *([f"**Closing-week check ({LABELS[week_check['method']]}):** share of the best possible "
+           f"{week_check['gap_points']:.1f} points lower in school-year-end weeks than in other weeks - "
+           + ("within the plan's 10 points, so the closing-week problem counts as fixed."
+              if week_check["fixed"] else "more than the plan's 10 points, so the weakness remains.")
+           + (f" Under version 4's features: {pct(week_check['version_4']['school_year_end'])} in school-year-end weeks "
+              f"against {pct(week_check['version_4']['other'])} in other weeks." if week_check["version_4"] else ""),
+           ""] if week_check else []),
         "## Precision by dataset",
         "",
         md_table([[LABELS[m]] + [pct(by_dataset.loc[m, d]) for d in by_dataset.columns] for m in names],
@@ -209,9 +274,9 @@ def main():
         "at real schools.",
         "",
     ]
-    (REPORT_DIR / "anomaly_deployment_test.md").write_text("\n".join(lines), encoding="utf-8")
+    (report_dir / "anomaly_deployment_test.md").write_text("\n".join(lines), encoding="utf-8")
     print(conclusion)
-    print(f"Wrote {REPORT_DIR / 'anomaly_deployment_test.md'} ({time.time() - started:.0f}s)")
+    print(f"Wrote {report_dir / 'anomaly_deployment_test.md'} ({time.time() - started:.0f}s)")
 
 
 if __name__ == "__main__":

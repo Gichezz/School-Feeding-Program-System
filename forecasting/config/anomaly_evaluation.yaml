@@ -7,7 +7,25 @@
 # Version 2, committed before it was run. Version 1 (in git history) left out records
 # the app collects and the problem behind Kenya's capitation audit, so version 2 adds
 # them and its results supersede version 1's. Version 1's results stay in git history.
-version: 4
+version: 5
+changes_from_version_4:
+  - Found when the deployed review list was first run on a sub-county (after version 4's
+    results were known, so recorded here as a deviation). In the last week of the school
+    year every school's closing day looked unusual and the list was filled with ordinary
+    schools. Two features still compared the share fed as recorded, without the day-type
+    adjustment version 3 gave fed_rate and fed_vs_own - fed_rate_vs_last_term (a closing
+    day with a third of learners present reads as a collapse against last term) and
+    fed_steadiness (the drop reads as a large day-to-day change for the next 10 days).
+    The model is fitted on the last 125 school days, which never contain a closing day of
+    the year, so it had no way to learn that such a day is normal.
+  - Both features now use learners fed against what is normal for that kind of day, as
+    fed_rate already does. fed_rate_vs_last_term compares the day-adjusted share with last
+    term's mean day-adjusted share; fed_steadiness measures day-to-day change in
+    day-adjusted learners fed. This applies version 3's stated principle (context adjusts
+    what is normal) to the two features it missed; no feature is added or removed.
+  - Methods, grids, periods, held-out types, metric and decision rule are unchanged. The
+    main evaluation, robustness study and deployment test are all re-run; version 5
+    supersedes version 4's results, which stay in git history.
 changes_from_version_3:
   - Adds Extended Isolation Forest (Hariri et al., 2019) as a candidate. It splits along
     random combinations of features instead of one at a time, which targets Isolation
@@ -77,7 +95,7 @@ features:
   fed_rate: share of enrolled learners fed, against what is normal for that kind of day
   fed_vs_own: learners fed against the school's usual number for that kind of day (lagged baseline)
   fed_vs_peers: share fed against schools in the same sub-county that day
-  fed_rate_vs_last_term: share fed against the school's share last term (ghosts do not eat)
+  fed_rate_vs_last_term: share fed for that kind of day against the school's share last term (ghosts do not eat)
   enrolment_change: enrolment against last term (ghost learners appear as a jump)
   uptake: learners fed / learners present, where present is recorded (copied figures sit at 100%)
   cereal_ratio: cereals issued against the ration for learners fed
@@ -88,7 +106,7 @@ features:
   batch_dates: dates sent together in one sync
   after_hours_share: share of the school's last 10 records entered outside school hours (a pattern, not one entry)
   round_share: round numbers among recent records
-  fed_steadiness: how little learners fed changes from day to day
+  fed_steadiness: how little learners fed, for that kind of day, changes from day to day
 
 methods:
   # Baselines (no learned model)
