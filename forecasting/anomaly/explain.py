@@ -15,6 +15,10 @@ def _pct(x):
     return f"{abs(x) * 100:.0f}%"
 
 
+def _points(x):
+    return f"{abs(x) * 100:.0f} percentage points"
+
+
 def describe(feature, row):
     """One sentence about one feature of a school-day."""
     if feature in ("fed_rate", "share_fed"):
@@ -24,7 +28,7 @@ def describe(feature, row):
         return f"learners fed {_pct(change)} {'above' if change > 0 else 'below'} the school's usual number"
     if feature == "fed_vs_peers":
         diff = row["fed_vs_peers"]
-        return f"a share of learners fed {_pct(diff)} points {'above' if diff > 0 else 'below'} similar schools nearby that day"
+        return f"a share of learners fed {_points(diff)} {'above' if diff > 0 else 'below'} similar schools nearby that day"
     if feature in ("cereal_ratio", "pulse_ratio"):
         food = "cereals" if feature == "cereal_ratio" else "pulses"
         factor = math.exp(row[feature])
@@ -36,14 +40,19 @@ def describe(feature, row):
     if feature == "entry_delay":
         return f"entered {row['entry_delay']:.0f} school days after the date"
     if feature == "batch_dates":
-        return f"{row['batch_dates']:.0f} different dates sent together in one sync"
+        n = int(row["batch_dates"])
+        return "synced on its own, apart from the school's other records" if n == 1 else f"{n} dates sent together in one sync"
     if feature == "round_share":
         return f"round numbers on {row['round_share'] * 100:.0f}% of recent days"
     if feature == "fed_steadiness":
-        return "almost the same number of learners fed day after day"
+        # The mean day-to-day change in learners fed, as a share
+        change = -row["fed_steadiness"]
+        if change < 0.02:
+            return "almost the same number of learners fed day after day"
+        return f"learners fed changing by {change * 100:.0f}% a day on average"
     if feature == "fed_rate_vs_last_term":
         diff = row["fed_rate_vs_last_term"]
-        return f"a share of learners fed {_pct(diff)} points {'above' if diff > 0 else 'below'} last term's"
+        return f"a share of learners fed {_points(diff)} {'above' if diff > 0 else 'below'} last term's"
     if feature == "enrolment_change":
         change = math.exp(row["enrolment_change"]) - 1
         return f"enrolment {_pct(change)} {'up' if change > 0 else 'down'} on last term ({row['learners']} learners)"

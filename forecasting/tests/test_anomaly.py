@@ -110,3 +110,13 @@ def test_uptake_is_neutral_where_present_is_not_recorded_and_after_hours_is_flag
     assert f[f.school_id == "A"].uptake.nunique() == 1          # no present recorded: the typical value
     assert f[f.school_id == "B"].uptake.between(0.97, 0.99).all()
     assert f.outside_hours.sum() == 3
+
+
+def test_explanations_read_correctly_at_the_edges():
+    from anomaly.explain import describe
+
+    assert describe("batch_dates", {"batch_dates": 1}) == "synced on its own, apart from the school's other records"
+    assert describe("batch_dates", {"batch_dates": 6}) == "6 dates sent together in one sync"
+    assert describe("fed_steadiness", {"fed_steadiness": -0.005}) == "almost the same number of learners fed day after day"
+    assert describe("fed_steadiness", {"fed_steadiness": -0.2}) == "learners fed changing by 20% a day on average"
+    assert describe("fed_rate_vs_last_term", {"fed_rate_vs_last_term": -0.57}) == "a share of learners fed 57 percentage points below last term's"
