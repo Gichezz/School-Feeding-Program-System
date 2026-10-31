@@ -17,7 +17,7 @@ def _pct(x):
 
 def describe(feature, row):
     """One sentence about one feature of a school-day."""
-    if feature == "fed_rate":
+    if feature in ("fed_rate", "share_fed"):
         return f"{row['learners_fed']} learners fed of {row['learners']} enrolled ({_pct(row['share_fed'])})"
     if feature == "fed_vs_own":
         change = math.exp(row["fed_vs_own"]) - 1

@@ -1,9 +1,9 @@
 """
-Flask entry point for the meal-demand forecasting service.
+Flask entry point for the review scoring service.
 
-The Prophet model is trained offline (scripts/train_forecasting_model.py) and
-loaded once at startup; requests never retrain it. This service does not
-connect to PostgreSQL. Errors use the backend's {"error": "..."} JSON shape.
+POST /score ranks one sub-county's school-weeks for review (services/scoring_service.py).
+The backend sends the records with each request; this service keeps no data and never
+connects to PostgreSQL. Errors use the backend's {"error": "..."} JSON shape.
 """
 
 import os
@@ -11,40 +11,27 @@ import os
 from flask import Flask, jsonify, request
 from werkzeug.exceptions import HTTPException
 
-from services.forecast_service import ForecastError, ForecastService
+from services.scoring_service import ScoringError, score_week
 
 
-def create_app(model_dir=None, config=None, today=None):
+def create_app():
     app = Flask(__name__)
-    service = ForecastService(model_dir=model_dir, config=config, today=today)
-    service.load()  # load once at startup; a missing artifact is reported, not fatal
-    app.extensions["forecast_service"] = service
+    # A sub-county's two terms of records fit comfortably; larger bodies are refused
+    app.config["MAX_CONTENT_LENGTH"] = 32 * 1024 * 1024
 
     @app.get("/health")
     def health():
-        status = service.status()
-        return jsonify(
-            {
-                "status": "ok",
-                "service": "school-feeding-forecasting",
-                "forecasting": "ready" if status["model_loaded"] else "model_not_loaded",
-                "model": status,
-            }
-        )
+        return jsonify({"status": "ok", "service": "school-feeding-scoring", "method": "one_class_svm"})
 
-    @app.get("/api/forecast")
-    def forecast():
-        """
-        Query parameters (all optional):
-          horizon_days  calendar days to cover (default 14, 1..60)
-          start_date    first date, YYYY-MM-DD (default: today)
-          enrollment    current enrollment from school records
-        """
-        start, horizon, enrollment = service.parse_request(request.args)
-        return jsonify(service.forecast(start, horizon, enrollment))
+    @app.post("/score")
+    def score():
+        body = request.get_json(silent=True)
+        if not isinstance(body, dict):
+            raise ScoringError("Send the records as a JSON object")
+        return jsonify(score_week(body))
 
-    @app.errorhandler(ForecastError)
-    def handle_forecast_error(err):
+    @app.errorhandler(ScoringError)
+    def handle_scoring_error(err):
         return jsonify({"error": str(err)}), err.status_code
 
     @app.errorhandler(404)

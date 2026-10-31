@@ -13,7 +13,6 @@ same way, and are pooled across schools.
 
 import numpy as np
 import pandas as pd
-from isotree import IsolationForest as IsoTreeForest
 from sklearn.ensemble import IsolationForest
 from sklearn.neighbors import LocalOutlierFactor
 from sklearn.preprocessing import RobustScaler
@@ -169,6 +168,9 @@ class ExtendedIsolationForestMethod(_Learned):
         self.random_state = random_state
 
     def _fit(self, x):
+        # Evaluation only; the production service does not install isotree
+        from isotree import IsolationForest as IsoTreeForest
+
         self.model = IsoTreeForest(ntrees=self.n_estimators, ndim=min(self.ndim, x.shape[1]),
                                    sample_size=min(self.SAMPLE, len(x)), random_seed=self.random_state, nthreads=1)
         self.model.fit(x)

@@ -50,6 +50,7 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 import yaml  # noqa: E402
 
+from anomaly.calendar import school_days  # noqa: E402
 from common import PROCESSED_DIR, write_json  # noqa: E402
 
 CONFIG = FORECASTING_DIR / "config" / "feeding_dataset.yaml"
@@ -74,34 +75,15 @@ def school_calendar(inputs, years, end_date):
             d = dt.date(year, h["month"], h["day"])
             holidays.add(d + dt.timedelta(days=1) if d.weekday() == 6 else d)
         holidays |= {h["date"] for h in inputs["public_holidays"]["movable"].get(year, [])}
-    rows = []
+    terms = []
     for year in years:
         cal = inputs["school_calendar"][year]
         halves = {h["term"]: h for h in cal.get("half_terms", [])}
         for t in cal["terms"]:
-            days = []
-            d = t["open"]
-            while d <= min(t["close"], end_date):
-                h = halves.get(t["term"])
-                if d.weekday() < 5 and d not in holidays and not (h and h["start"] <= d <= h["end"]):
-                    days.append(d)
-                d += dt.timedelta(days=1)
-            for i, d in enumerate(days):
-                after_break = i == 0 or (d - days[i - 1]).days > 3
-                before_break = i == len(days) - 1 or (days[i + 1] - d).days > 3
-                if i == 0 and t["term"] == 1:
-                    day_type = "first day of school year"
-                elif i == len(days) - 1 and t["term"] == 3:
-                    day_type = "last day of school year"
-                elif after_break:
-                    day_type = "first days after a break"
-                elif before_break:
-                    day_type = "last days before a break"
-                else:
-                    day_type = "ordinary"
-                rows.append({"date": d, "year": year, "term": t["term"], "term_id": f"{year}-T{t['term']}",
-                             "term_day": i, "term_days": len(days), "day_type": day_type})
-    return pd.DataFrame(rows)
+            h = halves.get(t["term"])
+            terms.append({"year": year, "term": t["term"], "opens_on": t["open"], "closes_on": t["close"],
+                          "half_term_start": h["start"] if h else None, "half_term_end": h["end"] if h else None})
+    return school_days(terms, holidays, end_date)
 
 
 # -- schools --------------------------------------------------------------------
