@@ -1,0 +1,44 @@
+# Deployment-matching test for anomaly detection.
+#
+# Written and committed before it was run. The main evaluation fits each method once on
+# two years pooled across sub-counties and picks settings and thresholds with labels.
+# A real programme has no labels and refits as records arrive, so this test runs the
+# methods the way they would be deployed, to check that the evaluation's conclusion
+# holds for the system as it would actually run.
+
+datasets:
+  # The main dataset and three new baseline datasets from the robustness plan's seeds
+  main: forecasting/config/feeding_dataset.yaml
+  seeds: [101, 202, 303]
+model_seeds: [1, 2, 3, 4, 5]   # the sampling and randomness inside each method
+
+deployment:
+  # Each sub-county is fitted on its own schools' records only
+  scope: sub_county
+  refit_every_school_days: 20          # about monthly
+  window_school_days: 125              # about the last two terms
+  min_history_school_days: 60          # before that, the rules alone (a new programme)
+  # Settings are those chosen in the main evaluation (protocol version 4) and stay fixed.
+  # No labels are used and there is no threshold: each week every officer gets a list.
+  review_list: {per: [sub_county, week], k: 3}
+  # Feedback: a listed school-week that really contains a problem is marked follow-up
+  # by the officer and kept out of later training windows; other listed weeks
+  # (explained) stay in
+  exclude_follow_up_from_training: true
+  scored_period: {start: 2025-01-06, end: 2026-10-23}
+
+methods: [rules, isolation_forest, extended_isolation_forest, one_class_svm, local_outlier_factor]
+
+metrics:
+  - precision_at_k                     # share of listed school-weeks with a real problem
+  - share_of_ceiling                   # against the best any method could do
+  - anomalous_weeks_listed             # share of school-weeks with a problem that are listed
+  - listed_by_type                     # the same, per anomaly type
+  - spread_across_model_seeds          # stability of the ranking
+  - fit_seconds                        # per refit
+
+conclusion_rule: >
+  The evaluation's conclusion holds in deployment if the method the main evaluation
+  recommends has the highest mean precision@k here, or is within 1 point of it. Otherwise
+  the report says the deployed behaviour differs from the evaluation and which method
+  does best when deployed.

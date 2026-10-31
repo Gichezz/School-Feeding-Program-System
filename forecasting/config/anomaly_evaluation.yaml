@@ -7,7 +7,13 @@
 # Version 2, committed before it was run. Version 1 (in git history) left out records
 # the app collects and the problem behind Kenya's capitation audit, so version 2 adds
 # them and its results supersede version 1's. Version 1's results stay in git history.
-version: 3
+version: 4
+changes_from_version_3:
+  - Adds Extended Isolation Forest (Hariri et al., 2019) as a candidate. It splits along
+    random combinations of features instead of one at a time, which targets Isolation
+    Forest's known weakness with anomalies that are combinations of ordinary values.
+    It gets a grid the same size as Isolation Forest's and the same 1,024-row samples.
+  - Everything else is unchanged. Version 4 supersedes version 3's results.
 changes_from_version_2:
   - Found on the tuning period only (2024-2025; the test year was not looked at). In
     version 2 the rare yes/no context features (closing day, opening days, one record
@@ -90,6 +96,7 @@ methods:
   - robust_zscore             # each school against its own history; peers when new
   # Candidates, one per main family of unsupervised detectors, pooled across schools
   - isolation_forest          # tree / isolation
+  - extended_isolation_forest # tree / isolation, splits on combinations of features
   - one_class_svm             # boundary / kernel
   - local_outlier_factor      # density
 
@@ -98,6 +105,8 @@ tuning:
   # The flag threshold is the score quantile that maximises F1 on the tuning period,
   # using tuning-type labels only.
   isolation_forest: {n_estimators: [100, 300], max_samples: [256, 1024]}
+  # ndim: features combined in each split (2, or all 15 for the fully extended version)
+  extended_isolation_forest: {n_estimators: [100, 300], ndim: [2, 15]}
   local_outlier_factor: {n_neighbors: [20, 50]}
   one_class_svm: {nu: [0.02, 0.05], gamma: [scale]}
   robust_zscore: {history_days: [40, 80]}
