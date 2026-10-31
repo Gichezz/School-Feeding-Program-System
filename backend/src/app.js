@@ -6,7 +6,7 @@ const attendanceRoutes = require('./routes/attendanceRoutes');
 const mealsRoutes = require('./routes/mealsRoutes');
 const syncRoutes = require('./routes/syncRoutes');
 const reportsRoutes = require('./routes/reportsRoutes');
-const forecastRoutes = require('./routes/forecastRoutes');
+const reviewListRoutes = require('./routes/reviewListRoutes');
 const authRoutes = require('./routes/authRoutes');
 const usersRoutes = require('./routes/usersRoutes');
 const devicesRoutes = require('./routes/devicesRoutes');
@@ -41,7 +41,7 @@ app.use('/api/attendance', attendanceRoutes);
 app.use('/api/meals', mealsRoutes);
 app.use('/api/sync', syncRoutes);
 app.use('/api/reports', reportsRoutes);
-app.use('/api/forecasts', forecastRoutes);
+app.use('/api/review-lists', reviewListRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/review', reviewRoutes);
 

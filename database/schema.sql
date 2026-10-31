@@ -1,6 +1,6 @@
 -- School Feeding System — PostgreSQL schema (Phase 2)
 -- Authoritative central store for one-school prototype, extensible to more schools.
--- Synchronization processing, conflict resolution, and forecasting are later phases.
+-- Synchronization, conflict resolution, the stock ledger and weekly review lists.
 --
 -- Apply against a new database named school_feeding.
 -- CREATE TABLE IF NOT EXISTS will not reshape tables from the earlier placeholder
@@ -233,34 +233,6 @@ CREATE TABLE IF NOT EXISTS conflicts (
         CHECK (base_version IS NULL OR base_version >= 0),
     CONSTRAINT conflicts_server_version_nonneg
         CHECK (server_version IS NULL OR server_version >= 0)
-);
-
--- ---------------------------------------------------------------------------
--- Forecast results (written later by Flask/Prophet; no model code here)
--- ---------------------------------------------------------------------------
-
-CREATE TABLE IF NOT EXISTS forecast_results (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    school_id           UUID NOT NULL,
-    forecast_date       DATE NOT NULL,
-    predicted_meals     NUMERIC(10, 2) NOT NULL,
-    lower_bound         NUMERIC(10, 2),
-    upper_bound         NUMERIC(10, 2),
-    model_name          TEXT NOT NULL DEFAULT 'prophet',
-    generated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT forecast_school_fk
-        FOREIGN KEY (school_id) REFERENCES schools (id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT,
-    CONSTRAINT forecast_predicted_nonneg CHECK (predicted_meals >= 0),
-    CONSTRAINT forecast_lower_nonneg CHECK (lower_bound IS NULL OR lower_bound >= 0),
-    CONSTRAINT forecast_upper_nonneg CHECK (upper_bound IS NULL OR upper_bound >= 0),
-    CONSTRAINT forecast_bounds_order
-        CHECK (
-            lower_bound IS NULL
-            OR upper_bound IS NULL
-            OR lower_bound <= upper_bound
-        )
 );
 
 -- ---------------------------------------------------------------------------
@@ -570,9 +542,6 @@ CREATE INDEX IF NOT EXISTS idx_sync_ops_status
 
 CREATE INDEX IF NOT EXISTS idx_conflicts_status
     ON conflicts (status);
-
-CREATE INDEX IF NOT EXISTS idx_forecast_date
-    ON forecast_results (forecast_date);
 
 CREATE INDEX IF NOT EXISTS idx_users_role
     ON users (role);
@@ -922,3 +891,65 @@ CREATE OR REPLACE VIEW stock_flows AS
 
 CREATE INDEX IF NOT EXISTS idx_schools_sub_county
     ON schools (sub_county);
+
+-- ---------------------------------------------------------------------------
+-- Weekly review lists for programme officers (migration 013)
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS review_runs (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    sub_county      TEXT NOT NULL,
+    week_start      DATE NOT NULL,
+    -- one_class_svm, or rules_only while a sub-county has little history
+    mode            TEXT NOT NULL,
+    model           JSONB,
+    k               INTEGER NOT NULL,
+    rule_breaches   JSONB NOT NULL DEFAULT '[]',
+    created_by      UUID,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT review_runs_unique UNIQUE (sub_county, week_start),
+    CONSTRAINT review_runs_monday CHECK (EXTRACT(ISODOW FROM week_start) = 1),
+    CONSTRAINT review_runs_mode_check CHECK (mode IN ('one_class_svm', 'rules_only', 'no_records')),
+    CONSTRAINT review_runs_k_positive CHECK (k > 0),
+    CONSTRAINT review_runs_created_by_fk FOREIGN KEY (created_by) REFERENCES users (id)
+        ON UPDATE CASCADE ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS review_items (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    run_id          UUID NOT NULL,
+    school_id       UUID NOT NULL,
+    rank            INTEGER NOT NULL,
+    listed          BOOLEAN NOT NULL,
+    score           DOUBLE PRECISION NOT NULL,
+    top_date        DATE,
+    reasons         JSONB NOT NULL DEFAULT '[]',
+    explanation     TEXT NOT NULL,
+    CONSTRAINT review_items_unique UNIQUE (run_id, school_id),
+    CONSTRAINT review_items_rank_positive CHECK (rank > 0),
+    CONSTRAINT review_items_run_fk FOREIGN KEY (run_id) REFERENCES review_runs (id)
+        ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT review_items_school_fk FOREIGN KEY (school_id) REFERENCES schools (id)
+        ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS review_decisions (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    school_id       UUID NOT NULL,
+    week_start      DATE NOT NULL,
+    status          TEXT NOT NULL,
+    note            TEXT,
+    reviewed_by     UUID,
+    reviewed_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT review_decisions_unique UNIQUE (school_id, week_start),
+    CONSTRAINT review_decisions_status_check CHECK (status IN ('explained', 'follow_up')),
+    -- An explanation is what makes "explained" useful to the next officer
+    CONSTRAINT review_decisions_note_required CHECK (note IS NOT NULL AND btrim(note) <> ''),
+    CONSTRAINT review_decisions_school_fk FOREIGN KEY (school_id) REFERENCES schools (id)
+        ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT review_decisions_reviewed_by_fk FOREIGN KEY (reviewed_by) REFERENCES users (id)
+        ON UPDATE CASCADE ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_review_items_run ON review_items (run_id, rank);
+CREATE INDEX IF NOT EXISTS idx_review_decisions_week ON review_decisions (week_start);

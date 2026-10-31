@@ -63,7 +63,7 @@ jobs:
       - run: npm run build
 
   forecasting:
-    name: Forecasting tests
+    name: Scoring service and evaluation tests
     runs-on: ubuntu-latest
     defaults:
       run:
