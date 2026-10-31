@@ -8,6 +8,7 @@ import {
   RefreshCw,
   GitCompareArrows,
   Flag,
+  ListChecks,
   Settings,
 } from 'lucide-react';
 
@@ -19,6 +20,7 @@ import {
  * adminOnly: only shown to administrators
  * staffOnly: only shown to school staff, who record on the school's devices
  * notStaff: not shown to school staff
+ * oversight: only shown to programme officers and administrators
  * badge: name of a live count shown next to the item
  */
 export const NAV_GROUPS = [
@@ -38,6 +40,7 @@ export const NAV_GROUPS = [
   {
     label: 'Insights',
     items: [
+      { to: '/weekly-review', label: 'Weekly review', shortLabel: 'Weekly', icon: ListChecks, oversight: true },
       { to: '/reports', label: 'Reports', icon: BarChart3, notStaff: true },
     ],
   },
@@ -60,6 +63,7 @@ function canSee(item, { isAdmin, role }) {
   if (item.adminOnly && !isAdmin) return false;
   if (item.staffOnly && !isStaff) return false;
   if (item.notStaff && isStaff) return false;
+  if (item.oversight && !isAdmin && role !== 'programme_officer') return false;
   return true;
 }
 

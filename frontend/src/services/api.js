@@ -147,6 +147,34 @@ export async function resolveConflict(conflictId, data) {
 }
 
 /**
+ * Weekly review lists, for programme officers and administrators. week is the
+ * Monday (DD-MM-YYYY); administrators name the sub-county, officers see their own.
+ */
+const subCountyQuery = (subCounty) => (subCounty ? `?${new URLSearchParams({ subCounty })}` : '');
+
+export async function getReviewWeeks(subCounty) {
+  return apiRequest(`/review-lists${subCountyQuery(subCounty)}`);
+}
+
+export async function getReviewList(week, subCounty) {
+  return apiRequest(`/review-lists/${week}${subCountyQuery(subCounty)}`);
+}
+
+export async function scoreReviewWeek(week, { subCounty, k } = {}) {
+  return apiRequest(`/review-lists/${week}/run`, {
+    method: 'POST',
+    body: JSON.stringify({ ...(subCounty && { subCounty }), ...(k && { k }) }),
+  });
+}
+
+export async function decideReviewItem(week, schoolId, { status, note }) {
+  return apiRequest(`/review-lists/${week}/decisions/${schoolId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ status, note }),
+  });
+}
+
+/**
  * Reports API
  */
 export async function getDashboardSummary(params = {}) {

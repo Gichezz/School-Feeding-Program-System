@@ -8,6 +8,7 @@ import MealDistribution from './pages/MealDistribution';
 import SyncStatus from './pages/SyncStatus';
 import Conflicts from './pages/Conflicts';
 import Review from './pages/Review';
+import WeeklyReview from './pages/WeeklyReview';
 import Reports from './pages/Reports';
 import Today from './pages/Today';
 import Stock from './pages/Stock';
@@ -74,6 +75,7 @@ function App() {
         <Route path="/sync" element={<SyncStatus />} />
         <Route path="/conflicts" element={<Conflicts />} />
         <Route path="/review" element={<Review />} />
+        <Route path="/weekly-review" element={<WeeklyReview />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/settings" element={<Settings />} />
       </Route>
