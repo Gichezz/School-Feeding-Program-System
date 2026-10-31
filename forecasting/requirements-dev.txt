@@ -11,3 +11,6 @@ scipy==1.18.1
 
 # Reads the Swedish school lunch dataset (.xlsx), used by the planning evaluation
 openpyxl
+
+# Extended Isolation Forest for the anomaly detection comparison
+isotree==0.6.1.post10

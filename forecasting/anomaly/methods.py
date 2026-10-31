@@ -1,18 +1,19 @@
 """
-Five ways to score school-days for review, with one interface:
+Six ways to score school-days for review, with one interface:
 
     method.fit(train)          learn from the tuning period (no labels are used)
     method.score(frame)        higher = more in need of review
     method.contributions(row)  {feature: how much it raised the score}, for explanations
 
-Two baselines that learn no model (fixed rules, a robust z-score) and three candidates,
-one from each main family of unsupervised detectors: Isolation Forest (isolation), the
-one-class SVM (boundary) and Local Outlier Factor (density). The candidates all see the
-same features, scaled the same way, and are pooled across schools.
+Two baselines that learn no model (fixed rules, a robust z-score) and four candidates:
+Isolation Forest and Extended Isolation Forest (isolation), the one-class SVM (boundary)
+and Local Outlier Factor (density). The candidates all see the same features, scaled the
+same way, and are pooled across schools.
 """
 
 import numpy as np
 import pandas as pd
+from isotree import IsolationForest as IsoTreeForest
 from sklearn.ensemble import IsolationForest
 from sklearn.neighbors import LocalOutlierFactor
 from sklearn.preprocessing import RobustScaler
@@ -154,6 +155,28 @@ class IsolationForestMethod(_Learned):
         return -self.model.score_samples(x)
 
 
+class ExtendedIsolationForestMethod(_Learned):
+    """Extended Isolation Forest (Hariri et al., 2019): like Isolation Forest, but each
+    split is along a random combination of `ndim` features instead of a single feature,
+    so a day unusual only as a combination of ordinary values is easier to isolate."""
+
+    name = "extended_isolation_forest"
+    SAMPLE = 1024   # rows per tree, as Isolation Forest's larger setting
+
+    def __init__(self, n_estimators=100, ndim=2, random_state=0):
+        self.n_estimators = n_estimators
+        self.ndim = ndim
+        self.random_state = random_state
+
+    def _fit(self, x):
+        self.model = IsoTreeForest(ntrees=self.n_estimators, ndim=min(self.ndim, x.shape[1]),
+                                   sample_size=min(self.SAMPLE, len(x)), random_seed=self.random_state, nthreads=1)
+        self.model.fit(x)
+
+    def _score(self, x):
+        return self.model.predict(x)
+
+
 class LocalOutlierFactorMethod(_Learned):
     name = "local_outlier_factor"
 
@@ -188,6 +211,7 @@ METHODS = {
     "rules": Rules,
     "robust_zscore": RobustZScore,
     "isolation_forest": IsolationForestMethod,
+    "extended_isolation_forest": ExtendedIsolationForestMethod,
     "local_outlier_factor": LocalOutlierFactorMethod,
     "one_class_svm": OneClassSVMMethod,
 }

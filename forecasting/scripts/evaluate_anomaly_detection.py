@@ -1,5 +1,5 @@
 """
-Evaluate anomaly detection methods (two baselines, three candidates) on synthetic school
+Evaluate anomaly detection methods (two baselines, four candidates) on synthetic school
 feeding records, following the protocol committed before any method was run
 (config/anomaly_evaluation.yaml).
 
@@ -39,14 +39,16 @@ from generate_feeding_dataset import OUT_DIR as DATA_DIR, PROTOCOL  # noqa: E402
 
 REPORT_DIR = REPORTS_DIR / "anomaly"
 # Report order, simplest first
-SIMPLICITY = ["rules", "robust_zscore", "isolation_forest", "one_class_svm", "local_outlier_factor"]
+SIMPLICITY = ["rules", "robust_zscore", "isolation_forest", "extended_isolation_forest", "one_class_svm", "local_outlier_factor"]
 # The protocol's simplicity order: rules < robust z-score < the learned methods. It does
 # not rank the learned methods against each other.
-TIER = {"rules": 0, "robust_zscore": 1, "isolation_forest": 2, "local_outlier_factor": 2, "one_class_svm": 2}
+TIER = {"rules": 0, "robust_zscore": 1, "isolation_forest": 2, "extended_isolation_forest": 2, "local_outlier_factor": 2,
+        "one_class_svm": 2}
 # Rows for the timing benchmark (fitting), and rows scored in it
 BENCHMARK_ROWS = [5000, 20000, 50000]
 BENCHMARK_SCORE_ROWS = 5000
 LABELS = {"rules": "Fixed rules", "robust_zscore": "Robust z-score", "isolation_forest": "Isolation Forest",
+          "extended_isolation_forest": "Extended Isolation Forest",
           "local_outlier_factor": "Local Outlier Factor", "one_class_svm": "One-class SVM"}
 
 
