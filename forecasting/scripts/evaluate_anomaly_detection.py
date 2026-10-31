@@ -46,8 +46,8 @@ LABELS = {"rules": "Fixed rules", "robust_zscore": "Robust z-score", "isolation_
           "local_outlier_factor": "Local Outlier Factor", "one_class_svm": "One-class SVM", "autoencoder": "Autoencoder"}
 
 
-def load():
-    files = {n: DATA_DIR / f"{n}.csv" for n in ("schools", "enrolment", "feeding", "stock_counts", "school_days", "labels")}
+def load(data_dir=DATA_DIR):
+    files = {n: data_dir / f"{n}.csv" for n in ("schools", "enrolment", "feeding", "stock_counts", "school_days", "labels")}
     missing = [str(p) for p in files.values() if not p.exists()]
     if missing:
         sys.exit("ERROR: run forecasting/scripts/generate_feeding_dataset.py first")
@@ -101,10 +101,11 @@ def precision_at_k(weeks, k):
     return listed.anomalous.mean(), listed
 
 
-def main():
+def evaluate(data_dir=DATA_DIR, report_dir=REPORT_DIR, quiet=False):
+    """Run the protocol on one dataset; write the report into report_dir (None: no files). Returns the results."""
     started = time.time()
     protocol = yaml.safe_load(open(PROTOCOL, encoding="utf-8"))
-    frames, hashes = load()
+    frames, hashes = load(data_dir)
     feats = build_features(frames["schools"], frames["enrolment"], frames["feeding"], frames["stock_counts"], frames["school_days"])
     labels = frames["labels"].assign(date=lambda d: pd.to_datetime(d.date))
     feats = feats.merge(labels, on=["school_id", "date"], how="left")
@@ -148,7 +149,8 @@ def main():
         results[name]["test"]["recall_held_out"] = round(float(flag[test.label.isin(held_out).to_numpy()].mean()), 4)
         scores_by_method[name] = weeks
         models[name] = best
-        print(f"{name}: precision@{k} {pk:.3f}, test F1 {results[name]['test']['f1']:.3f} ({time.time() - started:.0f}s)")
+        if not quiet:
+            print(f"{name}: precision@{k} {pk:.3f}, test F1 {results[name]['test']['f1']:.3f} ({time.time() - started:.0f}s)")
 
     # Bootstrap over weeks: the difference in precision@k against the best method
     rng = np.random.default_rng(seed)
@@ -211,22 +213,30 @@ def main():
         "dataset_sha256": hashes,
         "rows": {"tuning": int(len(tuning)), "test": int(len(test)),
                  "tuning_anomalous": int((tuning.label != "").sum()), "test_anomalous": int((test.label != "").sum())},
+        "schools": int(frames["schools"].shape[0]),
         "k": k, "results": results, "leader": leader, "recommended": recommended,
         "tied_with_leader": tied_with_leader, "precision_at_k_ceiling": round(ceiling, 4),
         "leak_count_days": int(leak_count.sum()), "examples": examples,
         "runtime_seconds": round(time.time() - started),
     }
-    REPORT_DIR.mkdir(parents=True, exist_ok=True)
-    write_json(REPORT_DIR / "anomaly_evaluation.json", out)
-    write_report(out, protocol)
-    print(f"Leader: {leader}; recommended: {recommended}. Wrote {REPORT_DIR / 'anomaly_evaluation.md'}")
+    if report_dir is not None:
+        report_dir.mkdir(parents=True, exist_ok=True)
+        write_json(report_dir / "anomaly_evaluation.json", out)
+        write_report(out, protocol, report_dir)
+        if not quiet:
+            print(f"Leader: {leader}; recommended: {recommended}. Wrote {report_dir / 'anomaly_evaluation.md'}")
+    return out
+
+
+def main():
+    evaluate()
 
 
 def pct(v):
     return f"{v * 100:.1f}%"
 
 
-def write_report(out, protocol):
+def write_report(out, protocol, report_dir=REPORT_DIR):
     r = out["results"]
     names = [n for n in SIMPLICITY if n in r]
     types = sorted({t for n in names for t in r[n]["test"]["recall_by_type"]})
@@ -235,7 +245,7 @@ def write_report(out, protocol):
         "# Anomaly detection: evaluation on synthetic school feeding records",
         "",
         f"Protocol: [`{out['protocol']}`](../../../config/anomaly_evaluation.yaml), committed before any method was run. "
-        f"Data: 40 synthetic schools ([generator](../../../scripts/generate_feeding_dataset.py)); tuning period "
+        f"Data: {out['schools']} synthetic schools ([generator](../../../scripts/generate_feeding_dataset.py)); tuning period "
         f"{out['rows']['tuning']:,} school-days ({out['rows']['tuning_anomalous']} anomalous, tuning types only), test period "
         f"{out['rows']['test']:,} school-days ({out['rows']['test_anomalous']} anomalous, every type). "
         f"The held-out types ({', '.join(held)}) never appear before the test run.",
@@ -286,7 +296,7 @@ def write_report(out, protocol):
         "assumptions, not how often they would be right at real schools.",
         "",
     ]
-    (REPORT_DIR / "anomaly_evaluation.md").write_text("\n".join(lines), encoding="utf-8")
+    (report_dir / "anomaly_evaluation.md").write_text("\n".join(lines), encoding="utf-8")
 
 
 if __name__ == "__main__":

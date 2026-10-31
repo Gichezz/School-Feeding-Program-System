@@ -14,6 +14,7 @@
     "tuning_anomalous": 512,
     "test_anomalous": 322
   },
+  "schools": 40,
   "k": 10,
   "results": {
     "rules": {

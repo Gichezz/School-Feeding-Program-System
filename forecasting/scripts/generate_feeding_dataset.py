@@ -295,8 +295,8 @@ def assign_sync_batches(feeding, calendar, schools):
     return feeding.drop(columns="capture_index")
 
 
-def main():
-    cfg = load_yaml(CONFIG)
+def generate(cfg, out_dir=OUT_DIR, quiet=False):
+    """Generate the dataset for a config (a dict) into out_dir."""
     protocol = load_yaml(PROTOCOL)
     inputs = load_yaml(FORECASTING_DIR.parent / cfg["calendar"])
     rng = np.random.default_rng(cfg["seed"])
@@ -323,24 +323,29 @@ def main():
             revealed.append({"school_id": ep.school_id, "date": later.min(), "label": "stock_leakage"})
     labels = pd.concat([labels, pd.DataFrame(revealed)]).drop_duplicates(["school_id", "date"])
 
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    schools.to_csv(OUT_DIR / "schools.csv", index=False)
-    pd.DataFrame(enrolment).to_csv(OUT_DIR / "enrolment.csv", index=False)
-    feeding.drop(columns="label").to_csv(OUT_DIR / "feeding.csv", index=False)
-    pd.DataFrame(movements).to_csv(OUT_DIR / "stock_movements.csv", index=False)
-    pd.DataFrame(counts).to_csv(OUT_DIR / "stock_counts.csv", index=False)
-    labels.to_csv(OUT_DIR / "labels.csv", index=False)
-    episodes.to_csv(OUT_DIR / "episodes.csv", index=False)
-    calendar.to_csv(OUT_DIR / "school_days.csv", index=False)
-    write_json(OUT_DIR / "metadata.json", {
+    out_dir.mkdir(parents=True, exist_ok=True)
+    schools.to_csv(out_dir / "schools.csv", index=False)
+    pd.DataFrame(enrolment).to_csv(out_dir / "enrolment.csv", index=False)
+    feeding.drop(columns="label").to_csv(out_dir / "feeding.csv", index=False)
+    pd.DataFrame(movements).to_csv(out_dir / "stock_movements.csv", index=False)
+    pd.DataFrame(counts).to_csv(out_dir / "stock_counts.csv", index=False)
+    labels.to_csv(out_dir / "labels.csv", index=False)
+    episodes.to_csv(out_dir / "episodes.csv", index=False)
+    calendar.to_csv(out_dir / "school_days.csv", index=False)
+    write_json(out_dir / "metadata.json", {
         "schools": len(schools), "school_days": len(calendar), "feeding_records": len(feeding),
         "labelled_school_days": labels.groupby("label").size().to_dict(),
         "episodes": episodes.groupby("type").size().to_dict(),
         "not_fed_days": int((~feeding.feeding_happened).sum()),
         "source_type": "synthetic",
     })
-    print(f"{len(schools)} schools, {len(feeding)} school-days, {len(labels)} labelled; wrote {OUT_DIR}")
-    print(labels.groupby("label").size().to_string())
+    if not quiet:
+        print(f"{len(schools)} schools, {len(feeding)} school-days, {len(labels)} labelled; wrote {out_dir}")
+        print(labels.groupby("label").size().to_string())
+
+
+def main():
+    generate(load_yaml(CONFIG))
 
 
 if __name__ == "__main__":
