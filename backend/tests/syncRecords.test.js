@@ -241,6 +241,16 @@ describe('the stock ledger', () => {
     }]);
   });
 
+  it('keeps the reason for a late stock entry', async () => {
+    // The test clock is 8 October; 28 September is more than 3 school days back
+    const res = await sync([syncOperation('op-1', 'stockMovement', 'create',
+      delivery({ movementDate: '28-09-2026', lateReason: 'Entered from the store book' }), 0)]);
+
+    expect(res.body.results[0]).toMatchObject({ status: 'synced' });
+    expect((await pool.query('SELECT late_reason FROM stock_movements')).rows[0].late_reason).toBe('Entered from the store book');
+    expect((await flagsFor('stock_movement')).map((f) => f.detail)).toContainEqual(expect.stringContaining('Reason: Entered from the store book'));
+  });
+
   it('records a physical stock count', async () => {
     const count = { id: entryId(), schoolId: SCHOOL_ID, countDate: '07-10-2026', commodity: 'cereals', countedKg: 412.5 };
 

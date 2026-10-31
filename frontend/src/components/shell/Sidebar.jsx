@@ -12,7 +12,7 @@ import { useOpenFlagCount } from '../../features/review/useOpenFlagCount';
  * on hover, keyboard focus or the expand button. Hidden on mobile (bottom tabs instead).
  */
 function Sidebar() {
-  const { isAdmin } = useSession();
+  const { isAdmin, user } = useSession();
   const { unresolvedConflicts } = useSyncStatus();
   const [expanded, setExpanded] = useState(false);
   const openFlags = useOpenFlagCount();
@@ -33,7 +33,7 @@ function Sidebar() {
         {expanded ? <ChevronsLeft aria-hidden="true" /> : <ChevronsRight aria-hidden="true" />}
       </button>
       <nav className="app-nav" aria-label="Main">
-        {visibleGroups({ isAdmin }).map((group, index) => (
+        {visibleGroups({ isAdmin, role: user?.role }).map((group, index) => (
           <div key={group.label || index} className="app-nav__group">
             {group.label && <p className="app-nav__heading">{group.label}</p>}
             <ul className="app-nav__list">

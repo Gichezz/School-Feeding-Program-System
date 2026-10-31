@@ -1,9 +1,10 @@
 import {
   LayoutDashboard,
-  ClipboardCheck,
-  Utensils,
+  CalendarCheck,
+  Warehouse,
+  Users,
+  FileText,
   BarChart3,
-  TrendingUp,
   RefreshCw,
   GitCompareArrows,
   Flag,
@@ -16,25 +17,28 @@ import {
  *
  * mobileTab: shown in the bottom tab bar (the rest go in "More")
  * adminOnly: only shown to administrators
+ * staffOnly: only shown to school staff, who record on the school's devices
+ * notStaff: not shown to school staff
  * badge: name of a live count shown next to the item
  */
 export const NAV_GROUPS = [
   {
     label: 'Overview',
-    items: [{ to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true, mobileTab: true }],
+    items: [{ to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true, mobileTab: true, notStaff: true }],
   },
   {
-    label: 'Record',
+    label: 'School',
     items: [
-      { to: '/attendance', label: 'Attendance', icon: ClipboardCheck, mobileTab: true },
-      { to: '/meals', label: 'Meals', icon: Utensils, mobileTab: true },
+      { to: '/today', label: 'Today', icon: CalendarCheck, mobileTab: true, staffOnly: true },
+      { to: '/stock', label: 'Stock', icon: Warehouse, mobileTab: true, staffOnly: true },
+      { to: '/enrolment', label: 'Enrolment', icon: Users, staffOnly: true },
+      { to: '/term', label: 'Term plan and report', shortLabel: 'Term', icon: FileText, mobileTab: true, staffOnly: true },
     ],
   },
   {
     label: 'Insights',
     items: [
-      { to: '/reports', label: 'Reports', icon: BarChart3 },
-      { to: '/forecast', label: 'Forecast', icon: TrendingUp },
+      { to: '/reports', label: 'Reports', icon: BarChart3, notStaff: true },
     ],
   },
   {
@@ -51,15 +55,23 @@ export const NAV_GROUPS = [
   },
 ];
 
+function canSee(item, { isAdmin, role }) {
+  const isStaff = role === 'school_staff';
+  if (item.adminOnly && !isAdmin) return false;
+  if (item.staffOnly && !isStaff) return false;
+  if (item.notStaff && isStaff) return false;
+  return true;
+}
+
 /**
  * Groups with the items this user may see.
  */
-export function visibleGroups({ isAdmin }) {
+export function visibleGroups({ isAdmin, role }) {
   return NAV_GROUPS
-    .map((group) => ({ ...group, items: group.items.filter((item) => !item.adminOnly || isAdmin) }))
+    .map((group) => ({ ...group, items: group.items.filter((item) => canSee(item, { isAdmin, role })) }))
     .filter((group) => group.items.length > 0);
 }
 
-export function allItems({ isAdmin }) {
-  return visibleGroups({ isAdmin }).flatMap((group) => group.items);
+export function allItems({ isAdmin, role }) {
+  return visibleGroups({ isAdmin, role }).flatMap((group) => group.items);
 }

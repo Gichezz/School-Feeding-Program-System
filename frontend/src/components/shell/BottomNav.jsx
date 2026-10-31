@@ -72,14 +72,14 @@ function MoreSheet({ items, counts, onClose }) {
 }
 
 /**
- * Fixed bottom tab bar on phones: Dashboard, Attendance, Meals, Sync and More.
+ * Fixed bottom tab bar on phones: the role's main pages, Sync and More.
  */
 function BottomNav() {
-  const { isAdmin } = useSession();
+  const { isAdmin, user } = useSession();
   const { unresolvedConflicts, pendingCount } = useSyncStatus();
   const [moreOpen, setMoreOpen] = useState(false);
   const location = useLocation();
-  const items = allItems({ isAdmin });
+  const items = allItems({ isAdmin, role: user?.role });
   const tabs = items.filter((item) => item.mobileTab);
   const moreItems = items.filter((item) => !item.mobileTab);
   const openFlags = useOpenFlagCount();

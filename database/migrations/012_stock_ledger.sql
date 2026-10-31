@@ -29,6 +29,8 @@ CREATE TABLE IF NOT EXISTS stock_movements (
     note            TEXT,
     -- set on a reversing entry: the entry it cancels
     reverses_id     UUID,
+    -- why an entry for an older date was entered late
+    late_reason     TEXT,
     captured_by     UUID,
     device_id       UUID,
     captured_at     TIMESTAMPTZ,
@@ -63,6 +65,7 @@ CREATE TABLE IF NOT EXISTS stock_counts (
     commodity       TEXT NOT NULL,
     counted_kg      NUMERIC(10, 2) NOT NULL,
     note            TEXT,
+    late_reason     TEXT,
     captured_by     UUID,
     device_id       UUID,
     captured_at     TIMESTAMPTZ,

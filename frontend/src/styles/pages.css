@@ -944,6 +944,77 @@
   color: var(--color-brand);
 }
 
+/* ---------- Enrolment: learners by class and sex ---------- */
+
+.enrolment__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+}
+
+.enrolment__row {
+  display: contents;
+}
+
+.enrolment__head {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-ink-muted);
+}
+
+.enrolment__class {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: var(--font-weight-medium);
+}
+
+/* The column headings name each cell on wider screens */
+.enrolment__cell .ui-field__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (max-width: 479px) {
+  .enrolment__grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .enrolment__head {
+    display: none;
+  }
+
+  .enrolment__class {
+    grid-column: 1 / -1;
+    margin-top: var(--space-2);
+  }
+
+  .enrolment__cell .ui-field__label {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+  }
+}
+
+/* ---------- Stock: confirming a reversal ---------- */
+
+.stock__confirm {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
 @media print {
   .app-sidebar,
   .app-topbar,

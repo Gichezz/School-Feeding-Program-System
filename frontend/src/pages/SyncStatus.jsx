@@ -31,14 +31,24 @@ const STATUS = {
 /**
  * One queued change in display form.
  */
+// What each kind of queued change is called, and the date it is for
+const RECORD_KINDS = {
+  attendance: ['Attendance', 'attendanceDate'],
+  mealDistribution: ['Meals', 'distributionDate'],
+  dailyFeeding: ['Feeding', 'feedingDate'],
+  enrolment: ['Enrolment', null],
+  stockMovement: ['Stock entry', 'movementDate'],
+  stockCount: ['Stock count', 'countDate'],
+};
+
 function toRow(op) {
-  const isAttendance = op.entityType === 'attendance';
-  const date = isAttendance ? op.payload?.attendanceDate : op.payload?.distributionDate;
+  const [kind, dateField] = RECORD_KINDS[op.entityType] || ['Record', null];
+  const date = dateField ? op.payload?.[dateField] : op.payload?.class;
   // A pending change that already failed once is shown as "did not sync" (it will be retried)
   const status = op.status === 'pending' && op.errorMessage ? 'failed' : op.status;
   return {
     id: op.id,
-    record: `${isAttendance ? 'Attendance' : 'Meals'}${date ? ` · ${formatDate(date)}` : ''}`,
+    record: `${kind}${date ? ` · ${dateField ? formatDate(date) : date}` : ''}`,
     change: op.operation === 'update' ? 'Edited' : 'New record',
     status,
     savedAt: formatDateTime(op.createdAt),

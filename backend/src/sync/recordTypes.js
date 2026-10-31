@@ -122,7 +122,7 @@ function appendOnly({ table, rowOf, check = async () => {} }) {
       throw new Error('This entry id is already used by a different entry');
     }
     await check(client, payload);
-    const row = { id: payload.id, ...values, ...metadata(ctx, payload, { editable: false, lateReason: false }) };
+    const row = { id: payload.id, ...values, ...metadata(ctx, payload, { editable: false, lateReason: true }) };
     const columns = Object.keys(row);
     await client.query(
       `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${columns.map((_, i) => `$${i + 1}`).join(', ')})`,
