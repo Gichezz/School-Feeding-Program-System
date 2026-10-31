@@ -3,6 +3,19 @@
 # Written and committed before any detector was run, so the choice of method cannot
 # be fitted to the results. Changing anything here after results exist must be
 # recorded as a deviation in the evaluation report.
+#
+# Version 2, committed before it was run. Version 1 (in git history) left out records
+# the app collects and the problem behind Kenya's capitation audit, so version 2 adds
+# them and its results supersede version 1's. Version 1's results stay in git history.
+version: 2
+changes_from_version_1:
+  - The data now records learners present (on most schools), the time of day each record
+    was captured, and occasional genuine losses in the store ledger.
+  - A new anomaly type, ghost_learners (enrolment inflated for a term), is held out.
+  - The features are fixed in this file (below). New - enrolment_change,
+    fed_rate_vs_last_term, uptake, outside_hours. Removed - edits (no evidence that
+    edits separate honest records from dishonest ones; they stay in the audit trail).
+  - Methods, tuning grid, periods, metric and decision rule are unchanged.
 
 question: >
   Which method best helps a sub-county programme officer find the school-days that
@@ -25,6 +38,28 @@ anomaly_types:
   held_out:
     - backdated_bulk_entry    # many past days entered together, long after the fact
     - round_number_entry      # figures made up rather than counted
+    - ghost_learners          # enrolment inflated for a term (the capitation audit's finding)
+
+# Every feature is a figure an officer could check by hand, with a stated reason
+features:
+  fed_rate: share of enrolled learners fed
+  fed_vs_own: learners fed against the school's usual number (a lagged baseline)
+  fed_vs_peers: share fed against schools in the same sub-county that day
+  fed_rate_vs_last_term: share fed against the school's share last term (ghosts do not eat)
+  enrolment_change: enrolment against last term (ghost learners appear as a jump)
+  uptake: learners fed / learners present, where present is recorded (copied figures sit at 100%)
+  cereal_ratio: cereals issued against the ration for learners fed
+  pulse_ratio: pulses issued against the ration for learners fed
+  usage_trend: recent rise in food issued per learner
+  count_gap_change: new gap between the store count and the records, in days of food
+  entry_delay: school days between the date and when the record reached the server
+  batch_dates: dates sent together in one sync
+  outside_hours: captured outside school hours (the server already flags this)
+  round_share: round numbers among recent records
+  fed_steadiness: how little learners fed changes from day to day
+  term_position: how far into the term the day is (context)
+  opening_days: first days after a break (context)
+  closing_day: last day of the school year (context)
 
 methods:
   - rules                     # fixed programme rules (no learning)
