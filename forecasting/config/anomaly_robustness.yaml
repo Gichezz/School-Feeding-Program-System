@@ -6,8 +6,9 @@
 # generated differently, to see whether the ranking of methods holds or was luck.
 # Nothing here changes the main evaluation's result.
 #
-# Re-run unchanged with protocol version 2 (its data and features); the scenarios and
-# the conclusion rule are the same as when this plan was first committed.
+# Re-run unchanged with the current protocol version (its data, features, methods and
+# decision rule); the scenarios and the conclusion rule are the same as when this plan
+# was first committed.
 
 base: forecasting/config/feeding_dataset.yaml
 seeds: [101, 202, 303]

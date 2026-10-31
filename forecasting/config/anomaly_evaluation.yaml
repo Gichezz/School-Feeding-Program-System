@@ -7,7 +7,27 @@
 # Version 2, committed before it was run. Version 1 (in git history) left out records
 # the app collects and the problem behind Kenya's capitation audit, so version 2 adds
 # them and its results supersede version 1's. Version 1's results stay in git history.
-version: 2
+version: 3
+changes_from_version_2:
+  - Found on the tuning period only (2024-2025; the test year was not looked at). In
+    version 2 the rare yes/no context features (closing day, opening days, one record
+    entered after hours) made ordinary days look unusual - most of all for Isolation
+    Forest, whose ordinary top-2% days were 35% closing days against 0.6% of all days.
+    An officer would never want an expected day flagged, so context now adjusts what is
+    normal instead of being evidence; one late-night entry is replaced by the pattern.
+  - fed_rate and fed_vs_own are measured against what is normal for that kind of day
+    (the median effect of each day type across schools). term_position, opening_days and
+    closing_day are no longer model inputs. outside_hours becomes after_hours_share.
+    Feeding figures are neutral on days with no feeding (they carry a reason code).
+  - Two methods are added as widely used baselines (ADBench found no unsupervised method
+    statistically best across 57 datasets) - ECOD (no settings to tune, per-feature
+    scores) and k-nearest-neighbour distance.
+  - Fit and scoring times are measured for every method at 5,000, 20,000 and 50,000 rows.
+  - Tie-break added to the decision rule: among learned methods not distinguishable from
+    the leader, the one that fits fastest on 50,000 rows, because it must scale to a
+    county's records.
+  - Periods, held-out types, tuning-grid sizes for the existing methods and the metric are
+    unchanged. Version 3 supersedes version 2's results.
 changes_from_version_1:
   - The data now records learners present (on most schools), the time of day each record
     was captured, and occasional genuine losses in the store ledger.
@@ -40,10 +60,11 @@ anomaly_types:
     - round_number_entry      # figures made up rather than counted
     - ghost_learners          # enrolment inflated for a term (the capitation audit's finding)
 
-# Every feature is a figure an officer could check by hand, with a stated reason
+# Every feature is a figure an officer could check by hand, with a stated reason.
+# Context (the kind of day) adjusts what is normal; it is not itself evidence.
 features:
-  fed_rate: share of enrolled learners fed
-  fed_vs_own: learners fed against the school's usual number (a lagged baseline)
+  fed_rate: share of enrolled learners fed, against what is normal for that kind of day
+  fed_vs_own: learners fed against the school's usual number for that kind of day (lagged baseline)
   fed_vs_peers: share fed against schools in the same sub-county that day
   fed_rate_vs_last_term: share fed against the school's share last term (ghosts do not eat)
   enrolment_change: enrolment against last term (ghost learners appear as a jump)
@@ -54,12 +75,9 @@ features:
   count_gap_change: new gap between the store count and the records, in days of food
   entry_delay: school days between the date and when the record reached the server
   batch_dates: dates sent together in one sync
-  outside_hours: captured outside school hours (the server already flags this)
+  after_hours_share: share of the school's last 10 records entered outside school hours (a pattern, not one entry)
   round_share: round numbers among recent records
   fed_steadiness: how little learners fed changes from day to day
-  term_position: how far into the term the day is (context)
-  opening_days: first days after a break (context)
-  closing_day: last day of the school year (context)
 
 methods:
   - rules                     # fixed programme rules (no learning)
@@ -68,6 +86,8 @@ methods:
   - local_outlier_factor
   - one_class_svm
   - autoencoder               # reconstruction error of a small neural network
+  - ecod                      # empirical-distribution tail probabilities per feature
+  - knn                       # distance to the nearest ordinary-looking days
 
 tuning:
   # Each learning method gets the same small, fixed grid and the same features.
@@ -78,6 +98,8 @@ tuning:
   one_class_svm: {nu: [0.02, 0.05], gamma: [scale]}
   autoencoder: {hidden: [[8], [16, 8, 16]]}
   robust_zscore: {history_days: [40, 80]}
+  ecod: {}                    # no settings
+  knn: {n_neighbors: [5, 20]}
   rules: {}                   # thresholds fixed by programme logic, not tuned
   random_seed: 20261031
 
@@ -94,7 +116,8 @@ decision_rule: >
   The recommended method has the highest test precision@k. If another method's 95%
   bootstrap interval for the difference includes zero, the simpler method is preferred
   (rules < robust z-score < the learned methods), because an officer must be able to
-  understand why a school was listed. Recall on the held-out types is reported for
+  understand why a school was listed. Among learned methods not distinguishable from the
+  leader, the one that fits fastest on 50,000 rows is preferred, because it must scale. Recall on the held-out types is reported for
   every method and discussed, but does not decide the ranking.
 
 reporting:
