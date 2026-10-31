@@ -26,7 +26,7 @@ FEATURES = {
     "fed_rate": "learners fed as a share of enrolment, for that kind of day",
     "fed_vs_own": "learners fed against the school's usual number for that kind of day",
     "fed_vs_peers": "learners fed against similar schools nearby that day",
-    "fed_rate_vs_last_term": "the share fed against the school's share last term",
+    "fed_rate_vs_last_term": "the share fed, for that kind of day, against the school's share last term",
     "enrolment_change": "enrolment against last term",
     "uptake": "learners fed as a share of learners present",
     "cereal_ratio": "cereals issued against the ration for learners fed",
@@ -37,7 +37,7 @@ FEATURES = {
     "batch_dates": "dates sent together in one sync",
     "after_hours_share": "recent records entered outside school hours",
     "round_share": "round numbers among recent records",
-    "fed_steadiness": "how little learners fed changed from day to day",
+    "fed_steadiness": "how little learners fed, for that kind of day, changed from day to day",
 }
 
 # A school's usual number: the median of 40 school days, ending 10 school days back, so
@@ -106,7 +106,8 @@ def build_features(schools, enrolment, feeding, counts, school_days):
     f["batch_dates"] = f.groupby("sync_batch_id").date.transform("nunique")
     round_fed = ((f.learners_fed % 10 == 0) & (f.learners_fed > 0)).astype(float).where(f.feeding_happened)
     f["round_share"] = round_fed.groupby(f.school_id).transform(lambda s: s.rolling(ROUND_WINDOW, min_periods=3).mean()).fillna(0.0)
-    change = np.log(fed).groupby(f.school_id).diff().abs()
+    # Day to day, after the kind of day is allowed for: a closing day is not a jump
+    change = np.log(fed / f.day_effect).groupby(f.school_id).diff().abs()
     f["fed_steadiness"] = -change.groupby(f.school_id).transform(lambda s: s.rolling(ROUND_WINDOW, min_periods=3).mean()).fillna(0.05)
     # Enrolment and the share fed against the school's previous term
     terms = days.drop_duplicates("term_id")[["term_id"]].reset_index(drop=True)
@@ -115,12 +116,14 @@ def build_features(schools, enrolment, feeding, counts, school_days):
     e["previous"] = e.groupby("school_id").learners.shift(1)
     e["enrolment_change"] = np.log(e.learners / e.previous).fillna(0.0)
     f = f.merge(e[["school_id", "term_id", "enrolment_change"]], on=["school_id", "term_id"], how="left")
-    term_rate = f[f.feeding_happened].groupby(["school_id", "term_id"]).share_fed.mean().rename("term_rate").reset_index()
+    # Both the day and last term are measured for the kind of day (fed_rate), so a term's
+    # closing day does not read as a collapse
+    term_rate = f[f.feeding_happened].groupby(["school_id", "term_id"]).fed_rate.mean().rename("term_rate").reset_index()
     term_rate["order"] = term_rate.term_id.map(order)
     term_rate = term_rate.sort_values(["school_id", "order"])
     term_rate["last_term_rate"] = term_rate.groupby("school_id").term_rate.shift(1)
     f = f.merge(term_rate[["school_id", "term_id", "last_term_rate"]], on=["school_id", "term_id"], how="left")
-    f["fed_rate_vs_last_term"] = (f.share_fed - f.last_term_rate).where(f.feeding_happened).fillna(0.0)
+    f["fed_rate_vs_last_term"] = (f.fed_rate - f.last_term_rate).where(f.feeding_happened).fillna(0.0)
 
     # Learners fed as a share of present, where present is recorded; elsewhere the
     # typical value, so a school that leaves the field empty is not singled out

@@ -52,7 +52,7 @@ def describe(feature, row):
         return f"learners fed changing by {change * 100:.0f}% a day on average"
     if feature == "fed_rate_vs_last_term":
         diff = row["fed_rate_vs_last_term"]
-        return f"a share of learners fed {_points(diff)} {'above' if diff > 0 else 'below'} last term's"
+        return f"a share of learners fed, for that kind of day, {_points(diff)} {'above' if diff > 0 else 'below'} last term's"
     if feature == "enrolment_change":
         change = math.exp(row["enrolment_change"]) - 1
         return f"enrolment {_pct(change)} {'up' if change > 0 else 'down'} on last term ({row['learners']} learners)"

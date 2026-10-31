@@ -119,4 +119,20 @@ def test_explanations_read_correctly_at_the_edges():
     assert describe("batch_dates", {"batch_dates": 6}) == "6 dates sent together in one sync"
     assert describe("fed_steadiness", {"fed_steadiness": -0.005}) == "almost the same number of learners fed day after day"
     assert describe("fed_steadiness", {"fed_steadiness": -0.2}) == "learners fed changing by 20% a day on average"
-    assert describe("fed_rate_vs_last_term", {"fed_rate_vs_last_term": -0.57}) == "a share of learners fed 57 percentage points below last term's"
+    assert describe("fed_rate_vs_last_term", {"fed_rate_vs_last_term": -0.57}) == "a share of learners fed, for that kind of day, 57 percentage points below last term's"
+
+
+def test_a_closing_day_with_few_learners_is_normal_for_that_kind_of_day():
+    schools, enrolment, feeding, counts, school_days = tiny_dataset()
+    # Two terms; on the last day of the school year every school feeds 40% of its usual
+    school_days["term_id"] = ["2026-T1"] * 30 + ["2026-T2"] * 30
+    school_days.loc[59, "day_type"] = "last day of school year"
+    enrolment = pd.concat([enrolment, enrolment.assign(term_id="2026-T2")])
+    closing = feeding.date == school_days.date.iloc[59]
+    feeding.loc[closing, "learners_fed"] = (feeding.loc[closing, "learners_fed"] * 0.4).astype(int)
+
+    f = build_features(schools, enrolment, feeding, counts, school_days)
+    day = f[f.date == school_days.date.iloc[59]]
+
+    assert day.fed_rate_vs_last_term.abs().max() < 0.05
+    assert (-day.fed_steadiness).max() < 0.1

@@ -15,7 +15,7 @@ never read. For the week requested:
      day, whatever the ranking.
   5. A sub-county with fewer than 60 school days of history is ranked by the rules alone.
 
-Settings are those chosen in the evaluation (protocol version 4) and stay fixed.
+Settings are those chosen in the evaluation (protocol version 5) and stay fixed.
 """
 
 import datetime as dt

@@ -293,7 +293,8 @@ def write_report(out, protocol, report_dir=REPORT_DIR):
     lines = [
         "# Anomaly detection: evaluation on synthetic school feeding records",
         "",
-        f"Protocol: [`{out['protocol']}`](../../../config/anomaly_evaluation.yaml), committed before any method was run. "
+        f"Protocol: [`{out['protocol']}`](../../../config/anomaly_evaluation.yaml) version {protocol['version']}, committed before "
+        "it was run; what changed from each earlier version, and why, is recorded in the protocol. "
         f"Data: {out['schools']} synthetic schools ([generator](../../../scripts/generate_feeding_dataset.py)); tuning period "
         f"{out['rows']['tuning']:,} school-days ({out['rows']['tuning_anomalous']} anomalous, tuning types only), test period "
         f"{out['rows']['test']:,} school-days ({out['rows']['test_anomalous']} anomalous, every type). "
