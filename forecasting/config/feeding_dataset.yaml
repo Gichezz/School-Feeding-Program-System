@@ -1,0 +1,58 @@
+# Synthetic school feeding records for several schools, used to evaluate anomaly
+# detection. Real Kenyan inputs (calendar, holidays, ration) come from kenya_inputs.yaml;
+# day-to-day variation is calibrated from the real Swedish school lunch series; the
+# rest are stated assumptions. It simulates records, not any real school.
+
+seed: 20261031
+calendar: forecasting/config/kenya_inputs.yaml
+years: [2024, 2025, 2026]
+end_date: 2026-10-23          # last school day of Term 3 2026
+
+sub_counties: [Mfano North, Mfano South, Mfano East, Mfano West]
+schools_per_sub_county: 10
+
+school:
+  enrolment: {min: 180, max: 950}          # primary schools on the meals programme (assumption)
+  cash_transfer_share: 0.3                 # the rest receive food in kind
+  # Share of enrolled learners fed on an ordinary day, per school (assumption: attendance
+  # in Kenyan public primary schools is typically 85-95%)
+  participation: {min: 0.82, max: 0.95}
+  enrolment_change_per_term: 0.04          # sd of the relative change between terms
+
+# Day-to-day variation, from the real Swedish series (forecast_evaluation.json):
+# effects of each kind of day on the share fed, and the size of the day-to-day noise
+# (a 10-day average misses by about 6%)
+day_effects:
+  first days after a break: 1.016
+  last days before a break: 0.999
+  first day of school year: 0.937
+  last day of school year: 0.40            # closing day: learners leave early
+noise: {log_sd: 0.05, ar1: 0.5}
+
+issuing:
+  # Cooks measure with tins, so issues are rounded and vary around the ration
+  rounding_kg: 0.5
+  log_sd: 0.03
+
+stock:
+  in_kind_delivery_week: {min: 1, max: 4}  # weeks into the term (late deliveries are common)
+  in_kind_share_of_need: {min: 0.75, max: 1.0}
+  short_delivery_probability: 0.15         # received weighs less than the note
+  purchase_every_school_days: 20           # cash-transfer schools buy about monthly
+  count_every_school_days: 20              # physical store count about monthly
+  count_error_kg_share: 0.005
+
+entry:
+  same_day_probability: 0.85               # otherwise 1-3 school days late
+  sync_every_school_days: {min: 1, max: 5} # rural devices sync in batches
+  edit_probability: 0.03
+
+anomalies:
+  # Episodes per year across all schools, and how they look
+  episodes_per_year: 14
+  length_school_days: {min: 10, max: 30}
+  inflated_headcount: {inflation: {min: 0.12, max: 0.35}}
+  consumption_drift: {final_excess: {min: 0.20, max: 0.45}}
+  stock_leakage: {share_of_daily_use: {min: 0.15, max: 0.40}}
+  backdated_bulk_entry: {delay_school_days: {min: 8, max: 25}}
+  round_number_entry: {round_to: [10, 50]}
