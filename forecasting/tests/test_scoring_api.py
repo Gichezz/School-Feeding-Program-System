@@ -108,6 +108,17 @@ def test_a_new_sub_county_is_ranked_by_the_rules_alone(client, dataset):
     assert body["model"] is None
 
 
+def test_a_sub_county_with_a_few_days_and_no_stock_counts_is_still_ranked(client, dataset):
+    body = body_for(dataset, "North", "2026-01-12", since="2026-01-05")
+    body["stock_counts"] = []
+
+    res = client.post("/score", json=body)
+
+    assert res.status_code == 200
+    assert res.get_json()["mode"] == "rules_only"
+    assert len(res.get_json()["items"]) == 6
+
+
 def test_follow_up_school_weeks_are_left_out_of_the_fit(client, dataset):
     plain = client.post("/score", json=body_for(dataset, "North", "2026-03-02")).get_json()
     feeding = pd.read_csv(dataset / "feeding.csv")

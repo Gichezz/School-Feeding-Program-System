@@ -99,7 +99,7 @@ def build_features(schools, enrolment, feeding, counts, school_days):
     c["gap_days"] = c.new_gap / c.daily_use.replace(0, np.nan)
     worst = c.groupby(["school_id", "date"]).gap_days.min().rename("count_gap_change")
     f = f.join(worst, on=["school_id", "date"])
-    f["count_gap_change"] = f.count_gap_change.fillna(0.0)
+    f["count_gap_change"] = f.count_gap_change.astype(float).fillna(0.0)
 
     f["entry_delay"] = [index.get(r, index[d]) - index[d] if r in index else (r - d).days * 5 / 7
                         for d, r in zip(f.date, f.received_date)]

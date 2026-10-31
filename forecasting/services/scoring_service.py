@@ -107,7 +107,8 @@ def score_week(body):
     anchor = first - (first % REFIT_EVERY)
     follow_up = {(f["school_id"], f["week"]) for f in body.get("follow_up", [])}
     history = feats[(feats.day_index < anchor) & (feats.day_index >= anchor - WINDOW)]
-    history = history[[(s, w) not in follow_up for s, w in zip(history.school_id, history.week)]]
+    keep = [(s, w) not in follow_up for s, w in zip(history.school_id, history.week)]
+    history = history[np.array(keep, dtype=bool)]
 
     rules = Rules()
     rule_scores = rules.score(week)
