@@ -19,14 +19,19 @@ changes_from_version_2:
     (the median effect of each day type across schools). term_position, opening_days and
     closing_day are no longer model inputs. outside_hours becomes after_hours_share.
     Feeding figures are neutral on days with no feeding (they carry a reason code).
-  - Two methods are added as widely used baselines (ADBench found no unsupervised method
-    statistically best across 57 datasets) - ECOD (no settings to tune, per-feature
-    scores) and k-nearest-neighbour distance.
+  - The learned candidates are cut to three, one from each main family of unsupervised
+    detectors - Isolation Forest (tree/isolation), the one-class SVM (boundary/kernel) and
+    Local Outlier Factor (density). Decided after version 2's results were known, so the
+    reasons are stated and none depends on a result - the autoencoder needs more data
+    and tuning than a sub-county provides, did not reliably converge, and is the hardest
+    to explain to an officer. ECOD and k-nearest-neighbour distance, considered for this
+    version, were left out to keep the comparison to three. The fixed rules and the robust
+    z-score stay as baselines, so the study still shows whether machine learning is needed.
   - Fit and scoring times are measured for every method at 5,000, 20,000 and 50,000 rows.
   - Tie-break added to the decision rule - among learned methods not distinguishable from
     the leader, the one that fits fastest on 50,000 rows, because it must scale to a
     county's records.
-  - Periods, held-out types, tuning-grid sizes for the existing methods and the metric are
+  - Periods, held-out types, the tuning grids of the remaining methods and the metric are
     unchanged. Version 3 supersedes version 2's results.
 changes_from_version_1:
   - The data now records learners present (on most schools), the time of day each record
@@ -80,14 +85,13 @@ features:
   fed_steadiness: how little learners fed changes from day to day
 
 methods:
-  - rules                     # fixed programme rules (no learning)
+  # Baselines (no learned model)
+  - rules                     # fixed programme rules
   - robust_zscore             # each school against its own history; peers when new
-  - isolation_forest          # pooled across schools
-  - local_outlier_factor
-  - one_class_svm
-  - autoencoder               # reconstruction error of a small neural network
-  - ecod                      # empirical-distribution tail probabilities per feature
-  - knn                       # distance to the nearest ordinary-looking days
+  # Candidates, one per main family of unsupervised detectors, pooled across schools
+  - isolation_forest          # tree / isolation
+  - one_class_svm             # boundary / kernel
+  - local_outlier_factor      # density
 
 tuning:
   # Each learning method gets the same small, fixed grid and the same features.
@@ -96,10 +100,8 @@ tuning:
   isolation_forest: {n_estimators: [100, 300], max_samples: [256, 1024]}
   local_outlier_factor: {n_neighbors: [20, 50]}
   one_class_svm: {nu: [0.02, 0.05], gamma: [scale]}
-  autoencoder: {hidden: [[8], [16, 8, 16]]}
   robust_zscore: {history_days: [40, 80]}
-  ecod: {}                    # no settings
-  knn: {n_neighbors: [5, 20]}
+
   rules: {}                   # thresholds fixed by programme logic, not tuned
   random_seed: 20261031
 
