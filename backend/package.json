@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "test": "jest --runInBand"
+    "test": "jest --runInBand",
+    "demo:records": "node scripts/load-demo-records.js"
   },
   "dependencies": {
     "@simplewebauthn/server": "13.3.3",
