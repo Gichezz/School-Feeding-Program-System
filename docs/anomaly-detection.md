@@ -80,6 +80,8 @@ The scoring service ([`forecasting/services/scoring_service.py`](../forecasting/
 
 ## 7. Limitations
 
+An audit of this comparison (scaling, leakage, training contamination, settings, scalability, SGDOneClassSVM and fairness across schools) is in [anomaly-model-audit.md](anomaly-model-audit.md).
+
 - **Synthetic data only.** The comparison shows how the methods behave on records shaped like Kenyan school feeding records, not how often they would be right at real schools. The settings and the list length need checking against real records before use; the evaluation scripts re-run on any dataset in the same format.
 - **The problems are the ones that were imagined.** Held-out types test this partly; a new kind of misreporting may still be missed.
 - **A list is not a finding.** Many listed weeks have an ordinary explanation (a school event, a late sync, a new term). The officer's notes are the only judgement in the system.
