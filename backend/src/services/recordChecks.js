@@ -16,6 +16,9 @@ const DATE_COLUMNS = {
 
 // Food issued may differ from the ration for learners fed by this share before it is flagged
 const USAGE_TOLERANCE = 0.3;
+// Food issued is recorded to the nearest 0.5 kg: a difference within half of that is
+// rounding, whatever the school's size (the same rule as the review list's features)
+const RECORDING_PRECISION_KG = 0.25;
 // A delivery may be this much lighter than its note (weighing, spillage) before it is flagged
 const DELIVERY_TOLERANCE = 0.02;
 
@@ -63,7 +66,8 @@ async function feedingFlags(client, row) {
       ['pulses', row.pulses_kg, school.ration_pulses_g],
     ]) {
       const expected = (row.learners_fed * Number(grams)) / 1000;
-      if (Math.abs(Number(issued) / expected - 1) > USAGE_TOLERANCE) {
+      const beyondRounding = Math.max(Math.abs(Number(issued) - expected) - RECORDING_PRECISION_KG, 0);
+      if (beyondRounding / expected > USAGE_TOLERANCE) {
         parts.push(`${kg(issued)} of ${commodity} for ${row.learners_fed} learners fed; the ration is ${kg(expected)}`);
       }
     }

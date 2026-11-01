@@ -166,6 +166,19 @@ describe('daily feeding records', () => {
 
     expect(await flagsFor('daily_feeding')).toEqual([]);
   });
+
+  it('does not read rounding to half a kilogram as far from the ration at a small school', async () => {
+    await sync([
+      syncOperation('op-0', 'stockMovement', 'create', delivery(), 0),
+      syncOperation('op-1', 'stockMovement', 'create', delivery({ commodity: 'pulses', quantityKg: 120 }), 0),
+    ]);
+
+    // 20 learners: 3 kg of cereals and 0.8 kg of pulses by the ration, recorded to the nearest 0.5 kg
+    await sync([syncOperation('op-2', 'dailyFeeding', 'create',
+      feeding({ learnersPresent: 20, learnersFed: 20, cerealsKg: 3, pulsesKg: 0.5 }), 0)]);
+
+    expect((await flagsFor('daily_feeding')).map((f) => f.flag)).not.toContain('usage_far_from_ration');
+  });
 });
 
 describe('termly enrolment', () => {
