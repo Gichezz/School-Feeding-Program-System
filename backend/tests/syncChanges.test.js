@@ -116,3 +116,42 @@ describe('GET /api/sync/changes', () => {
     expect((await changes('abc')).status).toBe(400);
   });
 });
+
+describe('decisions on held records in downloads', () => {
+  function delivery(id, quantityKg = 500) {
+    return { id, schoolId: SCHOOL_ID, movementDate: '05-10-2026', commodity: 'cereals', kind: 'delivery', quantityKg, reference: 'DN-2026-114' };
+  }
+  const FIRST = 'eeeeeeee-0000-4000-8000-000000000001';
+  const SECOND = 'eeeeeeee-0000-4000-8000-000000000002';
+
+  async function heldDuplicate() {
+    await asAdmin.post('/api/sync').send({ clientId: 'device-a', operations: [syncOperation('op-1', 'stockMovement', 'create', delivery(FIRST), 0)] });
+    await asAdmin.post('/api/sync').send({ clientId: 'device-b', operations: [syncOperation('op-2', 'stockMovement', 'create', delivery(SECOND, 300), 0)] });
+    return (await asAdmin.get('/api/sync/held')).body.held[0].id;
+  }
+
+  it('tells the school\'s devices a duplicate was discarded, once', async () => {
+    const heldId = await heldDuplicate();
+    const before = (await asStaff.get(`/api/sync/changes?schoolId=${SCHOOL_ID}`)).body;
+
+    await asAdmin.post(`/api/sync/held/${heldId}/discard`);
+    const after = (await asStaff.get(`/api/sync/changes?schoolId=${SCHOOL_ID}&since=${before.cursor}`)).body;
+    const later = (await asStaff.get(`/api/sync/changes?schoolId=${SCHOOL_ID}&since=${after.cursor}`)).body;
+
+    expect(before.heldDecisions).toEqual([]);
+    expect(after.heldDecisions).toEqual([{ operationId: 'op-2', entityType: 'stockMovement', decision: 'discarded', id: SECOND, record: null }]);
+    expect(after.stockMovements).toEqual([]);
+    expect(later.heldDecisions).toEqual([]);
+  });
+
+  it('sends an applied entry with the decision', async () => {
+    const heldId = await heldDuplicate();
+    const before = (await asStaff.get(`/api/sync/changes?schoolId=${SCHOOL_ID}`)).body;
+
+    await asAdmin.post(`/api/sync/held/${heldId}/apply`);
+    const after = (await asStaff.get(`/api/sync/changes?schoolId=${SCHOOL_ID}&since=${before.cursor}`)).body;
+
+    expect(after.heldDecisions).toEqual([expect.objectContaining({ operationId: 'op-2', decision: 'applied', id: SECOND })]);
+    expect(after.stockMovements.map((m) => m.id)).toEqual([SECOND]);
+  });
+});

@@ -445,10 +445,12 @@ CREATE TABLE IF NOT EXISTS held_operations (
     reviewed_by     UUID,
     reviewed_at     TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    -- the transaction that applied or discarded it, so devices download the decision
+    decided_xid     XID8,
     CONSTRAINT held_operations_operation_unique UNIQUE (operation_id),
     CONSTRAINT held_operations_entity_type_check CHECK (entity_type IN ('attendance', 'meal_distribution', 'enrolment', 'daily_feeding', 'stock_movement', 'stock_count')),
     CONSTRAINT held_operations_operation_type_check CHECK (operation_type IN ('create', 'update')),
-    CONSTRAINT held_operations_reason_check CHECK (reason IN ('user_deactivated', 'password_reset', 'device_revoked')),
+    CONSTRAINT held_operations_reason_check CHECK (reason IN ('user_deactivated', 'password_reset', 'device_revoked', 'duplicate_delivery')),
     CONSTRAINT held_operations_status_check CHECK (status IN ('pending', 'applied', 'discarded')),
     CONSTRAINT held_operations_captured_by_fk
         FOREIGN KEY (captured_by) REFERENCES users (id)
@@ -849,6 +851,8 @@ CREATE INDEX IF NOT EXISTS idx_stock_movements_school_date ON stock_movements (s
 CREATE INDEX IF NOT EXISTS idx_stock_movements_change_xid ON stock_movements (change_xid);
 CREATE INDEX IF NOT EXISTS idx_stock_counts_school_date ON stock_counts (school_id, count_date);
 CREATE INDEX IF NOT EXISTS idx_stock_counts_change_xid ON stock_counts (change_xid);
+CREATE INDEX IF NOT EXISTS idx_stock_movements_delivery_note
+    ON stock_movements (school_id, commodity, lower(btrim(reference))) WHERE kind = 'delivery';
 
 DROP TRIGGER IF EXISTS stock_movements_change_xid ON stock_movements;
 CREATE TRIGGER stock_movements_change_xid BEFORE INSERT ON stock_movements
@@ -953,3 +957,5 @@ CREATE TABLE IF NOT EXISTS review_decisions (
 
 CREATE INDEX IF NOT EXISTS idx_review_items_run ON review_items (run_id, rank);
 CREATE INDEX IF NOT EXISTS idx_review_decisions_week ON review_decisions (week_start);
+
+CREATE INDEX IF NOT EXISTS idx_held_operations_decided_xid ON held_operations (decided_xid);

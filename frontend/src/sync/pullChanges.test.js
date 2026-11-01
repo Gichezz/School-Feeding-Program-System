@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import db from '../db/database';
 import { getChanges } from '../services/api';
-import { saveDailyFeeding } from '../services/feedingDb';
+import { addStockMovement, saveDailyFeeding } from '../services/feedingDb';
 import { applyChanges, pullChanges } from './pullChanges';
 
 vi.mock('../services/api', () => ({
@@ -137,5 +137,51 @@ describe('conflicts resolved elsewhere', () => {
 
     expect(await db.syncQueue.get(edit.id)).toMatchObject({ status: 'pending', baseVersion: 1 });
     expect(await db.dailyFeeding.get(local.id)).toMatchObject({ learnersFed: 385, serverId: 'server-day-1', syncStatus: 'pending' });
+  });
+});
+
+describe('decisions on held records', () => {
+  const note = { schoolId: SCHOOL_ID, movementDate: '05-10-2026', commodity: 'cereals', kind: 'delivery', quantityKg: 500, reference: 'DN-2026-114' };
+
+  async function heldEntry() {
+    const entry = await addStockMovement(note);
+    const [op] = await db.syncQueue.toArray();
+    await db.syncQueue.update(op.id, { status: 'held', heldReason: 'duplicate_delivery' });
+    await db.stockMovements.update(entry.id, { syncStatus: 'held' });
+    return { entry, op };
+  }
+
+  it('drops a discarded duplicate delivery, so it leaves the stock balance', async () => {
+    const { entry, op } = await heldEntry();
+
+    await applyChanges(SCHOOL_ID, download({
+      heldDecisions: [{ operationId: op.id, entityType: 'stockMovement', decision: 'discarded', id: entry.id, record: null }],
+    }));
+
+    expect(await db.stockMovements.get(entry.id)).toBeUndefined();
+    expect(await db.syncQueue.get(op.id)).toMatchObject({ status: 'synced', heldDecision: 'discarded' });
+  });
+
+  it('keeps an applied entry as the server sent it', async () => {
+    const { entry, op } = await heldEntry();
+
+    await applyChanges(SCHOOL_ID, download({
+      heldDecisions: [{ operationId: op.id, entityType: 'stockMovement', decision: 'applied', id: entry.id, record: null }],
+      stockMovements: [{ ...note, id: entry.id }],
+    }));
+
+    expect(await db.stockMovements.get(entry.id)).toMatchObject({ quantityKg: 500, syncStatus: 'synced' });
+  });
+
+  it("takes the server's copy of a feeding record whose held change was discarded", async () => {
+    await saveDailyFeeding({ schoolId: SCHOOL_ID, feedingDate: '06-10-2026', feedingHappened: true, learnersFed: 410, cerealsKg: 61.5, pulsesKg: 16.4 });
+    const [op] = await db.syncQueue.toArray();
+    await db.syncQueue.update(op.id, { status: 'held' });
+
+    await applyChanges(SCHOOL_ID, download({
+      heldDecisions: [{ operationId: op.id, entityType: 'dailyFeeding', decision: 'discarded', id: null, record: serverDay }],
+    }));
+
+    expect(await db.dailyFeeding.toArray()).toEqual([expect.objectContaining({ learnersFed: 400, syncStatus: 'synced' })]);
   });
 });

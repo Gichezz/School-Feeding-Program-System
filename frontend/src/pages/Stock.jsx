@@ -266,6 +266,13 @@ function Stock() {
       <PageHeader title="Stock" description="What is in the store, how long it lasts, and every delivery, loss and count." />
       <SchoolGate data={data}>
         <div className="ui-stack">
+          {data.heldDeliveries?.length > 0 && (
+            <Alert tone="info" title={data.heldDeliveries.length === 1 ? '1 delivery is waiting for a decision' : `${data.heldDeliveries.length} deliveries are waiting for a decision`}>
+              {data.heldDeliveries.map((m) => m.reference).join(', ')}: the same delivery note was already recorded on another device,
+              so it is not counted in the store yet. If it really was a second delivery, it is added once your programme office
+              confirms it.
+            </Alert>
+          )}
           <Balances data={data} />
           <MovementForm data={data} />
           <CountForm data={data} />

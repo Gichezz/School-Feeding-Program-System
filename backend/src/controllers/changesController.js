@@ -64,6 +64,9 @@ const TABLES = {
 
 // Conflicts can only be on editable records: database entity type → download list
 const CONFLICT_TYPES = { enrolment: 'enrolment', daily_feeding: 'dailyFeeding' };
+// Held records by database type: the download table they belong to, and the device's sync name
+const HELD_TYPES = { ...CONFLICT_TYPES, stock_movement: 'stockMovements', stock_count: 'stockCounts' };
+const SYNC_NAMES = { enrolment: 'enrolment', daily_feeding: 'dailyFeeding', stock_movement: 'stockMovement', stock_count: 'stockCount' };
 
 function schoolSettings(s) {
   return {
@@ -83,7 +86,7 @@ function schoolSettings(s) {
 /**
  * GET /api/sync/changes?schoolId=&since=
  * → { cursor, school, terms, calendarEvents, enrolment, dailyFeeding, stockMovements, stockCounts,
- *     resolvedConflicts }
+ *     resolvedConflicts, heldDecisions }
  * since: the cursor from the previous download, or 0 (or nothing) for everything.
  */
 async function getChanges(req, res, next) {
@@ -135,6 +138,32 @@ async function getChanges(req, res, next) {
       });
     }
 
+    // Decisions on held records: the device settles its queued copy; after a discard it
+    // drops an entry, or takes the server's copy of an editable record (none if never saved)
+    const heldDecisions = [];
+    const decided = (await client.query(
+      `SELECT operation_id, entity_type, status, payload FROM held_operations
+       WHERE payload->>'schoolId' = $1 AND status IN ('applied', 'discarded')
+         AND decided_xid >= $2::xid8 AND decided_xid < $3::xid8
+       ORDER BY decided_xid`,
+      [schoolId, since, cursor]
+    )).rows;
+    for (const h of decided) {
+      const name = HELD_TYPES[h.entity_type];
+      if (!name) continue;
+      let record = null;
+      if (CONFLICT_TYPES[h.entity_type]) {
+        const keyed = h.entity_type === 'daily_feeding'
+          ? await client.query('SELECT * FROM daily_feeding WHERE school_id = $1 AND feeding_date = $2', [schoolId, String(h.payload.feedingDate).split('-').reverse().join('-')])
+          : await client.query('SELECT * FROM enrolment WHERE school_id = $1 AND term_id = $2 AND class = $3 AND sex = $4',
+            [schoolId, h.payload.termId, h.payload.class, h.payload.sex]);
+        record = keyed.rows[0] ? SHAPES[name](keyed.rows[0]) : null;
+      }
+      heldDecisions.push({
+        operationId: h.operation_id, entityType: SYNC_NAMES[h.entity_type], decision: h.status, id: h.payload.id || null, record,
+      });
+    }
+
     // Reference data is small and always sent whole
     const terms = (await client.query('SELECT * FROM school_terms ORDER BY opens_on')).rows.map((t) => ({
       id: t.id, year: t.year, term: t.term, opensOn: displayDate(t.opens_on), closesOn: displayDate(t.closes_on),
@@ -148,7 +177,7 @@ async function getChanges(req, res, next) {
     }));
 
     await client.query('COMMIT');
-    res.json({ cursor, school: schoolSettings(school), terms, calendarEvents, ...changes, resolvedConflicts });
+    res.json({ cursor, school: schoolSettings(school), terms, calendarEvents, ...changes, resolvedConflicts, heldDecisions });
   } catch (error) {
     await client.query('ROLLBACK').catch(() => {});
     next(error);

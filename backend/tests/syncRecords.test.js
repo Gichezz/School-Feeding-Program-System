@@ -280,3 +280,46 @@ describe('who can send records', () => {
     expect(res.status).toBe(403);
   });
 });
+
+describe('the same delivery note entered twice', () => {
+  const ledgerCereals = async () => Number((await pool.query(
+    "SELECT COALESCE(SUM(quantity_kg), 0) AS kg FROM stock_flows WHERE school_id = $1 AND commodity = 'cereals'", [SCHOOL_ID]
+  )).rows[0].kg);
+
+  it('holds the second entry instead of counting the food twice', async () => {
+    await sync([syncOperation('op-1', 'stockMovement', 'create', delivery(), 0)]);
+
+    // The head teacher's tablet records the same note, with its own entry id
+    const second = await sync([syncOperation('op-2', 'stockMovement', 'create', delivery({ reference: ' dn-2026-114 ' }), 0)], { clientId: 'device-b' });
+
+    expect(second.body.results[0]).toMatchObject({ status: 'held', reason: 'duplicate_delivery' });
+    expect(await ledgerCereals()).toBe(500);
+    const held = (await asAdmin.get('/api/sync/held')).body.held;
+    expect(held).toEqual([expect.objectContaining({ reason: 'duplicate_delivery', reasonText: expect.stringMatching(/same delivery note/) })]);
+  });
+
+  it('accepts the same note for another commodity, and again once the first entry is reversed', async () => {
+    const first = delivery();
+    await sync([syncOperation('op-1', 'stockMovement', 'create', first, 0)]);
+
+    const pulses = await sync([syncOperation('op-2', 'stockMovement', 'create', delivery({ commodity: 'pulses', quantityKg: 120 }), 0)]);
+    const reversal = { id: entryId(), schoolId: SCHOOL_ID, movementDate: '06-10-2026', commodity: 'cereals', kind: 'reversal', quantityKg: 500, reversesId: first.id };
+    await sync([syncOperation('op-3', 'stockMovement', 'create', reversal, 0)]);
+    const corrected = await sync([syncOperation('op-4', 'stockMovement', 'create', delivery({ quantityKg: 450 }), 0)]);
+
+    expect(pulses.body.results[0].status).toBe('synced');
+    expect(corrected.body.results[0].status).toBe('synced');
+    expect(await ledgerCereals()).toBe(450);
+  });
+
+  it('counts a held delivery once an administrator applies it', async () => {
+    await sync([syncOperation('op-1', 'stockMovement', 'create', delivery(), 0)]);
+    await sync([syncOperation('op-2', 'stockMovement', 'create', delivery({ quantityKg: 300 }), 0)], { clientId: 'device-b' });
+    const [held] = (await asAdmin.get('/api/sync/held')).body.held;
+
+    const res = await asAdmin.post(`/api/sync/held/${held.id}/apply`);
+
+    expect(res.status).toBe(200);
+    expect(await ledgerCereals()).toBe(800);
+  });
+});

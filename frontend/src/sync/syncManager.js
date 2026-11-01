@@ -237,6 +237,10 @@ export async function processSyncQueue() {
           // Kept on the server for an administrator to review; stop sending it
           await markOperationHeld(operation.id, result.reason);
           await setStatus(operation.entityType, operation.recordId, 'held').catch(() => {});
+          // A possible second entry of the same delivery note leaves this device's stock balance
+          if (result.reason === 'duplicate_delivery' && operation.entityType === 'stockMovement') {
+            await db.stockMovements.update(operation.recordId, { heldReason: result.reason }).catch(() => {});
+          }
           // The person can no longer sign in offline here until they sign in online
           if (result.capturedBy && (result.reason === 'user_deactivated' || result.reason === 'password_reset')) {
             await forgetOfflineUser(result.capturedBy).catch(() => {});

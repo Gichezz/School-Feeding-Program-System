@@ -321,6 +321,18 @@ describe('records tied to who captured them (#61)', () => {
     expect((await db.attendance.get(saved.id)).syncStatus).toBe('held');
     expect(await db.offlineUsers.get('user-mary')).toBeUndefined();
   });
+
+  it('marks a delivery held as a possible duplicate, so it leaves the stock balance', async () => {
+    const entry = await addStockMovement({
+      schoolId: 'school-1', movementDate: '05-10-2026', commodity: 'cereals', kind: 'delivery', quantityKg: 500, reference: 'DN-2026-114',
+    });
+    const [operation] = await db.syncQueue.toArray();
+    syncOperations.mockResolvedValue(serverResult({ success: false, operationId: operation.id, status: 'held', reason: 'duplicate_delivery' }));
+
+    await processSyncQueue();
+
+    expect(await db.stockMovements.get(entry.id)).toMatchObject({ syncStatus: 'held', heldReason: 'duplicate_delivery' });
+  });
 });
 
 describe('dropped connections and automatic retries (#74)', () => {

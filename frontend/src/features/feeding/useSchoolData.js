@@ -12,6 +12,8 @@ import { DEFAULT_RATION, currentTerm } from './planning';
  *             downloaded) | 'ready'
  *   schoolId, school (settings and ration), ration, terms, events, term (current),
  *   enrolment, feedingDays, movements, counts
+ *   heldDeliveries  entries the server held as a possible second entry of a delivery note;
+ *             left out of movements (and so of every balance) until someone decides
  */
 export function useSchoolData() {
   const [schoolId, setSchoolId] = useState(undefined);
@@ -33,7 +35,11 @@ export function useSchoolData() {
         db.stockMovements.where('schoolId').equals(schoolId).toArray(),
         db.stockCounts.where('schoolId').equals(schoolId).toArray(),
       ]);
-      return { school, terms, events, enrolment, feedingDays, movements, counts };
+      const heldDeliveries = movements.filter((m) => m.heldReason === 'duplicate_delivery' && m.syncStatus === 'held');
+      return {
+        school, terms, events, enrolment, feedingDays, counts, heldDeliveries,
+        movements: movements.filter((m) => !heldDeliveries.includes(m)),
+      };
     }).subscribe({ next: setData, error: () => setData(null) });
     return () => subscription.unsubscribe();
   }, [schoolId]);

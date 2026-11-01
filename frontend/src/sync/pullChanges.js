@@ -15,11 +15,18 @@ import { getChanges } from '../services/api';
  * version, because they were made on top of the values that were kept. After "keep the
  * server's version" or a merge they are sent as they are and come back as a new
  * conflict: a later edit never silently overwrites someone's decision.
+ *
+ * Records the server held for a person to decide (for example the same delivery note
+ * entered on two devices) are settled the same way: once applied, the server's copy
+ * arrives with the download; once discarded, the device drops its stock entry, or takes
+ * the server's copy of an editable record, so a discarded duplicate leaves its stock
+ * balance.
  */
 
 const UNSENT = new Set(['pending', 'conflict', 'held']);
 
 const RECORD_TABLES = { enrolment: 'enrolment', dailyFeeding: 'dailyFeeding' };
+const ENTRY_TABLES = { stockMovement: 'stockMovements', stockCount: 'stockCounts' };
 
 function findByKey(name, r) {
   return name === 'enrolment'
@@ -64,6 +71,34 @@ async function applyResolution(resolved) {
   });
 }
 
+/** Apply one decision on a record the server held. */
+async function applyHeldDecision(decided) {
+  const operation = await db.syncQueue.get(decided.operationId);
+  if (operation) await db.syncQueue.update(operation.id, { status: 'synced', heldDecision: decided.decision });
+
+  const entryTable = ENTRY_TABLES[decided.entityType];
+  if (entryTable) {
+    // An applied entry arrives with this download; a discarded one never counted on the server
+    if (decided.decision === 'discarded' && decided.id) await db[entryTable].delete(decided.id);
+    return;
+  }
+  const table = RECORD_TABLES[decided.entityType];
+  if (!table || operation?.recordId === undefined) return;
+  const local = await db[table].get(operation.recordId);
+  if (!local) return;
+  const stillWaiting = (await db.syncQueue.where('recordId').equals(local.id).toArray())
+    .some((op) => op.entityType === decided.entityType && op.status === 'pending');
+  if (stillWaiting) return;
+  if (decided.decision === 'applied') {
+    // Free the local copy so the downloaded server copy replaces it
+    await db[table].update(local.id, { syncStatus: 'synced' });
+  } else if (decided.record) {
+    await db[table].put({ ...local, ...decided.record, id: local.id, syncStatus: 'synced' });
+  } else {
+    await db[table].delete(local.id);
+  }
+}
+
 /**
  * Store a downloaded editable record. Matches by server id, then by its key, so a record
  * this device created before it synced is recognised.
@@ -98,6 +133,7 @@ export async function applyChanges(schoolId, changes) {
 
       // Decisions first, so records released from a conflict take the downloaded copy
       for (const resolved of changes.resolvedConflicts || []) await applyResolution(resolved);
+      for (const decided of changes.heldDecisions || []) await applyHeldDecision(decided);
 
       for (const row of changes.enrolment) await storeVersioned('enrolment', row, (r) => findByKey('enrolment', r));
       for (const row of changes.dailyFeeding) await storeVersioned('dailyFeeding', row, (r) => findByKey('dailyFeeding', r));

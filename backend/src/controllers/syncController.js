@@ -204,9 +204,13 @@ async function syncOperations(req, res, next) {
           'SELECT reason FROM held_operations WHERE operation_id = $1',
           [operation.id]
         )).rows[0];
-        const decision = alreadyHeld
+        let decision = alreadyHeld
           ? { action: 'hold', reason: alreadyHeld.reason }
           : await decideCapture(client, operation, req.user);
+        // The same delivery note entered on two devices would count the food twice
+        if (decision.action === 'apply' && await isDuplicateDelivery(client, operation)) {
+          decision = { action: 'hold', reason: 'duplicate_delivery', capture: decision.capture };
+        }
         if (decision.action === 'defer') {
           await client.query('COMMIT');
           results.push({ success: false, operationId: operation.id, status: 'deferred', message: 'Waiting for the person who captured it to sync' });
@@ -791,6 +795,26 @@ function mergedPayload(conflict, values) {
   const invalid = RECORD_TYPES[type] ? RECORD_TYPES[type].validate(payload) : syncPayloadError(type, payload);
   if (invalid) throw new ValidationError(invalid);
   return payload;
+}
+
+/**
+ * A new delivery with the same school, commodity and delivery note as a delivery already
+ * on the server that has not been reversed. Correcting a delivery (reverse it, enter it
+ * again) reuses the note, so only an entry still counting in the ledger matches.
+ */
+async function isDuplicateDelivery(client, operation) {
+  const p = operation.payload || {};
+  if (operation.entityType !== 'stockMovement' || operation.operation !== 'create' || p.kind !== 'delivery') return false;
+  if (typeof p.reference !== 'string' || !p.reference.trim()) return false;
+  const found = await client.query(
+    `SELECT 1 FROM stock_movements m
+     WHERE m.school_id = $1 AND m.commodity = $2 AND m.kind = 'delivery'
+       AND lower(btrim(m.reference)) = lower(btrim($3)) AND m.id::text <> $4
+       AND NOT EXISTS (SELECT 1 FROM stock_movements r WHERE r.reverses_id = m.id)
+     LIMIT 1`,
+    [p.schoolId, p.commodity, p.reference, String(p.id)]
+  );
+  return found.rows.length > 0;
 }
 
 /**

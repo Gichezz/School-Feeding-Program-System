@@ -113,7 +113,7 @@ async function applyHeld(req, res, next) {
     // A duplicate of a record already on the server keeps the original's details (#70)
     if (!result.duplicate) await afterSave(client, operation, result, { capture, late });
     await client.query(
-      "UPDATE held_operations SET status = 'applied', reviewed_by = $2, reviewed_at = NOW() WHERE id = $1",
+      "UPDATE held_operations SET status = 'applied', reviewed_by = $2, reviewed_at = NOW(), decided_xid = pg_current_xact_id() WHERE id = $1",
       [held.id, req.user.id]
     );
     await client.query('COMMIT');
@@ -133,7 +133,7 @@ async function discardHeld(req, res, next) {
   try {
     if (!isUuid(req.params.id)) return res.status(404).json({ error: 'Held record not found' });
     const result = await pool.query(
-      `UPDATE held_operations SET status = 'discarded', reviewed_by = $2, reviewed_at = NOW()
+      `UPDATE held_operations SET status = 'discarded', reviewed_by = $2, reviewed_at = NOW(), decided_xid = pg_current_xact_id()
        WHERE id = $1 AND status = 'pending' RETURNING id`,
       [req.params.id, req.user.id]
     );
