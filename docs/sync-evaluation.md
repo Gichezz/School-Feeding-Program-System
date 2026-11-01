@@ -74,6 +74,27 @@ Every real conflict was caught in both runs, and no record was ever overwritten:
 1. **A record could be stranded on a flaky connection** (fixed in #74). A request that never got a response counted as a failed attempt; after 3 the operation was marked failed and never sent again, although the Sync Status page said failed records were retried automatically. The app also did not retry on its own while online. Now a dropped connection (or a gateway error while the server restarts) does not count as an attempt, the app keeps retrying on the schedule in section 1 while records are waiting, and it also syncs when it is opened or comes back into view. Records that older versions marked failed because of the connection are put back in the queue.
 2. **Identical changes were reported as conflicts** (fixed in #74). A change based on an older version whose numbers already match the server's is now treated as the same record: it syncs without a conflict and without a new version. Different numbers are still a conflict.
 
+## 5a. Version 2: the school records (plan, written before it was run)
+
+Version 1 covers attendance and meals. The system now records daily feeding and termly enrolment (editable, versioned) and a stock ledger of deliveries, losses and counts (append-only), and school devices download each other's records. Version 2 adds two scenarios on these, with the same devices, network profiles, timings and server checks as above. Version 1's scenarios are run again unchanged.
+
+**Scenario 6: one school, two devices, a week offline (success rate, convergence, duplicate delivery).** A kitchen tablet records 10 school days of daily feeding and one store count; the office phone records the term's enrolment (4 classes × girls and boys), two deliveries (cereals and pulses, one delivery note) and one loss. The kitchen tablet also records the cereals delivery from the same delivery note, as happens when the cook and the head teacher both enter it. Both are offline, then reconnect on the flaky profile. Once the automatic sync has finished, an administrator discards the held duplicate and both devices sync again. Run with the good and the flaky profile.
+
+| Check | Correct answer |
+|---|---|
+| Each record on the server | exactly once, with the device's values (21 records) |
+| The second entry of the delivery note | held as a possible duplicate, never in the ledger |
+| Each device after its next download | the same feeding days, enrolment, stock entries and cereal balance as the server |
+
+**Scenario 7: conflicts on daily feeding and enrolment, resolved by the programme officer (accuracy, convergence).** Devices A and B, A syncing first, as in scenario 4, on daily feeding (all five cases) and enrolment (the same class and sex, different counts; and the same counts), 3 repetitions each. Afterwards the programme officer resolves every conflict from the server's list (keeping the server's version) and both devices sync again.
+
+| Check | Correct answer |
+|---|---|
+| B's changes | a conflict exactly where the two versions differ |
+| Each device after resolution and a download | no unresolved conflict left, and its records equal the server's |
+
+**New metric: convergence**, the share of devices whose records (and cereal balance) equal the server's after their next download. Offline-first only works if every device at a school ends up with the same numbers as the server, so this is reported next to the success rate.
+
 ## 6. Running it
 
 ```bash
