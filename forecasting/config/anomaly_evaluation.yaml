@@ -17,6 +17,10 @@ changes_from_version_5:
     feeding, the median that fills uptake, and the daily use that turns a store-count gap
     into days of food. Each now uses only records before the day it describes, as the
     deployed service can.
+  - Clarified before running - "before the day" means nothing later than the day. The
+    day's own records are included (other schools' feeding on the same day, the school's
+    own figures), because a week is scored after it ends, when they are all known; this
+    also lets the first closing day of a year be compared with other schools that day.
   - A validation period. Models are fitted on 2024; settings and the threshold quantile
     are chosen on 2025 (tuning-type labels only); the chosen settings are refitted on
     2024-2025 and flag at the same quantile of their 2025 scores; 2026 is tested once.
