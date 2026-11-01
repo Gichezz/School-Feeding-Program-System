@@ -7,7 +7,30 @@
 # Version 2, committed before it was run. Version 1 (in git history) left out records
 # the app collects and the problem behind Kenya's capitation audit, so version 2 adds
 # them and its results supersede version 1's. Version 1's results stay in git history.
-version: 5
+version: 6
+changes_from_version_5:
+  - From the audit of version 5 (docs/anomaly-model-audit.md), written after its results
+    and after exploratory checks on the same data, so recorded as a deviation. Each change
+    answers one finding; none is chosen for its effect on a result.
+  - No future records in any feature. Four statistics were computed over all rows given:
+    the effect of each kind of day, the school median that fills fed_rate on days without
+    feeding, the median that fills uptake, and the daily use that turns a store-count gap
+    into days of food. Each now uses only records before the day it describes, as the
+    deployed service can.
+  - A validation period. Models are fitted on 2024; settings and the threshold quantile
+    are chosen on 2025 (tuning-type labels only); the chosen settings are refitted on
+    2024-2025 and flag at the same quantile of their 2025 scores; 2026 is tested once.
+    Version 5 fitted and chose on the same years.
+  - Equal, wider grids: six settings for every learned method (below). The one-class SVM
+    now also tries a smaller gamma (0.3 x scale).
+  - SGDOneClassSVM (a linear one-class SVM on a Nystroem approximation of the same RBF
+    kernel) joins the candidates: its cost grows linearly with the rows, the audit's
+    answer if one model is ever fitted on far more records.
+  - Food issued is recorded to the nearest 0.5 kg, which is a bigger share of a small
+    school's pulses than a large school's; cereal_ratio and pulse_ratio now ignore a
+    difference smaller than that rounding (0.25 kg), so rounding is not read as unusual.
+  - Periods, held-out types, features, metric and decision rule are otherwise unchanged.
+    Version 6 supersedes version 5's results, which stay in git history.
 changes_from_version_4:
   - Found when the deployed review list was first run on a sub-county (after version 4's
     results were known, so recorded here as a deviation). In the last week of the school
@@ -77,6 +100,9 @@ data:
   # type, including the held-out types, which no method or threshold ever sees before
   # the single test run.
   tuning_period: {start: 2024-01-01, end: 2025-12-31}
+  # Within it: models fitted on the first year, settings and thresholds chosen on the second
+  fit_period: {start: 2024-01-01, end: 2024-12-31}
+  selection_period: {start: 2025-01-01, end: 2025-12-31}
   test_period: {start: 2026-01-01, end: 2026-10-31}
 
 anomaly_types:
@@ -117,16 +143,19 @@ methods:
   - extended_isolation_forest # tree / isolation, splits on combinations of features
   - one_class_svm             # boundary / kernel
   - local_outlier_factor      # density
+  - sgd_one_class_svm         # boundary / kernel, linear-time approximation
 
 tuning:
-  # Each learning method gets the same small, fixed grid and the same features.
-  # The flag threshold is the score quantile that maximises F1 on the tuning period,
-  # using tuning-type labels only.
-  isolation_forest: {n_estimators: [100, 300], max_samples: [256, 1024]}
+  # Each learning method gets a fixed grid of six settings and the same features. The
+  # flag threshold is the score quantile that maximises F1 on the selection period, using
+  # tuning-type labels only.
+  isolation_forest: {n_estimators: [100, 300, 500], max_samples: [256, 1024]}
   # ndim: features combined in each split (2, or all 15 for the fully extended version)
-  extended_isolation_forest: {n_estimators: [100, 300], ndim: [2, 15]}
-  local_outlier_factor: {n_neighbors: [20, 50]}
-  one_class_svm: {nu: [0.02, 0.05], gamma: [scale]}
+  extended_isolation_forest: {n_estimators: [100, 300, 500], ndim: [2, 15]}
+  local_outlier_factor: {n_neighbors: [10, 20, 35, 50, 75, 100]}
+  # gamma_factor: gamma as a multiple of scikit-learn's "scale" (1 / (features x variance))
+  one_class_svm: {nu: [0.02, 0.05, 0.1], gamma_factor: [0.3, 1.0]}
+  sgd_one_class_svm: {nu: [0.02, 0.05, 0.1], n_components: [100, 300]}
   robust_zscore: {history_days: [40, 80]}
 
   rules: {}                   # thresholds fixed by programme logic, not tuned

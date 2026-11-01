@@ -32,7 +32,7 @@ deployment:
   exclude_follow_up_from_training: true
   scored_period: {start: 2025-01-06, end: 2026-10-23}
 
-methods: [rules, isolation_forest, extended_isolation_forest, one_class_svm, local_outlier_factor]
+methods: [rules, isolation_forest, extended_isolation_forest, one_class_svm, local_outlier_factor, sgd_one_class_svm]
 
 metrics:
   - precision_at_k                     # share of listed school-weeks with a real problem
@@ -44,6 +44,16 @@ metrics:
   # By kind of week: weeks holding the last day of the school year, weeks holding the
   # first day, and all other weeks - each with its own best-possible precision
   - precision_at_k_by_week_type
+  # Added with protocol version 6, before its run: who gets listed for nothing. For school
+  # size (thirds by enrolment) and programme type, each group's share of the listed
+  # school-weeks that contain no problem, against its share of ordinary school-weeks
+  - ordinary_listings_by_group
+
+fairness_check: >
+  Reported for the recommended method. A group is over-listed if its share of listed
+  ordinary school-weeks is more than 1.5 times its share of ordinary school-weeks. If any
+  group is, the report says so and the weekly list's documentation states it as a known
+  bias; it does not change the method chosen.
 
 week_type_check: >
   Reported for the recommended method under version 4's features and version 5's. The
