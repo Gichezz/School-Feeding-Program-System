@@ -904,7 +904,8 @@ CREATE TABLE IF NOT EXISTS review_runs (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     sub_county      TEXT NOT NULL,
     week_start      DATE NOT NULL,
-    -- one_class_svm, or rules_only while a sub-county has little history
+    -- extended_isolation_forest (one_class_svm for runs before migration 015), or
+    -- rules_only while a sub-county has little history
     mode            TEXT NOT NULL,
     model           JSONB,
     k               INTEGER NOT NULL,
@@ -913,7 +914,7 @@ CREATE TABLE IF NOT EXISTS review_runs (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT review_runs_unique UNIQUE (sub_county, week_start),
     CONSTRAINT review_runs_monday CHECK (EXTRACT(ISODOW FROM week_start) = 1),
-    CONSTRAINT review_runs_mode_check CHECK (mode IN ('one_class_svm', 'rules_only', 'no_records')),
+    CONSTRAINT review_runs_mode_check CHECK (mode IN ('extended_isolation_forest', 'one_class_svm', 'rules_only', 'no_records')),
     CONSTRAINT review_runs_k_positive CHECK (k > 0),
     CONSTRAINT review_runs_created_by_fk FOREIGN KEY (created_by) REFERENCES users (id)
         ON UPDATE CASCADE ON DELETE SET NULL

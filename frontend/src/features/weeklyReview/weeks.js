@@ -31,6 +31,8 @@ export const DECISIONS = {
 };
 
 export const MODES = {
+  extended_isolation_forest: 'Ranked by Extended Isolation Forest, trained on the sub-county’s previous 125 school days (about two terms). The fixed checks run alongside.',
+  // Weeks scored before the switch to Extended Isolation Forest (protocol version 6)
   one_class_svm: 'Ranked by the one-class SVM, trained on the sub-county’s previous 125 school days (about two terms). The fixed checks run alongside.',
   rules_only: 'Ranked by the fixed checks only: the sub-county has fewer than 60 school days of records, too few to learn what is usual.',
   no_records: 'No feeding records have synced for this week yet.',

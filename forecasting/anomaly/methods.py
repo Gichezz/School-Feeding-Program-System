@@ -171,7 +171,7 @@ class ExtendedIsolationForestMethod(_Learned):
         self.random_state = random_state
 
     def _fit(self, x):
-        # Evaluation only; the production service does not install isotree
+        # Imported when fitted, so the benchmark methods run without isotree installed
         from isotree import IsolationForest as IsoTreeForest
 
         self.model = IsoTreeForest(ntrees=self.n_estimators, ndim=min(self.ndim, x.shape[1]),

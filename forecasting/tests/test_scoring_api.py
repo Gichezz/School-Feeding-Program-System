@@ -70,7 +70,7 @@ def body_for(dataset, sub_county, week_start, since="2024-01-01", follow_up=()):
 
 
 def test_health(client):
-    assert client.get("/health").get_json() == {"status": "ok", "service": "school-feeding-scoring", "method": "one_class_svm"}
+    assert client.get("/health").get_json() == {"status": "ok", "service": "school-feeding-scoring", "method": "extended_isolation_forest"}
 
 
 def test_ranks_every_school_lists_the_top_three_and_explains_each(client, dataset):
@@ -78,7 +78,7 @@ def test_ranks_every_school_lists_the_top_three_and_explains_each(client, datase
 
     body = res.get_json()
     assert res.status_code == 200
-    assert body["mode"] == "one_class_svm"
+    assert body["mode"] == "extended_isolation_forest"
     assert len(body["items"]) == 6
     assert [i["rank"] for i in body["items"]] == [1, 2, 3, 4, 5, 6]
     assert [i["listed"] for i in body["items"]] == [True] * 3 + [False] * 3

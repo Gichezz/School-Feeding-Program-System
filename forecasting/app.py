@@ -11,7 +11,7 @@ import os
 from flask import Flask, jsonify, request
 from werkzeug.exceptions import HTTPException
 
-from services.scoring_service import ScoringError, score_week
+from services.scoring_service import METHOD, ScoringError, score_week
 
 
 def create_app():
@@ -21,7 +21,7 @@ def create_app():
 
     @app.get("/health")
     def health():
-        return jsonify({"status": "ok", "service": "school-feeding-scoring", "method": "one_class_svm"})
+        return jsonify({"status": "ok", "service": "school-feeding-scoring", "method": METHOD})
 
     @app.post("/score")
     def score():

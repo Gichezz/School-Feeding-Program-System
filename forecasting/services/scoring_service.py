@@ -5,9 +5,10 @@ Weekly review scoring for one sub-county, as evaluated in the deployment-matchin
 The backend sends the sub-county's records; nothing is stored here and the database is
 never read. For the week requested:
 
-  1. The model is the one-class SVM fitted on the sub-county's last 125 school days before
-     the most recent refit point. Refit points fall every 20 school days, so the model only
-     changes about monthly, as tested, without any model having to be saved.
+  1. The model is Extended Isolation Forest fitted on the sub-county's last 125 school days
+     before the most recent refit point (the one-class SVM is kept as a benchmark in the
+     evaluation). Refit points fall every 20 school days, so the model only changes about
+     monthly, as tested, without any model having to be saved.
   2. School-weeks an officer marked follow-up are left out of the fit.
   3. The week's school-days are scored; each school's week takes its highest day.
   4. Every school is returned in rank order, the top k marked as the week's list, each
@@ -15,20 +16,25 @@ never read. For the week requested:
      day, whatever the ranking.
   5. A sub-county with fewer than 60 school days of history is ranked by the rules alone.
 
-Settings are those chosen in the evaluation (protocol version 5) and stay fixed.
+The method and its settings are those chosen in protocol version 6 (Extended Isolation
+Forest led all three studies; docs/anomaly-detection.md) and stay fixed.
 """
 
 import datetime as dt
 
+# Imported here so a missing or broken isotree stops the service at start-up (and its
+# health check), instead of failing the first weekly list
+import isotree  # noqa: F401
 import numpy as np
 import pandas as pd
 
 from anomaly.calendar import school_days
 from anomaly.explain import describe, explain
 from anomaly.features import build_features
-from anomaly.methods import OneClassSVMMethod, Rules
+from anomaly.methods import ExtendedIsolationForestMethod, Rules
 
-SETTINGS = {"nu": 0.05, "gamma": "scale"}
+METHOD = "extended_isolation_forest"
+SETTINGS = {"n_estimators": 300, "ndim": 2}
 REFIT_EVERY = 20
 WINDOW = 125
 MIN_HISTORY = 60
@@ -114,10 +120,10 @@ def score_week(body):
     rule_scores = rules.score(week)
     model_info = None
     if history.day_index.nunique() >= MIN_HISTORY:
-        model = OneClassSVMMethod(**SETTINGS, random_state=0).fit(history)
+        model = ExtendedIsolationForestMethod(**SETTINGS, random_state=0).fit(history)
         scores = model.score(week)
-        mode = "one_class_svm"
-        model_info = {"method": "one_class_svm", "settings": SETTINGS, "fitted_on_rows": int(len(history)),
+        mode = METHOD
+        model_info = {"method": METHOD, "settings": SETTINGS, "fitted_on_rows": int(len(history)),
                       "window_school_days": int(history.day_index.nunique()),
                       "refit_point": str(pd.Timestamp(calendar.date.iloc[anchor]).date()) if anchor < len(calendar) else None}
     else:
