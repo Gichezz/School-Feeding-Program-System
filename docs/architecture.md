@@ -21,8 +21,8 @@ Pipeline: **offline capture → sync → descriptive analytics → anomaly scori
 | Role | Works on | Can |
 |---|---|---|
 | `school_staff` | A school device, signed in with the device and a PIN | Record and sync for their own school, offline included |
-| `programme_officer` | A laptop, online | See every school in their sub-county: analytics, the weekly review list (and mark each listed school explained or follow-up), and resolve conflicts |
-| `admin` | A laptop, online | Everything, for every sub-county; users, devices, held records and record review |
+| `programme_officer` | A laptop, online | See every school in their sub-county: analytics, the weekly review list (and mark each listed school explained or follow-up), and resolve conflicts and held records |
+| `admin` | A laptop, online | Everything, for every sub-county; users, devices and record review |
 
 ## Data
 
@@ -83,7 +83,7 @@ A conflict happens on a school's device; the programme officer for that school's
 
 The server refuses a decision if the record changed again since the conflict was recorded, so a decision is always made on current data. Every decision is a new version in the record's history, with the person's name; earlier versions are kept. The school's devices get the decision with their next download.
 
-Held records (possible duplicate deliveries, records from deactivated users or removed devices) wait under Conflicts → Held records for an administrator to apply, keeping the original author, or discard.
+Held records (possible duplicate deliveries, records from deactivated users or removed devices) wait under Conflicts → Held records for the school's programme officer (or an administrator) to apply, keeping the original author, or discard. The school's devices get the decision with their next download.
 
 ## Monitoring
 
