@@ -68,4 +68,14 @@ async function requestScores(body) {
   return result;
 }
 
-module.exports = { requestScores, ScoringServiceUnavailableError, ScoringServiceBadResponseError };
+/** Whether the scoring service answers its health check, within a short wait. */
+async function scoringServiceReachable(timeoutMs = 2000) {
+  try {
+    const response = await fetch(`${getServiceUrl()}/health`, { signal: AbortSignal.timeout(timeoutMs) });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+module.exports = { requestScores, scoringServiceReachable, ScoringServiceUnavailableError, ScoringServiceBadResponseError };

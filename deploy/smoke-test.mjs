@@ -2,7 +2,7 @@
 /**
  * Smoke test for a running Lishe deployment (Docker Compose locally, or the public server).
  * It checks that the web app is served, then signs in and goes through the main flows:
- * recording online, a record captured offline and synced later, and a forecast.
+ * recording online, a record captured offline and synced later, and the scoring service.
  *
  *   BASE_URL=http://localhost:8080 SMOKE_EMAIL=... SMOKE_PASSWORD=... node deploy/smoke-test.mjs
  *
@@ -130,13 +130,10 @@ async function main() {
     );
   }
 
-  console.log('Forecast');
-  const forecast = await request(`/api/forecasts?school_id=${school.id}&horizon_days=7`, { token });
-  check(
-    forecast.status === 200 && forecast.data.source === 'live' && Array.isArray(forecast.data.forecast) && forecast.data.forecast.length > 0,
-    'returns a live forecast from the forecasting service',
-    JSON.stringify(forecast.data).slice(0, 300)
-  );
+  // Checked through the API, which is the only thing that calls it; scoring a real week
+  // would write a review list on a live server
+  console.log('Scoring service');
+  check(health.data.scoring === 'reachable', 'the API reaches the scoring service for the weekly review list', JSON.stringify(health.data));
 }
 
 main()

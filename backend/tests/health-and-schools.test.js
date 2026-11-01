@@ -14,6 +14,19 @@ describe('GET /api/health', () => {
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ status: 'ok', database: 'connected' });
   });
+
+  it('says whether the scoring service answers, without failing when it does not', async () => {
+    const realFetch = global.fetch;
+    global.fetch = jest.fn().mockRejectedValue(new Error('connect ECONNREFUSED'));
+    try {
+      const res = await asAdmin.get('/api/health');
+
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({ status: 'ok', scoring: 'unreachable' });
+    } finally {
+      global.fetch = realFetch;
+    }
+  });
 });
 
 describe('unknown routes', () => {
