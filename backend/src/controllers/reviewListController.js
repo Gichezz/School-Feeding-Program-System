@@ -5,6 +5,7 @@ const { isUuid, isDisplayDate } = require('../validation/records');
 const { localDate } = require('../validation/entryWindow');
 const { reviewInputs } = require('../services/reviewInputs');
 const { requestScores } = require('../services/scoringClient');
+const { subCountyFor } = require('../services/schoolAccess');
 
 /**
  * Weekly review lists for programme officers: each week the schools of a sub-county are
@@ -28,17 +29,6 @@ function parseWeek(value) {
   if (new Date(`${weekStart}T00:00:00Z`).getUTCDay() !== 1) throw new ValidationError('week must be a Monday');
   if (weekStart > localDate(clock.now())) throw new ValidationError('That week has not started yet');
   return weekStart;
-}
-
-/** Officers see their own sub-county; administrators name one. */
-function subCountyFor(user, requested) {
-  if (user.role === 'programme_officer') {
-    if (!user.subCounty) throw new ValidationError('Your account has no sub-county');
-    if (requested && requested !== user.subCounty) throw new NotFoundError('Sub-county not found');
-    return user.subCounty;
-  }
-  if (typeof requested !== 'string' || !requested.trim()) throw new ValidationError('subCounty is required');
-  return requested.trim();
 }
 
 function parseK(value) {

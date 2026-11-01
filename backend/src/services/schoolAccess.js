@@ -12,4 +12,17 @@ async function visibleSchool(db, user, schoolId) {
   return school.id === user.schoolId ? school : null;
 }
 
-module.exports = { visibleSchool };
+const { ValidationError, NotFoundError } = require('../utils/errors');
+
+/** The sub-county a sub-county view shows: an officer's own; administrators name one. */
+function subCountyFor(user, requested) {
+  if (user.role === 'programme_officer') {
+    if (!user.subCounty) throw new ValidationError('Your account has no sub-county');
+    if (requested && requested !== user.subCounty) throw new NotFoundError('Sub-county not found');
+    return user.subCounty;
+  }
+  if (typeof requested !== 'string' || !requested.trim()) throw new ValidationError('subCounty is required');
+  return requested.trim();
+}
+
+module.exports = { visibleSchool, subCountyFor };

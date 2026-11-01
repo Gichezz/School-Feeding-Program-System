@@ -7,6 +7,7 @@ const mealsRoutes = require('./routes/mealsRoutes');
 const syncRoutes = require('./routes/syncRoutes');
 const reportsRoutes = require('./routes/reportsRoutes');
 const reviewListRoutes = require('./routes/reviewListRoutes');
+const analyticsRoutes = require('./routes/analyticsRoutes');
 const authRoutes = require('./routes/authRoutes');
 const usersRoutes = require('./routes/usersRoutes');
 const devicesRoutes = require('./routes/devicesRoutes');
@@ -42,6 +43,7 @@ app.use('/api/meals', mealsRoutes);
 app.use('/api/sync', syncRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/review-lists', reviewListRoutes);
+app.use('/api/analytics', analyticsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/review', reviewRoutes);
 

@@ -9,6 +9,7 @@ import {
   GitCompareArrows,
   Flag,
   ListChecks,
+  PieChart,
   Settings,
 } from 'lucide-react';
 
@@ -40,6 +41,7 @@ export const NAV_GROUPS = [
   {
     label: 'Insights',
     items: [
+      { to: '/analytics', label: 'Analytics', icon: PieChart, oversight: true },
       { to: '/weekly-review', label: 'Weekly review', shortLabel: 'Weekly', icon: ListChecks, oversight: true },
       { to: '/reports', label: 'Reports', icon: BarChart3, notStaff: true },
     ],

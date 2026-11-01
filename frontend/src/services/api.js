@@ -175,6 +175,15 @@ export async function decideReviewItem(week, schoolId, { status, note }) {
 }
 
 /**
+ * Term analytics for a sub-county (officers see their own; administrators name one)
+ * params: subCounty, termId (default: the term running today)
+ */
+export async function getTermAnalytics(params = {}) {
+  const query = new URLSearchParams(params).toString();
+  return apiRequest(`/analytics/term${query ? `?${query}` : ''}`);
+}
+
+/**
  * Reports API
  */
 export async function getDashboardSummary(params = {}) {
