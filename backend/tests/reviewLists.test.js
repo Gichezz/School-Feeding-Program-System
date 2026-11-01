@@ -39,8 +39,8 @@ async function addFeeding(schoolId, date, { fed = 400, cereals = 60, capturedAt 
 function scores(items, extra = {}) {
   return {
     week_start: '2026-10-05',
-    mode: 'one_class_svm',
-    model: { method: 'one_class_svm', settings: { nu: 0.05, gamma: 'scale' }, fitted_on_rows: 480 },
+    mode: 'extended_isolation_forest',
+    model: { method: 'extended_isolation_forest', settings: { n_estimators: 300, ndim: 2 }, fitted_on_rows: 480 },
     k: 1,
     items: items.map((schoolId, i) => ({
       school_id: schoolId, score: 2 - i, top_date: '2026-10-06', reasons: ['learners fed against similar schools nearby that day'],
@@ -98,7 +98,7 @@ describe('scoring a week', () => {
     const res = await asOfficer.get('/api/review-lists/05-10-2026');
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual(expect.objectContaining({ subCounty: SUB_COUNTY, week: '05-10-2026', mode: 'one_class_svm', k: 1, scoredBy: USERS.officer.name }));
+    expect(res.body).toEqual(expect.objectContaining({ subCounty: SUB_COUNTY, week: '05-10-2026', mode: 'extended_isolation_forest', k: 1, scoredBy: USERS.officer.name }));
     expect(res.body.items).toEqual([
       expect.objectContaining({ schoolId: SCHOOL_ID, schoolName: 'Demo Primary School', rank: 1, listed: true, topDate: '06-10-2026', decision: null }),
       expect.objectContaining({ schoolId: OTHER_SCHOOL_ID, rank: 2, listed: false }),
@@ -119,6 +119,21 @@ describe('scoring a week', () => {
     expect(res.body.items.map((i) => i.schoolId)).toEqual([OTHER_SCHOOL_ID, SCHOOL_ID]);
     expect(res.body.items[1].decision).toEqual(expect.objectContaining({ status: 'explained', note: 'Sports day; visitors were fed' }));
     expect((await pool.query('SELECT COUNT(*)::int AS n FROM review_runs')).rows[0].n).toBe(1);
+  });
+
+  it("shows a school listed again with the officer's earlier decision on it", async () => {
+    requestScores.mockResolvedValue(scores([SCHOOL_ID, OTHER_SCHOOL_ID]));
+    await asOfficer.post('/api/review-lists/28-09-2026/run').send({ k: 1 });
+    await asOfficer.put(`/api/review-lists/28-09-2026/decisions/${SCHOOL_ID}`).send({ status: 'explained', note: 'Enrolment rose with a new class' });
+
+    await asOfficer.post('/api/review-lists/05-10-2026/run').send({ k: 1 });
+    const res = await asOfficer.get('/api/review-lists/05-10-2026');
+
+    expect(res.body.items[0]).toMatchObject({
+      schoolId: SCHOOL_ID, listedLastWeek: true,
+      earlierDecision: { week: '28-09-2026', status: 'explained', note: 'Enrolment rose with a new class' },
+    });
+    expect(res.body.items[1]).toMatchObject({ listedLastWeek: false, earlierDecision: null });
   });
 
   it('lists scored weeks with how many listed schools are decided', async () => {

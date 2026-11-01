@@ -93,9 +93,19 @@ function ListedSchool({ item, week, canDecide, onSaved }) {
               <Badge tone={decision ? decision.tone : 'neutral'}>{decision ? decision.label : 'To review'}</Badge>
             </h2>
             <p className="review__detail">{item.explanation}</p>
-            <p className="review__record">Most unusual day: {item.topDate}</p>
+            <p className="review__record">
+              Most unusual day: {item.topDate}
+              {item.listedLastWeek && ' · also listed last week'}
+            </p>
           </div>
         </div>
+
+        {!item.decision && item.earlierDecision && (
+          <p className="review__note">
+            {DECISIONS[item.earlierDecision.status].label} for the week of {item.earlierDecision.week}: {item.earlierDecision.note}.
+            If the same reasons still apply, the same note may do.
+          </p>
+        )}
 
         {item.decision && !editing && (
           <p className="review__note">

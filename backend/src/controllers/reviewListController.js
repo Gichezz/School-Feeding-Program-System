@@ -49,14 +49,25 @@ async function loadRun(db, subCounty, weekStart) {
 
   const items = await db.query(
     `SELECT i.school_id, s.name AS school_name, i.rank, i.listed, i.score, to_char(i.top_date, 'YYYY-MM-DD') AS top_date,
-            i.reasons, i.explanation, d.status, d.note, d.reviewed_at, u.name AS reviewed_by_name
+            i.reasons, i.explanation, d.status, d.note, d.reviewed_at, u.name AS reviewed_by_name,
+            to_char(e.week_start, 'YYYY-MM-DD') AS earlier_week, e.status AS earlier_status, e.note AS earlier_note,
+            EXISTS (SELECT 1 FROM review_runs pr JOIN review_items pi ON pi.run_id = pr.id
+                    WHERE pr.sub_county = $3 AND pr.week_start = $2::date - 7 AND pi.school_id = i.school_id AND pi.listed)
+              AS listed_last_week
      FROM review_items i
      JOIN schools s ON s.id = i.school_id
      LEFT JOIN review_decisions d ON d.school_id = i.school_id AND d.week_start = $2
      LEFT JOIN users u ON u.id = d.reviewed_by
+     -- The officer's latest decision on this school in the four weeks before: a school can
+     -- stay near the top for weeks for the same reason, and this saves starting over
+     LEFT JOIN LATERAL (
+       SELECT ed.week_start, ed.status, ed.note FROM review_decisions ed
+       WHERE ed.school_id = i.school_id AND ed.week_start < $2 AND ed.week_start >= $2::date - 28
+       ORDER BY ed.week_start DESC LIMIT 1
+     ) e ON true
      WHERE i.run_id = $1
      ORDER BY i.rank`,
-    [run.id, weekStart]
+    [run.id, weekStart, subCounty]
   );
   const names = Object.fromEntries(items.rows.map((i) => [i.school_id, i.school_name]));
 
@@ -79,6 +90,10 @@ async function loadRun(db, subCounty, weekStart) {
       explanation: i.explanation,
       decision: i.status
         ? { status: i.status, note: i.note, reviewedBy: i.reviewed_by_name, reviewedAt: i.reviewed_at }
+        : null,
+      listedLastWeek: i.listed_last_week,
+      earlierDecision: i.earlier_status
+        ? { week: toDisplay(i.earlier_week), status: i.earlier_status, note: i.earlier_note }
         : null,
     })),
     ruleBreaches: run.rule_breaches.map((b) => ({
