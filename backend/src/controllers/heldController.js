@@ -1,8 +1,9 @@
 const { pool } = require('../db/pool');
 const { isUuid } = require('../validation/records');
 const { HOLD_REASONS } = require('../services/captureCheck');
-const { handleCreateOperation, handleUpdateOperation } = require('./syncController');
-const { afterRecordSaved } = require('../services/integrity');
+const {
+  ENTITY_TYPES, afterSave, handleCreateOperation, handleUpdateOperation, recordDateOf,
+} = require('./syncController');
 const { checkEntryWindow } = require('../validation/entryWindow');
 
 /**
@@ -12,7 +13,8 @@ const { checkEntryWindow } = require('../validation/entryWindow');
  * review each one and apply or discard it, so nothing captured offline is lost silently.
  */
 
-const ENTITY_FOR_SYNC = { attendance: 'attendance', meal_distribution: 'mealDistribution' };
+// Database entity type → the type name the sync endpoint uses
+const ENTITY_FOR_SYNC = Object.fromEntries(Object.entries(ENTITY_TYPES).map(([name, dbType]) => [dbType, name]));
 
 function publicHeld(row) {
   return {
@@ -81,11 +83,12 @@ async function applyHeld(req, res, next) {
       baseVersion: held.base_version,
     };
     const author = held.captured_by || req.user.id;
+    const capture = { capturedBy: held.captured_by, deviceId: held.device_id, capturedAt: held.captured_at };
     let result;
     try {
       result = operation.operation === 'create'
-        ? await handleCreateOperation(client, operation, held.client_id, author)
-        : await handleUpdateOperation(client, operation, held.client_id, author);
+        ? await handleCreateOperation(client, operation, held.client_id, author, { capture })
+        : await handleUpdateOperation(client, operation, held.client_id, author, { capture });
     } catch {
       await client.query('ROLLBACK');
       return res.status(409).json({
@@ -103,17 +106,14 @@ async function applyHeld(req, res, next) {
         held.client_id, held.base_version, held.captured_by, held.device_id, held.captured_at]
     );
     // Kept as captured, with its review flags, like any synced record (#62)
-    const recordDate = held.payload.attendanceDate || held.payload.distributionDate;
+    const recordDate = recordDateOf(operation.entityType, held.payload);
+    const late = Boolean(recordDate) && checkEntryWindow(recordDate, {
+      capturedAt: held.captured_at || undefined, lateReason: held.payload.lateReason || 'held',
+    }).late;
     // A duplicate of a record already on the server keeps the original's details (#70)
-    if (!result.duplicate) await afterRecordSaved(client, {
-      entityType: held.entity_type,
-      recordId: result.recordId,
-      capture: { capturedBy: held.captured_by, deviceId: held.device_id, capturedAt: held.captured_at },
-      lateReason: held.payload.lateReason,
-      late: checkEntryWindow(recordDate, { capturedAt: held.captured_at || undefined, lateReason: held.payload.lateReason || 'held' }).late,
-    });
+    if (!result.duplicate) await afterSave(client, operation, result, { capture, late });
     await client.query(
-      "UPDATE held_operations SET status = 'applied', reviewed_by = $2, reviewed_at = NOW() WHERE id = $1",
+      "UPDATE held_operations SET status = 'applied', reviewed_by = $2, reviewed_at = NOW(), decided_xid = pg_current_xact_id() WHERE id = $1",
       [held.id, req.user.id]
     );
     await client.query('COMMIT');
@@ -133,7 +133,7 @@ async function discardHeld(req, res, next) {
   try {
     if (!isUuid(req.params.id)) return res.status(404).json({ error: 'Held record not found' });
     const result = await pool.query(
-      `UPDATE held_operations SET status = 'discarded', reviewed_by = $2, reviewed_at = NOW()
+      `UPDATE held_operations SET status = 'discarded', reviewed_by = $2, reviewed_at = NOW(), decided_xid = pg_current_xact_id()
        WHERE id = $1 AND status = 'pending' RETURNING id`,
       [req.params.id, req.user.id]
     );

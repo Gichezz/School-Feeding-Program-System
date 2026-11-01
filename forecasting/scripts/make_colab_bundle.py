@@ -34,7 +34,7 @@ INCLUDE = [
     "forecasting/data/reports/forecast_evaluation.json",
     "forecasting/data/reports/forecast_evaluation_report.md",
     "forecasting/data/reports/forecast_evaluation_predictions.csv",
-    "docs/forecasting.md",
+    "docs/archive/forecasting-prophet.md",
     "docs/synthetic-dataset.md",
 ]
 REQUIRED = [

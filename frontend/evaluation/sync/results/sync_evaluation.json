@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-10-17T17:35:17.787Z",
+  "generatedAt": "2026-11-01T13:51:37.679Z",
   "environment": {
     "node": "v20.14.0",
     "platform": "win32 x64"
   },
-  "runtimeMs": 101354,
+  "runtimeMs": 170083,
   "scenarios": [
     {
       "name": "good_connection",
@@ -34,9 +34,9 @@
       ],
       "latencyMs": {
         "n": 60,
-        "median": 6445.3619,
-        "p95": 7693.4932,
-        "max": 7834.0837
+        "median": 6711.8715,
+        "p95": 8056.446199999999,
+        "max": 8196.568599999999
       },
       "traffic": {
         "requests": 66,
@@ -73,9 +73,9 @@
       ],
       "latencyMs": {
         "n": 60,
-        "median": 17365.3243,
-        "p95": 28467.527,
-        "max": 29701.677
+        "median": 17542.9648,
+        "p95": 28694.16,
+        "max": 29926.303499999998
       },
       "traffic": {
         "requests": 66,
@@ -114,9 +114,9 @@
       ],
       "latencyMs": {
         "n": 60,
-        "median": 10416.4517,
-        "p95": 28164.8904,
-        "max": 49218.4377
+        "median": 10447.4885,
+        "p95": 28273.4258,
+        "max": 49507.155099999996
       },
       "traffic": {
         "requests": 97,
@@ -186,6 +186,219 @@
         }
       ],
       "recordsLost": 0
+    },
+    {
+      "name": "school_good",
+      "label": "One school, two devices: good connection",
+      "profile": {
+        "delayMs": 100
+      },
+      "kind": "school",
+      "devices": 2,
+      "records": 22,
+      "onServerCorrect": 22,
+      "successRate": 1,
+      "appliedMoreThanOnce": 0,
+      "duplicateHeld": true,
+      "duplicateInLedger": false,
+      "serverCereals": 1389.5,
+      "deviceCereals": [
+        1389.5,
+        1389.5
+      ],
+      "convergence": [
+        {
+          "device": "kitchen tablet",
+          "feeding": true,
+          "enrolment": true,
+          "stockEntries": true,
+          "cereals": true,
+          "noOpenConflicts": true
+        },
+        {
+          "device": "office phone",
+          "feeding": true,
+          "enrolment": true,
+          "stockEntries": true,
+          "cereals": true,
+          "noOpenConflicts": true
+        }
+      ],
+      "devicesConverged": 2,
+      "mismatches": [
+        {
+          "feeding": {},
+          "enrolment": {}
+        },
+        {
+          "feeding": {},
+          "enrolment": {}
+        }
+      ],
+      "stuckAsFailed": 0,
+      "latencyMs": {
+        "n": 22,
+        "median": 6030.152599999999,
+        "p95": 6685.622500000001,
+        "max": 6874.4181
+      }
+    },
+    {
+      "name": "school_flaky",
+      "label": "One school, two devices: flaky connection",
+      "profile": {
+        "delayMs": 300,
+        "dropRequest": 0.25,
+        "dropResponse": 0.1
+      },
+      "kind": "school",
+      "devices": 2,
+      "records": 22,
+      "onServerCorrect": 22,
+      "successRate": 1,
+      "appliedMoreThanOnce": 0,
+      "duplicateHeld": true,
+      "duplicateInLedger": false,
+      "serverCereals": 1389.5,
+      "deviceCereals": [
+        1389.5,
+        1389.5
+      ],
+      "convergence": [
+        {
+          "device": "kitchen tablet",
+          "feeding": true,
+          "enrolment": true,
+          "stockEntries": true,
+          "cereals": true,
+          "noOpenConflicts": true
+        },
+        {
+          "device": "office phone",
+          "feeding": true,
+          "enrolment": true,
+          "stockEntries": true,
+          "cereals": true,
+          "noOpenConflicts": true
+        }
+      ],
+      "devicesConverged": 2,
+      "mismatches": [
+        {
+          "feeding": {},
+          "enrolment": {}
+        },
+        {
+          "feeding": {},
+          "enrolment": {}
+        }
+      ],
+      "stuckAsFailed": 0,
+      "latencyMs": {
+        "n": 22,
+        "median": 8020.909,
+        "p95": 20917.014600000002,
+        "max": 36979.1675
+      }
+    },
+    {
+      "name": "school_conflicts",
+      "label": "Conflicts on daily feeding and enrolment, resolved by the programme officer",
+      "operationsJudged": 42,
+      "confusion": {
+        "truePositive": 9,
+        "falsePositive": 0,
+        "trueNegative": 33,
+        "falseNegative": 0
+      },
+      "accuracy": 1,
+      "precision": 1,
+      "recall": 1,
+      "byCase": [
+        {
+          "case": "same_record_different",
+          "label": "Daily feeding: Both edit the same record, different numbers",
+          "expectConflict": true,
+          "repetitions": 3,
+          "conflictsReported": 3,
+          "correct": 3
+        },
+        {
+          "case": "same_record_identical",
+          "label": "Daily feeding: Both edit the same record to the same numbers",
+          "expectConflict": false,
+          "repetitions": 3,
+          "conflictsReported": 0,
+          "correct": 3
+        },
+        {
+          "case": "different_records",
+          "label": "Daily feeding: The two devices edit different records",
+          "expectConflict": false,
+          "repetitions": 3,
+          "conflictsReported": 0,
+          "correct": 3
+        },
+        {
+          "case": "new_same_day_different",
+          "label": "Daily feeding: Both record the same new day, different numbers",
+          "expectConflict": true,
+          "repetitions": 3,
+          "conflictsReported": 3,
+          "correct": 3
+        },
+        {
+          "case": "new_same_day_identical",
+          "label": "Daily feeding: Both record the same new day, same numbers",
+          "expectConflict": false,
+          "repetitions": 3,
+          "conflictsReported": 0,
+          "correct": 3
+        },
+        {
+          "case": "enrolment_different",
+          "label": "Enrolment: both change the same class and sex, different counts",
+          "expectConflict": true,
+          "repetitions": 3,
+          "conflictsReported": 3,
+          "correct": 3
+        },
+        {
+          "case": "enrolment_identical",
+          "label": "Enrolment: both change the same class and sex to the same count",
+          "expectConflict": false,
+          "repetitions": 3,
+          "conflictsReported": 0,
+          "correct": 3
+        }
+      ],
+      "conflictsOnServer": 9,
+      "resolvedByOfficer": 9,
+      "convergence": [
+        {
+          "device": "A",
+          "feeding": true,
+          "enrolment": true,
+          "noOpenConflicts": true
+        },
+        {
+          "device": "B",
+          "feeding": true,
+          "enrolment": true,
+          "noOpenConflicts": true
+        }
+      ],
+      "devicesConverged": 2,
+      "mismatches": [
+        {
+          "feeding": {},
+          "enrolment": {}
+        },
+        {
+          "feeding": {},
+          "enrolment": {}
+        }
+      ]
     }
   ]
 }

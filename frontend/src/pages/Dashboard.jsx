@@ -16,6 +16,7 @@ import { useInsights } from '../features/insights/useInsights';
 import { useSyncStatus } from '../hooks/useSyncStatus';
 import { useSession } from '../hooks/useSession';
 import { useOpenFlagCount } from '../features/review/useOpenFlagCount';
+import { useResolvesConflicts, useServerConflictCount } from '../features/conflicts/useServerConflictCount';
 import { formatNumber, formatPercent } from '../utils/format';
 
 const shortDate = (date) => date.slice(0, 5);
@@ -24,17 +25,19 @@ const percent = (value) => formatPercent(value, { isRatio: false });
 /**
  * Conflicts, failed syncs and flagged records that someone needs to act on.
  */
-function NeedsAttention({ unresolvedConflicts, failedCount, failure, openFlags, isAdmin }) {
+function NeedsAttention({ unresolvedConflicts, failedCount, failure, openFlags, isAdmin, resolves }) {
   const items = [];
   if (unresolvedConflicts > 0) {
     items.push({
       key: 'conflicts',
       icon: GitCompareArrows,
       title: unresolvedConflicts === 1 ? '1 record needs a decision' : `${formatNumber(unresolvedConflicts)} records need a decision`,
-      description: 'The same record was changed on this device and on the server.',
-      action: isAdmin
+      description: resolves
+        ? "A school's device changed a record that had already changed on the server."
+        : 'The same record was changed on this device and on the server.',
+      action: resolves
         ? <Button as={Link} to="/conflicts" variant="secondary" size="sm">Resolve</Button>
-        : <span className="dashboard__attention-note">An administrator will resolve these.</span>,
+        : <span className="dashboard__attention-note">Your programme officer will resolve these.</span>,
     });
   }
   if (isAdmin && openFlags > 0) {
@@ -87,6 +90,8 @@ function Dashboard() {
   const { pendingCount, failedCount, failure, unresolvedConflicts } = useSyncStatus();
   const { isAdmin } = useSession();
   const openFlags = useOpenFlagCount();
+  const resolves = useResolvesConflicts();
+  const serverConflicts = useServerConflictCount();
 
   return (
     <>
@@ -136,11 +141,12 @@ function Dashboard() {
         </div>
 
         <NeedsAttention
-          unresolvedConflicts={unresolvedConflicts}
+          unresolvedConflicts={serverConflicts ?? unresolvedConflicts}
           failedCount={failedCount}
           failure={failure}
           openFlags={openFlags}
           isAdmin={isAdmin}
+          resolves={resolves}
         />
       </div>
     </>

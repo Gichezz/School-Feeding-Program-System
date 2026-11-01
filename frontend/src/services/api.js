@@ -122,6 +122,13 @@ export async function syncOperations(data) {
 /**
  * Conflicts API
  */
+/**
+ * The school's records changed since a download cursor (see sync/pullChanges.js).
+ */
+export async function getChanges({ schoolId, since }) {
+  return apiRequest(`/sync/changes?${new URLSearchParams({ schoolId, since })}`);
+}
+
 export async function getConflicts(params = {}) {
   const queryString = new URLSearchParams(params).toString();
   const endpoint = queryString ? `/sync/conflicts?${queryString}` : '/sync/conflicts';
@@ -137,6 +144,43 @@ export async function resolveConflict(conflictId, data) {
     method: 'POST',
     body: JSON.stringify(data),
   });
+}
+
+/**
+ * Weekly review lists, for programme officers and administrators. week is the
+ * Monday (DD-MM-YYYY); administrators name the sub-county, officers see their own.
+ */
+const subCountyQuery = (subCounty) => (subCounty ? `?${new URLSearchParams({ subCounty })}` : '');
+
+export async function getReviewWeeks(subCounty) {
+  return apiRequest(`/review-lists${subCountyQuery(subCounty)}`);
+}
+
+export async function getReviewList(week, subCounty) {
+  return apiRequest(`/review-lists/${week}${subCountyQuery(subCounty)}`);
+}
+
+export async function scoreReviewWeek(week, { subCounty, k } = {}) {
+  return apiRequest(`/review-lists/${week}/run`, {
+    method: 'POST',
+    body: JSON.stringify({ ...(subCounty && { subCounty }), ...(k && { k }) }),
+  });
+}
+
+export async function decideReviewItem(week, schoolId, { status, note }) {
+  return apiRequest(`/review-lists/${week}/decisions/${schoolId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ status, note }),
+  });
+}
+
+/**
+ * Term analytics for a sub-county (officers see their own; administrators name one)
+ * params: subCounty, termId (default: the term running today)
+ */
+export async function getTermAnalytics(params = {}) {
+  const query = new URLSearchParams(params).toString();
+  return apiRequest(`/analytics/term${query ? `?${query}` : ''}`);
 }
 
 /**
@@ -170,15 +214,6 @@ export async function getMealsTrend(params = {}) {
   const queryString = new URLSearchParams(params).toString();
   const endpoint = queryString ? `/reports/meals/trend?${queryString}` : '/reports/meals/trend';
   return apiRequest(endpoint);
-}
-
-/**
- * Forecasts API
- * params: school_id (required), start_date (DD-MM-YYYY), horizon_days, enrollment
- */
-export async function getForecast(params = {}) {
-  const queryString = new URLSearchParams(params).toString();
-  return apiRequest(`/forecasts?${queryString}`);
 }
 
 /**

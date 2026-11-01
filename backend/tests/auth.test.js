@@ -75,7 +75,7 @@ describe('protected routes', () => {
     ['POST', '/api/sync'],
     ['GET', '/api/sync/conflicts'],
     ['GET', '/api/reports/dashboard'],
-    ['GET', `/api/forecasts?school_id=${SCHOOL_ID}`],
+    ['GET', '/api/review-lists'],
   ])('%s %s requires a session', async (method, path) => {
     const res = method === 'GET' ? await request(app).get(path) : await request(app).post(path).send({});
 

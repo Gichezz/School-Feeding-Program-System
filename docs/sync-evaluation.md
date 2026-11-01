@@ -74,6 +74,42 @@ Every real conflict was caught in both runs, and no record was ever overwritten:
 1. **A record could be stranded on a flaky connection** (fixed in #74). A request that never got a response counted as a failed attempt; after 3 the operation was marked failed and never sent again, although the Sync Status page said failed records were retried automatically. The app also did not retry on its own while online. Now a dropped connection (or a gateway error while the server restarts) does not count as an attempt, the app keeps retrying on the schedule in section 1 while records are waiting, and it also syncs when it is opened or comes back into view. Records that older versions marked failed because of the connection are put back in the queue.
 2. **Identical changes were reported as conflicts** (fixed in #74). A change based on an older version whose numbers already match the server's is now treated as the same record: it syncs without a conflict and without a new version. Different numbers are still a conflict.
 
+## 5a. Version 2: the school records (plan, written before it was run)
+
+Version 1 covers attendance and meals. The system now records daily feeding and termly enrolment (editable, versioned) and a stock ledger of deliveries, losses and counts (append-only), and school devices download each other's records. Version 2 adds two scenarios on these, with the same devices, network profiles, timings and server checks as above. Version 1's scenarios are run again unchanged.
+
+**Scenario 6: one school, two devices, a week offline (success rate, convergence, duplicate delivery).** A kitchen tablet records 10 school days of daily feeding and one store count; the office phone records the term's enrolment (4 classes × girls and boys), two deliveries (cereals and pulses, one delivery note) and one loss. The kitchen tablet also records the cereals delivery from the same delivery note, as happens when the cook and the head teacher both enter it. Both are offline, then reconnect on the flaky profile. Once the automatic sync has finished, an administrator discards the held duplicate and both devices sync again. Run with the good and the flaky profile.
+
+| Check | Correct answer |
+|---|---|
+| Each record on the server | exactly once, with the device's values (21 records) |
+| The second entry of the delivery note | held as a possible duplicate, never in the ledger |
+| Each device after its next download | the same feeding days, enrolment, stock entries and cereal balance as the server |
+
+**Scenario 7: conflicts on daily feeding and enrolment, resolved by the programme officer (accuracy, convergence).** Devices A and B, A syncing first, as in scenario 4, on daily feeding (all five cases) and enrolment (the same class and sex, different counts; and the same counts), 3 repetitions each. Afterwards the programme officer resolves every conflict from the server's list (keeping the server's version) and both devices sync again.
+
+| Check | Correct answer |
+|---|---|
+| B's changes | a conflict exactly where the two versions differ |
+| Each device after resolution and a download | no unresolved conflict left, and its records equal the server's |
+
+**New metric: convergence**, the share of devices whose records (and cereal balance) equal the server's after their next download. Offline-first only works if every device at a school ends up with the same numbers as the server, so this is reported next to the success rate.
+
+## 5b. Version 2 results
+
+Run on the plan above; version 1's scenarios were run again in the same run and gave the same answers as before (all 60 records correct on each network; conflict detection 60 of 60 correct). Full report: [`sync_evaluation_report.md`](../frontend/evaluation/sync/results/sync_evaluation_report.md).
+
+**Scenario 6: one school, two devices, a week offline.** The plan said 21 records; with the store count it is 22.
+
+| Network | On the server, correct | Applied twice | Duplicate note | Devices converged | Cereals: server and each device | Median latency | 95th percentile |
+|---|---|---|---|---|---|---|---|
+| Good | 22 of 22 | 0 | held, never in the ledger | 2 of 2 | 1,389.5 kg on all three | 6.0 s | 6.7 s |
+| Flaky | 22 of 22 | 0 | held, never in the ledger | 2 of 2 | 1,389.5 kg on all three | 8.0 s | 20.9 s |
+
+**Scenario 7: conflicts on daily feeding and enrolment.** 42 operations judged: 9 true positives, 33 true negatives, no false positives or negatives (accuracy, precision and recall 100%), in every case of the table above. The programme officer resolved all 9 conflicts from the server's list, and after their next download both devices held exactly the server's records with no open conflict (2 of 2 converged).
+
+**What the plan itself found.** Writing scenario 6 showed that the same delivery note entered on two devices would have been counted twice, because stock entries never conflict; and that a held record discarded on the server never left the device that sent it. Both were fixed before the run (the second entry of a note is now held; decisions on held records are downloaded). The first full run then reported devices as not converged in two scenarios: the check compared each device's records with the server's as text, which depends on the order records were stored in. Comparing record by record, every device matched; the check was corrected and the evaluation re-run.
+
 ## 6. Running it
 
 ```bash
@@ -81,10 +117,11 @@ cd frontend
 npm run evaluate:sync
 ```
 
-It needs PostgreSQL with the connection settings in `backend/.env`, and the backend's and frontend's packages installed. It creates its own database (`school_feeding_sync_evaluation`) and API server on port 5065, removes both at the end, and takes under 2 minutes.
+It needs PostgreSQL with the connection settings in `backend/.env`, and the backend's and frontend's packages installed. It creates its own database (`school_feeding_sync_evaluation`) and API server on port 5065, removes both at the end, and takes about 3 minutes.
 
 ## 7. Limitations
 
 - The network is simulated in each device process (delays and losses on whole requests). Real networks also vary in ways this does not model, such as very long interruptions in the middle of a sync.
 - Devices sign in as the seeded administrator, because staff sign-in needs an enrolled device with a hardware-backed key (#60). Sync treats both roles the same way, so this does not change the results.
 - Everything runs on one machine, so the latencies show the effect of the app's behaviour and the network profile, not of a real server's distance or load.
+- Convergence is measured after each device's next sync, which in the app happens when it is opened, brought into view or reconnects. A device nobody opens stays behind until it is opened; analytics show officers how far behind each school's records are.

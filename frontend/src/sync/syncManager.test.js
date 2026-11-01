@@ -5,9 +5,13 @@ import { syncOperations } from '../services/api';
 import { isSyncInProgress, processSyncQueue, setupAutoSync } from './syncManager';
 import { requeueConnectionFailures } from './syncQueue';
 import { saveSession, clearSession, isSessionValid } from '../services/session';
+import { getChanges } from '../services/api';
+import { addStockMovement, saveDailyFeeding } from '../services/feedingDb';
+import { saveDeviceIdentity } from '../features/devices/deviceIdentity';
 
 vi.mock('../services/api', () => ({
   syncOperations: vi.fn(),
+  getChanges: vi.fn(),
 }));
 
 const SCHOOL_ID = '11111111-1111-1111-1111-111111111111';
@@ -65,6 +69,7 @@ describe('processSyncQueue', () => {
     expect(result.progress).toMatchObject({ total: 1, successful: 1 });
     expect(syncOperations).toHaveBeenCalledWith({
       clientId: expect.any(String),
+      syncBatchId: expect.stringMatching(/^[0-9a-f-]{36}$/),
       operations: [expect.objectContaining({ id: operation.id, entityType: 'attendance', operation: 'create', payload: attendance, baseVersion: 0 })],
     });
     expect(await db.syncQueue.get(operation.id)).toMatchObject({ status: 'synced' });
@@ -199,6 +204,77 @@ describe('processSyncQueue', () => {
       expect(syncOperations).not.toHaveBeenCalled();
     });
   });
+
+  describe('later changes to a record that is waiting or in conflict', () => {
+    // Two devices record the same day offline. This device's create comes back as a
+    // same-day conflict; its own correction, queued with base version 1, must not reach
+    // the server, where version 1 is the other device's record.
+    async function createThenEditOffline() {
+      const saved = await saveLocalAttendance(attendance);
+      await updateLocalAttendance(saved.id, { totalPresent: 85, totalAbsent: 15 });
+      const [create, update] = await db.syncQueue.orderBy('id').toArray();
+      return { saved, create, update };
+    }
+
+    function sameDayConflict(operationId) {
+      return serverResult({
+        success: false,
+        operationId,
+        status: 'conflict',
+        message: 'Same-day conflict',
+        conflictId: 'server-conflict-id',
+        serverRecord: { id: 'other-device-record', version: 1, total_present: 70 },
+        baseVersion: 0,
+        serverVersion: 1,
+        localPayload: attendance,
+      });
+    }
+
+    it('does not send an edit after its record’s create came back as a conflict', async () => {
+      const { create, update } = await createThenEditOffline();
+      syncOperations.mockResolvedValueOnce(sameDayConflict(create.id));
+
+      await processSyncQueue();
+
+      expect(syncOperations).toHaveBeenCalledTimes(1);
+      expect(await db.syncQueue.get(update.id)).toMatchObject({ status: 'pending' });
+    });
+
+    it('keeps the edit back on later syncs while the conflict is unresolved, without retrying', async () => {
+      const { create, update } = await createThenEditOffline();
+      syncOperations.mockResolvedValueOnce(sameDayConflict(create.id));
+      await processSyncQueue();
+      syncOperations.mockClear();
+
+      const result = await processSyncQueue();
+
+      expect(syncOperations).not.toHaveBeenCalled();
+      expect(await db.syncQueue.get(update.id)).toMatchObject({ status: 'pending', retryCount: 0 });
+      expect(result.progress).toMatchObject({ blocked: 1 });
+    });
+
+    it('does not send an edit while its record’s create is still waiting for a retry', async () => {
+      const { update } = await createThenEditOffline();
+      syncOperations.mockRejectedValueOnce(serverError(500, 'Internal server error'));
+
+      await processSyncQueue();
+
+      expect(syncOperations).toHaveBeenCalledTimes(1);
+      expect(await db.syncQueue.get(update.id)).toMatchObject({ status: 'pending', retryCount: 0 });
+    });
+
+    it('sends the edit with the server record it is based on once the create has synced', async () => {
+      const { create, update } = await createThenEditOffline();
+      syncOperations.mockResolvedValueOnce(synced(create.id, 1)).mockResolvedValueOnce(synced(update.id, 2));
+
+      await processSyncQueue();
+
+      expect(syncOperations).toHaveBeenCalledTimes(2);
+      expect(syncOperations.mock.calls[1][0].operations[0]).toMatchObject({
+        id: update.id, baseVersion: 1, baseRecordId: 'server-record-id',
+      });
+    });
+  });
 });
 
 describe('records tied to who captured them (#61)', () => {
@@ -244,6 +320,18 @@ describe('records tied to who captured them (#61)', () => {
     expect(await db.syncQueue.get(operation.id)).toMatchObject({ status: 'held', heldReason: 'user_deactivated' });
     expect((await db.attendance.get(saved.id)).syncStatus).toBe('held');
     expect(await db.offlineUsers.get('user-mary')).toBeUndefined();
+  });
+
+  it('marks a delivery held as a possible duplicate, so it leaves the stock balance', async () => {
+    const entry = await addStockMovement({
+      schoolId: 'school-1', movementDate: '05-10-2026', commodity: 'cereals', kind: 'delivery', quantityKg: 500, reference: 'DN-2026-114',
+    });
+    const [operation] = await db.syncQueue.toArray();
+    syncOperations.mockResolvedValue(serverResult({ success: false, operationId: operation.id, status: 'held', reason: 'duplicate_delivery' }));
+
+    await processSyncQueue();
+
+    expect(await db.stockMovements.get(entry.id)).toMatchObject({ syncStatus: 'held', heldReason: 'duplicate_delivery' });
   });
 });
 
@@ -335,5 +423,67 @@ describe('dropped connections and automatic retries (#74)', () => {
       stop();
       timers.mockRestore();
     }
+  });
+});
+
+describe('feeding records and the stock ledger', () => {
+  const day = { schoolId: SCHOOL_ID, feedingDate: '06-10-2026', feedingHappened: true, learnersFed: 400, cerealsKg: 60, pulsesKg: 16 };
+  const delivery = { schoolId: SCHOOL_ID, movementDate: '05-10-2026', commodity: 'cereals', kind: 'delivery', quantityKg: 500, reference: 'DN-2026-114' };
+
+  function emptyDownload(cursor) {
+    return { cursor, school: { id: SCHOOL_ID }, terms: [], calendarEvents: [], enrolment: [], dailyFeeding: [], stockMovements: [], stockCounts: [] };
+  }
+
+  it('sends every record of one pass in the same sync batch and marks them synced', async () => {
+    const saved = await saveDailyFeeding(day);
+    const entry = await addStockMovement(delivery);
+    const queue = await db.syncQueue.toArray();
+    const [feedOp, stockOp] = ['dailyFeeding', 'stockMovement'].map((type) => queue.find((op) => op.entityType === type));
+    syncOperations
+      .mockResolvedValueOnce(serverResult({ success: true, operationId: feedOp.id, status: 'synced', version: 1, recordId: 'server-day' }))
+      .mockResolvedValueOnce(serverResult({ success: true, operationId: stockOp.id, status: 'synced', version: 1, recordId: entry.id }));
+
+    await processSyncQueue();
+
+    const batches = syncOperations.mock.calls.map(([body]) => body.syncBatchId);
+    expect(new Set(batches).size).toBe(1);
+    expect(await db.dailyFeeding.get(saved.id)).toMatchObject({ syncStatus: 'synced', serverId: 'server-day', version: 1 });
+    expect(await db.stockMovements.get(entry.id)).toMatchObject({ syncStatus: 'synced' });
+  });
+
+  it('marks a feeding record in conflict without touching the attendance records', async () => {
+    const saved = await saveDailyFeeding(day);
+    const [op] = await db.syncQueue.toArray();
+    syncOperations.mockResolvedValueOnce(serverResult({ success: false, operationId: op.id, status: 'conflict', conflictId: 'c-1', localPayload: day }));
+
+    await processSyncQueue();
+
+    expect(await db.dailyFeeding.get(saved.id)).toMatchObject({ syncStatus: 'conflict' });
+    expect(await db.attendance.count()).toBe(0);
+  });
+
+  it('on a school device, downloads the school’s changes before and after sending', async () => {
+    await saveDeviceIdentity({ deviceId: 'dev-1', schoolId: SCHOOL_ID, status: 'approved' });
+    await saveDailyFeeding(day);
+    const [op] = await db.syncQueue.toArray();
+    getChanges.mockResolvedValueOnce(emptyDownload('100')).mockResolvedValueOnce(emptyDownload('130'));
+    syncOperations.mockResolvedValueOnce(serverResult({ success: true, operationId: op.id, status: 'synced', version: 1, recordId: 'server-day' }));
+
+    await processSyncQueue();
+
+    expect(getChanges.mock.calls.map(([args]) => args.since)).toEqual(['0', '100']);
+    expect(await db.syncCursors.get(SCHOOL_ID)).toMatchObject({ cursor: '130' });
+  });
+
+  it('still sends records when the download fails', async () => {
+    await saveDeviceIdentity({ deviceId: 'dev-1', schoolId: SCHOOL_ID, status: 'approved' });
+    await saveDailyFeeding(day);
+    const [op] = await db.syncQueue.toArray();
+    getChanges.mockRejectedValue(new Error('Network error'));
+    syncOperations.mockResolvedValueOnce(serverResult({ success: true, operationId: op.id, status: 'synced', version: 1, recordId: 'server-day' }));
+
+    await processSyncQueue();
+
+    expect(await db.syncQueue.get(op.id)).toMatchObject({ status: 'synced' });
   });
 });

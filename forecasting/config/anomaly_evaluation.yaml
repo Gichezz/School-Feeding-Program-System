@@ -1,0 +1,189 @@
+# Evaluation protocol for anomaly detection on school feeding records.
+#
+# Written and committed before any detector was run, so the choice of method cannot
+# be fitted to the results. Changing anything here after results exist must be
+# recorded as a deviation in the evaluation report.
+#
+# Version 2, committed before it was run. Version 1 (in git history) left out records
+# the app collects and the problem behind Kenya's capitation audit, so version 2 adds
+# them and its results supersede version 1's. Version 1's results stay in git history.
+version: 6
+changes_from_version_5:
+  - From the audit of version 5 (docs/anomaly-model-audit.md), written after its results
+    and after exploratory checks on the same data, so recorded as a deviation. Each change
+    answers one finding; none is chosen for its effect on a result.
+  - No future records in any feature. Four statistics were computed over all rows given, namely
+    the effect of each kind of day, the school median that fills fed_rate on days without
+    feeding, the median that fills uptake, and the daily use that turns a store-count gap
+    into days of food. Each now uses only records before the day it describes, as the
+    deployed service can.
+  - Clarified before running - "before the day" means nothing later than the day. The
+    day's own records are included (other schools' feeding on the same day, the school's
+    own figures), because a week is scored after it ends, when they are all known; this
+    also lets the first closing day of a year be compared with other schools that day.
+  - A validation period. Models are fitted on 2024; settings and the threshold quantile
+    are chosen on 2025 (tuning-type labels only); the chosen settings are refitted on
+    2024-2025 and flag at the same quantile of their 2025 scores; 2026 is tested once.
+    Version 5 fitted and chose on the same years.
+  - Equal, wider grids - six settings for every learned method (below). The one-class SVM
+    now also tries a smaller gamma (0.3 x scale).
+  - SGDOneClassSVM (a linear one-class SVM on a Nystroem approximation of the same RBF
+    kernel) joins the candidates - its cost grows linearly with the rows, the audit's
+    answer if one model is ever fitted on far more records.
+  - Food issued is recorded to the nearest 0.5 kg, which is a bigger share of a small
+    school's pulses than a large school's; cereal_ratio and pulse_ratio now ignore a
+    difference smaller than that rounding (0.25 kg), so rounding is not read as unusual.
+  - Periods, held-out types, features, metric and decision rule are otherwise unchanged.
+    Version 6 supersedes version 5's results, which stay in git history.
+changes_from_version_4:
+  - Found when the deployed review list was first run on a sub-county (after version 4's
+    results were known, so recorded here as a deviation). In the last week of the school
+    year every school's closing day looked unusual and the list was filled with ordinary
+    schools. Two features still compared the share fed as recorded, without the day-type
+    adjustment version 3 gave fed_rate and fed_vs_own - fed_rate_vs_last_term (a closing
+    day with a third of learners present reads as a collapse against last term) and
+    fed_steadiness (the drop reads as a large day-to-day change for the next 10 days).
+    The model is fitted on the last 125 school days, which never contain a closing day of
+    the year, so it had no way to learn that such a day is normal.
+  - Both features now use learners fed against what is normal for that kind of day, as
+    fed_rate already does. fed_rate_vs_last_term compares the day-adjusted share with last
+    term's mean day-adjusted share; fed_steadiness measures day-to-day change in
+    day-adjusted learners fed. This applies version 3's stated principle (context adjusts
+    what is normal) to the two features it missed; no feature is added or removed.
+  - Methods, grids, periods, held-out types, metric and decision rule are unchanged. The
+    main evaluation, robustness study and deployment test are all re-run; version 5
+    supersedes version 4's results, which stay in git history.
+changes_from_version_3:
+  - Adds Extended Isolation Forest (Hariri et al., 2019) as a candidate. It splits along
+    random combinations of features instead of one at a time, which targets Isolation
+    Forest's known weakness with anomalies that are combinations of ordinary values.
+    It gets a grid the same size as Isolation Forest's and the same 1,024-row samples.
+  - Everything else is unchanged. Version 4 supersedes version 3's results.
+changes_from_version_2:
+  - Found on the tuning period only (2024-2025; the test year was not looked at). In
+    version 2 the rare yes/no context features (closing day, opening days, one record
+    entered after hours) made ordinary days look unusual - most of all for Isolation
+    Forest, whose ordinary top-2% days were 35% closing days against 0.6% of all days.
+    An officer would never want an expected day flagged, so context now adjusts what is
+    normal instead of being evidence; one late-night entry is replaced by the pattern.
+  - fed_rate and fed_vs_own are measured against what is normal for that kind of day
+    (the median effect of each day type across schools). term_position, opening_days and
+    closing_day are no longer model inputs. outside_hours becomes after_hours_share.
+    Feeding figures are neutral on days with no feeding (they carry a reason code).
+  - The learned candidates are cut to three, one from each main family of unsupervised
+    detectors - Isolation Forest (tree/isolation), the one-class SVM (boundary/kernel) and
+    Local Outlier Factor (density). Decided after version 2's results were known, so the
+    reasons are stated and none depends on a result - the autoencoder needs more data
+    and tuning than a sub-county provides, did not reliably converge, and is the hardest
+    to explain to an officer. ECOD and k-nearest-neighbour distance, considered for this
+    version, were left out to keep the comparison to three. The fixed rules and the robust
+    z-score stay as baselines, so the study still shows whether machine learning is needed.
+  - Fit and scoring times are measured for every method at 5,000, 20,000 and 50,000 rows.
+  - Tie-break added to the decision rule - among learned methods not distinguishable from
+    the leader, the one that fits fastest on 50,000 rows, because it must scale to a
+    county's records.
+  - Periods, held-out types, the tuning grids of the remaining methods and the metric are
+    unchanged. Version 3 supersedes version 2's results.
+changes_from_version_1:
+  - The data now records learners present (on most schools), the time of day each record
+    was captured, and occasional genuine losses in the store ledger.
+  - A new anomaly type, ghost_learners (enrolment inflated for a term), is held out.
+  - The features are fixed in this file (below). New - enrolment_change,
+    fed_rate_vs_last_term, uptake, outside_hours. Removed - edits (no evidence that
+    edits separate honest records from dishonest ones; they stay in the audit trail).
+  - Methods, tuning grid, periods, metric and decision rule are unchanged.
+
+question: >
+  Which method best helps a sub-county programme officer find the school-days that
+  need review, from records schools already keep (enrolment, daily feeding, deliveries,
+  stock counts, and when and how records were entered)?
+
+data:
+  generator_config: forecasting/config/feeding_dataset.yaml
+  # Tuning: injected anomalies of the tuning types only. Test: new anomalies of every
+  # type, including the held-out types, which no method or threshold ever sees before
+  # the single test run.
+  tuning_period: {start: 2024-01-01, end: 2025-12-31}
+  # Within it: models fitted on the first year, settings and thresholds chosen on the second
+  fit_period: {start: 2024-01-01, end: 2024-12-31}
+  selection_period: {start: 2025-01-01, end: 2025-12-31}
+  test_period: {start: 2026-01-01, end: 2026-10-31}
+
+anomaly_types:
+  tuning:
+    - inflated_headcount      # more learners recorded as fed than were fed
+    - consumption_drift       # food issued per learner creeps up over weeks
+    - stock_leakage           # food leaves the store with no record; shows at counts
+  held_out:
+    - backdated_bulk_entry    # many past days entered together, long after the fact
+    - round_number_entry      # figures made up rather than counted
+    - ghost_learners          # enrolment inflated for a term (the capitation audit's finding)
+
+# Every feature is a figure an officer could check by hand, with a stated reason.
+# Context (the kind of day) adjusts what is normal; it is not itself evidence.
+features:
+  fed_rate: share of enrolled learners fed, against what is normal for that kind of day
+  fed_vs_own: learners fed against the school's usual number for that kind of day (lagged baseline)
+  fed_vs_peers: share fed against schools in the same sub-county that day
+  fed_rate_vs_last_term: share fed for that kind of day against the school's share last term (ghosts do not eat)
+  enrolment_change: enrolment against last term (ghost learners appear as a jump)
+  uptake: learners fed / learners present, where present is recorded (copied figures sit at 100%)
+  cereal_ratio: cereals issued against the ration for learners fed
+  pulse_ratio: pulses issued against the ration for learners fed
+  usage_trend: recent rise in food issued per learner
+  count_gap_change: new gap between the store count and the records, in days of food
+  entry_delay: school days between the date and when the record reached the server
+  batch_dates: dates sent together in one sync
+  after_hours_share: share of the school's last 10 records entered outside school hours (a pattern, not one entry)
+  round_share: round numbers among recent records
+  fed_steadiness: how little learners fed, for that kind of day, changes from day to day
+
+methods:
+  # Baselines (no learned model)
+  - rules                     # fixed programme rules
+  - robust_zscore             # each school against its own history; peers when new
+  # Candidates, one per main family of unsupervised detectors, pooled across schools
+  - isolation_forest          # tree / isolation
+  - extended_isolation_forest # tree / isolation, splits on combinations of features
+  - one_class_svm             # boundary / kernel
+  - local_outlier_factor      # density
+  - sgd_one_class_svm         # boundary / kernel, linear-time approximation
+
+tuning:
+  # Each learning method gets a fixed grid of six settings and the same features. The
+  # flag threshold is the score quantile that maximises F1 on the selection period, using
+  # tuning-type labels only.
+  isolation_forest: {n_estimators: [100, 300, 500], max_samples: [256, 1024]}
+  # ndim: features combined in each split (2, or all 15 for the fully extended version)
+  extended_isolation_forest: {n_estimators: [100, 300, 500], ndim: [2, 15]}
+  local_outlier_factor: {n_neighbors: [10, 20, 35, 50, 75, 100]}
+  # gamma_factor: gamma as a multiple of scikit-learn's "scale" (1 / (features x variance))
+  one_class_svm: {nu: [0.02, 0.05, 0.1], gamma_factor: [0.3, 1.0]}
+  sgd_one_class_svm: {nu: [0.02, 0.05, 0.1], n_components: [100, 300]}
+  robust_zscore: {history_days: [40, 80]}
+
+  rules: {}                   # thresholds fixed by programme logic, not tuned
+  random_seed: 20261031
+
+scoring:
+  unit: school-day
+  # A programme officer reviews a short list each week, so the primary metric is the
+  # share of listed school-weeks that really contain an anomaly.
+  primary_metric: precision_at_k
+  review_list: {per: week, k: 10}  # top 10 school-weeks a week across the programme
+  secondary_metrics: [precision, recall, f1, recall_on_held_out_types]
+  bootstrap: {samples: 1000, block: week}
+
+decision_rule: >
+  The recommended method has the highest test precision@k. If another method's 95%
+  bootstrap interval for the difference includes zero, the simpler method is preferred
+  (rules < robust z-score < the learned methods), because an officer must be able to
+  understand why a school was listed. Among learned methods not distinguishable from the
+  leader, the one that fits fastest on 50,000 rows is preferred, because it must scale. Recall on the held-out types is reported for
+  every method and discussed, but does not decide the ranking.
+
+reporting:
+  - every method's metrics, whether it wins or not
+  - per anomaly type, so a method strong on one type and blind to another is visible
+  - the share of false flags on ordinary days, because each one costs an officer a visit
+  - flags are worded "needs review", never as an accusation

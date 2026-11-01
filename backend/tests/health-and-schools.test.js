@@ -14,6 +14,19 @@ describe('GET /api/health', () => {
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ status: 'ok', database: 'connected' });
   });
+
+  it('says whether the scoring service answers, without failing when it does not', async () => {
+    const realFetch = global.fetch;
+    global.fetch = jest.fn().mockRejectedValue(new Error('connect ECONNREFUSED'));
+    try {
+      const res = await asAdmin.get('/api/health');
+
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({ status: 'ok', scoring: 'unreachable' });
+    } finally {
+      global.fetch = realFetch;
+    }
+  });
 });
 
 describe('unknown routes', () => {
@@ -26,12 +39,12 @@ describe('unknown routes', () => {
 });
 
 describe('GET /api/schools', () => {
-  it('lists the seeded school', async () => {
+  it('lists the seeded schools', async () => {
     const res = await asAdmin.get('/api/schools');
 
     expect(res.status).toBe(200);
-    expect(res.body.count).toBe(1);
-    expect(res.body.schools[0]).toMatchObject({ id: SCHOOL_ID, name: 'Demo Primary School' });
+    expect(res.body.count).toBe(4);
+    expect(res.body.schools).toContainEqual(expect.objectContaining({ id: SCHOOL_ID, name: 'Demo Primary School' }));
   });
 
   it('returns a school by id', async () => {

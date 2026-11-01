@@ -5,13 +5,13 @@ Lishe runs as four containers, described in [`docker-compose.yml`](../docker-com
 | Service | Image | What it does |
 |---|---|---|
 | `db` | `postgres:17-alpine` | The central PostgreSQL database. Data lives in the `db-data` volume. |
-| `forecasting` | built from [`forecasting/Dockerfile`](../forecasting/Dockerfile) | Flask + Prophet forecasting service (gunicorn). Loads the trained model in `forecasting/models/artifacts` at startup. |
+| `scoring` | built from [`forecasting/Dockerfile`](../forecasting/Dockerfile) | Flask scoring service for the weekly review list (gunicorn, scikit-learn). It keeps no model and no data: each request brings a sub-county's records. |
 | `backend` | built from [`backend/Dockerfile`](../backend/Dockerfile) | Express API. |
 | `web` | built from [`frontend/Dockerfile`](../frontend/Dockerfile) | nginx serving the built PWA and forwarding `/api` to the API, so the browser talks to one origin. |
 
 On a public server, [`docker-compose.prod.yml`](../docker-compose.prod.yml) adds **Caddy** in front of `web` for HTTPS. The PWA needs HTTPS to install and to work offline on phones. Locally, `http://localhost` is treated as secure, so plain HTTP is enough.
 
-Only `web` (locally) or `caddy` (on a server) publishes a port. The database, API and forecasting service are reachable only inside the Docker network.
+Only `web` (locally) or `caddy` (on a server) publishes a port. The database, API and scoring service are reachable only inside the Docker network.
 
 ## Run it locally
 
@@ -39,7 +39,7 @@ Stop with `Ctrl+C`, or `docker compose down` from another terminal. The database
 
 ## Deploy to a public server with HTTPS
 
-Any Linux server that can run Docker works, for example a small cloud VM. Use one with at least 2 GB of memory, because Prophet needs it when the images are built and forecasts run.
+Any Linux server that can run Docker works, for example a small cloud VM. Use one with at least 2 GB of memory, for building the images and scoring a sub-county's weekly list.
 
 1. **Point a domain at the server.** Create a DNS `A` record (for example `lishe.example.org`) for the server's public IP address. Open ports **80** and **443** in the server's firewall or cloud security group. Caddy needs both to obtain the certificate.
 2. **Install Docker** with the Compose plugin ([instructions](https://docs.docker.com/engine/install/)).
@@ -119,7 +119,7 @@ Then apply any new migrations. Devices pick up the new version of the app automa
 - you can sign in
 - an attendance record can be saved online
 - a meal record captured offline syncs and shows in reports
-- the forecasting service returns a live forecast
+- the API reaches the scoring service
 
 ```bash
 BASE_URL=https://lishe.example.org SMOKE_EMAIL=you@example.org SMOKE_PASSWORD=... node deploy/smoke-test.mjs
@@ -132,7 +132,7 @@ The browser parts of offline use cannot be scripted against a server. After depl
 1. Open the site and install it (**Add to Home screen**).
 2. Turn on airplane mode, open Lishe from the home screen, and record attendance. It is saved on the device.
 3. Turn airplane mode off. The record syncs, and **Sync status** shows it as synced.
-4. Open **Forecast** and check that it shows.
+4. Sign in as a programme officer on a laptop, open **Weekly review** and score the current week.
 
 The CI workflow runs the same smoke test on every pull request. It builds all four images, starts the stack with the demo data, runs the test, creates an administrator with the script, and applies the migrations.
 
@@ -144,5 +144,5 @@ The CI workflow runs the same smoke test on every pull request. It builds all fo
 - **The database password seems wrong**: Docker Compose prefers variables already set in your terminal over `.env`. If you set `PGPASSWORD` in your shell for `psql`, that value is used; open a new terminal without it.
 - **The API keeps restarting with `JWT_SECRET must be set`**: the secret is shorter than 32 characters or still the placeholder.
 - **No HTTPS certificate**: check that the domain's DNS points at the server and that ports 80 and 443 are open, then look at `docker compose logs caddy`.
-- **Forecast says the model is not loaded**: look at `docker compose logs forecasting`. The image must include `forecasting/models/artifacts`.
+- **The weekly review list says the scoring service is not reachable**: look at `docker compose logs scoring`, and at `scoring` in `GET /api/health`.
 - **See what is running:** `docker compose ps`. Follow logs with `docker compose logs -f backend`.

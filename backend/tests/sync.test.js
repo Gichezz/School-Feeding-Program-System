@@ -88,6 +88,44 @@ describe('POST /api/sync applying operations', () => {
     expect(record.rows[0]).toEqual({ total_present: 88, version: 2 });
   });
 
+  it('treats an edit based on another device’s record as a conflict, even when the version matches', async () => {
+    // Device A's record for the day is version 1; device B's own create for the same day
+    // conflicted, and B's correction is also based on "version 1", but of its own record.
+    await sync('device-a', [syncOperation('op-1', 'attendance', 'create', attendancePayload(), 0)]);
+    const otherRecordId = '99999999-9999-4999-8999-999999999999';
+
+    const res = await sync('device-b', [{
+      ...syncOperation('op-2', 'attendance', 'update', attendancePayload({ totalPresent: 70, totalAbsent: 30 }), 1),
+      baseRecordId: otherRecordId,
+    }]);
+
+    expect(res.body.results[0]).toMatchObject({ status: 'conflict' });
+    const record = await pool.query(
+      "SELECT total_present, version FROM attendance_records WHERE attendance_date = '2026-10-06'"
+    );
+    expect(record.rows[0]).toEqual({ total_present: 90, version: 1 });
+  });
+
+  it('applies an edit that names the record it was based on', async () => {
+    const created = await sync('device-a', [syncOperation('op-1', 'attendance', 'create', attendancePayload(), 0)]);
+
+    const res = await sync('device-a', [{
+      ...syncOperation('op-2', 'attendance', 'update', attendancePayload({ totalPresent: 88, totalAbsent: 12 }), 1),
+      baseRecordId: created.body.results[0].recordId,
+    }]);
+
+    expect(res.body.results[0]).toMatchObject({ status: 'synced', version: 2 });
+  });
+
+  it('rejects a baseRecordId that is not a record id', async () => {
+    const res = await sync('device-a', [{
+      ...syncOperation('op-1', 'attendance', 'update', attendancePayload(), 1),
+      baseRecordId: 'not-an-id',
+    }]);
+
+    expect(res.status).toBe(400);
+  });
+
   it('processes each operation in a batch independently', async () => {
     const res = await sync('device-a', [
       syncOperation('op-1', 'attendance', 'create', attendancePayload(), 0),

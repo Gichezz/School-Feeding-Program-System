@@ -1,4 +1,4 @@
-# Lishe: database, API, forecasting service and web app with one command.
+# Lishe: database, API, review scoring service and web app with one command.
 #
 #   copy .env.example .env      (then set PGPASSWORD and JWT_SECRET)
 #   docker compose up --build
@@ -29,7 +29,7 @@ services:
       timeout: 5s
       retries: 20
 
-  forecasting:
+  scoring:
     build: ./forecasting
     restart: unless-stopped
 
@@ -41,8 +41,8 @@ services:
       DATABASE_URL: postgresql://${PGUSER:-postgres}:${PGPASSWORD}@db:5432/${PGDATABASE:-school_feeding_db}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
-      FORECASTING_SERVICE_URL: http://forecasting:5001
-      FORECASTING_TIMEOUT_MS: ${FORECASTING_TIMEOUT_MS:-15000}
+      SCORING_SERVICE_URL: http://scoring:5001
+      SCORING_TIMEOUT_MS: ${SCORING_TIMEOUT_MS:-30000}
       # The browser reaches the API through the web container (same origin), so CORS only
       # matters if the API is called from elsewhere
       FRONTEND_URL: ${PUBLIC_URL:-http://localhost:8080}
@@ -52,7 +52,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      forecasting:
+      scoring:
         condition: service_started
 
   web:

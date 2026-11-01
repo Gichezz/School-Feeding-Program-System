@@ -274,7 +274,8 @@ describe('school staff stay within their school', () => {
 
     expect(list.body.schools.map((s) => s.id)).toEqual([SCHOOL_ID]);
     expect((await asStaff.get(`/api/schools/${OTHER_SCHOOL_ID}`)).status).toBe(404);
-    expect((await asAdmin.get('/api/schools')).body.schools).toHaveLength(2);
+    // The four seeded schools and the second school added for these tests
+    expect((await asAdmin.get('/api/schools')).body.schools).toHaveLength(5);
   });
 
   it('need a session from an approved device', async () => {

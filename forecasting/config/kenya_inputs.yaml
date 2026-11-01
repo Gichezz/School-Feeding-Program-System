@@ -1,0 +1,98 @@
+# Real Kenyan inputs for the food-planning model and the Kenyan school scenario.
+#
+# Every value has a source. Where published sources disagree, the value used is
+# marked `disputed` with the alternative, so it can be corrected from the
+# Ministry of Education circular without changing any code.
+
+sources:
+  moe_calendar_2024: "Ministry of Education 2024 calendar, as reported by Citizen Digital (2023-10) and Kenya News Agency"
+  moe_calendar_2025: "Ministry of Education circular of 2024-11-28, as reported by Education News and Khusoko"
+  moe_calendar_2026: "Ministry of Education circular of 2025-10, as reported by The Star and Education News"
+  ration_scale: "School Meals Programme ration per child per day, stated by the programme (Kenya News Agency) and in the 2012 Technical Development Plan cited by later reviews"
+  public_holidays: "Public Holidays Act (Cap. 110) as amended; Mazingira Day replaced Utamaduni Day from 2024"
+  food_prices: "WFP food prices for Kenya, Humanitarian Data Exchange (CC BY-IGO); see fetch_open_datasets.py"
+
+# Basic education (pre-primary to senior school). Dates are inclusive: `open`
+# is the first school day, `close` the last. Half-term dates are the days
+# learners are away.
+school_calendar:
+  2024:
+    terms:
+      - {term: 1, open: 2024-01-08, close: 2024-04-05}
+      - {term: 2, open: 2024-04-29, close: 2024-08-02}
+      - {term: 3, open: 2024-08-26, close: 2024-10-25}
+    half_terms:
+      - {term: 1, start: 2024-02-29, end: 2024-03-03}
+      - {term: 2, start: 2024-06-20, end: 2024-06-23}
+    national_exams:
+      - {name: KPSEA, start: 2024-10-28, end: 2024-10-31}
+      - {name: KCSE, start: 2024-11-04, end: 2024-11-22}
+  2025:
+    terms:
+      - {term: 1, open: 2025-01-06, close: 2025-04-04, disputed: "one report gives 2025-04-07 as the closing date"}
+      - {term: 2, open: 2025-04-28, close: 2025-08-01}
+      - {term: 3, open: 2025-08-25, close: 2025-10-24}
+    half_terms:
+      - {term: 1, start: 2025-02-26, end: 2025-03-02}
+      - {term: 2, start: 2025-06-25, end: 2025-06-29}
+    national_exams:
+      - {name: KPSEA, start: 2025-10-27, end: 2025-10-30, disputed: "one listing gives 2025-10-21 to 2025-10-24"}
+      - {name: KJSEA, start: 2025-10-27, end: 2025-11-06}
+      - {name: KCSE, start: 2025-11-03, end: 2025-11-21}
+  2026:
+    terms:
+      - {term: 1, open: 2026-01-05, close: 2026-04-02}
+      - {term: 2, open: 2026-04-27, close: 2026-07-31}
+      - {term: 3, open: 2026-08-24, close: 2026-10-23}
+    half_terms:
+      - {term: 1, start: 2026-02-25, end: 2026-03-01}
+      - {term: 2, start: 2026-06-24, end: 2026-06-28}
+    national_exams:
+      - {name: KPSEA, start: 2026-10-26, end: 2026-10-30}
+      - {name: KJSEA, start: 2026-10-26, end: 2026-11-05, disputed: "one report gives 2026-11-01 as the end"}
+      - {name: KCSE, start: 2026-11-02, end: 2026-11-20}
+
+# Public holidays that can fall on a school day. Eid al-Fitr follows the
+# gazette notice for the year (it depends on the moon sighting).
+public_holidays:
+  fixed:
+    - {month: 1, day: 1, name: "New Year's Day"}
+    - {month: 5, day: 1, name: Labour Day}
+    - {month: 6, day: 1, name: Madaraka Day}
+    - {month: 10, day: 10, name: Mazingira Day}
+    - {month: 10, day: 20, name: Mashujaa Day}
+    - {month: 12, day: 12, name: Jamhuri Day}
+    - {month: 12, day: 25, name: Christmas Day}
+    - {month: 12, day: 26, name: Boxing Day}
+  # A fixed holiday on a Sunday is observed on the Monday.
+  sunday_rule: next_monday
+  movable:
+    2024: [{date: 2024-03-29, name: Good Friday}, {date: 2024-04-01, name: Easter Monday}, {date: 2024-04-10, name: Eid al-Fitr}]
+    2025: [{date: 2025-03-31, name: Eid al-Fitr}, {date: 2025-04-18, name: Good Friday}, {date: 2025-04-21, name: Easter Monday}]
+    2026: [{date: 2026-03-20, name: Eid al-Fitr}, {date: 2026-04-03, name: Good Friday}, {date: 2026-04-06, name: Easter Monday}]
+
+# Grams (oil: grams, about 1.09 g per ml) per learner per meal. This is the
+# programme's lunch ration for pre-primary and primary learners. Kenya has no
+# published ration standard for secondary or boarding schools, so a school
+# sets its own in the app, starting from this one.
+ration_scale:
+  school_meals_programme_lunch:
+    cereals: 150
+    pulses: 40
+    vegetable_oil: 5
+    salt: 2
+
+# WFP commodity names for each ration item, and the unit WFP reports in,
+# used to price a plan. Prices are retail medians across the reported markets.
+price_commodities:
+  cereals: {wfp_commodity: Maize, wfp_unit: KG}
+  pulses: {wfp_commodity: "Beans (dry)", wfp_unit: KG}
+  vegetable_oil: {wfp_commodity: "Oil (vegetable)", wfp_unit: L}
+  salt: {wfp_commodity: Salt, wfp_unit: "200 G"}
+  rice: {wfp_commodity: Rice, wfp_unit: KG}
+  sugar: {wfp_commodity: Sugar, wfp_unit: KG}
+  maize_flour: {wfp_commodity: "Maize flour", wfp_unit: KG}
+  milk: {wfp_commodity: "Milk (UHT)", wfp_unit: "500 ML"}
+  kale: {wfp_commodity: Kale, wfp_unit: KG}
+  # Cabbage has only wholesale prices (126 kg bags) after 2021
+  cabbage: {wfp_commodity: Cabbage, wfp_unit: "126 KG", price_type: Wholesale}

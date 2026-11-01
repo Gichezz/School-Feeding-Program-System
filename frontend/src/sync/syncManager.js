@@ -14,6 +14,9 @@ import { updateLocalAttendance, updateLocalMeal, setLocalSyncStatus } from '../s
 import { saveConflict } from './conflictService';
 import { forgetOfflineUser } from '../features/devices/offlineSignIn';
 import { isSessionValid } from '../services/session';
+import db from '../db/database';
+import { getDeviceIdentity } from '../features/devices/deviceIdentity';
+import { pullChanges } from './pullChanges';
 
 /**
  * Sync Manager - Phase 6
@@ -140,6 +143,10 @@ export async function processSyncQueue() {
       conflicts: 0
     };
 
+    // Download the school's changes first, so edits are made on the latest copy
+    const schoolId = await deviceSchoolId();
+    await download(schoolId);
+
     console.log('Getting pending operations...');
     const pendingOperations = await getPendingOperations();
     console.log('Pending operations:', pendingOperations);
@@ -154,15 +161,29 @@ export async function processSyncQueue() {
       };
     }
 
+    // The records sent in this pass share one sync batch on the server
+    const syncBatchId = crypto.randomUUID();
+
     console.log(`Processing ${pendingOperations.length} pending operations`);
 
-    // Process operations in order
+    // Process operations in order. A record's later changes wait while an earlier change
+    // to it is in conflict, still waiting or has failed: they were made on top of it, and
+    // sending them could overwrite another device's record with the same version number.
     const deferredIds = new Set();
+    const blockedRecords = await recordsWithUnfinishedChanges();
+    const blockedIds = new Set();
     let connectionProblems = 0;
     for (const operation of pendingOperations) {
+      const key = recordKey(operation);
+      if (blockedRecords.has(key)) {
+        blockedIds.add(operation.id);
+        syncProgress.blocked = (syncProgress.blocked || 0) + 1;
+        continue;
+      }
       console.log(`Processing operation:`, operation);
       try {
-        const result = await processSingleOperation(operation);
+        const result = await processSingleOperation(await withBaseRecord(operation), { syncBatchId });
+        if (!result.success) blockedRecords.add(key);
         console.log(`Operation result:`, result);
         syncProgress.processed++;
 
@@ -215,7 +236,11 @@ export async function processSyncQueue() {
         } else if (result.status === 'held') {
           // Kept on the server for an administrator to review; stop sending it
           await markOperationHeld(operation.id, result.reason);
-          await setLocalSyncStatus(operation.entityType, operation.recordId, 'held').catch(() => {});
+          await setStatus(operation.entityType, operation.recordId, 'held').catch(() => {});
+          // A possible second entry of the same delivery note leaves this device's stock balance
+          if (result.reason === 'duplicate_delivery' && operation.entityType === 'stockMovement') {
+            await db.stockMovements.update(operation.recordId, { heldReason: result.reason }).catch(() => {});
+          }
           // The person can no longer sign in offline here until they sign in online
           if (result.capturedBy && (result.reason === 'user_deactivated' || result.reason === 'password_reset')) {
             await forgetOfflineUser(result.capturedBy).catch(() => {});
@@ -245,7 +270,8 @@ export async function processSyncQueue() {
         }
       } catch (error) {
         console.error(`Error processing operation ${operation.id}:`, error);
-        
+        blockedRecords.add(key);
+
         const currentRetryCount = operation.retryCount || 0;
         
         if (currentRetryCount < MAX_RETRIES) {
@@ -259,8 +285,13 @@ export async function processSyncQueue() {
       }
     }
 
-    // Still waiting: anything pending except a colleague's records, which only they can send
-    const waiting = (await getPendingOperations()).filter((op) => !deferredIds.has(op.id)).length;
+    // What went up is now on the server: download it with the rest of the school's changes
+    if (syncProgress.successful > 0) await download(schoolId);
+
+    // Still waiting: anything pending except a colleague's records, which only they can send,
+    // and changes held back behind a conflict, which wait for an administrator
+    const waiting = (await getPendingOperations())
+      .filter((op) => !deferredIds.has(op.id) && !blockedIds.has(op.id)).length;
     lastPass = {
       waiting,
       madeProgress: syncProgress.successful + syncProgress.conflicts + (syncProgress.held || 0) > 0
@@ -285,6 +316,75 @@ export async function processSyncQueue() {
   }
 }
 
+function recordKey(operation) {
+  return `${operation.entityType}:${operation.recordId}`;
+}
+
+/**
+ * Records with an unresolved conflict, or a queued change that is in conflict or has
+ * failed: their later changes are held back.
+ */
+async function recordsWithUnfinishedChanges() {
+  const keys = new Set();
+  const conflicts = await db.conflicts.where('status').equals('unresolved').toArray();
+  conflicts.forEach((c) => keys.add(recordKey(c)));
+  const stuck = await db.syncQueue.where('status').anyOf('conflict', 'failed').toArray();
+  stuck.forEach((op) => keys.add(recordKey(op)));
+  return keys;
+}
+
+// Editable records on the device, by sync entity type
+const LOCAL_TABLES = {
+  attendance: 'attendance',
+  mealDistribution: 'mealDistribution',
+  enrolment: 'enrolment',
+  dailyFeeding: 'dailyFeeding',
+};
+// The record types added with the stock ledger, and their tables
+const FEEDING_TABLES = {
+  enrolment: 'enrolment',
+  dailyFeeding: 'dailyFeeding',
+  stockMovement: 'stockMovements',
+  stockCount: 'stockCounts',
+};
+
+async function setStatus(entityType, recordId, syncStatus) {
+  if (FEEDING_TABLES[entityType]) {
+    await db[FEEDING_TABLES[entityType]].update(recordId, { syncStatus });
+    return;
+  }
+  await setLocalSyncStatus(entityType, recordId, syncStatus);
+}
+
+/** The school this device is set up for, or null (an administrator's own computer). */
+async function deviceSchoolId() {
+  try {
+    return (await getDeviceIdentity())?.schoolId || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Download the school's changes; a failed download never stops records being sent. */
+async function download(schoolId) {
+  if (!schoolId) return;
+  try {
+    syncProgress.downloaded = (syncProgress.downloaded || 0) + (await pullChanges(schoolId));
+  } catch (error) {
+    console.error('Error downloading changes:', error);
+  }
+}
+
+/**
+ * An update says which server record it was based on, once that is known, so the server
+ * can refuse an edit that would land on a different record with the same version.
+ */
+async function withBaseRecord(operation) {
+  if (operation.operation !== 'update' || !LOCAL_TABLES[operation.entityType]) return operation;
+  const record = await db[LOCAL_TABLES[operation.entityType]].get(operation.recordId);
+  return record?.serverId ? { ...operation, baseRecordId: record.serverId } : operation;
+}
+
 /**
  * Update local record after successful sync
  */
@@ -300,6 +400,9 @@ async function updateLocalRecordAfterSync(operation, syncResult) {
       await updateLocalAttendance(operation.recordId, updates);
     } else if (operation.entityType === 'mealDistribution') {
       await updateLocalMeal(operation.recordId, updates);
+    } else if (FEEDING_TABLES[operation.entityType]) {
+      // Status and server copy only: an edit through feedingDb would queue another change
+      await db[FEEDING_TABLES[operation.entityType]].update(operation.recordId, updates);
     }
   } catch (error) {
     console.error('Error updating local record after sync:', error);
@@ -312,7 +415,7 @@ async function updateLocalRecordAfterSync(operation, syncResult) {
 async function updateLocalRecordConflictStatus(operation) {
   try {
     // Status only: an edit here would bump the version and queue another stale update
-    await setLocalSyncStatus(operation.entityType, operation.recordId, 'conflict');
+    await setStatus(operation.entityType, operation.recordId, 'conflict');
   } catch (error) {
     console.error('Error updating local record conflict status:', error);
   }

@@ -11,6 +11,9 @@ const session = await import('../../src/services/session.js');
 const localDb = await import('../../src/services/localDb.js');
 const syncManager = await import('../../src/sync/syncManager.js');
 const { default: db } = await import('../../src/db/database.js');
+const feedingDb = await import('../../src/services/feedingDb.js');
+const { saveDeviceIdentity } = await import('../../src/features/devices/deviceIdentity.js');
+const { stockBalances } = await import('../../src/features/feeding/planning.js');
 
 // Automatic sync when the connection returns, as the app sets it up in App.jsx
 syncManager.setupAutoSync();
@@ -33,13 +36,52 @@ const KINDS = {
 };
 
 const commands = {
-  async init({ baseUrl, email, password, seed }) {
+  async init({ baseUrl, email, password, seed, register = false }) {
     network.baseUrl = baseUrl;
     network.random = seededRandom(seed);
     session.saveSession(await api.login(email, password));
     const { schools } = await api.getSchools();
     await localDb.cacheSchools(schools);
+    // A school device (version 2 scenarios): it downloads the school's records with every sync
+    if (register) await saveDeviceIdentity({ schoolId: schools[0].id, status: 'approved' });
     return { schoolId: schools[0].id };
+  },
+
+  /** The daily feeding form: saves the day, or edits this device's copy of it. */
+  async feeding(values) {
+    await feedingDb.saveDailyFeeding(values);
+    return { ok: true };
+  },
+
+  /** One class and sex on the enrolment page. */
+  async enrolment(values) {
+    await feedingDb.saveEnrolment(values);
+    return { ok: true };
+  },
+
+  /** A delivery, purchase or loss, or a store count, as the Stock page records them. */
+  async movement(values) {
+    return feedingDb.addStockMovement(values);
+  },
+
+  async count(values) {
+    return feedingDb.addStockCount(values);
+  },
+
+  /** What this device holds: its records, its stock entries and the cereal balance it shows. */
+  async local({ schoolId }) {
+    const school = await db.schoolSettings.get(schoolId);
+    const feedingDays = await db.dailyFeeding.filter((d) => d.schoolId === schoolId).toArray();
+    const movements = (await db.stockMovements.where('schoolId').equals(schoolId).toArray())
+      .filter((m) => !(m.syncStatus === 'held' && m.heldReason === 'duplicate_delivery'));
+    return {
+      feeding: Object.fromEntries(feedingDays.map((d) => [d.feedingDate, [d.learnersFed, Number(d.cerealsKg), Number(d.pulsesKg)]])),
+      enrolment: Object.fromEntries((await db.enrolment.toArray()).map((e) => [`${e.class}|${e.sex}`, e.learners])),
+      movementIds: movements.map((m) => m.id).sort(),
+      countIds: (await db.stockCounts.toArray()).map((c) => c.id).sort(),
+      cereals: stockBalances({ movements, feedingDays, ration: school?.ration }).cereals,
+      unresolvedConflicts: await db.conflicts.where('status').equals('unresolved').count(),
+    };
   },
 
   /**
@@ -86,7 +128,9 @@ const commands = {
         id: op.id,
         entityType: op.entityType,
         operation: op.operation,
-        date: op.payload.attendanceDate || op.payload.distributionDate,
+        date: op.payload.attendanceDate || op.payload.distributionDate || op.payload.feedingDate || op.payload.movementDate || null,
+        // What the record is about: its date, or the class and sex for enrolment
+        key: op.payload.class ? `${op.payload.class}|${op.payload.sex}` : op.payload.feedingDate || null,
         status: op.status,
         retryCount: op.retryCount || 0,
         outcome: outcomes.get(op.id)?.status || null,

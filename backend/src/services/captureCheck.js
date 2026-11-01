@@ -19,6 +19,7 @@ const HOLD_REASONS = {
   user_deactivated: 'The person who captured it has been deactivated',
   password_reset: 'The password of the person who captured it was reset after they captured it',
   device_revoked: 'It was captured on a device that has since been removed',
+  duplicate_delivery: 'A delivery with the same delivery note is already recorded for this school, so it may have been entered twice',
 };
 
 /**

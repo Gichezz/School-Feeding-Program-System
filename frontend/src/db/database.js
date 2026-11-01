@@ -73,6 +73,53 @@ class SchoolFeedingDB extends Dexie {
       deviceIdentity: 'key',
       offlineUsers: 'userId, email'
     });
+
+    // Version 7: the school's feeding records and stock ledger, captured here or
+    // downloaded from the server, so every device at a school sees the same stock
+    // balance offline; and the reference data that comes with each download.
+    //   enrolment, dailyFeeding  editable records (local ++id, serverId once synced)
+    //   stockMovements, stockCounts  append-only entries, keyed by an id made on the device
+    //   syncCursors  the last download cursor per school
+    this.version(7).stores({
+      attendance: '++id, schoolId, attendanceDate, syncStatus, clientId, updatedAt',
+      mealDistribution: '++id, schoolId, distributionDate, syncStatus, clientId, updatedAt',
+      schools: 'id, name',
+      metadata: 'key, value',
+      syncQueue: '++id, entityType, recordId, status, clientId, createdAt',
+      conflicts: '++id, operationId, entityType, recordId, status, createdAt',
+      forecasts: 'schoolId, fetchedAt',
+      deviceIdentity: 'key',
+      offlineUsers: 'userId, email',
+      enrolment: '++id, serverId, termId, syncStatus, [schoolId+termId], [schoolId+termId+class+sex]',
+      dailyFeeding: '++id, serverId, feedingDate, syncStatus, [schoolId+feedingDate]',
+      stockMovements: 'id, schoolId, movementDate, syncStatus',
+      stockCounts: 'id, schoolId, countDate, syncStatus',
+      terms: 'id, year',
+      calendarEvents: 'id, startsOn',
+      schoolSettings: 'id',
+      syncCursors: 'schoolId'
+    });
+
+    // Version 8: meal-demand forecasting was removed; drop its offline cache
+    this.version(8).stores({
+      attendance: '++id, schoolId, attendanceDate, syncStatus, clientId, updatedAt',
+      mealDistribution: '++id, schoolId, distributionDate, syncStatus, clientId, updatedAt',
+      schools: 'id, name',
+      metadata: 'key, value',
+      syncQueue: '++id, entityType, recordId, status, clientId, createdAt',
+      conflicts: '++id, operationId, entityType, recordId, status, createdAt',
+      forecasts: null,
+      deviceIdentity: 'key',
+      offlineUsers: 'userId, email',
+      enrolment: '++id, serverId, termId, syncStatus, [schoolId+termId], [schoolId+termId+class+sex]',
+      dailyFeeding: '++id, serverId, feedingDate, syncStatus, [schoolId+feedingDate]',
+      stockMovements: 'id, schoolId, movementDate, syncStatus',
+      stockCounts: 'id, schoolId, countDate, syncStatus',
+      terms: 'id, year',
+      calendarEvents: 'id, startsOn',
+      schoolSettings: 'id',
+      syncCursors: 'schoolId'
+    });
   }
 }
 

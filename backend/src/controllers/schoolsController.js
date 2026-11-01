@@ -9,7 +9,7 @@ async function getSchools(req, res, next) {
     // School staff only see the school they work at
     const ownSchoolOnly = req.user?.role === 'school_staff';
     const result = await pool.query(
-      `SELECT id, name, location, created_at, updated_at FROM schools
+      `SELECT id, name, location, sub_county, created_at, updated_at FROM schools
        ${ownSchoolOnly ? 'WHERE id = $1' : ''} ORDER BY name`,
       ownSchoolOnly ? [req.user.schoolId] : []
     );
@@ -37,7 +37,7 @@ async function getSchoolById(req, res, next) {
     }
 
     const result = await pool.query(
-      'SELECT id, name, location, created_at, updated_at FROM schools WHERE id = $1',
+      'SELECT id, name, location, sub_county, created_at, updated_at FROM schools WHERE id = $1',
       [id]
     );
 

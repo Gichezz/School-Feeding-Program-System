@@ -1,0 +1,270 @@
+{
+  "plan": "forecasting\\config\\anomaly_deployment_test.yaml",
+  "settings": {
+    "one_class_svm": {
+      "nu": 0.05,
+      "gamma": "scale"
+    }
+  },
+  "summary": [
+    {
+      "method": "one_class_svm",
+      "precision_at_k": 0.1505,
+      "precision_sd": 0.0097,
+      "share_of_ceiling": 0.7007,
+      "anomalous_weeks_listed": 0.6988,
+      "fit_seconds": 0.0101
+    }
+  ],
+  "listed_by_type": [
+    {
+      "method": "one_class_svm",
+      "backdated_bulk_entry": 1.0,
+      "consumption_drift": 0.7881,
+      "ghost_learners": 0.7972,
+      "inflated_headcount": 0.7442,
+      "round_number_entry": 0.846,
+      "stock_leakage": 0.3739
+    }
+  ],
+  "by_week_type": [
+    {
+      "method": "one_class_svm",
+      "week_type": "other",
+      "precision_at_k": 0.1584,
+      "ceiling": 0.2237,
+      "share_of_ceiling": 0.7079
+    },
+    {
+      "method": "one_class_svm",
+      "week_type": "school_year_end",
+      "precision_at_k": 0.0104,
+      "ceiling": 0.0833,
+      "share_of_ceiling": 0.1111
+    },
+    {
+      "method": "one_class_svm",
+      "week_type": "school_year_start",
+      "precision_at_k": 0.0208,
+      "ceiling": 0.0417,
+      "share_of_ceiling": 0.5
+    }
+  ],
+  "week_type_check": {
+    "method": "one_class_svm",
+    "gap_points": 59.7,
+    "fixed": false,
+    "share_of_ceiling": {
+      "other": 0.7079,
+      "school_year_end": 0.1111,
+      "school_year_start": 0.5
+    },
+    "version_4": null
+  },
+  "per_run": [
+    {
+      "dataset": "main",
+      "method": "one_class_svm",
+      "model_seed": 1,
+      "fit_seconds": 0.0093,
+      "precision_at_k": 0.1505,
+      "share_of_ceiling": 0.7182,
+      "anomalous_weeks_listed": 0.7143,
+      "ceiling": 0.2095
+    },
+    {
+      "dataset": "main",
+      "method": "one_class_svm",
+      "model_seed": 2,
+      "fit_seconds": 0.0094,
+      "precision_at_k": 0.1505,
+      "share_of_ceiling": 0.7182,
+      "anomalous_weeks_listed": 0.7143,
+      "ceiling": 0.2095
+    },
+    {
+      "dataset": "main",
+      "method": "one_class_svm",
+      "model_seed": 3,
+      "fit_seconds": 0.0101,
+      "precision_at_k": 0.1505,
+      "share_of_ceiling": 0.7182,
+      "anomalous_weeks_listed": 0.7143,
+      "ceiling": 0.2095
+    },
+    {
+      "dataset": "main",
+      "method": "one_class_svm",
+      "model_seed": 4,
+      "fit_seconds": 0.011,
+      "precision_at_k": 0.1505,
+      "share_of_ceiling": 0.7182,
+      "anomalous_weeks_listed": 0.7143,
+      "ceiling": 0.2095
+    },
+    {
+      "dataset": "main",
+      "method": "one_class_svm",
+      "model_seed": 5,
+      "fit_seconds": 0.01,
+      "precision_at_k": 0.1505,
+      "share_of_ceiling": 0.7182,
+      "anomalous_weeks_listed": 0.7143,
+      "ceiling": 0.2095
+    },
+    {
+      "dataset": "seed_101",
+      "method": "one_class_svm",
+      "model_seed": 1,
+      "fit_seconds": 0.0098,
+      "precision_at_k": 0.1354,
+      "share_of_ceiling": 0.6324,
+      "anomalous_weeks_listed": 0.6324,
+      "ceiling": 0.2141
+    },
+    {
+      "dataset": "seed_101",
+      "method": "one_class_svm",
+      "model_seed": 2,
+      "fit_seconds": 0.0095,
+      "precision_at_k": 0.1354,
+      "share_of_ceiling": 0.6324,
+      "anomalous_weeks_listed": 0.6324,
+      "ceiling": 0.2141
+    },
+    {
+      "dataset": "seed_101",
+      "method": "one_class_svm",
+      "model_seed": 3,
+      "fit_seconds": 0.0102,
+      "precision_at_k": 0.1354,
+      "share_of_ceiling": 0.6324,
+      "anomalous_weeks_listed": 0.6324,
+      "ceiling": 0.2141
+    },
+    {
+      "dataset": "seed_101",
+      "method": "one_class_svm",
+      "model_seed": 4,
+      "fit_seconds": 0.01,
+      "precision_at_k": 0.1354,
+      "share_of_ceiling": 0.6324,
+      "anomalous_weeks_listed": 0.6324,
+      "ceiling": 0.2141
+    },
+    {
+      "dataset": "seed_101",
+      "method": "one_class_svm",
+      "model_seed": 5,
+      "fit_seconds": 0.0105,
+      "precision_at_k": 0.1354,
+      "share_of_ceiling": 0.6324,
+      "anomalous_weeks_listed": 0.6324,
+      "ceiling": 0.2141
+    },
+    {
+      "dataset": "seed_202",
+      "method": "one_class_svm",
+      "model_seed": 1,
+      "fit_seconds": 0.0106,
+      "precision_at_k": 0.1609,
+      "share_of_ceiling": 0.7277,
+      "anomalous_weeks_listed": 0.724,
+      "ceiling": 0.2211
+    },
+    {
+      "dataset": "seed_202",
+      "method": "one_class_svm",
+      "model_seed": 2,
+      "fit_seconds": 0.01,
+      "precision_at_k": 0.1609,
+      "share_of_ceiling": 0.7277,
+      "anomalous_weeks_listed": 0.724,
+      "ceiling": 0.2211
+    },
+    {
+      "dataset": "seed_202",
+      "method": "one_class_svm",
+      "model_seed": 3,
+      "fit_seconds": 0.0101,
+      "precision_at_k": 0.1609,
+      "share_of_ceiling": 0.7277,
+      "anomalous_weeks_listed": 0.724,
+      "ceiling": 0.2211
+    },
+    {
+      "dataset": "seed_202",
+      "method": "one_class_svm",
+      "model_seed": 4,
+      "fit_seconds": 0.0104,
+      "precision_at_k": 0.1609,
+      "share_of_ceiling": 0.7277,
+      "anomalous_weeks_listed": 0.724,
+      "ceiling": 0.2211
+    },
+    {
+      "dataset": "seed_202",
+      "method": "one_class_svm",
+      "model_seed": 5,
+      "fit_seconds": 0.0103,
+      "precision_at_k": 0.1609,
+      "share_of_ceiling": 0.7277,
+      "anomalous_weeks_listed": 0.724,
+      "ceiling": 0.2211
+    },
+    {
+      "dataset": "seed_303",
+      "method": "one_class_svm",
+      "model_seed": 1,
+      "fit_seconds": 0.0103,
+      "precision_at_k": 0.1551,
+      "share_of_ceiling": 0.7243,
+      "anomalous_weeks_listed": 0.7243,
+      "ceiling": 0.2141
+    },
+    {
+      "dataset": "seed_303",
+      "method": "one_class_svm",
+      "model_seed": 2,
+      "fit_seconds": 0.0104,
+      "precision_at_k": 0.1551,
+      "share_of_ceiling": 0.7243,
+      "anomalous_weeks_listed": 0.7243,
+      "ceiling": 0.2141
+    },
+    {
+      "dataset": "seed_303",
+      "method": "one_class_svm",
+      "model_seed": 3,
+      "fit_seconds": 0.0101,
+      "precision_at_k": 0.1551,
+      "share_of_ceiling": 0.7243,
+      "anomalous_weeks_listed": 0.7243,
+      "ceiling": 0.2141
+    },
+    {
+      "dataset": "seed_303",
+      "method": "one_class_svm",
+      "model_seed": 4,
+      "fit_seconds": 0.0101,
+      "precision_at_k": 0.1551,
+      "share_of_ceiling": 0.7243,
+      "anomalous_weeks_listed": 0.7243,
+      "ceiling": 0.2141
+    },
+    {
+      "dataset": "seed_303",
+      "method": "one_class_svm",
+      "model_seed": 5,
+      "fit_seconds": 0.0102,
+      "precision_at_k": 0.1551,
+      "share_of_ceiling": 0.7243,
+      "anomalous_weeks_listed": 0.7243,
+      "ceiling": 0.2141
+    }
+  ],
+  "evaluation_recommended": "one_class_svm",
+  "deployed_best": "one_class_svm",
+  "conclusion": "The evaluation's conclusion holds in deployment: One-class SVM has the highest mean precision@k.",
+  "runtime_seconds": 88
+}

@@ -1,0 +1,319 @@
+{
+  "files_sha256": {
+    "SchoolData.xlsx": "239c10a3276df887e75b1fbc15075c9a7b57c7e99f0e38c313e66c68db34420e",
+    "Holidays.xlsx": "7d1254b05e180b97027bf8d1e29d57552897204225114e73504749f20d4ff725",
+    "KitchenInformation.xlsx": "1d01347ecbd88da36956c9e238f5f5dc1c9696f6081596ef486d37e1cf04feb4"
+  },
+  "cleaning": [
+    [
+      "rows in SchoolData.xlsx",
+      53381
+    ],
+    [
+      "weekdays",
+      38208
+    ],
+    [
+      "school days (not in the municipality's holiday list)",
+      26479
+    ],
+    [
+      "before 2020-03-01",
+      25409
+    ],
+    [
+      "with a recorded student count",
+      24429
+    ],
+    [
+      "canteens with at least 600 school days",
+      24429
+    ]
+  ],
+  "overall": {
+    "canteens": 15,
+    "school_days": 24429,
+    "wape_cook_for_enrolled": 0.1306,
+    "wape_moving_average": 0.0633,
+    "wape_noise_floor": 0.0167,
+    "mean_error_cook_for_enrolled": 0.1477,
+    "error_variance_explained_by_calendar": 0.268
+  },
+  "per_canteen": [
+    {
+      "canteen": 1,
+      "municipality": "Sala",
+      "kitchen": "Production",
+      "area": "Rural",
+      "first_day": "2010-01-11",
+      "last_day": "2020-02-21",
+      "school_days": 1787,
+      "mean_students": 41.7,
+      "median_enrolled": 43.0,
+      "participation": 0.95,
+      "wape_cook_for_enrolled": 0.0921,
+      "wape_moving_average": 0.0686,
+      "wape_noise_floor": 0.0276
+    },
+    {
+      "canteen": 2,
+      "municipality": "Sala",
+      "kitchen": "Production",
+      "area": "Urban",
+      "first_day": "2010-01-11",
+      "last_day": "2020-02-21",
+      "school_days": 1732,
+      "mean_students": 243.6,
+      "median_enrolled": 257.0,
+      "participation": 0.908,
+      "wape_cook_for_enrolled": 0.1074,
+      "wape_moving_average": 0.036,
+      "wape_noise_floor": 0.0155
+    },
+    {
+      "canteen": 3,
+      "municipality": "Sala",
+      "kitchen": "Satellite",
+      "area": "Urban",
+      "first_day": "2010-01-11",
+      "last_day": "2020-02-21",
+      "school_days": 1760,
+      "mean_students": 171.2,
+      "median_enrolled": 179.0,
+      "participation": 0.954,
+      "wape_cook_for_enrolled": 0.0729,
+      "wape_moving_average": 0.0511,
+      "wape_noise_floor": 0.0132
+    },
+    {
+      "canteen": 4,
+      "municipality": "Sala",
+      "kitchen": "Production",
+      "area": "Rural",
+      "first_day": "2010-03-08",
+      "last_day": "2020-02-21",
+      "school_days": 1766,
+      "mean_students": 69.4,
+      "median_enrolled": 78.0,
+      "participation": 0.91,
+      "wape_cook_for_enrolled": 0.1416,
+      "wape_moving_average": 0.0871,
+      "wape_noise_floor": 0.0292
+    },
+    {
+      "canteen": 5,
+      "municipality": "Sala",
+      "kitchen": "Production",
+      "area": "Rural",
+      "first_day": "2010-01-18",
+      "last_day": "2020-02-21",
+      "school_days": 1792,
+      "mean_students": 113.8,
+      "median_enrolled": 122.0,
+      "participation": 0.96,
+      "wape_cook_for_enrolled": 0.0655,
+      "wape_moving_average": 0.0481,
+      "wape_noise_floor": 0.015
+    },
+    {
+      "canteen": 6,
+      "municipality": "Sala",
+      "kitchen": "Production",
+      "area": "Rural",
+      "first_day": "2010-01-11",
+      "last_day": "2020-02-21",
+      "school_days": 1797,
+      "mean_students": 71.6,
+      "median_enrolled": 80.0,
+      "participation": 0.941,
+      "wape_cook_for_enrolled": 0.1057,
+      "wape_moving_average": 0.0657,
+      "wape_noise_floor": 0.0232
+    },
+    {
+      "canteen": 7,
+      "municipality": "Sala",
+      "kitchen": "Satellite",
+      "area": "Urban",
+      "first_day": "2010-01-11",
+      "last_day": "2020-02-21",
+      "school_days": 1789,
+      "mean_students": 189.2,
+      "median_enrolled": 206.0,
+      "participation": 0.932,
+      "wape_cook_for_enrolled": 0.09,
+      "wape_moving_average": 0.0442,
+      "wape_noise_floor": 0.0152
+    },
+    {
+      "canteen": 8,
+      "municipality": "Sala",
+      "kitchen": "Production",
+      "area": "Rural",
+      "first_day": "2010-01-11",
+      "last_day": "2020-02-21",
+      "school_days": 1793,
+      "mean_students": 62.4,
+      "median_enrolled": 61.0,
+      "participation": 0.96,
+      "wape_cook_for_enrolled": 0.0824,
+      "wape_moving_average": 0.0659,
+      "wape_noise_floor": 0.0203
+    },
+    {
+      "canteen": 9,
+      "municipality": "Sala",
+      "kitchen": "Production",
+      "area": "Rural",
+      "first_day": "2010-01-11",
+      "last_day": "2020-02-21",
+      "school_days": 1762,
+      "mean_students": 109.2,
+      "median_enrolled": 106.0,
+      "participation": 0.957,
+      "wape_cook_for_enrolled": 0.1,
+      "wape_moving_average": 0.0618,
+      "wape_noise_floor": 0.0157
+    },
+    {
+      "canteen": 10,
+      "municipality": "Sala",
+      "kitchen": "Production",
+      "area": "Rural",
+      "first_day": "2010-01-11",
+      "last_day": "2020-02-21",
+      "school_days": 1784,
+      "mean_students": 96.0,
+      "median_enrolled": 101.0,
+      "participation": 0.956,
+      "wape_cook_for_enrolled": 0.098,
+      "wape_moving_average": 0.0696,
+      "wape_noise_floor": 0.0171
+    },
+    {
+      "canteen": 11,
+      "municipality": "Sala",
+      "kitchen": "Production",
+      "area": "Rural",
+      "first_day": "2010-03-08",
+      "last_day": "2020-02-21",
+      "school_days": 1698,
+      "mean_students": 107.6,
+      "median_enrolled": 98.0,
+      "participation": 0.929,
+      "wape_cook_for_enrolled": 0.1218,
+      "wape_moving_average": 0.073,
+      "wape_noise_floor": 0.0204
+    },
+    {
+      "canteen": 12,
+      "municipality": "Sala",
+      "kitchen": "Production",
+      "area": "Urban",
+      "first_day": "2010-01-11",
+      "last_day": "2020-02-21",
+      "school_days": 1781,
+      "mean_students": 163.2,
+      "median_enrolled": 214.0,
+      "participation": 0.922,
+      "wape_cook_for_enrolled": 0.1727,
+      "wape_moving_average": 0.0695,
+      "wape_noise_floor": 0.0178
+    },
+    {
+      "canteen": 13,
+      "municipality": "Sala",
+      "kitchen": "Production",
+      "area": "Urban",
+      "first_day": "2010-01-11",
+      "last_day": "2020-02-21",
+      "school_days": 1769,
+      "mean_students": 550.9,
+      "median_enrolled": 652.0,
+      "participation": 0.838,
+      "wape_cook_for_enrolled": 0.1948,
+      "wape_moving_average": 0.0767,
+      "wape_noise_floor": 0.0136
+    },
+    {
+      "canteen": 14,
+      "municipality": "Sala",
+      "kitchen": "Satellite",
+      "area": "Urban",
+      "first_day": "2015-08-19",
+      "last_day": "2020-02-21",
+      "school_days": 804,
+      "mean_students": 107.9,
+      "median_enrolled": 134.0,
+      "participation": 0.907,
+      "wape_cook_for_enrolled": 0.1828,
+      "wape_moving_average": 0.1134,
+      "wape_noise_floor": 0.0241
+    },
+    {
+      "canteen": 15,
+      "municipality": "Sala",
+      "kitchen": "Satellite",
+      "area": "Urban",
+      "first_day": "2016-08-22",
+      "last_day": "2020-02-21",
+      "school_days": 615,
+      "mean_students": 102.4,
+      "median_enrolled": 113.0,
+      "participation": 0.921,
+      "wape_cook_for_enrolled": 0.1001,
+      "wape_moving_average": 0.0488,
+      "wape_noise_floor": 0.0223
+    }
+  ],
+  "by_day_type": [
+    {
+      "day_type": "ordinary",
+      "days": 19710,
+      "share": 0.809,
+      "wape_moving_average": 0.0578,
+      "mean_error": 0.0035,
+      "share_of_total_abs_error": 0.741
+    },
+    {
+      "day_type": "first days after a break",
+      "days": 2168,
+      "share": 0.089,
+      "wape_moving_average": 0.0668,
+      "mean_error": 0.0148,
+      "share_of_total_abs_error": 0.095
+    },
+    {
+      "day_type": "last days before a break",
+      "days": 2137,
+      "share": 0.088,
+      "wape_moving_average": 0.0789,
+      "mean_error": -0.0108,
+      "share_of_total_abs_error": 0.107
+    },
+    {
+      "day_type": "first day of school year",
+      "days": 133,
+      "share": 0.005,
+      "wape_moving_average": 0.1249,
+      "mean_error": 0.0806,
+      "share_of_total_abs_error": 0.011
+    },
+    {
+      "day_type": "last day of school year",
+      "days": 95,
+      "share": 0.004,
+      "wape_moving_average": 1.1259,
+      "mean_error": -0.5415,
+      "share_of_total_abs_error": 0.031
+    },
+    {
+      "day_type": "event noted",
+      "days": 111,
+      "share": 0.005,
+      "wape_moving_average": 0.1928,
+      "mean_error": -0.094,
+      "share_of_total_abs_error": 0.015
+    }
+  ]
+}

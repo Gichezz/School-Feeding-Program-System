@@ -11,7 +11,7 @@ const SESSION_ENDED = 'Your session has ended, please sign in again';
  * password or changing their role takes effect straight away.
  * School staff sessions also belong to an approved school device at their own school
  * (#60), so revoking a device ends its sessions at once.
- * Sets req.user = { id, name, email, role, schoolId, deviceId } from the database.
+ * Sets req.user = { id, name, email, role, schoolId, subCounty, deviceId } from the database.
  */
 async function requireAuth(req, res, next) {
   const header = req.headers.authorization || '';
@@ -33,7 +33,7 @@ async function requireAuth(req, res, next) {
 
   try {
     const result = await pool.query(
-      `SELECT u.id, u.name, u.email, u.role, u.school_id, u.is_active,
+      `SELECT u.id, u.name, u.email, u.role, u.school_id, u.sub_county, u.is_active,
               floor(extract(epoch FROM u.password_changed_at))::bigint AS password_changed,
               d.status AS device_status, d.school_id AS device_school_id
        FROM users u
@@ -60,6 +60,8 @@ async function requireAuth(req, res, next) {
       email: user.email,
       role: user.role,
       schoolId: user.school_id,
+      // Programme officers oversee every school in their sub-county
+      subCounty: user.sub_county,
       deviceId: user.role === 'school_staff' ? payload.dev : null,
     };
     return next();

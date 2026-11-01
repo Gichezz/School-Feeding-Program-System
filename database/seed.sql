@@ -1,32 +1,42 @@
--- Minimal development/demo data for the single-school prototype.
--- Run after schema.sql.
+-- Minimal development/demo data: four fictional schools in one fictional sub-county.
+-- Run after schema.sql and calendar_kenya.sql.
 --
 -- Demo passwords are stored only as bcrypt hashes (never plain text).
 -- Corresponding development passwords (local use only):
 --   admin@demo-school.local        -> ChangeMeAdmin1
+--   officer@demo-school.local      -> ChangeMeOfficer1
 --   staff@demo-school.local        -> ChangeMeStaff1
 --
 -- LOCAL USE ONLY: these passwords are published here, so never load this file on a
 -- hosted or shared deployment. Create the first administrator there with
 -- backend/scripts/create-admin.js and add other users from Settings → Users.
 
-INSERT INTO schools (id, name, location)
-VALUES (
-    '11111111-1111-1111-1111-111111111111',
-    'Demo Primary School',
-    'Sample District'
-)
-ON CONFLICT (id) DO NOTHING;
+INSERT INTO schools (id, name, location, county, sub_county, programme_type)
+VALUES
+    ('11111111-1111-1111-1111-111111111111', 'Demo Primary School', 'Sample District',
+     'Mfano County', 'Mfano Sub-County', 'in_kind'),
+    ('11111111-1111-1111-1111-111111111112', 'Jaribio Primary School', 'Sample District',
+     'Mfano County', 'Mfano Sub-County', 'in_kind'),
+    ('11111111-1111-1111-1111-111111111113', 'Majaribio Comprehensive School', 'Sample District',
+     'Mfano County', 'Mfano Sub-County', 'cash_transfer'),
+    ('11111111-1111-1111-1111-111111111114', 'Kielelezo Primary School', 'Sample District',
+     'Mfano County', 'Mfano Sub-County', 'cash_transfer')
+ON CONFLICT (id) DO UPDATE SET
+    county = EXCLUDED.county,
+    sub_county = EXCLUDED.sub_county,
+    programme_type = EXCLUDED.programme_type;
 
 -- The staff account belongs to the demo school. School staff sign in on an enrolled
 -- school device: set one up from the sign-in page with this email and password.
-INSERT INTO users (id, name, email, password_hash, role, school_id)
+-- The programme officer oversees every school in Mfano Sub-County.
+INSERT INTO users (id, name, email, password_hash, role, school_id, sub_county)
 VALUES (
     'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1',
-    'Programme Administrator',
+    'System Administrator',
     'admin@demo-school.local',
     '$2b$10$rZctUe0na2ulC9Q5fctLIOv/e7K4SfuK71N22.QxTPxctjN3WlYWy',
     'admin',
+    NULL,
     NULL
 ),
 (
@@ -35,7 +45,17 @@ VALUES (
     'staff@demo-school.local',
     '$2b$10$31do6hB2ak7TOWnW21zOPOjemDOboT9uLb.W/c/Jrkmq8zJRJC73a',
     'school_staff',
-    '11111111-1111-1111-1111-111111111111'
+    '11111111-1111-1111-1111-111111111111',
+    NULL
+),
+(
+    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3',
+    'Sub-County Programme Officer',
+    'officer@demo-school.local',
+    '$2a$10$nshXiUpp7qh.V.6Uh7L6hOMb7hj/fEa2xCPNnBeNtzIucaUVLewLW',
+    'programme_officer',
+    NULL,
+    'Mfano Sub-County'
 )
 ON CONFLICT (email) DO NOTHING;
 

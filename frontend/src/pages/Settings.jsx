@@ -36,7 +36,6 @@ function Settings() {
       attendance: await db.attendance.count(),
       meals: await db.mealDistribution.count(),
       waiting: await db.syncQueue.where('status').equals('pending').count(),
-      forecasts: await db.forecasts.count(),
     })).subscribe({ next: setDevice, error: () => setDevice(null) });
     return () => subscription.unsubscribe();
   }, []);
@@ -108,7 +107,6 @@ function Settings() {
               { key: 'attendance', label: 'Attendance records', value: count(device?.attendance) },
               { key: 'meals', label: 'Meal records', value: count(device?.meals) },
               { key: 'waiting', label: 'Changes waiting to sync', value: count(device?.waiting) },
-              { key: 'forecasts', label: 'Forecasts saved for offline use', value: count(device?.forecasts) },
               { key: 'device', label: 'Device ID', value: <code className="settings__code">{clientId || '–'}</code> },
             ]}
           />
