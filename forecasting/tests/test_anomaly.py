@@ -107,7 +107,8 @@ def test_uptake_is_neutral_where_present_is_not_recorded_and_after_hours_is_flag
 
     f = build_features(schools, enrolment, feeding, counts, school_days)
 
-    assert f[f.school_id == "A"].uptake.nunique() == 1          # no present recorded: the typical value
+    # No present recorded: the typical value so far across schools, so A is not singled out
+    assert f[f.school_id == "A"].uptake.between(0.97, 0.99).all()
     assert f[f.school_id == "B"].uptake.between(0.97, 0.99).all()
     assert f.outside_hours.sum() == 3
 
@@ -136,3 +137,30 @@ def test_a_closing_day_with_few_learners_is_normal_for_that_kind_of_day():
 
     assert day.fed_rate_vs_last_term.abs().max() < 0.05
     assert (-day.fed_steadiness).max() < 0.1
+
+
+def test_no_feature_uses_records_after_its_day():
+    schools, enrolment, feeding, counts, school_days = tiny_dataset(inflate_from=45)
+    cutoff = school_days.date.iloc[39]
+    counts = pd.DataFrame({"school_id": ["A", "B"], "date": [school_days.date.iloc[20], school_days.date.iloc[50]],
+                           "commodity": ["cereals", "cereals"], "counted_kg": [100.0, 90.0], "ledger_kg": [104.0, 95.0]})
+
+    full = build_features(schools, enrolment, feeding, counts, school_days)
+    early = build_features(schools, enrolment, feeding[feeding.date <= cutoff], counts[counts.date <= cutoff], school_days)
+
+    key = ["school_id", "date"]
+    merged = full[full.date <= cutoff].merge(early, on=key, suffixes=("_full", "_early"))
+    assert len(merged) == len(early)
+    for name in FEATURES:
+        np.testing.assert_allclose(merged[f"{name}_full"], merged[f"{name}_early"], err_msg=name)
+
+
+def test_rounding_to_half_a_kilogram_is_not_read_as_unusual():
+    schools, enrolment, feeding, counts, school_days = tiny_dataset()
+    # 190 learners: 7.6 kg of pulses by the ration, recorded as 7.5 or 8.0
+    feeding["learners_fed"] = 190
+    feeding["pulses_kg"] = np.where(np.arange(len(feeding)) % 2, 7.5, 8.0)
+
+    f = build_features(schools, enrolment, feeding, counts, school_days)
+
+    assert (f.pulse_ratio.abs() < 0.03).all()

@@ -51,6 +51,32 @@ ROUND_WINDOW = 10
 PATTERN_WINDOW = 10
 
 
+# Food issued is recorded to the nearest 0.5 kg: a difference within half of that is rounding
+RECORDING_PRECISION_KG = 0.25
+# School days of daily use behind a store count's gap, in days of food
+DAILY_USE_DAYS = 40
+
+
+def _running_median_by(values, dates, groups):
+    """For each row, the median of the values in its group on its date and every earlier
+    date: nothing later than the row's own day is used."""
+    out = pd.Series(np.nan, index=values.index)
+    frame = pd.DataFrame({"v": values, "d": dates, "g": groups}).dropna(subset=["v"])
+    for _, grp in frame.groupby("g"):
+        seen = []
+        for d, rows in grp.groupby("d", sort=True):
+            seen.extend(rows.v.tolist())
+            out.loc[rows.index] = float(np.median(seen))
+    return out
+
+
+def _within_precision(kg, expected):
+    """Recorded kilograms, with a difference from the expected amount smaller than the
+    recording precision treated as none."""
+    diff = kg - expected
+    return expected + np.sign(diff) * np.maximum(np.abs(diff) - RECORDING_PRECISION_KG, 0.0)
+
+
 def _school_day_index(school_days):
     return {d: i for i, d in enumerate(pd.to_datetime(school_days.date))}
 
@@ -69,11 +95,17 @@ def build_features(schools, enrolment, feeding, counts, school_days):
     usual = f.groupby("school_id").learners_fed.transform(
         lambda s: s.where(s > 0).shift(OWN_GAP).rolling(OWN_HISTORY, min_periods=10).median())
     # What each kind of day does to learners fed: the median, across schools, of learners
-    # fed against the school's usual number (no labels are used)
-    effect = (fed / usual).groupby(f.day_type).median()
-    effect = (effect / effect.get("ordinary", 1.0)).fillna(1.0)
-    f["day_effect"] = f.day_type.map(effect).fillna(1.0)
-    usual_rate = f.share_fed.where(f.feeding_happened).groupby(f.school_id).transform("median")
+    # fed against the school's usual number, on days of that kind up to this one (no labels,
+    # and nothing later than the day itself), against the same for ordinary days
+    ratio_to_usual = fed / usual
+    by_type = _running_median_by(ratio_to_usual, f.date, f.day_type)
+    ordinary = _running_median_by(ratio_to_usual.where(f.day_type == "ordinary"), f.date, pd.Series("ordinary", index=f.index))
+    ordinary_by_date = ordinary.groupby(f.date).max()
+    ordinary_effect = f.date.map(ordinary_by_date.reindex(sorted(f.date.unique())).ffill()).fillna(1.0)
+    f["day_effect"] = (by_type / ordinary_effect).replace([np.inf, -np.inf], np.nan).fillna(1.0)
+    # The school's usual share fed so far, for days without feeding
+    usual_rate = _running_median_by(f.share_fed.where(f.feeding_happened), f.date, f.school_id)
+    usual_rate = usual_rate.groupby(f.school_id).ffill()
     f["fed_rate"] = (f.share_fed / f.day_effect).where(f.feeding_happened).fillna(usual_rate).fillna(0.0)
     f["fed_vs_own"] = np.log((fed + 1) / (usual * f.day_effect + 1)).fillna(0.0)
     peers = f[f.feeding_happened].groupby(["sub_county", "date"]).share_fed.median().rename("peer_rate")
@@ -82,7 +114,8 @@ def build_features(schools, enrolment, feeding, counts, school_days):
 
     for name, commodity in (("cereal_ratio", "cereals"), ("pulse_ratio", "pulses")):
         expected = fed * RATION_KG[commodity]
-        f[name] = np.log((f[f"{commodity}_kg"] + 0.1) / (expected + 0.1)).where(f.feeding_happened).fillna(0.0)
+        issued = _within_precision(f[f"{commodity}_kg"], expected)
+        f[name] = np.log((issued + 0.1) / (expected + 0.1)).where(f.feeding_happened).fillna(0.0)
     ratio = f.cereal_ratio.where(f.feeding_happened)
     recent = ratio.groupby(f.school_id).transform(lambda s: s.rolling(TREND_RECENT, min_periods=3).mean())
     before = ratio.groupby(f.school_id).transform(
@@ -94,8 +127,18 @@ def build_features(schools, enrolment, feeding, counts, school_days):
     c = counts.assign(date=pd.to_datetime(counts.date)).sort_values(["school_id", "commodity", "date"])
     c["gap"] = c.counted_kg - c.ledger_kg
     c["new_gap"] = c.gap - c.groupby(["school_id", "commodity"]).gap.shift(1).fillna(0.0)
-    daily_use = f[f.feeding_happened].groupby("school_id")[["cereals_kg", "pulses_kg"]].median()
-    c["daily_use"] = [daily_use.loc[s, f"{k}_kg"] if s in daily_use.index else np.nan for s, k in zip(c.school_id, c.commodity)]
+    # Daily use: the school's median over its feeding days before the count
+    use = f[f.feeding_happened][["school_id", "date", "cereals_kg", "pulses_kg"]].sort_values(["school_id", "date"])
+    for k in ("cereals_kg", "pulses_kg"):
+        use[k] = use.groupby("school_id")[k].transform(lambda s: s.shift(1).rolling(DAILY_USE_DAYS, min_periods=5).median())
+    c["daily_use"] = np.nan
+    for commodity in ("cereals", "pulses"):
+        rows = c.commodity == commodity
+        if rows.any() and len(use):
+            matched = pd.merge_asof(c[rows].reset_index().sort_values("date"),
+                                    use[["school_id", "date", f"{commodity}_kg"]].sort_values("date"),
+                                    on="date", by="school_id", direction="backward")
+            c.loc[matched["index"], "daily_use"] = matched[f"{commodity}_kg"].to_numpy()
     c["gap_days"] = c.new_gap / c.daily_use.replace(0, np.nan)
     worst = c.groupby(["school_id", "date"]).gap_days.min().rename("count_gap_change")
     f = f.join(worst, on=["school_id", "date"])
@@ -129,7 +172,10 @@ def build_features(schools, enrolment, feeding, counts, school_days):
     # typical value, so a school that leaves the field empty is not singled out
     present = f.learners_present.where(f.feeding_happened & (f.learners_present > 0))
     uptake = f.learners_fed / present
-    f["uptake"] = uptake.fillna(uptake.median() if uptake.notna().any() else 1.0)
+    typical = _running_median_by(uptake, f.date, pd.Series("all", index=f.index))
+    typical = typical.groupby(f.date).transform("max")
+    typical = f.date.map(typical.groupby(f.date).max().reindex(sorted(f.date.unique())).ffill())
+    f["uptake"] = uptake.fillna(typical).fillna(1.0)
 
     # One late entry means little; a school that often enters records late at night or at
     # weekends is a pattern worth a look

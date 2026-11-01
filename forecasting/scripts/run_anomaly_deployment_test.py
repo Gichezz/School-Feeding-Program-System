@@ -51,7 +51,9 @@ REPORT_DIR = REPORTS_DIR / "anomaly" / "deployment"
 BASELINE = REPORT_DIR / "version_4_week_types" / "anomaly_deployment_test.json"
 WEEK_TYPES = {"last day of school year": "school_year_end", "first day of school year": "school_year_start"}
 LABELS = {"rules": "Fixed rules", "isolation_forest": "Isolation Forest", "extended_isolation_forest": "Extended Isolation Forest",
-          "one_class_svm": "One-class SVM", "local_outlier_factor": "Local Outlier Factor"}
+          "one_class_svm": "One-class SVM", "local_outlier_factor": "Local Outlier Factor",
+          "sgd_one_class_svm": "SGD one-class SVM"}
+OVER_LISTED = 1.5   # plan: fairness_check
 
 
 def load_dataset(data_dir):
@@ -65,6 +67,12 @@ def load_dataset(data_dir):
     feats["week"] = feats.date.dt.strftime("%G-%V")
     kinds = feats[feats.day_type.isin(WEEK_TYPES)].drop_duplicates("week").set_index("week").day_type.map(WEEK_TYPES)
     feats["week_type"] = feats.week.map(kinds).fillna("other")
+    # Groups for the fairness check: thirds by mean enrolment, and programme type
+    size = r("enrolment").groupby("school_id").learners.mean()
+    third = pd.qcut(size, 3, labels=["small schools", "medium schools", "large schools"]).astype(str)
+    programme = r("schools").set_index("school_id").programme_type.map({"in_kind": "food delivered", "cash_transfer": "cash transfer"})
+    feats["size_group"] = feats.school_id.map(third)
+    feats["programme_group"] = feats.school_id.map(programme)
     return feats
 
 
@@ -118,6 +126,21 @@ def truth_weeks(feats, plan):
              .agg(label=("label", lambda s: sorted(set(s) - {""})), week_type=("week_type", "first")).reset_index())
     weeks["anomalous"] = weeks.label.map(bool)
     return weeks
+
+
+def ordinary_listings(listed, truth, feats):
+    """For each group: its share of listed school-weeks with no problem, over its share of
+    all school-weeks with no problem (1.0 = listed for nothing as often as its size says)."""
+    groups = feats.drop_duplicates("school_id").set_index("school_id")[["size_group", "programme_group"]]
+    out = {}
+    calm_listed = listed[~listed.anomalous].join(groups, on="school_id")
+    calm_all = truth[~truth.anomalous].join(groups, on="school_id")
+    for column in ("size_group", "programme_group"):
+        listed_share = calm_listed[column].value_counts(normalize=True)
+        all_share = calm_all[column].value_counts(normalize=True)
+        for group, share in all_share.items():
+            out[group] = float(listed_share.get(group, 0.0) / share)
+    return out
 
 
 def measure(listed, truth, k):
@@ -177,6 +200,7 @@ def main():
             for model_seed in seeds:
                 listed, fit_s = run(feats, method, params.get(method, {}), model_seed, plan)
                 m = measure(listed, truth, plan["deployment"]["review_list"]["k"])
+                m["ordinary_listings"] = ordinary_listings(listed, truth, feats)
                 rows.append({"dataset": dataset, "method": method, "model_seed": model_seed, "fit_seconds": fit_s, **m})
             print(f"{dataset} {method} done ({time.time() - started:.0f}s)")
     df = pd.DataFrame(rows)
@@ -188,6 +212,7 @@ def main():
     by_type = pd.DataFrame([{**{"method": r.method}, **r.listed_by_type} for r in df.itertuples()]).groupby("method").mean()
     by_dataset = df.pivot_table(index="method", columns="dataset", values="precision_at_k", aggfunc="mean")
     by_week = week_type_table(df)
+    fairness = pd.DataFrame([{"method": r.method, **r.ordinary_listings} for r in df.itertuples()]).groupby("method").mean()
     best = summary.index[0]
     recommended = evaluation["recommended"]
     holds = summary.loc[recommended, "precision_at_k"] >= summary.loc[best, "precision_at_k"] - 0.01
@@ -212,6 +237,11 @@ def main():
                   f"{(summary.loc[best, 'precision_at_k'] - summary.loc[recommended, 'precision_at_k']) * 100:.1f} points "
                   f"above {LABELS[recommended]}.")
 
+    fair_check = None
+    if recommended in fairness.index:
+        row = fairness.loc[recommended]
+        fair_check = {"method": recommended, "over_listed": [g for g, v in row.items() if v > OVER_LISTED],
+                      "highest": [row.idxmax(), round(float(row.max()), 3)]}
     report_dir.mkdir(parents=True, exist_ok=True)
     write_json(report_dir / "anomaly_deployment_test.json", {
         "plan": str(PLAN.relative_to(FORECASTING_DIR.parent)), "settings": params,
@@ -219,7 +249,9 @@ def main():
         "listed_by_type": by_type.round(4).reset_index().to_dict(orient="records"),
         "by_week_type": by_week.round(4).reset_index().to_dict(orient="records"),
         "week_type_check": week_check,
-        "per_run": df.drop(columns=["listed_by_type", "by_week_type"]).round(4).to_dict(orient="records"),
+        "ordinary_listings_by_group": fairness.round(3).reset_index().to_dict(orient="records"),
+        "fairness_check": fair_check,
+        "per_run": df.drop(columns=["listed_by_type", "by_week_type", "ordinary_listings"]).round(4).to_dict(orient="records"),
         "evaluation_recommended": recommended, "deployed_best": best, "conclusion": conclusion,
         "runtime_seconds": round(time.time() - started),
     })
@@ -265,6 +297,18 @@ def main():
            + (f" Under version 4's features: {pct(week_check['version_4']['school_year_end'])} in school-year-end weeks "
               f"against {pct(week_check['version_4']['other'])} in other weeks." if week_check["version_4"] else ""),
            ""] if week_check else []),
+        "## Who is listed for nothing",
+        "",
+        "For each group, its share of the listed school-weeks that contain no problem, over its share of all school-weeks "
+        f"with no problem: 1.00 means it is listed for nothing exactly as often as its size says; over {OVER_LISTED:.2f} counts "
+        "as over-listed (plan: fairness_check).",
+        "",
+        md_table([[LABELS[m]] + [f"{fairness.loc[m, g]:.2f}" for g in fairness.columns] for m in names], ["Method"] + list(fairness.columns)),
+        "",
+        f"**Fairness check ({LABELS[recommended]}):** "
+        + (f"over-listed: {', '.join(fair_check['over_listed'])}. This is a known bias of the weekly list." if fair_check["over_listed"]
+           else f"no group over {OVER_LISTED:.2f}; the highest is {fair_check['highest'][0]} at {fair_check['highest'][1]:.2f}."),
+        "",
         "## Precision by dataset",
         "",
         md_table([[LABELS[m]] + [pct(by_dataset.loc[m, d]) for d in by_dataset.columns] for m in names],

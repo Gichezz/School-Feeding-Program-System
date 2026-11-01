@@ -39,17 +39,19 @@ from generate_feeding_dataset import OUT_DIR as DATA_DIR, PROTOCOL  # noqa: E402
 
 REPORT_DIR = REPORTS_DIR / "anomaly"
 # Report order, simplest first
-SIMPLICITY = ["rules", "robust_zscore", "isolation_forest", "extended_isolation_forest", "one_class_svm", "local_outlier_factor"]
+SIMPLICITY = ["rules", "robust_zscore", "isolation_forest", "extended_isolation_forest", "one_class_svm", "sgd_one_class_svm",
+              "local_outlier_factor"]
 # The protocol's simplicity order: rules < robust z-score < the learned methods. It does
 # not rank the learned methods against each other.
 TIER = {"rules": 0, "robust_zscore": 1, "isolation_forest": 2, "extended_isolation_forest": 2, "local_outlier_factor": 2,
-        "one_class_svm": 2}
+        "one_class_svm": 2, "sgd_one_class_svm": 2}
 # Rows for the timing benchmark (fitting), and rows scored in it
 BENCHMARK_ROWS = [5000, 20000, 50000]
 BENCHMARK_SCORE_ROWS = 5000
 LABELS = {"rules": "Fixed rules", "robust_zscore": "Robust z-score", "isolation_forest": "Isolation Forest",
           "extended_isolation_forest": "Extended Isolation Forest",
-          "local_outlier_factor": "Local Outlier Factor", "one_class_svm": "One-class SVM"}
+          "local_outlier_factor": "Local Outlier Factor", "one_class_svm": "One-class SVM",
+          "sgd_one_class_svm": "SGD one-class SVM"}
 
 
 def load(data_dir=DATA_DIR):
@@ -121,6 +123,11 @@ def evaluate(data_dir=DATA_DIR, report_dir=REPORT_DIR, quiet=False):
     tune_end = pd.Timestamp(protocol["data"]["tuning_period"]["end"])
     tuning = feats[feats.date <= tune_end]
     test = feats[feats.date > tune_end]
+    # Within the tuning years: fit on the first, choose settings and thresholds on the second
+    fit_end = pd.Timestamp(protocol["data"]["fit_period"]["end"])
+    fitting = tuning[tuning.date <= fit_end]
+    selection = tuning[tuning.date > fit_end]
+    truth_sel = (selection.label != "").to_numpy()
     held_out = protocol["anomaly_types"]["held_out"]
     assert not tuning.label.isin(held_out).any(), "held-out types must not appear in the tuning period"
     k = protocol["scoring"]["review_list"]["k"]
@@ -134,24 +141,37 @@ def evaluate(data_dir=DATA_DIR, report_dir=REPORT_DIR, quiet=False):
             kwargs = dict(params)
             if name != "rules" and name != "robust_zscore":
                 kwargs["random_state"] = seed
-            model = cls(**kwargs).fit(tuning)
+            # Fitted on the first tuning year, judged on the second
+            model = cls(**kwargs).fit(fitting)
             if name == "robust_zscore":
-                all_scores = pd.Series(model.score(feats), index=feats.index)
-                tune_scores, test_scores = all_scores[tuning.index].to_numpy(), all_scores[test.index].to_numpy()
+                sel_scores = pd.Series(model.score(feats), index=feats.index)[selection.index].to_numpy()
             else:
-                tune_scores, test_scores = model.score(tuning), model.score(test)
+                sel_scores = model.score(selection)
             if name == "rules":
                 # The protocol fixes the rules' thresholds by programme logic: a day is
                 # flagged when it breaks at least one rule. Nothing is tuned.
-                threshold = 1.0
-                flag = tune_scores >= threshold
-                truth = (tuning.label != "").to_numpy()
-                tp = (flag & truth).sum()
-                f1 = 2 * tp / (flag.sum() + truth.sum()) if tp else 0.0
+                flag = sel_scores >= 1.0
+                tp = (flag & truth_sel).sum()
+                f1, quantile = (2 * tp / (flag.sum() + truth_sel.sum()) if tp else 0.0), None
             else:
-                f1, threshold = best_threshold(tune_scores, (tuning.label != "").to_numpy())
+                f1, threshold = best_threshold(sel_scores, truth_sel)
+                # The threshold as a quantile, so it carries over to the refitted model
+                quantile = float((sel_scores < threshold).mean())
             if best is None or f1 > best["tuning_f1"]:
-                best = {"params": params, "tuning_f1": f1, "threshold": threshold, "model": model, "test_scores": test_scores}
+                best = {"params": params, "tuning_f1": f1, "quantile": quantile}
+        # The chosen settings, refitted on both tuning years, flag at the same quantile of
+        # their scores on the selection year; the test year is scored once
+        kwargs = dict(best["params"])
+        if name != "rules" and name != "robust_zscore":
+            kwargs["random_state"] = seed
+        model = cls(**kwargs).fit(tuning)
+        if name == "robust_zscore":
+            all_scores = pd.Series(model.score(feats), index=feats.index)
+            sel_scores, test_scores = all_scores[selection.index].to_numpy(), all_scores[test.index].to_numpy()
+        else:
+            sel_scores, test_scores = model.score(selection), model.score(test)
+        threshold = 1.0 if best["quantile"] is None else float(np.quantile(sel_scores, best["quantile"]))
+        best.update({"threshold": threshold, "model": model, "test_scores": test_scores})
         flag = best["test_scores"] >= best["threshold"]
         weeks = review_weeks(test, best["test_scores"])
         pk, listed = precision_at_k(weeks, k)
@@ -321,7 +341,7 @@ def write_report(out, protocol, report_dir=REPORT_DIR):
         f"{out['k']} school-weeks with an anomaly, so a full list must include some ordinary ones. Precision@{out['k']} is therefore "
         "best read against that ceiling, together with the share of anomalous school-weeks that make the list.",
         "",
-        "## School-day flags (threshold chosen on the tuning period)",
+        "## School-day flags (threshold chosen on the selection year, 2025)",
         "",
         md_table([[LABELS[n], pct(r[n]["test"]["precision"]), pct(r[n]["test"]["recall"]), pct(r[n]["test"]["f1"]),
                    pct(r[n]["test"]["recall_held_out"]), f"{r[n]['test']['false_flags_per_1000_normal_days']:.1f}"] for n in names],
@@ -335,10 +355,10 @@ def write_report(out, protocol, report_dir=REPORT_DIR):
         f"Stock leakage leaves a trace only on days the store is counted ({out['leak_count_days']} such days in the test period). "
         "Recall on those days: " + "; ".join(f"{LABELS[n]} {pct(r[n]['test']['stock_leakage_recall_on_count_days'] or 0)}" for n in names) + ".",
         "",
-        "## Settings chosen on the tuning period",
+        "## Settings chosen on the selection year (fitted on 2024, judged on 2025)",
         "",
         md_table([[LABELS[n], ", ".join(f"{k}={v}" for k, v in r[n]["params"].items()) or "fixed", f"{r[n]['tuning_f1']:.3f}"] for n in names],
-                 ["Method", "Setting", "Tuning F1"]),
+                 ["Method", "Setting", "F1 on 2025"]),
         "",
         "## Time to fit and score",
         "",

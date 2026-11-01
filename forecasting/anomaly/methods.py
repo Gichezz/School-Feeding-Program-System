@@ -14,7 +14,10 @@ same way, and are pooled across schools.
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import IsolationForest
+from sklearn.kernel_approximation import Nystroem
+from sklearn.linear_model import SGDOneClassSVM
 from sklearn.neighbors import LocalOutlierFactor
+from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import RobustScaler
 from sklearn.svm import OneClassSVM
 
@@ -197,13 +200,39 @@ class OneClassSVMMethod(_Learned):
     # A one-class SVM grows with the square of the rows; it is fitted on a sample
     SAMPLE = 5000
 
-    def __init__(self, nu=0.05, gamma="scale", random_state=0):
+    def __init__(self, nu=0.05, gamma="scale", gamma_factor=1.0, random_state=0):
         self.model = OneClassSVM(nu=nu, gamma=gamma)
+        self.gamma_factor = gamma_factor
         self.rng = np.random.default_rng(random_state)
 
     def _fit(self, x):
         rows = self.rng.choice(len(x), size=min(self.SAMPLE, len(x)), replace=False)
+        if self.gamma_factor != 1.0:
+            # gamma as a multiple of scikit-learn's "scale" on the rows it is fitted on
+            self.model.set_params(gamma=self.gamma_factor / (x.shape[1] * x[rows].var()))
         self.model.fit(x[rows])
+
+    def _score(self, x):
+        return -self.model.decision_function(x)
+
+
+class SGDOneClassSVMMethod(_Learned):
+    """A linear one-class SVM trained by stochastic gradient descent on a Nystroem
+    approximation of the same RBF kernel: its cost grows linearly with the rows."""
+
+    name = "sgd_one_class_svm"
+
+    def __init__(self, nu=0.05, n_components=300, random_state=0):
+        self.nu = nu
+        self.n_components = n_components
+        self.random_state = random_state
+
+    def _fit(self, x):
+        gamma = 1.0 / (x.shape[1] * x.var())   # scikit-learn's gamma="scale"
+        self.model = make_pipeline(
+            Nystroem(gamma=gamma, n_components=min(self.n_components, len(x)), random_state=self.random_state),
+            SGDOneClassSVM(nu=self.nu, random_state=self.random_state, max_iter=50, tol=1e-4))
+        self.model.fit(x)
 
     def _score(self, x):
         return -self.model.decision_function(x)
@@ -216,4 +245,5 @@ METHODS = {
     "extended_isolation_forest": ExtendedIsolationForestMethod,
     "local_outlier_factor": LocalOutlierFactorMethod,
     "one_class_svm": OneClassSVMMethod,
+    "sgd_one_class_svm": SGDOneClassSVMMethod,
 }

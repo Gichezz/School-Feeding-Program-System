@@ -36,7 +36,8 @@ DATA_ROOT = PROCESSED_DIR / "feeding_robustness"
 REPORT_DIR = REPORTS_DIR / "anomaly" / "robustness"
 LABELS = {"rules": "Fixed rules", "robust_zscore": "Robust z-score", "isolation_forest": "Isolation Forest",
           "extended_isolation_forest": "Extended Isolation Forest",
-          "local_outlier_factor": "Local Outlier Factor", "one_class_svm": "One-class SVM"}
+          "local_outlier_factor": "Local Outlier Factor", "one_class_svm": "One-class SVM",
+          "sgd_one_class_svm": "SGD one-class SVM"}
 
 
 def deep_merge(base, override):
