@@ -14,7 +14,7 @@ Pipeline: **offline capture → sync → descriptive analytics → anomaly scori
 | Sync client | `frontend/src/sync/` | Queues every change, sends the queue, downloads the school's changes, and settles conflicts and held records decided on the server. |
 | API | Node.js + Express (`backend/src/`) | Sign-in, validation, the sync and download endpoints, conflict resolution, held records, analytics, the weekly review list. |
 | Database | PostgreSQL (`database/schema.sql`) | The authoritative copy of all records, their history, the sync log, conflicts, held records, review lists and officers' decisions. |
-| Scoring service | Python + Flask + scikit-learn (`forecasting/`) | Ranks a sub-county's school-weeks with a one-class SVM refitted on the sub-county's own recent records. It never connects to the database: the API sends the records and stores the result. |
+| Scoring service | Python + Flask + isotree + scikit-learn (`forecasting/`) | Ranks a sub-county's school-weeks with Extended Isolation Forest refitted on the sub-county's own recent records. It never connects to the database: the API sends the records and stores the result. |
 
 ## Roles
 
@@ -92,9 +92,11 @@ Held records (possible duplicate deliveries, records from deactivated users or r
 **Weekly review list.** For a sub-county and week, the API gathers the sub-county's records (`backend/src/services/reviewInputs.js`) and sends them to the scoring service, which:
 
 1. builds context-adjusted features per school-day (learners fed against what is usual for that kind of day, against peers, against last term; food against the ration; store-count gaps; entry delays and batch sizes; round numbers; after-hours entry);
-2. fits a one-class SVM on the sub-county's previous 125 school days, refitting every 20 school days and leaving out school-weeks an officer marked follow-up;
+2. fits Extended Isolation Forest on the sub-county's previous 125 school days, refitting every 20 school days and leaving out school-weeks an officer marked follow-up;
 3. scores the week, takes each school's highest day, and lists the top 3 with their two main reasons in plain words, always worded "needs review";
 4. ranks by fixed rules alone while a sub-county has fewer than 60 school days of records.
+
+A school listed again shows the officer's latest decision on it from the previous four weeks.
 
 The officer marks each listed school's week explained or follow-up, with a note. The method and its settings were chosen in a pre-registered evaluation; see [anomaly-detection.md](anomaly-detection.md).
 

@@ -37,55 +37,62 @@ Fifteen per school-day, each a figure an officer could check by hand ([`forecast
 
 ## 4. Protocol
 
-The comparison follows a protocol written and committed before each run ([`anomaly_evaluation.yaml`](../forecasting/config/anomaly_evaluation.yaml)); every change between versions is recorded there with its reason. Version 5 is current:
+The comparison follows a protocol written and committed before each run ([`anomaly_evaluation.yaml`](../forecasting/config/anomaly_evaluation.yaml)); every change between versions is recorded there with its reason. Version 6 is current:
 
-- **Methods:** fixed rules and a robust z-score (baselines), and one learned method from each main family of unsupervised detectors: Isolation Forest (and Extended Isolation Forest), the one-class SVM, Local Outlier Factor.
-- **Periods:** tuning 2024–2025, test January–October 2026.
+- **Methods:** fixed rules and a robust z-score (baselines), and learned methods from the main families of unsupervised detectors: Isolation Forest and Extended Isolation Forest (isolation), the one-class SVM and SGDOneClassSVM (kernel boundary), Local Outlier Factor (density). Each gets six settings.
+- **Periods:** models fitted on 2024; settings and the threshold chosen on 2025; the choice refitted on 2024–2025; January–October 2026 tested once.
+- **No future records:** every feature uses only records up to the day it describes, as the deployed service can; a test checks that a day's features do not change when later records arrive.
 - **Primary metric:** precision@10 for the weekly review list (the share of the week's top school-weeks that contain a real problem), with a 95% block bootstrap over weeks. Also precision, recall and F1 on school-days, recall per type and on held-out types, false flags per 1,000 ordinary days, and fit time.
-- **Decision rule:** the highest precision@10; a method within the bootstrap interval of the leader counts as tied, and ties go to the simpler method, then to the faster fit on 50,000 rows.
+- **Decision rule:** the highest precision@10; a method within the bootstrap interval of the leader counts as tied, and ties go to the simpler method, then to the faster fit on 50,000 rows. The deployment-matching test then checks the choice the way the system runs it.
 
-Versions 3 and 5 changed the features after finding a problem: in version 2, rare yes/no context flags made ordinary days look unusual; in version 4, two features still compared the share fed without allowing for the kind of day, so in the last week of the school year every school's closing day looked unusual and the deployed list filled with ordinary schools. Both changes apply one stated principle (context adjusts what is normal) and were re-run in full.
+Version 6 came from an audit of version 5 ([anomaly-model-audit.md](anomaly-model-audit.md)): four statistics in the features used whole-dataset values including the test months; settings were chosen on the same years the models were fitted on; the grids were narrow; and food rounded to the nearest 0.5 kg read as unusual at small schools. Versions 3 and 5 had also changed the features after finding problems (context flags read as evidence; closing days read as a collapse). Every change was committed before the run it affected, and every earlier version's results stay in git history.
 
-## 5. Results (version 5)
+## 5. Results (version 6)
 
 **Main evaluation** ([report](../forecasting/data/reports/anomaly/anomaly_evaluation.md)). The best precision@10 any method could reach is 27.8%, because most weeks have fewer than 10 problem school-weeks.
 
 | Method | Precision@10 | Recall, held-out types | False flags per 1,000 ordinary days | Fit on 50,000 rows |
 |---|---|---|---|---|
 | Fixed rules | 12.8% | 63.1% | 26.0 | 0.00 s |
-| Robust z-score | 15.6% | 55.5% | 41.1 | 0.06 s |
-| Isolation Forest | 20.0% | 60.8% | 34.1 | 0.85 s |
-| Extended Isolation Forest | 20.8% | 74.5% | 39.7 | 0.19 s |
-| **One-class SVM** | **21.4%** | **96.2%** | 81.8 | 0.13 s |
-| Local Outlier Factor | 17.5% | 95.8% | 155.3 | 48.03 s |
+| Robust z-score | 15.3% | 55.5% | 41.9 | 0.07 s |
+| Isolation Forest | 18.6% | 65.4% | 66.4 | 1.43 s |
+| **Extended Isolation Forest** | **21.1%** | 82.5% | 64.5 | 0.59 s |
+| One-class SVM | 20.0% | 76.8% | **35.8** | 0.21 s |
+| SGD one-class SVM | 18.9% | 77.2% | 40.0 | 0.33 s |
+| Local Outlier Factor | 18.9% | 95.4% | 71.9 | 64.73 s |
 
-The one-class SVM is recommended. Isolation Forest and Extended Isolation Forest are not distinguishable from it at 95%, and the decision rule then prefers the faster fit. Its clearest advantage is on problems it was never tuned on (96.2% of held-out problem days), which matters because real misreporting will not look like what was simulated. Its false flags at a fixed threshold are higher, but the deployed system does not use a threshold: each officer gets a fixed list of 3 a week.
+Extended Isolation Forest leads; the one-class SVM is not distinguishable from it at 95%, and the rule's speed tie-break names the SVM. By type, Extended Isolation Forest found all 6 store-count days of stock leakage (the SVM none), 44% of inflated-headcount days (8%) and 88% of ghost-learner days (73%); the SVM was better on round-number entry (62% against 49%) and consumption drift (68% against 61%).
 
-**Its weak spot is stock leakage**, which only shows on days the store is counted: the SVM found 1 of 6 such days in the test period, Extended Isolation Forest all 6. In the system this is covered by the store-count checks (a count far from the ledger is flagged on the record and shown in analytics), not left to the model.
+**Robustness** ([report](../forecasting/data/reports/anomaly/robustness/anomaly_robustness.md)): the protocol on 6 differently generated scenarios × 3 seeds. No method is robustly best under the plan's rule. Extended Isolation Forest has the best average rank (1.69; SGD one-class SVM 2.78, the one-class SVM 3.81) and leads in 9 of 18 runs. As coded, it is "recommended or tied with the recommended method" in 6 of 18, because a method that leads but loses the speed tie-break is not counted as tied; counting it, 14 of 18. Its weaker scenarios are noisier day-to-day figures (ranks 2, 3.5 and 3.5, where the one-class SVM is best) and subtler problems (3, 1 and 2), each by less than 1 point of precision.
 
-**Robustness** ([report](../forecasting/data/reports/anomaly/robustness/anomaly_robustness.md)): the same protocol on 6 differently generated scenarios × 3 seeds (noisier days, subtler problems, more problems, different schools). The SVM has the best average rank (1.50, Extended Isolation Forest 1.86) and is recommended in 17 of 18 runs.
+**Deployment-matching test** ([report](../forecasting/data/reports/anomaly/deployment/anomaly_deployment_test.md)): each sub-county refitted every 20 school days on its last 125, no labels and no threshold, the top 3 school-weeks a week, follow-up weeks left out of later fits; 4 datasets × 5 model seeds. Precision@3: Extended Isolation Forest 15.8%, SGD one-class SVM 15.2%, Isolation Forest 14.8%, Local Outlier Factor 14.6%, one-class SVM 14.6%, fixed rules 9.6%. The one-class SVM is 1.2 points behind, outside the plan's 1 point, so by the plan's rule the evaluation's tie-break does not carry over to deployment, and Extended Isolation Forest does best deployed. In school-year-end weeks it reaches 83% of the best possible (74% in other weeks).
 
-**Deployment-matching test** ([report](../forecasting/data/reports/anomaly/deployment/anomaly_deployment_test.md)): each sub-county refitted every 20 school days on its last 125, no labels and no threshold, the top 3 school-weeks a week, follow-up weeks left out of later fits; 4 datasets × 5 model seeds. Precision@3: Extended Isolation Forest 15.7%, one-class SVM 15.4%, Isolation Forest 15.0%, Local Outlier Factor 14.2%, fixed rules 9.7%. The SVM is within the pre-set 1 point of the best, so the evaluation's conclusion holds. In school-year-end weeks the SVM reaches 63.9% of the best possible (71.8% in other weeks); under version 4's features it was 11.1%.
+**Decision.** Extended Isolation Forest is the deployed method: it leads the main evaluation and the deployment test, has the best robustness rank, and finds more of the problems it was never tuned on. The one-class SVM stays in the evaluation as the benchmark; SGDOneClassSVM is the documented option if one model is ever fitted on far more records than a sub-county's. Before the switch, the v6 results were reproduced (the main evaluation exactly, the deployment test's 40 runs for both methods, and two robustness runs), and the rules were checked against their code ([anomaly-model-audit.md](anomaly-model-audit.md#11-decision-verification-after-protocol-version-6)).
 
 ## 6. In the system
 
 The scoring service ([`forecasting/services/scoring_service.py`](../forecasting/services/scoring_service.py)) receives one sub-county's records from the API and returns the week's ranking; it stores nothing and never reads the database.
 
-1. The model is the one-class SVM (RBF kernel, `nu` 0.05, `gamma` "scale", on a robust-scaled sample of up to 5,000 school-days), fitted on the sub-county's previous 125 school days, about two terms. Refit points fall every 20 school days, so the model changes about monthly and no model file is kept.
+1. The model is Extended Isolation Forest (isotree, 300 trees, splits on combinations of 2 features, 1,024-row samples) on robust-scaled features, fitted on the sub-county's previous 125 school days, about two terms. Refit points fall every 20 school days, so the model changes about monthly and no model file is kept; the seed is fixed, so the same week gives the same list.
 2. School-weeks an officer marked follow-up are left out of the fit, so a confirmed problem does not become normal.
-3. Each school's week takes its highest-scoring day. The top 3 are the week's list; every school is returned in order.
+3. Each school's week takes its highest-scoring day. The top 3 are the week's list; every school is returned in order. No threshold is used.
 4. Reasons come from the model itself: each feature of the top day is set in turn to its median in the sub-county's training records, and the two that lower the score most are named in plain words ("learners fed 16% below the school's usual number").
-5. Fixed rules run alongside and their breaches are shown for every school, whatever its rank.
+5. Fixed rules run alongside, and their breaches are shown for every school, whatever its rank.
 6. A sub-county with fewer than 60 school days of records is ranked by the fixed rules alone.
+7. A school listed again shows the officer's latest decision on it from the previous four weeks, and whether it was on last week's list.
 
 ## 7. Limitations
 
-An audit of this comparison (scaling, leakage, training contamination, settings, scalability, SGDOneClassSVM and fairness across schools) is in [anomaly-model-audit.md](anomaly-model-audit.md).
-
-- **Synthetic data only.** The comparison shows how the methods behave on records shaped like Kenyan school feeding records, not how often they would be right at real schools. The settings and the list length need checking against real records before use; the evaluation scripts re-run on any dataset in the same format.
+- **Synthetic data only.** The comparison shows how the methods behave on records shaped like Kenyan school feeding records, not how often they would be right at real schools. Before officers rely on the list, a pilot should compare a few terms of lists with schools' registers and store books and recalibrate the settings; the evaluation scripts re-run on any dataset in the same format.
+- **More single-day false alarms, not more listings.** At a fixed threshold Extended Isolation Forest flags 64.5 of every 1,000 ordinary school-days, against the one-class SVM's 35.8. The deployed list uses no threshold: each officer gets exactly 3 schools a week, and in the deployment test Extended Isolation Forest's lists held fewer ordinary weeks than the SVM's. The cost would appear only if its scores were used to flag individual days.
+- **The same school can stay on the list.** In the deployment test 44% of ordinary listings had the same school listed the week before (42% for the SVM), because some features stay unusual for a whole term (an ordinary enrolment change, for example). The list shows the officer's earlier decision on such a school, but does not drop it; suppressing explained schools would change the ranking and needs its own evaluation.
+- **Fair across groups, at the weekly level.** No school-size third or programme type is listed for nothing more than 1.11 times its share (the plan's limit is 1.5). Single-day false alarms were uneven in the test year, but not in the selection year, and did not carry into the lists.
 - **The problems are the ones that were imagined.** Held-out types test this partly; a new kind of misreporting may still be missed.
 - **A list is not a finding.** Many listed weeks have an ordinary explanation (a school event, a late sync, a new term). The officer's notes are the only judgement in the system.
 - **Records that never sync cannot be ranked.** Analytics show how far behind each school's synced records are, and should be read first.
+- **A compiled dependency.** isotree has no ready-built Linux package for its pinned version, so the Docker image compiles it in a build stage, which lengthens the first build.
+
+An audit of this comparison (scaling, leakage, training contamination, settings, scalability, SGDOneClassSVM and fairness across schools), with the checks made before the switch, is in [anomaly-model-audit.md](anomaly-model-audit.md).
 
 ## 8. Reproducing
 
@@ -96,4 +103,4 @@ python forecasting/scripts/run_anomaly_robustness.py
 python forecasting/scripts/run_anomaly_deployment_test.py
 ```
 
-Runtimes on a laptop: about 2, 15 and 17 minutes for the last three. Extended Isolation Forest needs `isotree` from `requirements-dev.txt`; the deployed service needs only `requirements.txt`.
+Runtimes on a laptop: about 2, 23 and 38 minutes for the last three. `isotree` (Extended Isolation Forest) is in `requirements.txt`; on Windows and macOS pip installs a ready-built package, on Linux it compiles (the Docker image does this in a build stage).

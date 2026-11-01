@@ -1,6 +1,6 @@
 # Offline-First Data Synchronization System for School Feeding Programs
 
-Final-year project. Schools in a Kenyan school meals programme record enrolment, daily feeding and their food store **offline** on a school device; the records synchronise with a central PostgreSQL server when a connection returns, with conflicting edits kept for a person to decide. Sub-county programme officers see each school's term in figures, and a weekly list of the schools whose records look most unusual, ranked by a one-class SVM, to look into first.
+Final-year project. Schools in a Kenyan school meals programme record enrolment, daily feeding and their food store **offline** on a school device; the records synchronise with a central PostgreSQL server when a connection returns, with conflicting edits kept for a person to decide. Sub-county programme officers see each school's term in figures, and a weekly list of the schools whose records look most unusual, ranked by Extended Isolation Forest, to look into first.
 
 Pipeline: **offline capture → sync → descriptive analytics → anomaly scoring → officer review**.
 
@@ -31,7 +31,7 @@ Pipeline: **offline capture → sync → descriptive analytics → anomaly scori
  └──────────────────────────┘                       │ HTTP                │ review lists  │
  Officer laptop: analytics, weekly      ┌───────────▼────────────────┐    └───────────────┘
  review, conflicts (online)             │ Scoring service (Flask,     │
-                                        │ one-class SVM, 5001)        │
+                                        │ Extended Isolation Forest)  │
                                         └─────────────────────────────┘
 ```
 
@@ -44,7 +44,7 @@ Details: [docs/architecture.md](docs/architecture.md) (components, sync protocol
 | Frontend | React 18, Vite, PWA (vite-plugin-pwa / Workbox), IndexedDB with Dexie.js |
 | Backend | Node.js, Express, JWT sessions, bcrypt, WebAuthn |
 | Database | PostgreSQL |
-| Scoring and evaluation | Python, Flask, scikit-learn, pandas |
+| Scoring and evaluation | Python, Flask, isotree, scikit-learn, pandas |
 | Testing and CI | Jest + Supertest, Vitest + fake-indexeddb, pytest, GitHub Actions |
 
 ## Project structure
@@ -97,13 +97,13 @@ psql -U postgres -d school_feeding -f database/seed.sql
 
 `calendar_kenya.sql` loads the national school calendar (term dates, half-terms, public holidays and national exams for 2024–2026), which every installation needs. `seed.sql` creates four fictional schools in one fictional sub-county and three demo accounts (administrator, programme officer, school staff) for **local development only**; their passwords are listed at the top of that file, so never load it on a hosted or shared database.
 
-**Existing databases:** `schema.sql` only creates missing tables. Apply later schema changes with the scripts in `database/migrations/`, in order (`001` to `014`), then load `calendar_kenya.sql`:
+**Existing databases:** `schema.sql` only creates missing tables. Apply later schema changes with the scripts in `database/migrations/`, in order (`001` to `015`), then load `calendar_kenya.sql`:
 
 ```bash
 psql -U postgres -d school_feeding -f database/migrations/001_attendance_present_absent_equals_registered.sql
 ```
 
-`001`–`007` cover attendance validation, user accounts, administrator passkeys, school devices and PINs, offline capture and held records, record integrity, and authenticator app codes. `008` adds each school's county, sub-county, programme type and ration, and the programme officer role. `009` adds the school calendar. `010` adds sync batches, the transaction stamp devices download changes by, and the append-only guard. `011` adds termly enrolment and the daily feeding record. `012` adds the stock ledger and store counts. `013` adds the weekly review lists and officers' decisions, and drops the old stored forecasts. `014` holds a delivery note entered twice and lets devices download decisions on held records. `001` lists any old attendance records that do not add up; correct them, then run `ALTER TABLE attendance_records VALIDATE CONSTRAINT attendance_present_absent_equals_registered;`.
+`001`–`007` cover attendance validation, user accounts, administrator passkeys, school devices and PINs, offline capture and held records, record integrity, and authenticator app codes. `008` adds each school's county, sub-county, programme type and ration, and the programme officer role. `009` adds the school calendar. `010` adds sync batches, the transaction stamp devices download changes by, and the append-only guard. `011` adds termly enrolment and the daily feeding record. `012` adds the stock ledger and store counts. `013` adds the weekly review lists and officers' decisions, and drops the old stored forecasts. `014` holds a delivery note entered twice and lets devices download decisions on held records. `015` lets review runs be stored as scored by Extended Isolation Forest. `001` lists any old attendance records that do not add up; correct them, then run `ALTER TABLE attendance_records VALIDATE CONSTRAINT attendance_present_absent_equals_registered;`.
 
 **Demo records (optional).** To give the officer screens two years of history, generate the synthetic dataset and load one simulated sub-county into a demo database (built from `schema.sql`, `calendar_kenya.sql` and `seed.sql`). The loader only adds records, and stops if the demo sub-county already has some:
 
