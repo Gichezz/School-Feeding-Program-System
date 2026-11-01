@@ -1,4 +1,6 @@
-# Meal-Demand Forecasting (Phase 10)
+# Meal-Demand Forecasting (Phase 10, archived)
+
+> **Archived.** Kept as a record of the earlier design. On real school canteen data a 10-day moving average was as accurate as Prophet ([Swedish evaluation](../../forecasting/data/reports/swedish/forecast_evaluation.md)), so demand forecasting was removed: schools plan with the moving average, enrolment and the calendar, worked out on the device, and the machine learning now supports programme officers' monitoring ([anomaly-detection.md](../anomaly-detection.md)). Links and commands below refer to code that has since been removed.
 
 > **Synthetic data only.** Every model here is trained and evaluated on the Phase 9 synthetic dataset, which represents **one simulated Kenyan school** under documented assumptions ([synthetic-dataset.md](synthetic-dataset.md)). No model has been validated against real Kenyan school records. The results compare methods on simulated data; they are not evidence of real-world accuracy.
 

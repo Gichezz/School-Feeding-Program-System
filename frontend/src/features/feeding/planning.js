@@ -6,7 +6,7 @@ import { toCount } from '../recording/validation';
  * Feeding and stock calculations for a school, worked out on the device from the records
  * it holds (its own and those downloaded from the school's other devices), so they work
  * offline. No forecasting model: headcounts are planned with a moving average, which on
- * real school data was as good as the models (see docs/forecasting.md).
+ * real school data was as good as the models (see docs/anomaly-detection.md, section 1).
  *
  * Dates are DD-MM-YYYY strings, as everywhere in the app; kilograms are numbers.
  */
