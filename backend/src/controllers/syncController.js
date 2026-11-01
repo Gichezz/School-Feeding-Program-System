@@ -1031,36 +1031,41 @@ async function getConflicts(req, res, next) {
     const { clientId, schoolId } = req.query;
     const { status } = req.query;
 
-    let query = 'SELECT * FROM conflicts';
+    // With the school's name and, for enrolment, the term, so an officer can tell them apart
+    let query = `SELECT c.*, s.name AS school_name,
+                        CASE WHEN t.id IS NOT NULL THEN 'Term ' || t.term || ' ' || t.year END AS term_label
+                 FROM conflicts c
+                 LEFT JOIN schools s ON s.id = c.school_id
+                 LEFT JOIN school_terms t ON t.id::text = c.local_payload->>'termId'`;
     const conditions = [];
     const params = [];
     let paramIndex = 1;
 
     if (req.user.role === 'school_staff') {
-      conditions.push(`school_id = $${paramIndex}`);
+      conditions.push(`c.school_id = $${paramIndex}`);
       params.push(req.user.schoolId);
       paramIndex++;
     } else if (req.user.role === 'programme_officer') {
-      conditions.push(`school_id IN (SELECT id FROM schools WHERE sub_county = $${paramIndex})`);
+      conditions.push(`c.school_id IN (SELECT id FROM schools WHERE sub_county = $${paramIndex})`);
       params.push(req.user.subCounty);
       paramIndex++;
     }
 
     if (schoolId) {
       if (!isUuid(schoolId)) throw new ValidationError('Invalid school ID format');
-      conditions.push(`school_id = $${paramIndex}`);
+      conditions.push(`c.school_id = $${paramIndex}`);
       params.push(schoolId);
       paramIndex++;
     }
 
     if (clientId) {
-      conditions.push(`client_id = $${paramIndex}`);
+      conditions.push(`c.client_id = $${paramIndex}`);
       params.push(clientId);
       paramIndex++;
     }
 
     if (status) {
-      conditions.push(`status = $${paramIndex}`);
+      conditions.push(`c.status = $${paramIndex}`);
       params.push(status);
       paramIndex++;
     }
@@ -1069,7 +1074,7 @@ async function getConflicts(req, res, next) {
       query += ' WHERE ' + conditions.join(' AND ');
     }
 
-    query += ' ORDER BY created_at DESC';
+    query += ' ORDER BY c.created_at DESC';
 
     const result = await client.query(query, params);
 

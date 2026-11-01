@@ -159,3 +159,19 @@ describe('who sees and resolves which conflicts', () => {
     expect((await asOfficer.get(`/api/sync/conflicts/${elsewhere}`)).status).toBe(404);
   });
 });
+
+describe('the conflicts list', () => {
+  it('names the school, and the term for enrolment', async () => {
+    const termId = (await pool.query('SELECT id FROM school_terms WHERE year = 2026 AND term = 3')).rows[0].id;
+    const count = (learners) => ({ schoolId: SCHOOL_ID, termId, class: 'Grade 4', sex: 'F', learners });
+    await sameDayConflict();
+    await sync('device-a', [syncOperation('e-a', 'enrolment', 'create', count(30), 0)]);
+    await sync('device-b', [syncOperation('e-b', 'enrolment', 'create', count(32), 0)]);
+
+    const res = await asOfficer.get('/api/sync/conflicts?status=unresolved');
+
+    const byType = Object.fromEntries(res.body.conflicts.map((c) => [c.entity_type, c]));
+    expect(byType.daily_feeding).toMatchObject({ school_name: 'Demo Primary School', term_label: null });
+    expect(byType.enrolment).toMatchObject({ school_name: 'Demo Primary School', term_label: 'Term 3 2026' });
+  });
+});

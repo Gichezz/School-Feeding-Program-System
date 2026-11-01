@@ -6,6 +6,7 @@ import { visibleGroups } from '../../navigation/navConfig';
 import { useSession } from '../../hooks/useSession';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
 import { useOpenFlagCount } from '../../features/review/useOpenFlagCount';
+import { useServerConflictCount } from '../../features/conflicts/useServerConflictCount';
 
 /**
  * Left navigation. Desktop: full sidebar. Tablet: a narrow icon strip that expands
@@ -16,7 +17,9 @@ function Sidebar() {
   const { unresolvedConflicts } = useSyncStatus();
   const [expanded, setExpanded] = useState(false);
   const openFlags = useOpenFlagCount();
-  const counts = { conflicts: unresolvedConflicts, review: openFlags };
+  // Officers and administrators count the server's conflicts; a school device its own
+  const serverConflicts = useServerConflictCount();
+  const counts = { conflicts: serverConflicts ?? unresolvedConflicts, review: openFlags };
 
   return (
     <aside className="app-sidebar" data-expanded={expanded}>

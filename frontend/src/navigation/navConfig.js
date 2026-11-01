@@ -48,7 +48,7 @@ export const NAV_GROUPS = [
     label: 'Data sync',
     items: [
       { to: '/sync', label: 'Sync Status', shortLabel: 'Sync', icon: RefreshCw, mobileTab: true },
-      { to: '/conflicts', label: 'Conflicts', icon: GitCompareArrows, adminOnly: true, badge: 'conflicts' },
+      { to: '/conflicts', label: 'Conflicts', icon: GitCompareArrows, oversight: true, badge: 'conflicts' },
       { to: '/review', label: 'Record review', shortLabel: 'Review', icon: Flag, adminOnly: true, badge: 'review' },
     ],
   },

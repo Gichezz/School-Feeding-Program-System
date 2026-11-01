@@ -6,6 +6,7 @@ import { allItems } from '../../navigation/navConfig';
 import { useSession } from '../../hooks/useSession';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
 import { useOpenFlagCount } from '../../features/review/useOpenFlagCount';
+import { useServerConflictCount } from '../../features/conflicts/useServerConflictCount';
 import { useSignOut } from './UserMenu';
 import { formatNumber } from '../../utils/format';
 
@@ -83,7 +84,9 @@ function BottomNav() {
   const tabs = items.filter((item) => item.mobileTab);
   const moreItems = items.filter((item) => !item.mobileTab);
   const openFlags = useOpenFlagCount();
-  const counts = { conflicts: unresolvedConflicts, review: openFlags };
+  // Officers and administrators count the server's conflicts; a school device its own
+  const serverConflicts = useServerConflictCount();
+  const counts = { conflicts: serverConflicts ?? unresolvedConflicts, review: openFlags };
   const moreActive = moreItems.some((item) => location.pathname.startsWith(item.to));
   const moreCount = moreItems.reduce((sum, item) => sum + (item.badge ? counts[item.badge] || 0 : 0), 0);
 

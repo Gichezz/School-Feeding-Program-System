@@ -15,7 +15,6 @@ import {
 } from '../components/ui';
 import db from '../db/database';
 import { useSyncStatus } from '../hooks/useSyncStatus';
-import { useSession } from '../hooks/useSession';
 import { formatDate, formatDateTime, formatNumber } from '../utils/format';
 
 const RECENT_LIMIT = 20;
@@ -77,7 +76,6 @@ const COLUMNS = [
  */
 function SyncStatus() {
   const sync = useSyncStatus();
-  const { isAdmin } = useSession();
   const toast = useToast();
   const [operations, setOperations] = useState(null);
 
@@ -134,10 +132,10 @@ function SyncStatus() {
           <Alert
             tone="warning"
             title={sync.unresolvedConflicts === 1 ? '1 record needs a decision' : `${formatNumber(sync.unresolvedConflicts)} records need a decision`}
-            action={isAdmin && <Button as={Link} to="/conflicts" variant="secondary" size="sm">Resolve</Button>}
+            action={<Button as={Link} to="/conflicts" variant="secondary" size="sm">View</Button>}
           >
             The same record was changed on this device and on the server.
-            {!isAdmin && ' An administrator will choose which version to keep.'}
+            {' Your programme officer chooses which version to keep; changes to it wait here until then.'}
           </Alert>
         )}
 
@@ -145,7 +143,7 @@ function SyncStatus() {
           <StatCard label="Waiting" icon={CloudUpload} loading={loading} value={formatNumber(counts.pending || 0)} hint="Saved here, not sent yet" />
           <StatCard label="Synced" icon={CheckCircle2} loading={loading} value={formatNumber(counts.synced || 0)} hint="Reached the server" />
           <StatCard label="Did not sync" icon={CloudOff} loading={loading} value={formatNumber(counts.failed || 0)} hint="Retried automatically" />
-          <StatCard label="Conflicts" icon={GitCompareArrows} loading={loading} value={formatNumber(sync.unresolvedConflicts)} hint="Need an administrator" />
+          <StatCard label="Conflicts" icon={GitCompareArrows} loading={loading} value={formatNumber(sync.unresolvedConflicts)} hint="Resolved by your programme officer" />
         </div>
 
         <Card title="Recent changes" description={`The latest ${RECENT_LIMIT} changes saved on this device, newest first.`}>
