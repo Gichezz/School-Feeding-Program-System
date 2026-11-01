@@ -9,7 +9,6 @@ import { compareRows, conflictType, showValue } from '../features/conflicts/conf
 import { useResolvesConflicts } from '../features/conflicts/useServerConflictCount';
 import { deleteConflict } from '../sync/conflictService';
 import { getCachedSchools } from '../services/localDb';
-import { useSession } from '../hooks/useSession';
 import { formatDateTime } from '../utils/format';
 
 /**
@@ -137,7 +136,6 @@ function DeviceConflicts() {
  * device shows those waiting on it.
  */
 function Conflicts() {
-  const { isAdmin } = useSession();
   const resolves = useResolvesConflicts();
 
   return (
@@ -150,7 +148,7 @@ function Conflicts() {
       />
       <div className="ui-stack">
         {resolves ? <ServerConflicts /> : <DeviceConflicts />}
-        {isAdmin && <HeldRecordsCard />}
+        {resolves && <HeldRecordsCard />}
       </div>
     </>
   );

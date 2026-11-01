@@ -336,3 +336,41 @@ describe('the same delivery note entered twice', () => {
     expect(await ledgerCereals()).toBe(800);
   });
 });
+
+describe('held records and programme officers', () => {
+  async function heldDuplicate() {
+    await sync([syncOperation('op-1', 'stockMovement', 'create', delivery(), 0)]);
+    await sync([syncOperation('op-2', 'stockMovement', 'create', delivery({ quantityKg: 300 }), 0)], { clientId: 'device-b' });
+  }
+
+  it('lets the officer for the school see and discard a held duplicate delivery', async () => {
+    await heldDuplicate();
+
+    const { held } = (await asOfficer.get('/api/sync/held')).body;
+    const res = await asOfficer.post(`/api/sync/held/${held[0].id}/discard`);
+
+    expect(held).toEqual([expect.objectContaining({ reason: 'duplicate_delivery', school: 'Demo Primary School' })]);
+    expect(res.status).toBe(204);
+    const decided = (await pool.query('SELECT status, reviewed_by FROM held_operations')).rows[0];
+    expect(decided).toEqual({ status: 'discarded', reviewed_by: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3' });
+  });
+
+  it('lets the officer apply one that really was a second delivery', async () => {
+    await heldDuplicate();
+    const [held] = (await asOfficer.get('/api/sync/held')).body.held;
+
+    expect((await asOfficer.post(`/api/sync/held/${held.id}/apply`)).status).toBe(200);
+    expect((await pool.query("SELECT count(*)::int AS n FROM stock_movements WHERE kind = 'delivery'")).rows[0].n).toBe(2);
+  });
+
+  it("keeps officers to their own sub-county's held records", async () => {
+    await heldDuplicate();
+    const [held] = (await asAdmin.get('/api/sync/held')).body.held;
+    await pool.query("UPDATE schools SET sub_county = 'Another Sub-County' WHERE id = $1", [SCHOOL_ID]);
+
+    expect((await asOfficer.get('/api/sync/held')).body.held).toEqual([]);
+    expect((await asOfficer.post(`/api/sync/held/${held.id}/discard`)).status).toBe(404);
+    expect((await asOfficer.post(`/api/sync/held/${held.id}/apply`)).status).toBe(404);
+    expect((await asAdmin.post(`/api/sync/held/${held.id}/discard`)).status).toBe(204);
+  });
+});
