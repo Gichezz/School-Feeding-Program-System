@@ -12,7 +12,7 @@ changes_from_version_5:
   - From the audit of version 5 (docs/anomaly-model-audit.md), written after its results
     and after exploratory checks on the same data, so recorded as a deviation. Each change
     answers one finding; none is chosen for its effect on a result.
-  - No future records in any feature. Four statistics were computed over all rows given:
+  - No future records in any feature. Four statistics were computed over all rows given, namely
     the effect of each kind of day, the school median that fills fed_rate on days without
     feeding, the median that fills uptake, and the daily use that turns a store-count gap
     into days of food. Each now uses only records before the day it describes, as the
@@ -21,10 +21,10 @@ changes_from_version_5:
     are chosen on 2025 (tuning-type labels only); the chosen settings are refitted on
     2024-2025 and flag at the same quantile of their 2025 scores; 2026 is tested once.
     Version 5 fitted and chose on the same years.
-  - Equal, wider grids: six settings for every learned method (below). The one-class SVM
+  - Equal, wider grids - six settings for every learned method (below). The one-class SVM
     now also tries a smaller gamma (0.3 x scale).
   - SGDOneClassSVM (a linear one-class SVM on a Nystroem approximation of the same RBF
-    kernel) joins the candidates: its cost grows linearly with the rows, the audit's
+    kernel) joins the candidates - its cost grows linearly with the rows, the audit's
     answer if one model is ever fitted on far more records.
   - Food issued is recorded to the nearest 0.5 kg, which is a bigger share of a small
     school's pulses than a large school's; cereal_ratio and pulse_ratio now ignore a
