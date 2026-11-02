@@ -374,3 +374,58 @@ describe('held records and programme officers', () => {
     expect((await asAdmin.post(`/api/sync/held/${held.id}/discard`)).status).toBe(204);
   });
 });
+
+describe('record review for the new records', () => {
+  async function flaggedDay() {
+    await sync([syncOperation('op-0', 'stockMovement', 'create', delivery(), 0)]);
+    // 90 kg of cereals for 400 learners fed: 50% over the ration; no pulses in the store
+    await sync([syncOperation('op-1', 'dailyFeeding', 'create', feeding({ cerealsKg: 90 }), 0)]);
+  }
+
+  it("shows a daily feeding record's flags to the programme officer, with its figures", async () => {
+    await flaggedDay();
+
+    const res = await asOfficer.get('/api/review/flags');
+
+    expect(res.status).toBe(200);
+    expect(res.body.openCount).toBe(2);
+    const usage = res.body.flags.find((f) => f.flag === 'usage_far_from_ration');
+    expect(usage).toMatchObject({
+      entityType: 'daily_feeding', school: 'Demo Primary School', title: 'Food issued far from the ration for learners fed',
+      values: { date: '06-10-2026', fed: 400, cerealsKg: 90 },
+    });
+  });
+
+  it('lets the officer check a flag and read the record history', async () => {
+    await flaggedDay();
+    const [flag] = (await asOfficer.get('/api/review/flags')).body.flags;
+
+    const checked = await asOfficer.post(`/api/review/flags/${flag.id}/check`).send({ note: 'Visitors fed on sports day' });
+    const history = await asOfficer.get(`/api/review/records/daily_feeding/${flag.recordId}/history`);
+
+    expect(checked.status).toBe(200);
+    expect(history.status).toBe(200);
+    expect(history.body.history).toHaveLength(1);
+  });
+
+  it("keeps officers to their own sub-county's flags", async () => {
+    await flaggedDay();
+    const [flag] = (await asAdmin.get('/api/review/flags')).body.flags;
+    await pool.query("UPDATE schools SET sub_county = 'Another Sub-County' WHERE id = $1", [SCHOOL_ID]);
+
+    expect((await asOfficer.get('/api/review/flags')).body).toMatchObject({ flags: [], openCount: 0 });
+    expect((await asOfficer.post(`/api/review/flags/${flag.id}/check`).send({})).status).toBe(404);
+    expect((await asOfficer.get(`/api/review/records/daily_feeding/${flag.recordId}/history`)).status).toBe(404);
+    expect((await asAdmin.get('/api/review/flags')).body.openCount).toBe(2);
+  });
+
+  it('shows a short delivery as a stock flag', async () => {
+    await sync([syncOperation('op-0', 'stockMovement', 'create', delivery({ quantityKg: 450, noteQuantityKg: 500 }), 0)]);
+
+    const flags = (await asAdmin.get('/api/review/flags')).body.flags;
+
+    expect(flags).toContainEqual(expect.objectContaining({
+      entityType: 'stock_movement', flag: 'delivery_short', values: expect.objectContaining({ kind: 'delivery', quantityKg: 450, noteQuantityKg: 500 }),
+    }));
+  });
+});

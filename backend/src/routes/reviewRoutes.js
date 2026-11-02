@@ -3,8 +3,8 @@ const router = express.Router();
 const { listFlags, checkFlag, recordHistory } = require('../controllers/reviewController');
 const { requireRole } = require('../middleware/auth');
 
-// Record review is for administrators only (#62)
-router.use(requireRole('admin'));
+// Record review: administrators, and programme officers for their sub-county's schools (#62)
+router.use(requireRole('admin', 'programme_officer'));
 
 /**
  * GET /api/review/flags?status=open|checked

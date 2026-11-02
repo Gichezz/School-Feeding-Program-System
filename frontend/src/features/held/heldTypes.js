@@ -9,7 +9,10 @@ import { formatDate, formatNumber } from '../../utils/format';
  */
 
 const KINDS = { delivery: 'Delivery', purchase: 'Purchase', loss: 'Loss', return: 'Return', reversal: 'Reversal' };
-const kg = (value) => (value === null || value === undefined || value === '' ? '–' : `${formatNumber(value)} kg`);
+// Kilograms keep their halves (food is recorded to the nearest 0.5 kg)
+const kg = (value) => (value === null || value === undefined || value === ''
+  ? '–'
+  : `${Number(value).toLocaleString('en-GB', { maximumFractionDigits: 2 })} kg`);
 
 export function describeHeld(record) {
   const p = record.payload || {};
