@@ -4,7 +4,6 @@ import {
   Warehouse,
   Users,
   FileText,
-  BarChart3,
   RefreshCw,
   GitCompareArrows,
   Flag,
@@ -43,7 +42,6 @@ export const NAV_GROUPS = [
     items: [
       { to: '/analytics', label: 'Analytics', icon: PieChart, oversight: true },
       { to: '/weekly-review', label: 'Weekly review', shortLabel: 'Weekly', icon: ListChecks, oversight: true },
-      { to: '/reports', label: 'Reports', icon: BarChart3, notStaff: true },
     ],
   },
   {
@@ -51,7 +49,7 @@ export const NAV_GROUPS = [
     items: [
       { to: '/sync', label: 'Sync Status', shortLabel: 'Sync', icon: RefreshCw, mobileTab: true },
       { to: '/conflicts', label: 'Conflicts', icon: GitCompareArrows, oversight: true, badge: 'conflicts' },
-      { to: '/review', label: 'Record review', shortLabel: 'Review', icon: Flag, adminOnly: true, badge: 'review' },
+      { to: '/review', label: 'Record review', shortLabel: 'Review', icon: Flag, oversight: true, badge: 'review' },
     ],
   },
   {

@@ -10,7 +10,6 @@ import Conflicts from './pages/Conflicts';
 import Review from './pages/Review';
 import WeeklyReview from './pages/WeeklyReview';
 import Analytics from './pages/Analytics';
-import Reports from './pages/Reports';
 import Today from './pages/Today';
 import Stock from './pages/Stock';
 import Enrolment from './pages/Enrolment';
@@ -78,7 +77,8 @@ function App() {
         <Route path="/review" element={<Review />} />
         <Route path="/weekly-review" element={<WeeklyReview />} />
         <Route path="/analytics" element={<Analytics />} />
-        <Route path="/reports" element={<Reports />} />
+        {/* Reports showed the older attendance and meal records; Analytics replaces it */}
+        <Route path="/reports" element={<Navigate to="/analytics" replace />} />
         <Route path="/settings" element={<Settings />} />
       </Route>
     </Routes>

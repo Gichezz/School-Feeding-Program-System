@@ -21,8 +21,8 @@ Pipeline: **offline capture → sync → descriptive analytics → anomaly scori
 | Role | Works on | Can |
 |---|---|---|
 | `school_staff` | A school device, signed in with the device and a PIN | Record and sync for their own school, offline included |
-| `programme_officer` | A laptop, online | See every school in their sub-county: analytics, the weekly review list (and mark each listed school explained or follow-up), and resolve conflicts and held records |
-| `admin` | A laptop, online | Everything, for every sub-county; users, devices and record review |
+| `programme_officer` | A laptop, online | See every school in their sub-county: analytics, the weekly review list (and mark each listed school explained or follow-up), resolve conflicts and held records, and check flagged records |
+| `admin` | A laptop, online | Everything, for every sub-county; users and devices |
 
 ## Data
 
@@ -108,7 +108,7 @@ The officer marks each listed school's week explained or follow-up, with a note.
 
 **Offline sign-in and who captured each record (#61).** A staff member who has signed in online on a device can sign in there offline for up to 7 days (PBKDF2 hash of the PIN, 600,000 iterations). Every queued record carries who captured it, on which device and when, and the server decides per record: applied if the signed-in user captured it; deferred if a colleague on the same device did, until that colleague syncs; held if the person was deactivated or the device removed since.
 
-**Record integrity (#62).** Each record keeps who captured it, on which device, when it was captured and received, and its sync batch, and every version goes into `record_history`. Records more than 3 school days old need a reason. After each save the server raises flags for records worth checking: captured outside school hours, entered late, kept offline for long, more learners fed than enrolled, food far from the ration, more issued than the store held, a delivery short of its note. Flags never block a record.
+**Record integrity (#62).** Each record keeps who captured it, on which device, when it was captured and received, and its sync batch, and every version goes into `record_history`. Records more than 3 school days old need a reason. After each save the server raises flags for records worth checking: captured outside school hours, entered late, kept offline for long, more learners fed than enrolled, food far from the ration, more issued than the store held, a delivery short of its note. Flags never block a record; the school's programme officer (or an administrator) checks each under Record review and notes what they found.
 
 ## Folder roles
 
