@@ -1,51 +1,37 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CheckCircle2, CloudAlert, Flag, GitCompareArrows } from 'lucide-react';
-import {
-  Alert,
-  Button,
-  Card,
-  ChartCard,
-  DateRangeFilter,
-  EmptyState,
-  PageHeader,
-  rangeForPreset,
-} from '../components/ui';
-import InsightStatCards from '../features/insights/InsightStatCards';
-import { useInsights } from '../features/insights/useInsights';
+import { CalendarCheck, CheckCircle2, CloudAlert, CloudOff, Flag, GitCompareArrows, ListChecks, Users, Warehouse } from 'lucide-react';
+import { Alert, Button, Card, EmptyState, FormField, PageHeader, StatCard } from '../components/ui';
+import { getReviewWeeks, getSchools, getTermAnalytics } from '../services/api';
+import { ATTENTION, attention, summary } from '../features/analytics/analyticsData';
+import { recentMondays } from '../features/weeklyReview/weeks';
 import { useSyncStatus } from '../hooks/useSyncStatus';
 import { useSession } from '../hooks/useSession';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useOpenFlagCount } from '../features/review/useOpenFlagCount';
 import { useResolvesConflicts, useServerConflictCount } from '../features/conflicts/useServerConflictCount';
-import { formatNumber, formatPercent } from '../utils/format';
-
-const shortDate = (date) => date.slice(0, 5);
-const percent = (value) => formatPercent(value, { isRatio: false });
+import { formatDateTime, formatNumber, formatPercent } from '../utils/format';
 
 /**
- * Conflicts, failed syncs and flagged records that someone needs to act on.
+ * Conflicts, held records, flagged records and failed syncs that someone needs to act on.
  */
-function NeedsAttention({ unresolvedConflicts, failedCount, failure, openFlags, isAdmin, resolves }) {
+function NeedsAttention({ decisions, failedCount, failure, openFlags }) {
   const items = [];
-  if (unresolvedConflicts > 0) {
+  if (decisions > 0) {
     items.push({
       key: 'conflicts',
       icon: GitCompareArrows,
-      title: unresolvedConflicts === 1 ? '1 record needs a decision' : `${formatNumber(unresolvedConflicts)} records need a decision`,
-      description: resolves
-        ? "A school's device changed a record that had already changed on the server."
-        : 'The same record was changed on this device and on the server.',
-      action: resolves
-        ? <Button as={Link} to="/conflicts" variant="secondary" size="sm">Resolve</Button>
-        : <span className="dashboard__attention-note">Your programme officer will resolve these.</span>,
+      title: decisions === 1 ? '1 record needs a decision' : `${formatNumber(decisions)} records need a decision`,
+      description: "Conflicts between a school's devices and the server, and records held for a decision, such as a delivery note entered twice.",
+      action: <Button as={Link} to="/conflicts" variant="secondary" size="sm">Decide</Button>,
     });
   }
-  if (isAdmin && openFlags > 0) {
+  if (openFlags > 0) {
     items.push({
       key: 'review',
       icon: Flag,
       title: openFlags === 1 ? '1 flagged record to check' : `${formatNumber(openFlags)} flagged records to check`,
-      description: 'Records that look unusual, such as late entries or more meals served than learners present.',
+      description: 'Records that look unusual, such as more learners fed than enrolled, food far from the ration, or a short delivery.',
       action: <Button as={Link} to="/review" variant="secondary" size="sm">Review</Button>,
     });
   }
@@ -60,9 +46,9 @@ function NeedsAttention({ unresolvedConflicts, failedCount, failure, openFlags, 
   }
 
   return (
-    <Card title="Needs attention" description="Conflicts and changes that did not sync.">
+    <Card title="Needs attention" description="Decisions waiting for you, and changes that did not sync.">
       {items.length === 0 ? (
-        <EmptyState compact icon={CheckCircle2} title="Nothing needs attention" description="Conflicts and failed syncs will appear here." />
+        <EmptyState compact icon={CheckCircle2} title="Nothing needs attention" description="Conflicts, held records, flagged records and failed syncs appear here." />
       ) : (
         <ul className="dashboard__attention">
           {items.map(({ key, icon: Icon, title, description, action }) => (
@@ -81,72 +67,128 @@ function NeedsAttention({ unresolvedConflicts, failedCount, failure, openFlags, 
   );
 }
 
+/** This week's review list: scored or not, and how far the officer has got with it. */
+function ReviewListCard({ weeks, loading }) {
+  const [thisWeek, lastWeek] = useMemo(() => recentMondays(new Date(), 2), []);
+  const latest = weeks?.find((w) => w.week === thisWeek) || weeks?.find((w) => w.week === lastWeek) || null;
+  const text = (() => {
+    if (loading) return 'Loading…';
+    if (!latest) return 'This week and last week have not been scored yet.';
+    const which = latest.week === thisWeek ? 'This week' : 'Last week';
+    if (latest.listed === 0) return `${which}'s list (week of ${latest.week}) has no schools on it.`;
+    return `${which}'s list (week of ${latest.week}): ${latest.decided} of ${latest.listed} schools reviewed. Scored ${formatDateTime(latest.scoredAt)}.`;
+  })();
+  return (
+    <Card title="Weekly review list" description="The schools whose records look most unusual this week, to look into first.">
+      <div className="dashboard__review">
+        <ListChecks className="dashboard__attention-icon" aria-hidden="true" />
+        <p className="dashboard__attention-description">{text}</p>
+        <Button as={Link} to="/weekly-review" variant="secondary" size="sm">
+          {latest && latest.decided < latest.listed ? 'Continue' : 'Open'}
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
 /**
- * Overview of attendance, meals and sync for a chosen period.
+ * The officer's and administrator's start page: the term so far across the sub-county's
+ * schools, the weekly review list, and what needs a decision. Built from the feeding and
+ * stock records schools sync; Analytics has each school's figures.
  */
 function Dashboard() {
-  const [range, setRange] = useState(() => ({ preset: '7days', ...rangeForPreset('7days') }));
-  const { loading, totals, previousTotals, daily, fromDevice } = useInsights(range);
-  const { pendingCount, failedCount, failure, unresolvedConflicts } = useSyncStatus();
+  const isOnline = useOnlineStatus();
   const { isAdmin } = useSession();
+  const { failedCount, failure, unresolvedConflicts } = useSyncStatus();
   const openFlags = useOpenFlagCount();
   const resolves = useResolvesConflicts();
   const serverConflicts = useServerConflictCount();
+  const [subCounties, setSubCounties] = useState([]);
+  const [subCounty, setSubCounty] = useState('');
+  const [term, setTerm] = useState(null);
+  const [weeks, setWeeks] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!isAdmin || !isOnline) return;
+    getSchools()
+      .then((res) => {
+        const names = [...new Set((res.schools || []).map((s) => s.sub_county).filter(Boolean))].sort();
+        setSubCounties(names);
+        setSubCounty((current) => current || names[0] || '');
+      })
+      .catch((err) => setError(err.message));
+  }, [isAdmin, isOnline]);
+
+  const ready = resolves && isOnline && (!isAdmin || subCounty);
+
+  useEffect(() => {
+    if (!ready) return undefined;
+    let active = true;
+    const scope = isAdmin ? { subCounty } : {};
+    setTerm(null);
+    setWeeks(null);
+    setError(null);
+    getTermAnalytics(scope).then((res) => { if (active) setTerm(res); }).catch((err) => { if (active) setError(err.message); });
+    getReviewWeeks(scope.subCounty).then((res) => { if (active) setWeeks(res.weeks || []); }).catch(() => { if (active) setWeeks([]); });
+    return () => { active = false; };
+  }, [ready, isAdmin, subCounty]);
+
+  const schools = term?.schools || [];
+  const totals = summary(schools);
+  const toLookAt = schools.filter((s) => Object.keys(attention(s)).length > 0).length;
+  const loading = ready && !term && !error;
 
   return (
     <>
-      <PageHeader title="Dashboard" description="Attendance, meals and sync at a glance." />
+      <PageHeader
+        title="Dashboard"
+        description={term ? `${term.subCounty}: Term ${term.term.term} ${term.term.year}, up to ${term.asOf}.` : 'The term so far, the weekly review list, and what needs a decision.'}
+      />
 
       <div className="ui-stack">
-        <Card>
-          <DateRangeFilter value={range} onChange={setRange} />
-        </Card>
-
-        {fromDevice && !loading && (
-          <Alert tone="neutral" title="Showing records on this device">
-            The server could not be reached, so these figures only include records saved here.
-          </Alert>
+        {isAdmin && subCounties.length > 1 && (
+          <Card>
+            <FormField id="dashboard-sub-county" label="Sub-county" as="select" value={subCounty}
+              onChange={(e) => setSubCounty(e.target.value)} options={subCounties.map((n) => ({ value: n, label: n }))} />
+          </Card>
         )}
 
-        <InsightStatCards
-          totals={totals}
-          previousTotals={previousTotals}
-          daily={daily}
-          pendingCount={pendingCount}
-          loading={loading}
-        />
+        {!isOnline && <Alert tone="neutral" title="You are offline">The term's figures and the review list need a connection.</Alert>}
+        {error && <Alert tone="danger" title="Could not load the term's figures">{error}</Alert>}
 
-        <div className="ui-grid ui-grid--2">
-          <ChartCard
-            title="Attendance trend"
-            description="Share of registered learners present each day"
-            type="line"
-            data={daily.filter((day) => day.rate !== null)}
-            xKey="date"
-            xTickFormatter={shortDate}
-            series={[{ dataKey: 'rate', metric: 'attendance', label: 'Attendance rate' }]}
-            valueFormatter={percent}
-            loading={loading}
-          />
-          <ChartCard
-            title="Prepared vs served"
-            description="Meals each day; the gap is waste"
-            type="bar"
-            data={daily.filter((day) => day.prepared > 0 || day.served > 0)}
-            xKey="date"
-            xTickFormatter={shortDate}
-            series={[{ dataKey: 'prepared', metric: 'prepared' }, { dataKey: 'served', metric: 'served' }]}
-            loading={loading}
-          />
+        <div className="ui-grid ui-grid--4">
+          <StatCard label="School days recorded" icon={CalendarCheck} loading={loading}
+            value={formatPercent(totals.recordedShare)} hint={`Across ${formatNumber(totals.schools)} schools`} />
+          <StatCard label="Learners fed" icon={Users} loading={loading}
+            value={formatPercent(totals.meanCoverage)} hint="Of enrolment, on days with feeding" />
+          <StatCard label="Low on food" icon={Warehouse} loading={loading}
+            value={formatNumber(totals.lowStock)} hint={`Under ${ATTENTION.daysOfFood} days of cereals`} />
+          <StatCard label="Not synced" icon={CloudOff} loading={loading}
+            value={formatNumber(totals.notSynced)} hint={`No records for over ${ATTENTION.syncDays} days`} />
         </div>
 
+        {term && (
+          <Card>
+            <div className="dashboard__review">
+              <Flag className="dashboard__attention-icon" aria-hidden="true" />
+              <p className="dashboard__attention-description">
+                {toLookAt === 0
+                  ? 'No school has a figure outside the stated rules this term.'
+                  : `${toLookAt} of ${schools.length} schools have a figure to look at this term (days not recorded, food against the ration, stock, deliveries or syncing).`}
+              </p>
+              <Button as={Link} to="/analytics" variant="secondary" size="sm">Open analytics</Button>
+            </div>
+          </Card>
+        )}
+
+        <ReviewListCard weeks={weeks} loading={ready && weeks === null} />
+
         <NeedsAttention
-          unresolvedConflicts={serverConflicts ?? unresolvedConflicts}
+          decisions={serverConflicts ?? unresolvedConflicts}
           failedCount={failedCount}
           failure={failure}
           openFlags={openFlags}
-          isAdmin={isAdmin}
-          resolves={resolves}
         />
       </div>
     </>

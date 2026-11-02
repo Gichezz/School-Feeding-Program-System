@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { flagSummaryRows, historyChanges } from './reviewData';
+import { flagSummaryRows, historyChanges, recordHeading } from './reviewData';
 
 const flag = {
   entityType: 'attendance',
@@ -47,5 +47,36 @@ describe('historyChanges', () => {
       { version: 2, first: false, changes: ['Present 90 → 85', 'Absent 10 → 15'], changedBy: 'Grace' },
       { version: 3, first: false, changes: [], changedBy: 'Unknown' },
     ]);
+  });
+});
+
+describe('the new records', () => {
+  const base = { capturedBy: 'Grace Wanjiru', device: 'Kitchen tablet', capturedAt: null, receivedAt: null };
+
+  it('heads and lists a daily feeding record with kilograms', () => {
+    const day = { ...base, entityType: 'daily_feeding', values: { date: '06-10-2026', happened: true, present: null, fed: 400, cerealsKg: 90, pulsesKg: 16 } };
+
+    expect(recordHeading(day)).toBe('Daily feeding · 06-10-2026');
+    expect(flagSummaryRows(day).slice(0, 3)).toEqual([
+      { key: 'fed', label: 'Learners fed', value: '400' },
+      { key: 'cerealsKg', label: 'Cereals issued', value: '90 kg' },
+      { key: 'pulsesKg', label: 'Pulses issued', value: '16 kg' },
+    ]);
+  });
+
+  it('heads a short delivery and an enrolment count', () => {
+    expect(recordHeading({ entityType: 'stock_movement', values: { date: '05-10-2026', kind: 'delivery', commodity: 'cereals' } }))
+      .toBe('Delivery of cereals · 05-10-2026');
+    expect(recordHeading({ entityType: 'enrolment', values: { class: 'Grade 4', sex: 'F', term: 'Term 3 2026' } }))
+      .toBe('Enrolment · Grade 4 girls, Term 3 2026');
+  });
+
+  it('lists what changed in a feeding record', () => {
+    const [, second] = historyChanges([
+      { version: 1, values: { fed: 400, cerealsKg: 60 } },
+      { version: 2, values: { fed: 380, cerealsKg: 57.5 } },
+    ]);
+
+    expect(second.changes).toEqual(['Learners fed 400 → 380', 'Cereals issued 60 kg → 57.5 kg']);
   });
 });

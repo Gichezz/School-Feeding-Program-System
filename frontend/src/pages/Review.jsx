@@ -14,10 +14,10 @@ import {
   useToast,
 } from '../components/ui';
 import { checkReviewFlag, getRecordHistory, getReviewFlags } from '../services/api';
-import { ENTITY_LABELS, flagSummaryRows, historyChanges } from '../features/review/reviewData';
+import { flagSummaryRows, historyChanges, recordHeading } from '../features/review/reviewData';
+import { useResolvesConflicts } from '../features/conflicts/useServerConflictCount';
 import { FLAGS_CHANGED_EVENT } from '../features/review/useOpenFlagCount';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
-import { useSession } from '../hooks/useSession';
 import { formatDateTime } from '../utils/format';
 
 const MAX_NOTE_LENGTH = 500;
@@ -57,13 +57,13 @@ function RecordHistory({ entityType, recordId }) {
 }
 
 /**
- * Record review (#62), for administrators: records that look unusual are flagged, never
- * blocked. Check each against the school's paper register, then mark it checked with a
- * note of what you found.
+ * Record review (#62), for programme officers (their sub-county) and administrators:
+ * records that look unusual are flagged, never blocked. Check each against the school's
+ * register or store book, then mark it checked with a note of what you found.
  */
 function Review() {
   const isOnline = useOnlineStatus();
-  const { isAdmin } = useSession();
+  const reviews = useResolvesConflicts();
   const toast = useToast();
   const [status, setStatus] = useState('open');
   const [flags, setFlags] = useState(null);
@@ -85,8 +85,8 @@ function Review() {
 
   useEffect(() => {
     setFlags(null);
-    if (isOnline && isAdmin) load();
-  }, [isOnline, isAdmin, load]);
+    if (isOnline && reviews) load();
+  }, [isOnline, reviews, load]);
 
   const startCheck = (flag) => {
     setChecking(flag.id);
@@ -98,7 +98,7 @@ function Review() {
     setError(null);
     try {
       await checkReviewFlag(flag.id, note.trim() || undefined);
-      toast.show({ tone: 'success', title: 'Marked as checked', description: `${ENTITY_LABELS[flag.entityType]} for ${flag.values.date} at ${flag.school}.` });
+      toast.show({ tone: 'success', title: 'Marked as checked', description: `${recordHeading(flag)} at ${flag.school}.` });
       setChecking(null);
       window.dispatchEvent(new Event(FLAGS_CHANGED_EVENT));
       load();
@@ -109,11 +109,11 @@ function Review() {
     }
   };
 
-  if (!isAdmin) {
+  if (!reviews) {
     return (
       <>
         <PageHeader title="Record review" />
-        <Alert tone="neutral" title="For administrators">Only administrators review flagged records.</Alert>
+        <Alert tone="neutral" title="For programme officers">Programme officers and administrators review flagged records.</Alert>
       </>
     );
   }
@@ -151,7 +151,7 @@ function Review() {
               icon={CheckCircle2}
               title={status === 'open' ? 'Nothing to check' : 'Nothing checked yet'}
               description={status === 'open'
-                ? 'Records are flagged when they are captured outside school hours, entered or synced late, have more meals served than learners present, or are far from the school’s usual numbers.'
+                ? 'Records are flagged when they are captured outside school hours or entered or synced late, when more learners are fed than enrolled or more food is issued than the store held, when food issued is far from the ration, or when a delivery is short of its note.'
                 : 'Flags you mark as checked appear here with your notes.'}
             />
           </Card>
@@ -169,7 +169,7 @@ function Review() {
                   </h2>
                   <p className="review__detail">{flag.detail}</p>
                   <p className="review__record">
-                    {ENTITY_LABELS[flag.entityType]} · {flag.values.date} · {flag.school}
+                    {recordHeading(flag)} · {flag.school}
                     {flag.version > 1 && ` · edit (version ${flag.version})`}
                   </p>
                 </div>

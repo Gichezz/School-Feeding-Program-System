@@ -807,6 +807,18 @@
   gap: var(--space-2);
 }
 
+/* ---------- Dashboard: the review list and analytics rows ---------- */
+.dashboard__review {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.dashboard__review .dashboard__attention-description {
+  flex: 1 1 16rem;
+}
+
 /* ---------- Analytics ---------- */
 .analytics__flag .ui-badge {
   white-space: nowrap;
@@ -954,22 +966,9 @@
   font-weight: var(--font-weight-semibold);
 }
 
-/* ---------- Print (Reports) ---------- */
+/* ---------- Print ---------- */
 .print-only {
   display: none;
-}
-
-.reports__print-header {
-  margin-bottom: var(--space-6);
-  padding-bottom: var(--space-3);
-  border-bottom: var(--border-default);
-  font-size: var(--font-size-sm);
-}
-
-.reports__print-name {
-  font-family: var(--font-display);
-  font-size: var(--font-size-2xl);
-  color: var(--color-brand);
 }
 
 /* ---------- Enrolment: learners by class and sex ---------- */
