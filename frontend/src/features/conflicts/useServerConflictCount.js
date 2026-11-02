@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getConflicts } from '../../services/api';
+import { getConflicts, getHeldRecords } from '../../services/api';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { useSession } from '../../hooks/useSession';
 
@@ -14,8 +14,9 @@ export function useResolvesConflicts() {
 }
 
 /**
- * Unresolved conflicts on the server for the schools this person oversees, while online;
- * null for school staff, whose badge counts this device's conflicts instead.
+ * Decisions waiting on the server for the schools this person oversees, while online:
+ * unresolved conflicts and held records. null for school staff, whose badge counts this
+ * device's conflicts instead.
  */
 export function useServerConflictCount() {
   const isOnline = useOnlineStatus();
@@ -28,8 +29,8 @@ export function useServerConflictCount() {
       return undefined;
     }
     let active = true;
-    const load = () => getConflicts({ status: 'unresolved' })
-      .then((res) => { if (active) setCount((res.conflicts || []).length); })
+    const load = () => Promise.all([getConflicts({ status: 'unresolved' }), getHeldRecords().catch(() => ({ held: [] }))])
+      .then(([conflicts, held]) => { if (active) setCount((conflicts.conflicts || []).length + (held.held || []).length); })
       .catch(() => {});
     load();
     const timer = setInterval(load, REFRESH_MS);

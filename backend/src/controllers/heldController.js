@@ -5,12 +5,15 @@ const {
   ENTITY_TYPES, afterSave, handleCreateOperation, handleUpdateOperation, recordDateOf,
 } = require('./syncController');
 const { checkEntryWindow } = require('../validation/entryWindow');
+const { visibleSchool } = require('../services/schoolAccess');
 
 /**
  * Held records (#61): records captured on a school device that the server did not
  * apply automatically, because the person who captured them was deactivated or had
- * their password reset afterwards, or because the device was removed. Administrators
- * review each one and apply or discard it, so nothing captured offline is lost silently.
+ * their password reset afterwards, because the device was removed, or because it may be
+ * a second entry of a delivery note already recorded. Programme officers (for schools in
+ * their sub-county) and administrators review each one and apply or discard it, so
+ * nothing captured offline is lost silently.
  */
 
 // Database entity type → the type name the sync endpoint uses
@@ -29,29 +32,41 @@ function publicHeld(row) {
     capturedBy: row.captured_by_name || null,
     device: row.device_name || null,
     submittedBy: row.submitted_by_name || null,
+    school: row.school_name || null,
     createdAt: row.created_at,
   };
 }
 
 /**
- * GET /api/sync/held → { held } (administrators)
+ * GET /api/sync/held → { held } (administrators; programme officers for their sub-county)
  * Records waiting for a decision, oldest first.
  */
 async function listHeld(req, res, next) {
   try {
+    const officer = req.user.role === 'programme_officer';
     const result = await pool.query(
-      `SELECT h.*, c.name AS captured_by_name, s.name AS submitted_by_name, d.name AS device_name
+      `SELECT h.*, c.name AS captured_by_name, s.name AS submitted_by_name, d.name AS device_name,
+              sc.name AS school_name
        FROM held_operations h
        LEFT JOIN users c ON c.id = h.captured_by
        LEFT JOIN users s ON s.id = h.submitted_by
        LEFT JOIN devices d ON d.id = h.device_id
-       WHERE h.status = 'pending'
-       ORDER BY h.captured_at NULLS LAST, h.created_at`
+       LEFT JOIN schools sc ON sc.id::text = h.payload->>'schoolId'
+       WHERE h.status = 'pending' ${officer ? 'AND sc.sub_county = $1' : ''}
+       ORDER BY h.captured_at NULLS LAST, h.created_at`,
+      officer ? [req.user.subCounty] : []
     );
     res.json({ held: result.rows.map(publicHeld) });
   } catch (error) {
     next(error);
   }
+}
+
+/** Administrators decide any held record; programme officers those of their sub-county's schools. */
+async function mayDecide(db, user, held) {
+  if (user.role === 'admin') return true;
+  const schoolId = held.payload?.schoolId;
+  return isUuid(schoolId) && Boolean(await visibleSchool(db, user, schoolId));
 }
 
 async function findPending(client, id) {
@@ -60,7 +75,7 @@ async function findPending(client, id) {
 }
 
 /**
- * POST /api/sync/held/:id/apply (administrators)
+ * POST /api/sync/held/:id/apply (administrators; programme officers for their sub-county)
  * Apply the record as captured. The record keeps its original author; the review is
  * recorded with the administrator. If the server's copy changed since, nothing is
  * applied (409) and the administrator can discard it instead.
@@ -70,7 +85,7 @@ async function applyHeld(req, res, next) {
   try {
     await client.query('BEGIN');
     const held = await findPending(client, req.params.id);
-    if (!held) {
+    if (!held || !(await mayDecide(client, req.user, held))) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Held record not found' });
     }
@@ -127,11 +142,13 @@ async function applyHeld(req, res, next) {
 }
 
 /**
- * POST /api/sync/held/:id/discard (administrators)
+ * POST /api/sync/held/:id/discard (administrators; programme officers for their sub-county)
  */
 async function discardHeld(req, res, next) {
   try {
     if (!isUuid(req.params.id)) return res.status(404).json({ error: 'Held record not found' });
+    const held = (await pool.query("SELECT payload FROM held_operations WHERE id = $1 AND status = 'pending'", [req.params.id])).rows[0];
+    if (!held || !(await mayDecide(pool, req.user, held))) return res.status(404).json({ error: 'Held record not found' });
     const result = await pool.query(
       `UPDATE held_operations SET status = 'discarded', reviewed_by = $2, reviewed_at = NOW(), decided_xid = pg_current_xact_id()
        WHERE id = $1 AND status = 'pending' RETURNING id`,

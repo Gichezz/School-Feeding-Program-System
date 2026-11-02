@@ -37,10 +37,11 @@ router.get('/conflicts/:conflictId', getConflictById);
 router.post('/conflicts/:conflictId/resolve', requireRole('admin', 'programme_officer'), resolveConflict);
 
 /**
- * Held records (#61): records an administrator must apply or discard
+ * Held records (#61): records a person must apply or discard (administrators, and
+ * programme officers for schools in their sub-county)
  */
-router.get('/held', requireRole('admin'), listHeld);
-router.post('/held/:id/apply', requireRole('admin'), applyHeld);
-router.post('/held/:id/discard', requireRole('admin'), discardHeld);
+router.get('/held', requireRole('admin', 'programme_officer'), listHeld);
+router.post('/held/:id/apply', requireRole('admin', 'programme_officer'), applyHeld);
+router.post('/held/:id/discard', requireRole('admin', 'programme_officer'), discardHeld);
 
 module.exports = router;
