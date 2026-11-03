@@ -163,3 +163,14 @@ def test_refuses_a_body_that_is_not_json(client):
     res = client.post("/score", data="not json", content_type="text/plain")
 
     assert res.status_code == 400
+
+
+def test_a_practice_term_without_a_number_is_accepted(client, dataset):
+    body = body_for(dataset, "North", "2026-03-02")
+    body["terms"].append({"id": "practice", "year": 2026, "term": None, "opens_on": "2026-10-26", "closes_on": "2026-12-18",
+                          "half_term_start": None, "half_term_end": None})
+
+    res = client.post("/score", json=body)
+
+    assert res.status_code == 200
+    assert res.get_json()["mode"] == "extended_isolation_forest"

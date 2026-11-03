@@ -126,3 +126,18 @@ describe('access', () => {
     expect((await asOfficer.get('/api/analytics/term?termId=33333333-3333-4333-8333-333333333333')).status).toBe(404);
   });
 });
+
+describe('a practice term', () => {
+  it('is named by its label', async () => {
+    const practice = (await pool.query(
+      `INSERT INTO school_terms (year, term, opens_on, closes_on, label, practice)
+       VALUES (2026, NULL, '2026-09-01', '2026-10-30', 'Practice term (demonstration)', true) RETURNING id`
+    )).rows[0].id;
+
+    const res = await asOfficer.get(`/api/analytics/term?termId=${practice}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.term).toMatchObject({ label: 'Practice term (demonstration)', practice: true, term: null });
+    expect(res.body.terms.map((t) => t.label)).toContain('Term 3 2026');
+  });
+});

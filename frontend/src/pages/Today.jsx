@@ -8,6 +8,7 @@ import { useSchoolData } from '../features/feeding/useSchoolData';
 import {
   NOT_FED_REASONS, UNUSUAL_REASONS, averageFed, dayKey, foodRemaining, schoolDays, stockBalances, todayKey,
   validateFeeding, COMMODITY_LABELS,
+  termName,
 } from '../features/feeding/planning';
 import { saveDailyFeeding } from '../services/feedingDb';
 import { manualSync } from '../sync/syncManager';
@@ -225,7 +226,7 @@ function Summary({ data }) {
       <StatCard label="Learners fed (10-day average)" value={avg === null ? '–' : formatNumber(Math.round(avg))} hint="Used to plan food" />
       <StatCard label="Days of food left" value={limiting ? formatNumber(limiting.days) : '–'}
         hint={limiting ? `${COMMODITY_LABELS[food.limiting]} runs out first` : 'Record feeding to work this out'} />
-      <StatCard label="School days left this term" value={formatNumber(remaining.length)} hint={data.term ? `Term ${data.term.term} closes ${data.term.closesOn}` : undefined} />
+      <StatCard label="School days left this term" value={formatNumber(remaining.length)} hint={data.term ? `${termName(data.term)} closes ${data.term.closesOn}` : undefined} />
     </div>
   );
 }

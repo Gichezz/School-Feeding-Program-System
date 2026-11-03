@@ -143,7 +143,7 @@ function Dashboard() {
     <>
       <PageHeader
         title="Dashboard"
-        description={term ? `${term.subCounty}: Term ${term.term.term} ${term.term.year}, up to ${term.asOf}.` : 'The term so far, the weekly review list, and what needs a decision.'}
+        description={term ? `${term.subCounty}: ${term.term.label}, up to ${term.asOf}.` : 'The term so far, the weekly review list, and what needs a decision.'}
       />
 
       <div className="ui-stack">

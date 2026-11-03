@@ -25,9 +25,11 @@ const { subCountyFor } = require('../services/schoolAccess');
  */
 
 const RECENT_DAYS = 10;
+// A practice term's own label; otherwise "Term 3 2026"
+const termLabel = (t) => t.label || `Term ${t.term} ${t.year}`;
 const toDisplay = (isoDate) => (isoDate ? isoDate.split('-').reverse().join('-') : null);
 // Dates as text, so no time zone can move them
-const TERM_COLUMNS = `id, year, term, to_char(opens_on, 'YYYY-MM-DD') AS opens_on, to_char(closes_on, 'YYYY-MM-DD') AS closes_on,
+const TERM_COLUMNS = `id, year, term, label, practice, to_char(opens_on, 'YYYY-MM-DD') AS opens_on, to_char(closes_on, 'YYYY-MM-DD') AS closes_on,
   to_char(half_term_start, 'YYYY-MM-DD') AS half_term_start, to_char(half_term_end, 'YYYY-MM-DD') AS half_term_end`;
 
 /** The term asked for, or the one running today, or the latest that has started. */
@@ -158,14 +160,17 @@ async function getTermAnalytics(req, res, next) {
     ]);
     if (result.rows.length === 0) throw new NotFoundError('Sub-county not found');
     const terms = await pool.query(
-      'SELECT id, year, term FROM school_terms WHERE opens_on <= $1 ORDER BY opens_on DESC LIMIT 6', [today]
+      'SELECT id, year, term, label FROM school_terms WHERE opens_on <= $1 ORDER BY opens_on DESC LIMIT 6', [today]
     );
 
     res.json({
       subCounty,
-      term: { id: term.id, year: term.year, term: term.term, opensOn: toDisplay(opensOn), closesOn: toDisplay(closesOn) },
+      term: {
+        id: term.id, year: term.year, term: term.term, label: termLabel(term), practice: term.practice,
+        opensOn: toDisplay(opensOn), closesOn: toDisplay(closesOn),
+      },
       asOf: toDisplay(asOf),
-      terms: terms.rows.map((t) => ({ id: t.id, label: `Term ${t.term} ${t.year}` })),
+      terms: terms.rows.map((t) => ({ id: t.id, label: termLabel(t) })),
       schools: result.rows.map((row) => schoolFigures(row, opensOn, asOf)),
     });
   } catch (error) {

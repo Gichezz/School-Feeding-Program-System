@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   averageFed, currentTerm, foodRemaining, schoolDays, stockBalances, termReport, termRequirement, validateFeeding,
+  termName,
 } from './planning';
 
 const SCHOOL = '11111111-1111-1111-1111-111111111111';
@@ -157,5 +158,25 @@ describe('termReport', () => {
     expect(report.consumption.cereals).toEqual({ issuedKg: 132, rationKg: 120, ratio: 1.1 });
     // Ledger on 21 October: 500 − 60 − 72 = 368; counted 360
     expect(report.lastCount.cereals).toEqual({ date: '21-10-2026', countedKg: 360, ledgerKg: 368, differenceKg: -8 });
+  });
+});
+
+describe('termName', () => {
+  it("uses a practice term's label, and names real terms by number and year", () => {
+    expect(termName({ term: null, year: 2026, label: 'Practice term (demonstration)' })).toBe('Practice term (demonstration)');
+    expect(termName({ term: 3, year: 2026 })).toBe('Term 3 2026');
+  });
+});
+
+describe('a practice term', () => {
+  const practice = { id: 'p', year: 2026, term: null, label: 'Practice term (demonstration)', practice: true, opensOn: '26-10-2026', closesOn: '18-12-2026' };
+
+  it('makes its weekdays school days, so recording on them is ordinary', () => {
+    expect(schoolDays([practice], [], '2026-11-10', '2026-11-10')).toHaveLength(1);
+    expect(schoolDays([practice], [], '2026-11-14', '2026-11-15')).toHaveLength(0);
+  });
+
+  it('is the current term while it runs', () => {
+    expect(currentTerm([practice], new Date(2026, 10, 10))).toBe(practice);
   });
 });

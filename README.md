@@ -97,13 +97,13 @@ psql -U postgres -d school_feeding -f database/seed.sql
 
 `calendar_kenya.sql` loads the national school calendar (term dates, half-terms, public holidays and national exams for 2024–2026), which every installation needs. `seed.sql` creates four fictional schools in one fictional sub-county and three demo accounts (administrator, programme officer, school staff) for **local development only**; their passwords are listed at the top of that file, so never load it on a hosted or shared database.
 
-**Existing databases:** `schema.sql` only creates missing tables. Apply later schema changes with the scripts in `database/migrations/`, in order (`001` to `015`), then load `calendar_kenya.sql`:
+**Existing databases:** `schema.sql` only creates missing tables. Apply later schema changes with the scripts in `database/migrations/`, in order (`001` to `016`), then load `calendar_kenya.sql`:
 
 ```bash
 psql -U postgres -d school_feeding -f database/migrations/001_attendance_present_absent_equals_registered.sql
 ```
 
-`001`–`007` cover attendance validation, user accounts, administrator passkeys, school devices and PINs, offline capture and held records, record integrity, and authenticator app codes. `008` adds each school's county, sub-county, programme type and ration, and the programme officer role. `009` adds the school calendar. `010` adds sync batches, the transaction stamp devices download changes by, and the append-only guard. `011` adds termly enrolment and the daily feeding record. `012` adds the stock ledger and store counts. `013` adds the weekly review lists and officers' decisions, and drops the old stored forecasts. `014` holds a delivery note entered twice and lets devices download decisions on held records. `015` lets review runs be stored as scored by Extended Isolation Forest. `001` lists any old attendance records that do not add up; correct them, then run `ALTER TABLE attendance_records VALIDATE CONSTRAINT attendance_present_absent_equals_registered;`.
+`001`–`007` cover attendance validation, user accounts, administrator passkeys, school devices and PINs, offline capture and held records, record integrity, and authenticator app codes. `008` adds each school's county, sub-county, programme type and ration, and the programme officer role. `009` adds the school calendar. `010` adds sync batches, the transaction stamp devices download changes by, and the append-only guard. `011` adds termly enrolment and the daily feeding record. `012` adds the stock ledger and store counts. `013` adds the weekly review lists and officers' decisions, and drops the old stored forecasts. `014` holds a delivery note entered twice and lets devices download decisions on held records. `015` lets review runs be stored as scored by Extended Isolation Forest. `016` adds practice terms: labelled periods outside the national calendar, for demonstrations and training. `001` lists any old attendance records that do not add up; correct them, then run `ALTER TABLE attendance_records VALIDATE CONSTRAINT attendance_present_absent_equals_registered;`.
 
 **Demo records (optional).** To give the officer screens two years of history, generate the synthetic dataset and load one simulated sub-county into a demo database (built from `schema.sql`, `calendar_kenya.sql` and `seed.sql`). The loader only adds records, and stops if the demo sub-county already has some:
 
@@ -112,6 +112,8 @@ python forecasting/scripts/generate_feeding_dataset.py
 cd backend
 npm run demo:records
 ```
+
+**Practice term (demonstrations only).** Between Term 3 2026 (ended 23 October) and the 2027 calendar, every day is a holiday, so a live demonstration would record on days that are not school days. `database/demo/practice_term.sql` adds a labelled "Practice term (demonstration)" from 26 October to 18 December 2026 to a demo database, with each school's Term 3 enrolment, and says how to remove it. Never load it on a real installation.
 
 ### 2. Backend API (port 5000)
 

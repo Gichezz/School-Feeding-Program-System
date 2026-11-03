@@ -556,20 +556,28 @@ CREATE INDEX IF NOT EXISTS idx_users_role
 CREATE TABLE IF NOT EXISTS school_terms (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     year            SMALLINT NOT NULL,
-    term            SMALLINT NOT NULL,
+    -- 1, 2 or 3; empty for a practice term
+    term            SMALLINT,
     opens_on        DATE NOT NULL,
     closes_on       DATE NOT NULL,
     -- the days learners are away for half-term, if the term has one
     half_term_start DATE,
     half_term_end   DATE,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    -- A practice term (migration 016): a labelled period outside the national calendar,
+    -- for example for a demonstration while schools are on holiday
+    label           TEXT,
+    practice        BOOLEAN NOT NULL DEFAULT false,
     CONSTRAINT school_terms_unique UNIQUE (year, term),
     CONSTRAINT school_terms_term_check CHECK (term BETWEEN 1 AND 3),
     CONSTRAINT school_terms_dates_order CHECK (closes_on > opens_on),
     CONSTRAINT school_terms_half_term CHECK (
         (half_term_start IS NULL AND half_term_end IS NULL)
         OR (half_term_start > opens_on AND half_term_end >= half_term_start AND half_term_end < closes_on)
-    )
+    ),
+    CONSTRAINT school_terms_practice CHECK (
+        (practice AND term IS NULL AND label IS NOT NULL AND btrim(label) <> '')
+        OR (NOT practice AND term IS NOT NULL))
 );
 
 CREATE TABLE IF NOT EXISTS calendar_events (

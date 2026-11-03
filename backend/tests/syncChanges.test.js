@@ -155,3 +155,27 @@ describe('decisions on held records in downloads', () => {
     expect(after.stockMovements.map((m) => m.id)).toEqual([SECOND]);
   });
 });
+
+describe('practice terms in downloads', () => {
+  it("sends a practice term with its label, and real terms with their usual name", async () => {
+    await pool.query(
+      `INSERT INTO school_terms (year, term, opens_on, closes_on, label, practice)
+       VALUES (2026, NULL, '2026-10-26', '2026-12-18', 'Practice term (demonstration)', true)`
+    );
+
+    const { terms } = (await asStaff.get(`/api/sync/changes?schoolId=${SCHOOL_ID}`)).body;
+
+    expect(terms.find((t) => t.practice)).toMatchObject({ term: null, label: 'Practice term (demonstration)', opensOn: '26-10-2026' });
+    expect(terms.find((t) => t.year === 2026 && t.term === 3)).toMatchObject({ label: 'Term 3 2026', practice: false });
+  });
+
+  it('refuses a practice term without a label, and a numbered term marked practice', async () => {
+    const insert = (term, label, practice) => pool.query(
+      `INSERT INTO school_terms (year, term, opens_on, closes_on, label, practice) VALUES (2026, $1, '2026-10-26', '2026-12-18', $2, $3)`,
+      [term, label, practice]
+    );
+
+    await expect(insert(null, null, true)).rejects.toThrow(/school_terms_practice/);
+    await expect(insert(null, 'A label', false)).rejects.toThrow(/school_terms_practice/);
+  });
+});

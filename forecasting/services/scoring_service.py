@@ -66,7 +66,8 @@ def _frame(body, key, required):
 
 
 def calendar_from(body):
-    terms = [{"year": int(t["year"]), "term": int(t["term"]), "term_id": t["id"],
+    # A practice term (a labelled period outside the national calendar) has no number
+    terms = [{"year": int(t["year"]), "term": int(t["term"]) if t.get("term") is not None else None, "term_id": t["id"],
               "opens_on": _date(t["opens_on"], "opens_on"), "closes_on": _date(t["closes_on"], "closes_on"),
               "half_term_start": _date(t["half_term_start"], "half_term_start") if t.get("half_term_start") else None,
               "half_term_end": _date(t["half_term_end"], "half_term_end") if t.get("half_term_end") else None}
