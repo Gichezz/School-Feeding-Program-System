@@ -8,6 +8,7 @@ import { saveEnrolment } from '../services/feedingDb';
 import { manualSync } from '../sync/syncManager';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { formatNumber } from '../utils/format';
+import { termName } from '../features/feeding/planning';
 
 const CLASSES = ['PP1', 'PP2', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8', 'Grade 9'];
 const SEXES = [['F', 'Girls'], ['M', 'Boys']];
@@ -16,7 +17,7 @@ const SYNC_DELAY_MS = 2000;
 const cellKey = (schoolClass, sex) => `${schoolClass}|${sex}`;
 
 function termLabel(t) {
-  return `Term ${t.term} ${t.year} (${t.opensOn} – ${t.closesOn})`;
+  return `${termName(t)} (${t.opensOn} – ${t.closesOn})`;
 }
 
 function EnrolmentForm({ data }) {

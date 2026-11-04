@@ -1057,7 +1057,7 @@ async function getConflicts(req, res, next) {
 
     // With the school's name and, for enrolment, the term, so an officer can tell them apart
     let query = `SELECT c.*, s.name AS school_name,
-                        CASE WHEN t.id IS NOT NULL THEN 'Term ' || t.term || ' ' || t.year END AS term_label
+                        CASE WHEN t.id IS NOT NULL THEN COALESCE(t.label, 'Term ' || t.term || ' ' || t.year) END AS term_label
                  FROM conflicts c
                  LEFT JOIN schools s ON s.id = c.school_id
                  LEFT JOIN school_terms t ON t.id::text = c.local_payload->>'termId'`;

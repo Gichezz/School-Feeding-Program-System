@@ -166,7 +166,8 @@ async function getChanges(req, res, next) {
 
     // Reference data is small and always sent whole
     const terms = (await client.query('SELECT * FROM school_terms ORDER BY opens_on')).rows.map((t) => ({
-      id: t.id, year: t.year, term: t.term, opensOn: displayDate(t.opens_on), closesOn: displayDate(t.closes_on),
+      id: t.id, year: t.year, term: t.term, label: t.label || `Term ${t.term} ${t.year}`, practice: t.practice,
+      opensOn: displayDate(t.opens_on), closesOn: displayDate(t.closes_on),
       halfTermStart: displayDate(t.half_term_start), halfTermEnd: displayDate(t.half_term_end),
     }));
     const calendarEvents = (await client.query(

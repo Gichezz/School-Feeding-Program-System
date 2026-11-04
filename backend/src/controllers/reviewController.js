@@ -54,7 +54,7 @@ function valuesFor(entityType, row) {
 
 function flagSelect(entityType, officer) {
   const term = entityType === 'enrolment'
-    ? `, CASE WHEN t.id IS NOT NULL THEN 'Term ' || t.term || ' ' || t.year END AS term_label`
+    ? `, CASE WHEN t.id IS NOT NULL THEN COALESCE(t.label, 'Term ' || t.term || ' ' || t.year) END AS term_label`
     : '';
   return `
     SELECT f.*, r.*, f.id AS flag_id, f.version AS flag_version, f.created_at AS flagged_at, f.status AS flag_status,

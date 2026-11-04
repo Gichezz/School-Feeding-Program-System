@@ -429,3 +429,37 @@ describe('record review for the new records', () => {
     }));
   });
 });
+
+describe('the demonstration in the practice term', () => {
+  const clock = require('../src/utils/clock');
+  const pinned = clock.now;
+  beforeEach(async () => {
+    await pool.query(
+      `INSERT INTO school_terms (year, term, opens_on, closes_on, label, practice)
+       VALUES (2026, NULL, '2026-10-26', '2026-12-18', 'Practice term (demonstration)', true)`
+    );
+    // Tuesday 10 November 2026, 10:00 in Nairobi
+    clock.now = () => new Date('2026-11-10T07:00:00Z');
+  });
+  afterEach(() => { clock.now = pinned; });
+
+  it("records a normal day's feeding without a late-entry reason or flag", async () => {
+    const res = await sync([syncOperation('op-1', 'dailyFeeding', 'create', feeding({ feedingDate: '10-11-2026' }), 0)]);
+
+    expect(res.body.results[0].status).toBe('synced');
+    expect((await flagsFor('daily_feeding')).map((f) => f.flag)).not.toContain('entered_late');
+  });
+
+  it('asks for a reason for a day more than 3 school days back, then flags it for review', async () => {
+    // Monday 2 November is 6 school days before Tuesday 10 November
+    const withoutReason = await sync([syncOperation('op-1', 'dailyFeeding', 'create', feeding({ feedingDate: '02-11-2026' }), 0)]);
+    const withReason = await sync([syncOperation('op-2', 'dailyFeeding', 'create',
+      feeding({ feedingDate: '02-11-2026', lateReason: 'The register was locked in the office' }), 0)]);
+
+    // The device's form asks for the reason before saving; the server refuses a late record without one
+    expect(withoutReason.status).toBe(400);
+    expect(withoutReason.body.error).toMatch(/reason for the late entry/);
+    expect(withReason.body.results[0].status).toBe('synced');
+    expect((await flagsFor('daily_feeding')).map((f) => f.flag)).toContain('entered_late');
+  });
+});

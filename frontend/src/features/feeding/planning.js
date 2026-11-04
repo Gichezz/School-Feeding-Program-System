@@ -36,6 +36,11 @@ export const UNUSUAL_REASONS = {
 
 const round2 = (n) => Math.round(n * 100) / 100;
 
+/** A term's name: a practice term's own label, otherwise "Term 3 2026". */
+export function termName(t) {
+  return t?.label || (t ? `Term ${t.term} ${t.year}` : '');
+}
+
 /** DD-MM-YYYY → YYYY-MM-DD, which sorts and compares as text. */
 export function dayKey(display) {
   const [d, m, y] = display.split('-');

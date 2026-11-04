@@ -5,11 +5,12 @@ import SchoolGate from '../features/feeding/SchoolGate';
 import { useSchoolData } from '../features/feeding/useSchoolData';
 import {
   COMMODITIES, COMMODITY_LABELS, NOT_FED_REASONS, dayKey, schoolDays, stockBalances, termReport, termRequirement, todayKey,
+  termName,
 } from '../features/feeding/planning';
 import { formatNumber, formatPercent } from '../utils/format';
 
 function termLabel(t) {
-  return `Term ${t.term} ${t.year}`;
+  return termName(t);
 }
 
 /**
