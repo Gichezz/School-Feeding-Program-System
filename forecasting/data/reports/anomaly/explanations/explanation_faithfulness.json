@@ -1,0 +1,102 @@
+{
+  "plan": "forecasting\\config\\explanation_faithfulness.yaml",
+  "method": "extended_isolation_forest",
+  "settings": {
+    "n_estimators": 300,
+    "ndim": 2
+  },
+  "datasets": [
+    "main",
+    "seed_101",
+    "seed_202",
+    "seed_303"
+  ],
+  "listings": 3456,
+  "deletion_checked": 3456,
+  "deletion": {
+    "share_of_best_pair": 0.9802457294042154,
+    "beats_median_pair": 1.0,
+    "pair_percentile": 99.5907738095238,
+    "faithful": true,
+    "by_kind": {
+      "with a problem": {
+        "listings": 547,
+        "share_of_best_pair": 0.989480952053703,
+        "beats_median_pair": 1.0
+      },
+      "ordinary": {
+        "listings": 2909,
+        "share_of_best_pair": 0.9785091646777562,
+        "beats_median_pair": 1.0
+      }
+    }
+  },
+  "agreement": {
+    "inflated_headcount": {
+      "listings": 115,
+      "agreement": 0.6260869565217392,
+      "chance": 0.5714285714285714,
+      "judged": true,
+      "better_than_chance": true
+    },
+    "consumption_drift": {
+      "listings": 114,
+      "agreement": 0.9473684210526315,
+      "chance": 0.37142857142857144,
+      "judged": true,
+      "better_than_chance": true
+    },
+    "stock_leakage": {
+      "listings": 85,
+      "agreement": 0.5647058823529412,
+      "chance": 0.1333333333333333,
+      "judged": true,
+      "better_than_chance": true
+    },
+    "backdated_bulk_entry": {
+      "listings": 56,
+      "agreement": 1.0,
+      "chance": 0.5714285714285714,
+      "judged": true,
+      "better_than_chance": true
+    },
+    "round_number_entry": {
+      "listings": 49,
+      "agreement": 0.9183673469387755,
+      "chance": 0.2571428571428571,
+      "judged": true,
+      "better_than_chance": true
+    },
+    "ghost_learners": {
+      "listings": 126,
+      "agreement": 0.9523809523809523,
+      "chance": 0.6571428571428571,
+      "judged": true,
+      "better_than_chance": true
+    }
+  },
+  "reasons_named_on_single_type_listings": {
+    "enrolment_change": 128,
+    "uptake": 119,
+    "cereal_ratio": 102,
+    "usage_trend": 97,
+    "pulse_ratio": 96,
+    "round_share": 94,
+    "count_gap_change": 86,
+    "fed_steadiness": 79,
+    "entry_delay": 67,
+    "fed_rate_vs_last_term": 56,
+    "after_hours_share": 48,
+    "fed_vs_peers": 35,
+    "batch_dates": 34,
+    "fed_vs_own": 33,
+    "fed_rate": 16
+  },
+  "stability": {
+    "listed_under_both_seeds": 0.9861111111111112,
+    "same_two_reasons": 0.9448356807511737,
+    "at_least_one_in_common": 0.9988262910798122,
+    "compared": 852
+  },
+  "runtime_seconds": 295
+}

@@ -1,0 +1,55 @@
+# Faithfulness of the weekly list's reasons.
+#
+# Written before it was run. Each listed school gets two reasons: the two features whose
+# reset to the sub-county's median lowers the model's score most, each reset on its own.
+# This check asks whether those two reasons really are what the model reacted to, and
+# whether they point at the problem that was there.
+#
+# It runs the deployed method the way the deployment-matching test does
+# (config/anomaly_deployment_test.yaml): Extended Isolation Forest with the settings in
+# services/scoring_service.py, per sub-county, refitted every 20 school days on the last
+# 125, top 3 school-weeks a week, follow-up weeks left out of later fits.
+
+datasets:
+  # The main dataset and the deployment test's three other datasets, as already generated
+  main: forecasting/data/processed/feeding_dataset
+  others: [forecasting/data/processed/feeding_deployment/seed_101,
+           forecasting/data/processed/feeding_deployment/seed_202,
+           forecasting/data/processed/feeding_deployment/seed_303]
+model_seeds: [1]
+# A second seed on the main dataset, for whether the same school-week gets the same reasons
+stability_seed: 2
+
+# 1. Deletion check. For every listed school-week, on its highest-scoring day: the score's
+#    drop when the two named features are reset together, against every other pair of the
+#    15 features reset together (105 pairs).
+deletion:
+  measures:
+    - share_of_best_pair      # named pair's drop / the largest drop of any pair (mean)
+    - beats_median_pair       # share of listings where the named pair drops more than the median pair
+    - pair_percentile         # where the named pair falls among the 105 (mean; 100 = the best pair)
+  pass: >
+    The reasons count as faithful if the named pair's drop is on average at least 80% of
+    the best pair's, and the named pair beats the median pair in at least 90% of listings.
+
+# 2. Agreement with the problem that was there. For listed school-weeks holding one
+#    injected problem type, whether at least one of the two reasons is a figure that the
+#    type changes. Fixed here before the run, from how the generator injects each type.
+agreement:
+  features_by_type:
+    # Food issued follows the recorded headcount, so the food ratios do not move
+    inflated_headcount: [fed_rate, fed_vs_own, fed_vs_peers, fed_rate_vs_last_term, uptake]
+    consumption_drift: [cereal_ratio, pulse_ratio, usage_trend]
+    stock_leakage: [count_gap_change]
+    # Entered late and together, with the usual number rounded to 10 every day
+    backdated_bulk_entry: [entry_delay, batch_dates, after_hours_share, round_share, fed_steadiness]
+    round_number_entry: [round_share, fed_steadiness]
+    # Enrolment up for the term; part of the extra recorded as fed, the rest leaves the store
+    ghost_learners: [enrolment_change, fed_rate, fed_vs_own, fed_vs_peers, fed_rate_vs_last_term, count_gap_change]
+  # Chance: two of the 15 features drawn at random, at least one in the type's list
+  pass: >
+    Agreement counts as better than chance for a type with at least 20 such listings if
+    its rate is above the chance rate. Types with fewer are reported, not judged.
+
+# 3. Stability (reported, not judged): for school-weeks listed under both model seeds on
+#    the main dataset, the share given the same two reasons, and at least one in common.
