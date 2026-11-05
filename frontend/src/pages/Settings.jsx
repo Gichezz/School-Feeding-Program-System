@@ -33,8 +33,8 @@ function Settings() {
     getOrCreateClientId().then(setClientId).catch(() => setClientId(''));
     getDeviceIdentity().then(setSchoolDevice);
     const subscription = liveQuery(async () => ({
-      attendance: await db.attendance.count(),
-      meals: await db.mealDistribution.count(),
+      feeding: await db.dailyFeeding.count(),
+      stock: (await db.stockMovements.count()) + (await db.stockCounts.count()),
       waiting: await db.syncQueue.where('status').equals('pending').count(),
     })).subscribe({ next: setDevice, error: () => setDevice(null) });
     return () => subscription.unsubscribe();
@@ -104,8 +104,8 @@ function Settings() {
                   ? `${schoolDevice.name} (${schoolDevice.status === 'approved' ? 'approved' : 'waiting for approval'})`
                   : 'Not set up for staff sign-in',
               },
-              { key: 'attendance', label: 'Attendance records', value: count(device?.attendance) },
-              { key: 'meals', label: 'Meal records', value: count(device?.meals) },
+              { key: 'feeding', label: 'Feeding days', value: count(device?.feeding) },
+              { key: 'stock', label: 'Stock entries and counts', value: count(device?.stock) },
               { key: 'waiting', label: 'Changes waiting to sync', value: count(device?.waiting) },
               { key: 'device', label: 'Device ID', value: <code className="settings__code">{clientId || '–'}</code> },
             ]}
@@ -119,8 +119,8 @@ function Settings() {
           <div className="settings__about">
             <LisheLogo withTagline />
             <p className="settings__note">
-              {APP_NAME} records daily school attendance and meals, works without a connection, and syncs with the
-              programme&apos;s central server when one is available.
+              {APP_NAME} records each school day&apos;s feeding and the school&apos;s food stock, works without a
+              connection, and syncs with the programme&apos;s central server when one is available.
             </p>
           </div>
         </Card>

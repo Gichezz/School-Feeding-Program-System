@@ -3,8 +3,6 @@ import { lazy, Suspense, useEffect } from 'react';
 import AppShell from './components/shell/AppShell';
 import AuthLayout from './components/shell/AuthLayout';
 import Dashboard from './pages/Dashboard';
-import Attendance from './pages/Attendance';
-import MealDistribution from './pages/MealDistribution';
 import SyncStatus from './pages/SyncStatus';
 import Conflicts from './pages/Conflicts';
 import Review from './pages/Review';
@@ -70,8 +68,6 @@ function App() {
         <Route path="/stock" element={<Stock />} />
         <Route path="/enrolment" element={<Enrolment />} />
         <Route path="/term" element={<Term />} />
-        <Route path="/attendance" element={<Attendance />} />
-        <Route path="/meals" element={<MealDistribution />} />
         <Route path="/sync" element={<SyncStatus />} />
         <Route path="/conflicts" element={<Conflicts />} />
         <Route path="/review" element={<Review />} />
@@ -79,6 +75,9 @@ function App() {
         <Route path="/analytics" element={<Analytics />} />
         {/* Reports showed the older attendance and meal records; Analytics replaces it */}
         <Route path="/reports" element={<Navigate to="/analytics" replace />} />
+        {/* The older attendance and meal pages; the day's feeding record on Today replaces both */}
+        <Route path="/attendance" element={<Navigate to="/today" replace />} />
+        <Route path="/meals" element={<Navigate to="/today" replace />} />
         <Route path="/settings" element={<Settings />} />
       </Route>
     </Routes>

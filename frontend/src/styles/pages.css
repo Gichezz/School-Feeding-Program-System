@@ -3,7 +3,7 @@
  * Token values only.
  */
 
-/* ---------- Attendance and Meals (RecordingPage) ---------- */
+/* ---------- Recording forms (Today, Stock, Enrolment, Term) ---------- */
 .recording__form-anchor {
   scroll-margin-top: calc(var(--topbar-height) + var(--space-4));
 }
