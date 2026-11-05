@@ -69,6 +69,28 @@ Extended Isolation Forest leads; the one-class SVM is not distinguishable from i
 
 **Decision.** Extended Isolation Forest is the deployed method: it leads the main evaluation and the deployment test, has the best robustness rank, and finds more of the problems it was never tuned on. The one-class SVM stays in the evaluation as the benchmark; SGDOneClassSVM is the documented option if one model is ever fitted on far more records than a sub-county's. Before the switch, the v6 results were reproduced (the main evaluation exactly, the deployment test's 40 runs for both methods, and two robustness runs), and the rules were checked against their code ([anomaly-model-audit.md](anomaly-model-audit.md#11-decision-verification-after-protocol-version-6)).
 
+**Are the reasons faithful?** ([plan](../forecasting/config/explanation_faithfulness.yaml), [report](../forecasting/data/reports/anomaly/explanations/explanation_faithfulness.md)). The reasons come from resetting each feature to the sub-county's median (section 6). The method gives the same answer every time, unlike LIME's random sampling, and works with Extended Isolation Forest's slanted splits, which the fast tree version of SHAP cannot handle. To check that the two named features really are what the model reacted to, the deployed method was run as in the deployment test (4 datasets, 3,456 listed school-weeks). On each listing's top day, the named pair was reset together and compared with every other pair of features:
+- Resetting the named pair lowers the score by 98% of what the best possible pair does.
+- The named pair beats the median pair in every listing.
+
+For listings holding one injected problem, at least one reason is a figure that problem changes:
+
+| Problem | How often | By chance |
+|---|---|---|
+| Backdated bulk entry | 100% | 57% |
+| Ghost learners | 95% | 66% |
+| Consumption drift | 95% | 37% |
+| Round-number entry | 92% | 26% |
+| Inflated headcount | 63% | 57% |
+| Stock leakage | 57% | 13% |
+
+Inflated headcount is only just above chance. On the main dataset, its listings were most often given day-to-day steadiness, recent food trends or after-hours entry as reasons, rather than the headcount comparisons. The school-week is found, but the reasons point the officer at the wrong figures, so this is a known weakness of the explanations. A second model seed gives the same two reasons for 94.5% of school-weeks listed under both.
+
+**Behaviour tests** ([`test_anomaly_behaviour.py`](../forecasting/tests/test_anomaly_behaviour.py), CheckList style). These run the deployed scorer on a generated sub-county:
+- **Must be listed:** a feeding day with nobody fed but food issued (validation lets this through; it refuses food on a day marked not fed); more learners fed than enrolled; a store count ten days of food short; three weeks entered together long after.
+- **Must not change the list:** the order records arrive in; renamed sync batches; the hour of a record within school hours; scoring the same records twice.
+- **Must not lower the score:** more learners recorded as fed; more food for the same learners; records reaching the server later.
+
 ## 6. In the system
 
 The scoring service ([`forecasting/services/scoring_service.py`](../forecasting/services/scoring_service.py)) receives one sub-county's records from the API and returns the week's ranking; it stores nothing and never reads the database.
@@ -101,6 +123,7 @@ python forecasting/scripts/generate_feeding_dataset.py
 python forecasting/scripts/evaluate_anomaly_detection.py
 python forecasting/scripts/run_anomaly_robustness.py
 python forecasting/scripts/run_anomaly_deployment_test.py
+python forecasting/scripts/check_explanation_faithfulness.py
 ```
 
-Runtimes on a laptop: about 2, 23 and 38 minutes for the last three. `isotree` (Extended Isolation Forest) is in `requirements.txt`; on Windows and macOS pip installs a ready-built package, on Linux it compiles (the Docker image does this in a build stage).
+Runtimes on a laptop: about 2, 23, 38 and 5 minutes for the last four. The faithfulness check reads the datasets the deployment test generates, so run it after that test. `isotree` (Extended Isolation Forest) is in `requirements.txt`; on Windows and macOS pip installs a ready-built package, on Linux it compiles (the Docker image does this in a build stage).
