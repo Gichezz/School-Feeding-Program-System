@@ -14,8 +14,9 @@ import { formatNumber, formatShare } from '../../utils/format';
 import { toCount, validateAttendance, validateMeals } from './validation';
 
 /**
- * The two kinds of daily record. Attendance and Meals share one page layout
- * (RecordingPage); these configs supply the fields, wording and data calls.
+ * The two original kinds of daily record, before the daily feeding record replaced
+ * them. Records of these kinds can still be on a device or held on the server, so
+ * these configs keep the fields, wording and data calls used to sync and describe them.
  *
  * fields: the count inputs, keyed by the local record's field name, with the
  *   matching server field name for records that only exist on the server.
