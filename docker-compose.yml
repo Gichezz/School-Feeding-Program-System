@@ -49,15 +49,15 @@ services:
       # Applied on start-up (backend/src/db/migrate.js). Only for a database migrated by
       # hand before that: the last script it already has, set once
       MIGRATIONS_BASELINE: ${MIGRATIONS_BASELINE:-}
-    volumes:
-      # The migration scripts the API applies when it starts, read-only
-      - ./database/migrations:/database/migrations:ro
       # The browser reaches the API through the web container (same origin), so CORS only
       # matters if the API is called from elsewhere
       FRONTEND_URL: ${PUBLIC_URL:-http://localhost:8080}
       # Administrator passkeys belong to this domain and may only be used from this origin
       WEBAUTHN_RP_ID: localhost
       WEBAUTHN_ORIGINS: http://localhost:${WEB_PORT:-8080}
+    volumes:
+      # The migration scripts the API applies when it starts, read-only
+      - ./database/migrations:/database/migrations:ro
     depends_on:
       db:
         condition: service_healthy

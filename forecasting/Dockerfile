@@ -2,8 +2,11 @@
 # Stateless: the backend sends a sub-county's records with each request.
 
 # isotree (Extended Isolation Forest) has no ready-built Linux wheel for its pinned version,
-# so it is compiled here; the compiler stays in this stage and only the wheel is kept
+# so it is compiled here; the compiler stays in this stage and only the wheel is kept.
+# DONT_SET_MARCH stops it tuning itself to this machine's processor (-march=native), so an
+# image built on one machine runs on another instead of failing with "Illegal instruction".
 FROM python:3.12-slim AS isotree-build
+ENV DONT_SET_MARCH=1
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential \
     && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt ./

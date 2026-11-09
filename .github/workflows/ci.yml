@@ -77,6 +77,13 @@ jobs:
           cache-dependency-path: |
             forecasting/requirements.txt
             forecasting/requirements-dev.txt
+      # isotree compiles from source and tunes itself to the build machine's processor
+      # unless DONT_SET_MARCH is set; a copy from the pip cache, built on another runner,
+      # can then crash with "Illegal instruction". Build it portably, outside the cache.
+      - name: Install isotree, built for any x86-64 processor
+        env:
+          DONT_SET_MARCH: '1'
+        run: pip install --no-cache-dir "$(grep '^isotree==' requirements.txt)"
       - run: pip install -r requirements-dev.txt
       - run: python -m pytest tests
 
