@@ -43,6 +43,9 @@ services:
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       SCORING_SERVICE_URL: http://scoring:5001
       SCORING_TIMEOUT_MS: ${SCORING_TIMEOUT_MS:-30000}
+      # Scores each sub-county's finished weeks for the weekly review list by itself
+      REVIEW_SCHEDULE: ${REVIEW_SCHEDULE:-on}
+      REVIEW_SCHEDULE_MINUTES: ${REVIEW_SCHEDULE_MINUTES:-60}
       # The browser reaches the API through the web container (same origin), so CORS only
       # matters if the API is called from elsewhere
       FRONTEND_URL: ${PUBLIC_URL:-http://localhost:8080}

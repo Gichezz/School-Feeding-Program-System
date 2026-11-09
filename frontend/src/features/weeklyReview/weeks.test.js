@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { recentMondays, weekLabel } from './weeks';
+import { recentMondays, scoredText, weekLabel } from './weeks';
 
 describe('recentMondays', () => {
   it('starts at the Monday of the current week', () => {
@@ -21,5 +21,16 @@ describe('weekLabel', () => {
   it('says how far the list has been reviewed', () => {
     expect(weekLabel('05-10-2026', { listed: 3, decided: 1 }, 0)).toBe('Week of 05-10-2026 (this week) · 1 of 3 reviewed');
     expect(weekLabel('28-09-2026', null, 1)).toBe('Week of 28-09-2026 (last week) · not scored');
+  });
+});
+
+describe('scoredText', () => {
+  it('says when the schedule scored the week', () => {
+    expect(scoredText({ scoredBySchedule: true, scoredBy: null }, '09-11-2026 06:00')).toBe('Scored automatically on 09-11-2026 06:00.');
+  });
+
+  it('names the officer who scored it, when one did', () => {
+    expect(scoredText({ scoredBySchedule: false, scoredBy: 'Amina Otieno' }, '09-11-2026 10:15')).toBe('Scored on 09-11-2026 10:15 by Amina Otieno.');
+    expect(scoredText({ scoredBySchedule: false, scoredBy: null }, '09-11-2026 10:15')).toBe('Scored on 09-11-2026 10:15.');
   });
 });

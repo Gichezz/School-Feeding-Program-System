@@ -25,6 +25,12 @@ export function weekLabel(week, scored, index) {
   return `Week of ${week}${when} · ${progress}`;
 }
 
+/** "Scored automatically on …." or "Scored on … by <name>.": who or what produced the list. */
+export function scoredText(list, when) {
+  if (list.scoredBySchedule) return `Scored automatically on ${when}.`;
+  return `Scored on ${when}${list.scoredBy ? ` by ${list.scoredBy}` : ''}.`;
+}
+
 export const DECISIONS = {
   explained: { label: 'Explained', tone: 'success' },
   follow_up: { label: 'Follow-up', tone: 'warning' },

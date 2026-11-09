@@ -98,6 +98,12 @@ Held records (possible duplicate deliveries, records from deactivated users or r
 
 A school listed again shows the officer's latest decision on it from the previous four weeks.
 
+**Scored without a button.** Every hour the API checks each sub-county's last four finished weeks (Monday to Sunday, in the schools' time zone) and scores a week that:
+- has feeding records but has never been scored, or
+- has had a feeding record or store count saved or changed since it was last scored, for example records that synced late or a conflict decided since.
+
+So each officer finds last week's list ready on Monday morning, and a late school is still ranked with its records ([`weeklyReviewSchedule.js`](../backend/src/services/weeklyReviewSchedule.js)). A database lock keeps passes from overlapping. A week that fails, for example because the scoring service is down, is tried again on the next pass. Officers can still score the week in progress, or score a week again, from the page. The page says whether a list was scored automatically or by whom. `REVIEW_SCHEDULE=off` turns the schedule off.
+
 The officer marks each listed school's week explained or follow-up, with a note. The method and its settings were chosen in a pre-registered evaluation; see [anomaly-detection.md](anomaly-detection.md).
 
 ## Sign-in and record integrity

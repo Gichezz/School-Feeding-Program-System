@@ -3,8 +3,7 @@ const clock = require('../utils/clock');
 const { ValidationError, NotFoundError } = require('../utils/errors');
 const { isUuid, isDisplayDate } = require('../validation/records');
 const { localDate } = require('../validation/entryWindow');
-const { reviewInputs } = require('../services/reviewInputs');
-const { requestScores } = require('../services/scoringClient');
+const { scoreWeek } = require('../services/reviewRuns');
 const { subCountyFor } = require('../services/schoolAccess');
 
 /**
@@ -79,6 +78,7 @@ async function loadRun(db, subCounty, weekStart) {
     k: run.k,
     scoredAt: run.created_at,
     scoredBy: run.created_by_name,
+    scoredBySchedule: run.scored_by_schedule,
     items: items.rows.map((i) => ({
       schoolId: i.school_id,
       schoolName: i.school_name,
@@ -114,7 +114,7 @@ async function listRuns(req, res, next) {
   try {
     const subCounty = subCountyFor(req.user, req.query.subCounty);
     const result = await pool.query(
-      `SELECT to_char(r.week_start, 'YYYY-MM-DD') AS week_start, r.mode, r.k, r.created_at,
+      `SELECT to_char(r.week_start, 'YYYY-MM-DD') AS week_start, r.mode, r.k, r.created_at, r.scored_by_schedule,
               COUNT(i.id) FILTER (WHERE i.listed)::int AS listed,
               COUNT(d.id) FILTER (WHERE i.listed)::int AS decided
        FROM review_runs r
@@ -129,7 +129,8 @@ async function listRuns(req, res, next) {
     res.json({
       subCounty,
       weeks: result.rows.map((r) => ({
-        week: toDisplay(r.week_start), mode: r.mode, k: r.k, scoredAt: r.created_at, listed: r.listed, decided: r.decided,
+        week: toDisplay(r.week_start), mode: r.mode, k: r.k, scoredAt: r.created_at, scoredBySchedule: r.scored_by_schedule,
+        listed: r.listed, decided: r.decided,
       })),
     });
   } catch (error) {
@@ -164,43 +165,7 @@ async function runWeek(req, res, next) {
     const subCounty = subCountyFor(req.user, req.body.subCounty);
     const k = parseK(req.body.k);
 
-    const inputs = await reviewInputs(pool, subCounty, weekStart, k);
-    if (inputs.schools.length === 0) throw new NotFoundError('Sub-county not found');
-    const result = await requestScores(inputs);
-    const known = new Set(inputs.schools.map((s) => s.school_id));
-    const items = result.items.filter((i) => known.has(i.school_id));
-
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
-      const run = await client.query(
-        `INSERT INTO review_runs (sub_county, week_start, mode, model, k, rule_breaches, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
-         ON CONFLICT (sub_county, week_start) DO UPDATE
-           SET mode = EXCLUDED.mode, model = EXCLUDED.model, k = EXCLUDED.k, rule_breaches = EXCLUDED.rule_breaches,
-               created_by = EXCLUDED.created_by, created_at = NOW()
-         RETURNING id`,
-        [subCounty, weekStart, result.mode, result.model ? JSON.stringify(result.model) : null, k,
-          JSON.stringify(result.rule_breaches || []), req.user.id]
-      );
-      const runId = run.rows[0].id;
-      await client.query('DELETE FROM review_items WHERE run_id = $1', [runId]);
-      if (items.length > 0) {
-        await client.query(
-          `INSERT INTO review_items (run_id, school_id, rank, listed, score, top_date, reasons, explanation)
-           SELECT $1, t.school_id, t.rank, t.listed, t.score, t.top_date, t.reasons, t.explanation
-           FROM jsonb_to_recordset($2::jsonb)
-             AS t(school_id uuid, rank int, listed boolean, score float8, top_date date, reasons jsonb, explanation text)`,
-          [runId, JSON.stringify(items)]
-        );
-      }
-      await client.query('COMMIT');
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
-    }
+    const result = await scoreWeek({ subCounty, weekStart, k, userId: req.user.id });
 
     res.status(201).json({ ...(await loadRun(pool, subCounty, weekStart)), notice: result.notice });
   } catch (error) {
