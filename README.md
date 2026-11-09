@@ -1,23 +1,55 @@
-# Offline-First Data Synchronization System for School Feeding Programs
+# Lishe
 
-Final-year project. Schools in a Kenyan school meals programme record enrolment, daily feeding and their food store **offline** on a school device; the records synchronise with a central PostgreSQL server when a connection returns, with conflicting edits kept for a person to decide. Sub-county programme officers see each school's term in figures, and a weekly list of the schools whose records look most unusual, ranked by Extended Isolation Forest, to look into first.
+**Offline-first records and monitoring for school feeding programmes.**
 
-Pipeline: **offline capture → sync → descriptive analytics → anomaly scoring → officer review**.
+[![CI](https://github.com/Gichezz/School-Feeding-Program-System/actions/workflows/ci.yml/badge.svg)](https://github.com/Gichezz/School-Feeding-Program-System/actions/workflows/ci.yml)
+
+Lishe ("nutrition" in Swahili) helps public primary and junior schools in a Kenyan school meals programme keep their feeding and food-store records on a school tablet or phone, with or without a connection. The records synchronise with a central server when a connection returns. Sub-county programme officers see each school's term in figures, plus a weekly list of the schools whose records look most unusual, so they know which to look into first.
+
+```text
+offline capture  →  sync  →  analytics  →  anomaly scoring  →  officer review
+```
+
+## Contents
+
+- [Features](#features)
+- [Architecture](#architecture)
+- [Tech stack](#tech-stack)
+- [Getting started](#getting-started)
+- [Running the tests](#running-the-tests)
+- [Configuration](#configuration)
+- [Documentation](#documentation)
+- [Project structure](#project-structure)
+- [Contributing](#contributing)
+- [Known limitations](#known-limitations)
+- [License](#license)
 
 ## Features
 
-| Area | What it does |
-|---|---|
-| **Today's feeding record** | Learners fed (and, optionally, present), cereals and pulses issued, or why there was no feeding. Checked on the device as it is typed: against enrolment, the ration and what the store holds. |
-| **Stock** | Deliveries against their delivery notes, purchases, losses, store counts. An append-only ledger: entries are never changed, a correction is a reversing entry. The device shows the balance and how many school days of food are left. |
-| **Enrolment and the term** | Termly enrolment by class and sex; the termly food requirement (enrolment × school days × ration, less what is in store) and an end-of-term report, all worked out offline from the Ministry of Education calendar. |
-| **Synchronisation** | Every change is queued and sent automatically when a connection returns, retried while records wait, and applied exactly once. Each device downloads its school's changes, so two devices at a school hold the same records and stock balance. |
-| **Conflicts** | An edit made on an outdated copy, or the same day recorded differently on two devices, is kept as a conflict instead of overwriting. The programme officer compares both versions from their own laptop and keeps one or enters the correct numbers; the decision reaches the school's devices with their next download. |
-| **Duplicate deliveries** | The same delivery note entered on two devices is held instead of counted twice, until the programme officer (or an administrator) applies or discards it. |
-| **Analytics** | For each school in the sub-county, the term so far: days recorded, learners fed against enrolment, food against the ration, days of food left, delivery timeliness and shortfalls, and how far behind its synced records are. |
-| **Weekly review list** | Each week the sub-county's schools are ranked by how unusual their records look; the top 3 come with their reasons in plain words, always "needs review". The officer marks each one explained or follow-up with a note. |
-| **Record integrity** | Every record keeps who captured it, on which device, when it was captured and received, and its sync batch; every version is kept. Late entries need a reason; unusual records are flagged for review, never blocked. |
-| **Sign-in and roles** | School staff sign in on approved school devices with a PIN (offline too, for 7 days); programme officers see their own sub-county; administrators use passkeys or an authenticator app. |
+### For school staff (on the school's device)
+
+- **Daily feeding record:** learners fed (and, optionally, present), cereals and pulses issued, or the reason there was no feeding. Each entry is checked as it is typed, against enrolment, the ration and what the store holds.
+- **Food store:** deliveries against their delivery notes, purchases, losses and store counts. The device shows the stock balance and how many school days of food are left.
+- **Enrolment and the term plan:** enrolment by class and sex each term, carried forward from the last term for checking. The term's food requirement and an end-of-term report follow the Ministry of Education calendar.
+- **Works offline:** everything is saved on the device first and syncs on its own when a connection returns. Staff can sign in offline with their PIN for 7 days after signing in online.
+
+### For programme officers
+
+- **Analytics:** each school's term so far, covering days recorded, learners fed against enrolment, food against the ration, days of food left, deliveries and how up to date its records are.
+- **Weekly review list:** each finished week, the sub-county's schools are ranked by how unusual their records look (Extended Isolation Forest). The top schools come with plain-language reasons, worded "needs review", never "fraud". The officer marks each one explained or for follow-up.
+- **Record review:** unusual records (late, outside school hours, above enrolment, far from the ration, a short delivery) are flagged for checking, never blocked.
+- **Conflicts and held records:** when two devices record different numbers for the same day, the officer decides which to keep. A delivery note entered twice is held, not counted twice.
+
+### For administrators
+
+- Users and roles, school devices (each needs approval), passkey or authenticator-app sign-in, and recovery codes.
+
+### Automatic
+
+- Syncing with retries.
+- Merging copies that differ only in an optional field.
+- Weekly scoring, with a week scored again when late records arrive.
+- Database migrations on start-up, and daily backups.
 
 ## Architecture
 
@@ -35,58 +67,60 @@ Pipeline: **offline capture → sync → descriptive analytics → anomaly scori
                                         └─────────────────────────────┘
 ```
 
-Details: [docs/architecture.md](docs/architecture.md) (components, sync protocol, conflicts, monitoring), [docs/anomaly-detection.md](docs/anomaly-detection.md) (why monitoring, the method comparison and its results), [docs/sync-evaluation.md](docs/sync-evaluation.md) (sync success rate, conflict detection, latency and convergence), [docs/deployment.md](docs/deployment.md).
+PostgreSQL is the single source of truth. Each school device keeps a working copy of its school's records in the browser's storage (IndexedDB), so staff can work offline. Changes are queued and synced:
+- edits are checked against the version they were made on;
+- the stock ledger is append-only;
+- devices download their school's changes using a transaction-based cursor, so no change is missed.
 
-## Technology stack
+See [docs/architecture.md](docs/architecture.md).
+
+## Tech stack
 
 | Layer | Technologies |
-|-------|----------------|
+|---|---|
 | Frontend | React 18, Vite, PWA (vite-plugin-pwa / Workbox), IndexedDB with Dexie.js |
-| Backend | Node.js, Express, JWT sessions, bcrypt, WebAuthn |
-| Database | PostgreSQL |
-| Scoring and evaluation | Python, Flask, isotree, scikit-learn, pandas |
-| Testing and CI | Jest + Supertest, Vitest + fake-indexeddb, pytest, GitHub Actions |
+| Backend | Node.js 20, Express, JWT sessions, bcrypt, WebAuthn (passkeys) |
+| Database | PostgreSQL 14+ |
+| Scoring and evaluation | Python 3.12, Flask, isotree, scikit-learn, pandas |
+| Testing and CI | Jest and Supertest, Vitest and fake-indexeddb, pytest, GitHub Actions |
+| Deployment | Docker Compose, Caddy (HTTPS) |
 
-## Project structure
+## Getting started
 
-```text
-├── frontend/      React PWA: school, officer and admin screens, Dexie database, sync client, tests, sync evaluation
-├── backend/       Express REST API: auth, sync, conflicts, analytics, review lists, tests, demo loader
-├── forecasting/   Scoring service, anomaly features and methods, synthetic dataset generator, evaluations, tests
-├── database/      schema.sql, calendar_kenya.sql, seed.sql, migrations/, Docker first-start script
-├── deploy/        Caddy (HTTPS) config and the deployment smoke test
-├── docs/          Architecture, anomaly detection, sync evaluation, deployment and dataset documentation
-└── .github/       CI workflow, issue forms, pull request template
-```
+### Option 1: Docker (quickest)
 
-`docker-compose.yml` runs the whole system in containers; `docker-compose.prod.yml` adds HTTPS for a public server.
-
-## Quick start with Docker
-
-With [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed, one command runs the database, API, scoring service and app:
+You need [Docker Desktop](https://www.docker.com/products/docker-desktop/).
 
 ```bash
-copy .env.example .env
-docker compose up --build
+git clone https://github.com/Gichezz/School-Feeding-Program-System.git
+cd School-Feeding-Program-System
+cp .env.example .env        # Windows: copy .env.example .env
 ```
 
-First set `PGPASSWORD` and `JWT_SECRET` in `.env`, and `LOAD_DEMO_DATA=true` for the demo accounts. Then open `http://localhost:8080`. [docs/deployment.md](docs/deployment.md) covers configuration, migrations, backups, deploying to a server with HTTPS, and the smoke test.
+In `.env`, set `PGPASSWORD` and `JWT_SECRET`, and set `LOAD_DEMO_DATA=true` for the demo accounts. Then:
 
-To run the services without Docker, for development, follow the steps below.
+```bash
+docker compose up --build -d
+```
 
-## Prerequisites
+Open <http://localhost:8080>. This runs the database, API, scoring service, web app and daily backups.
 
-- Node.js 20 and npm
-- PostgreSQL 14 or later (tested with 17 and 18)
-- Python 3.12 (3.10+ should work)
+To update later, pull and rebuild; database migrations apply themselves:
 
-Commands below use Windows syntax (`copy`, `venv\Scripts\...`); on macOS/Linux use `cp` and `venv/bin/...`.
+```bash
+git pull
+docker compose up --build -d
+```
 
-## Setup
+To start again with an empty database, run `docker compose down --volumes` first. This deletes the Docker database.
 
-Run each service in its own terminal, from the project folder.
+Deploying to a server with HTTPS is covered in [docs/deployment.md](docs/deployment.md).
 
-### 1. Database
+### Option 2: Local development
+
+**Prerequisites:** Node.js 20, PostgreSQL 14 or later, Python 3.12. The commands use macOS/Linux syntax; on Windows use `copy` for `cp` and `venv\Scripts\` for `venv/bin/`.
+
+**1. Create the database**
 
 ```bash
 psql -U postgres -c "CREATE DATABASE school_feeding;"
@@ -95,62 +129,30 @@ psql -U postgres -d school_feeding -f database/calendar_kenya.sql
 psql -U postgres -d school_feeding -f database/seed.sql
 ```
 
-`calendar_kenya.sql` loads the national school calendar (term dates, half-terms, public holidays and national exams for 2024–2026), which every installation needs. `seed.sql` creates four fictional schools in one fictional sub-county and three demo accounts (administrator, programme officer, school staff) for **local development only**; their passwords are listed at the top of that file, so never load it on a hosted or shared database.
+- `calendar_kenya.sql` loads the national school calendar (terms, half-terms, public holidays, national exams). Every installation needs it.
+- `seed.sql` adds four fictional schools and three demo accounts, for **local use only**. Their passwords are listed at the top of the file.
 
-**Existing databases:** `schema.sql` only creates missing tables. Apply later schema changes with the scripts in `database/migrations/`, in order (`001` to `016`), then load `calendar_kenya.sql`:
-
-```bash
-psql -U postgres -d school_feeding -f database/migrations/001_attendance_present_absent_equals_registered.sql
-```
-
-`001`–`007` cover attendance validation, user accounts, administrator passkeys, school devices and PINs, offline capture and held records, record integrity, and authenticator app codes. `008` adds each school's county, sub-county, programme type and ration, and the programme officer role. `009` adds the school calendar. `010` adds sync batches, the transaction stamp devices download changes by, and the append-only guard. `011` adds termly enrolment and the daily feeding record. `012` adds the stock ledger and store counts. `013` adds the weekly review lists and officers' decisions, and drops the old stored forecasts. `014` holds a delivery note entered twice and lets devices download decisions on held records. `015` lets review runs be stored as scored by Extended Isolation Forest. `016` adds practice terms: labelled periods outside the national calendar, for demonstrations and training. `001` lists any old attendance records that do not add up; correct them, then run `ALTER TABLE attendance_records VALIDATE CONSTRAINT attendance_present_absent_equals_registered;`.
-
-**Demo records (optional).** To give the officer screens two years of history, generate the synthetic dataset and load one simulated sub-county into a demo database (built from `schema.sql`, `calendar_kenya.sql` and `seed.sql`). The loader only adds records, and stops if the demo sub-county already has some:
-
-```bash
-python forecasting/scripts/generate_feeding_dataset.py
-cd backend
-npm run demo:records
-```
-
-**Practice term (demonstrations only).** Between Term 3 2026 (ended 23 October) and the 2027 calendar, every day is a holiday, so a live demonstration would record on days that are not school days. `database/demo/practice_term.sql` adds a labelled "Practice term (demonstration)" from 26 October to 18 December 2026 to a demo database, with each school's Term 3 enrolment, and says how to remove it. Never load it on a real installation.
-
-### 2. Backend API (port 5000)
+**2. Start the API** (port 5000)
 
 ```bash
 cd backend
-copy .env.example .env
+cp .env.example .env        # then set DATABASE_URL and JWT_SECRET (32+ characters)
 npm install
 npm run dev
 ```
 
-In `backend/.env`, set the PostgreSQL connection (`DATABASE_URL`) and a `JWT_SECRET`. The server will not start without a secret of at least 32 characters. Generate one with:
+Generate a secret with `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"`. The API applies any new database migrations when it starts.
 
-```bash
-node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
-```
-
-Health check: `GET http://localhost:5000/api/health`
-
-**First administrator (without the demo accounts):** on a database where `seed.sql` was not loaded, create the first administrator from the `backend` folder. The script asks for the password without showing it (or reads `ADMIN_PASSWORD`). Then sign in, add a passkey from **Settings → Passkeys**, and add everyone else from **Settings → Users**. Passkeys belong to one domain (`WEBAUTHN_RP_ID` in `backend/.env`, `localhost` by default), so passkeys made on `localhost` do not work on a hosted server.
-
-```bash
-node scripts/create-admin.js --name "Your Name" --email you@example.org
-```
-
-### 3. Scoring service (port 5001)
+**3. Start the scoring service** (port 5001)
 
 ```bash
 cd forecasting
 python -m venv venv
-venv\Scripts\activate
-pip install -r requirements-dev.txt
-python app.py
+venv/bin/pip install -r requirements-dev.txt
+venv/bin/python app.py
 ```
 
-It needs no trained model: each weekly list is scored with a model fitted on the sub-county's own recent records. Health check: `GET http://localhost:5001/health`. The app reaches it through the backend (`POST /api/review-lists/:week/run`), never directly. The weekly review list is the only screen that needs it.
-
-### 4. Frontend (port 5173)
+**4. Start the web app** (port 5173)
 
 ```bash
 cd frontend
@@ -158,74 +160,104 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:5173` and sign in with a demo account. The Vite dev server forwards `/api` to the backend on port 5000.
+Open <http://localhost:5173>. Vite forwards `/api` to the API.
 
-School staff do not sign in with a password alone: on the sign-in page choose **Set up this school device**, enter the demo staff email, choose **I have a password** and use the demo staff password, and pick a PIN. Then sign in as the administrator, approve the device in **Settings → School devices**, and sign back in as staff with the email and PIN.
+### Demo data (optional)
 
-### Evaluations (optional)
+To give the officer screens two years of history, generate the synthetic dataset and load one sub-county into a database built from `seed.sql`:
 
 ```bash
-python forecasting/scripts/evaluate_anomaly_detection.py
-python forecasting/scripts/run_anomaly_robustness.py
-python forecasting/scripts/run_anomaly_deployment_test.py
-cd frontend
-npm run evaluate:sync
+python forecasting/scripts/generate_feeding_dataset.py
+cd backend && npm run demo:records
 ```
 
-Each writes its report under `forecasting/data/reports/anomaly/` or `frontend/evaluation/sync/results/`; the protocols they follow were committed before they were run.
+For a live demonstration outside the national calendar's terms, `database/demo/practice_term.sql` adds a clearly labelled practice term. Never load it on a real installation.
 
-## Tests
+### Trying it out
 
-| Service | Command | Notes |
+1. Sign in as the demo **administrator** or **programme officer** (see `database/seed.sql`).
+2. In a second browser window, choose **Set up this school device** and use the demo **staff** account with **I have a password**. Then approve the device as the administrator and sign in as staff with the PIN.
+3. Record a day's feeding, then go offline in the browser's developer tools, record again, and reconnect to watch it sync.
+
+## Running the tests
+
+| Part | Command | Notes |
 |---|---|---|
-| Backend | `cd backend` then `npm test` | Needs PostgreSQL. Creates `<database>_test` (or uses `TEST_DATABASE_URL`) and drops it afterwards; refuses any database not ending in `_test`. |
-| Frontend | `cd frontend` then `npm test` | Vitest with an in-memory IndexedDB; no backend needed. `npm run build` checks the production build. |
-| Scoring and evaluation | `cd forecasting` then `venv\Scripts\python -m pytest tests` | |
+| API | `cd backend && npm test` | Needs PostgreSQL. Uses its own `<database>_test` database and drops it afterwards. |
+| Web app | `cd frontend && npm test` | No backend needed. `npm run build` checks the production build. |
+| Scoring service | `cd forecasting && venv/bin/python -m pytest tests` | |
 
-GitHub Actions runs all three on every pull request ([.github/workflows/ci.yml](.github/workflows/ci.yml)). `main` only accepts changes through pull requests that pass these checks.
+GitHub Actions runs all of them, plus a Docker Compose smoke test, on every pull request ([ci.yml](.github/workflows/ci.yml)).
 
-## Environment variables
+**Evaluations.** These reproduce the reported results; each protocol was committed before it was run:
 
-### Backend (`backend/.env`)
+```bash
+python forecasting/scripts/evaluate_anomaly_detection.py      # method comparison
+python forecasting/scripts/run_anomaly_robustness.py          # robustness across scenarios
+python forecasting/scripts/run_anomaly_deployment_test.py     # as the system runs it
+python forecasting/scripts/check_explanation_faithfulness.py  # are the reasons faithful
+cd frontend && npm run evaluate:sync                          # sync success, conflicts, latency
+```
 
-| Variable | Purpose |
-|----------|---------|
-| `PORT` | Express port (default `5000`) |
-| `NODE_ENV` | `development` shows error details; anything else hides internal error messages |
-| `DATABASE_URL` | PostgreSQL connection string (preferred) |
-| `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD` | Alternative PostgreSQL connection fields |
-| `JWT_SECRET` | **Required.** Random secret (32+ characters) that signs sign-in sessions |
-| `JWT_EXPIRES_IN` | How long a sign-in lasts (default `7d`) |
-| `SCORING_SERVICE_URL` | Scoring service URL (default `http://localhost:5001`; the older `FORECASTING_SERVICE_URL` also works) |
-| `SCORING_TIMEOUT_MS` | How long the backend waits for a week's ranking (default `30000`) |
-| `SCHOOL_TIMEZONE` | Time zone for school days and entry times (default `Africa/Nairobi`) |
-| `FRONTEND_URL` | Browser origin allowed by CORS (default `http://localhost:5173`; set to the deployed frontend URL) |
-| `JSON_BODY_LIMIT` | Maximum JSON request body size (default `100kb`) |
-| `TEST_DATABASE_URL` | Optional database for `npm test`; its name must end in `_test` |
+## Configuration
 
-### Frontend (`frontend/.env`, optional)
+The API reads `backend/.env`; Docker Compose reads `.env` in the project folder. The main settings:
 
 | Variable | Purpose |
-|----------|---------|
-| `VITE_API_BASE_URL` | API base path (default `/api`, served through the Vite proxy in development) |
+|---|---|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `JWT_SECRET` | **Required.** Signs sign-in sessions; at least 32 random characters |
+| `SCORING_SERVICE_URL` | Scoring service address (default `http://localhost:5001`) |
+| `SCHOOL_TIMEZONE` | Time zone for school days (default `Africa/Nairobi`) |
+| `REVIEW_SCHEDULE`, `REVIEW_SCHEDULE_MINUTES` | Automatic weekly scoring (`on`, every `60` minutes) |
+| `MIGRATIONS_BASELINE` | Only for a database migrated by hand before migrations were automatic: the last script it has, set once |
+| `BACKUP_KEEP_DAYS` | Days of daily backups kept by Docker Compose (default `14`) |
 
-### Scoring service
+Every setting is listed in [backend/.env.example](backend/.env.example), [.env.example](.env.example) and [docs/deployment.md](docs/deployment.md#configuration).
 
-The Flask service reads environment variables only from the shell; it does not load a `.env` file.
+**Database changes** are scripts in `database/migrations/`, applied by the API in number order when it starts. Each script's header says what it changes. `cd backend && npm run migrate` applies them without starting the API.
 
-| Variable | Purpose |
-|----------|---------|
-| `FLASK_RUN_PORT` | Flask port (default `5001`) |
+## Documentation
 
-## Project management
+| Document | Covers |
+|---|---|
+| [Architecture](docs/architecture.md) | Components, data, the sync protocol, conflicts, monitoring, sign-in and record integrity |
+| [Anomaly detection](docs/anomaly-detection.md) | Why monitoring instead of forecasting, the features, the method comparison and its results |
+| [Model audit](docs/anomaly-model-audit.md) | The audit behind the final method choice |
+| [Sync evaluation](docs/sync-evaluation.md) | Success rate, conflict detection, latency and convergence |
+| [Synthetic dataset](docs/synthetic-dataset.md) | How the evaluation data is generated from real Kenyan inputs |
+| [Deployment](docs/deployment.md) | Docker, HTTPS, configuration, migrations, backups and the smoke test |
 
-Work is tracked in [GitHub issues](https://github.com/Gichezz/School-Feeding-Program-System/issues), grouped into [milestones](https://github.com/Gichezz/School-Feeding-Program-System/milestones), on the [project board](https://github.com/users/Gichezz/projects/1). Every change reaches `main` through a pull request; see [CONTRIBUTING.md](CONTRIBUTING.md).
+## Project structure
+
+```text
+├── frontend/      React PWA: school, officer and admin screens, offline database, sync client
+├── backend/       Express API: sign-in, sync, conflicts, analytics, review lists, migrations
+├── forecasting/   Scoring service, anomaly features and methods, dataset generator, evaluations
+├── database/      schema.sql, calendar_kenya.sql, seed.sql, migrations/
+├── deploy/        Caddy (HTTPS) config, backup script, deployment smoke test
+├── docs/          Project documentation
+└── .github/       CI workflow, issue forms, pull request template
+```
+
+## Contributing
+
+Work is tracked in [issues](https://github.com/Gichezz/School-Feeding-Program-System/issues) and on the [project board](https://github.com/users/Gichezz/projects/1). `main` is protected: every change arrives through a pull request that passes CI. See [CONTRIBUTING.md](CONTRIBUTING.md) for the branch, commit and issue conventions.
 
 ## Known limitations
 
-- **Synthetic data.** No real school feeding records were available. The anomaly methods were compared, and the weekly list's settings chosen, on a synthetic dataset built from real Kenyan inputs; they need checking against real records before use ([docs/anomaly-detection.md](docs/anomaly-detection.md)).
-- **The list ranks, it does not judge.** Many listed weeks have an ordinary explanation; only the officer's notes are judgements. Records that never sync cannot be ranked, so analytics show how far behind each school is.
-- **Sync while the app is closed.** Devices sync when the app is opened, brought into view, or reconnects, not in the background: background sync is not available on every phone browser (notably iPhones). A kitchen device opened each school day syncs daily.
-- **Calendar.** The national calendar covers 2024–2026; each later year's term dates are added when the Ministry publishes them.
-- **Sign-in.** The first sign-in on a device needs a connection. There is no rate limiting on sign-in yet.
-- **Hosting.** Docker Compose and an HTTPS setup for any Linux server are ready ([docs/deployment.md](docs/deployment.md)); the public demo server itself is still to be set up ([#25](https://github.com/Gichezz/School-Feeding-Program-System/issues/25)).
+- **Synthetic data.** No real school feeding records were available. The anomaly method was chosen on a synthetic dataset built from real Kenyan inputs, and needs checking against real records before use.
+- **A list, not a verdict.** A listed school often has an ordinary explanation; only the officer's notes are judgements. Records that never sync cannot be ranked.
+- **Background sync.** Devices sync when the app is open or reconnects, not in the background, which not every phone browser supports.
+- **Calendar.** The national calendar covers 2024–2026; later years are added when the Ministry publishes them.
+- **Scope.** Public primary and junior school day schools with one meal a day. Boarding schools are not covered.
+- **Sign-in.** The first sign-in on a device needs a connection, and sign-in is not yet rate-limited.
+- **Backups.** Daily backups are kept on the same machine; copy them elsewhere regularly.
+
+## License
+
+No licence has been granted for this project; all rights are reserved by the author.
+
+---
+
+Developed by Ryan Gicheru at Strathmore University as a final-year project.
