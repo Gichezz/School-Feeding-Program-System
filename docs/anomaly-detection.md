@@ -102,6 +102,7 @@ The scoring service ([`forecasting/services/scoring_service.py`](../forecasting/
 5. Fixed rules run alongside, and their breaches are shown for every school, whatever its rank.
 6. A sub-county with fewer than 60 school days of records is ranked by the fixed rules alone.
 7. A school listed again shows the officer's latest decision on it from the previous four weeks, and whether it was on last week's list.
+8. The API scores each finished week by itself, and scores a recent week again when its records change. Officers find the list waiting instead of starting it ([architecture](architecture.md#monitoring)).
 
 ## 7. Limitations
 

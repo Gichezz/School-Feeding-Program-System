@@ -2,6 +2,7 @@ require('dotenv').config();
 
 const app = require('./app');
 const { getJwtSecret } = require('./config/auth');
+const { startWeeklyReviewSchedule } = require('./services/weeklyReviewSchedule');
 
 const PORT = process.env.PORT || 5000;
 
@@ -17,4 +18,7 @@ try {
 app.listen(PORT, () => {
   console.log(`School Feeding API listening on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  // Each sub-county's finished weeks are scored for the weekly review list without
+  // anyone pressing a button (services/weeklyReviewSchedule.js)
+  startWeeklyReviewSchedule();
 });

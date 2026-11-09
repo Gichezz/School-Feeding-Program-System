@@ -919,6 +919,8 @@ CREATE TABLE IF NOT EXISTS review_runs (
     k               INTEGER NOT NULL,
     rule_breaches   JSONB NOT NULL DEFAULT '[]',
     created_by      UUID,
+    -- scored by the API's weekly schedule rather than by an officer (migration 017)
+    scored_by_schedule BOOLEAN NOT NULL DEFAULT false,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT review_runs_unique UNIQUE (sub_county, week_start),
     CONSTRAINT review_runs_monday CHECK (EXTRACT(ISODOW FROM week_start) = 1),

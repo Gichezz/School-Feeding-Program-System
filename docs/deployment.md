@@ -74,6 +74,7 @@ All settings come from `.env` in the project folder, which Git ignores. [`.env.e
 | `PGUSER`, `PGDATABASE` | no | Database user and name (`postgres`, `school_feeding_db`). The names match `backend/.env`; inside Docker the host is always `db`, so `PGHOST`, `PGPORT` and `DATABASE_URL` are not used. |
 | `JWT_EXPIRES_IN` | no | How long a sign-in lasts (`7d`). |
 | `LOAD_DEMO_DATA` | no | `true` loads the demo school and demo accounts on the database's **first** start. Local use only. |
+| `REVIEW_SCHEDULE`, `REVIEW_SCHEDULE_MINUTES` | no | The API scores each sub-county's finished weeks for the weekly review list by itself, and scores a recent week again when records for it sync late (`on`, every `60` minutes). `off` leaves scoring to officers. |
 | `WEB_PORT` | no | Local port for the app (`8080`). |
 | `DOMAIN` | server only | Domain name for HTTPS (`docker-compose.prod.yml`). |
 

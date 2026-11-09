@@ -13,7 +13,7 @@ import {
   useToast,
 } from '../components/ui';
 import { decideReviewItem, getReviewList, getReviewWeeks, getSchools, scoreReviewWeek } from '../services/api';
-import { DECISIONS, MODES, recentMondays, weekLabel } from '../features/weeklyReview/weeks';
+import { DECISIONS, MODES, recentMondays, scoredText, weekLabel } from '../features/weeklyReview/weeks';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useSession } from '../hooks/useSession';
 import { formatDateTime } from '../utils/format';
@@ -143,7 +143,8 @@ function WeeklyReview() {
   const [subCounty, setSubCounty] = useState('');
   const [scoredWeeks, setScoredWeeks] = useState({});
   const mondays = useMemo(() => recentMondays(new Date(), 8), []);
-  const [week, setWeek] = useState(mondays[0]);
+  // Last week first: finished weeks are scored automatically, the week in progress is not
+  const [week, setWeek] = useState(mondays[1]);
   const [list, setList] = useState(undefined);
   const [error, setError] = useState(null);
   const [scoring, setScoring] = useState(false);
@@ -241,8 +242,8 @@ function WeeklyReview() {
           </div>
           {list && (
             <p className="weekly-review__meta">
-              {MODES[list.mode]} Scored {formatDateTime(list.scoredAt)}{list.scoredBy ? ` by ${list.scoredBy}` : ''}.
-              Scoring again adds records that have synced since; decisions are kept.
+              {MODES[list.mode]} {scoredText(list, formatDateTime(list.scoredAt))}
+              Late records for a recent week get it scored again automatically; decisions are kept.
             </p>
           )}
         </Card>
@@ -255,7 +256,7 @@ function WeeklyReview() {
             <EmptyState
               icon={ListChecks}
               title="This week has not been scored"
-              description="Score the week once the schools' records for it have synced. You can score it again later to include late records."
+              description="Each week is scored automatically once it is over and its records have synced. To see the week in progress now, score it here."
             />
           </Card>
         )}
