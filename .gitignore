@@ -55,3 +55,6 @@ forecasting/data/processed/swedish_prophet_window_*.csv
 forecasting/data/processed/feeding_dataset/
 forecasting/data/processed/feeding_robustness/
 forecasting/data/processed/feeding_deployment/
+
+# Database backups made by the backup service (docker-compose.yml)
+backups/

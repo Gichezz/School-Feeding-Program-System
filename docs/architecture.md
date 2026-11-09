@@ -30,7 +30,7 @@ Pipeline: **offline capture → sync → descriptive analytics → anomaly scori
 
 | Table | Contents |
 |---|---|
-| `enrolment`, `dailyFeeding` | Editable records: one per class and sex per term, and one per school day. Each has `version`, `serverId` once synced, and `syncStatus` (`pending`, `synced`, `conflict`, `held`) |
+| `enrolment`, `dailyFeeding` | Editable records: one per class and sex per term, and one per school day. Each has `version`, `serverId` once synced, and `syncStatus` (`pending`, `synced`, `conflict`, `held`). A term with no enrolment yet opens filled in from the school's last term, for staff to check against the register and save. Into a new school year every learner moves up a class, Grade 9 leaves, and PP1 is left for new admissions. |
 | `stockMovements`, `stockCounts` | Append-only stock entries (deliveries, purchases, losses, returns, reversals; store counts), keyed by an id made on the device |
 | `syncQueue` | One entry per change: entity type, operation, payload, `baseVersion`, status, retry count |
 | `conflicts` | Conflicts the server reported for this device's changes, until they are resolved |
@@ -61,6 +61,7 @@ Version-based optimistic concurrency for editable records, an append-only ledger
    - an operation id it has already applied is answered from `sync_operations`, so a resend after a lost reply is not applied twice;
    - an editable record whose `baseVersion` matches is saved as the next version; one made on an older version is a **conflict**, unless its numbers already match the server's;
    - a new record for a key that already exists (the same day recorded on two devices) is the same record if the numbers match, and a conflict if they differ;
+   - except that two copies differing only where one left an optional field empty (learners present, the reason, the note) are **merged** without a conflict. Each such field takes the value that was given, the merge must still be a valid record, and it is saved as a new version in the record's history. The device is sent back the fields it did not have, so its copy matches. Learners fed, food issued and whether feeding happened are never empty, so a difference in any of them, or two different notes, is still a conflict for a person to decide;
    - a stock entry is added once, whatever order entries arrive in. A delivery with the same delivery note, school and commodity as a delivery still counting in the ledger is **held** as a possible duplicate instead, so food entered by both the cook and the head teacher is not counted twice;
    - a record captured by someone since deactivated, or on a device since removed, is **held** too.
 4. While a record is in conflict, later edits to it wait on the device, so nothing overwrites a decision that has not been made.
@@ -94,7 +95,7 @@ Held records (possible duplicate deliveries, records from deactivated users or r
 1. builds context-adjusted features per school-day (learners fed against what is usual for that kind of day, against peers, against last term; food against the ration; store-count gaps; entry delays and batch sizes; round numbers; after-hours entry);
 2. fits Extended Isolation Forest on the sub-county's previous 125 school days, refitting every 20 school days and leaving out school-weeks an officer marked follow-up;
 3. scores the week, takes each school's highest day, and lists the top 3 with their two main reasons in plain words, always worded "needs review";
-4. ranks by fixed rules alone while a sub-county has fewer than 60 school days of records.
+4. ranks by fixed rules alone while a sub-county has fewer than 60 school days of records, and then lists only schools that broke a rule, so a quiet week lists nobody.
 
 A school listed again shows the officer's latest decision on it from the previous four weeks.
 

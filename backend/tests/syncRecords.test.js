@@ -98,6 +98,63 @@ describe('daily feeding records', () => {
     expect(conflict).toEqual([{ entity_type: 'daily_feeding', status: 'unresolved' }]);
   });
 
+  it('merges the same day from two devices when one left learners present empty, without a conflict', async () => {
+    await sync([syncOperation('op-1', 'dailyFeeding', 'create', feeding({ learnersPresent: null }), 0)]);
+
+    // The second device has the same numbers and also counted learners present
+    const filled = await sync([syncOperation('op-2', 'dailyFeeding', 'create', feeding(), 0)], { clientId: 'device-b' });
+
+    expect(filled.body.results[0]).toMatchObject({ status: 'synced', version: 2 });
+    expect(filled.body.results[0].mergedFields).toBeUndefined();
+    const row = (await pool.query('SELECT learners_present, learners_fed, version FROM daily_feeding')).rows[0];
+    expect(row).toEqual({ learners_present: 410, learners_fed: 400, version: 2 });
+    expect((await pool.query('SELECT count(*)::int AS n FROM conflicts')).rows[0].n).toBe(0);
+    // The merge is a new version in the record's history
+    expect((await pool.query("SELECT count(*)::int AS n FROM record_history WHERE entity_type = 'daily_feeding'")).rows[0].n).toBe(2);
+  });
+
+  it("gives a device the server's value for a field it left empty", async () => {
+    await sync([syncOperation('op-1', 'dailyFeeding', 'create', feeding({ note: 'Visitors from the county office' }), 0)]);
+
+    const empty = await sync([syncOperation('op-2', 'dailyFeeding', 'create', feeding(), 0)], { clientId: 'device-b' });
+
+    // Nothing new to store: the device takes the note so its copy matches
+    expect(empty.body.results[0]).toMatchObject({ status: 'synced', version: 1, mergedFields: { note: 'Visitors from the county office' } });
+    expect((await pool.query('SELECT count(*)::int AS n FROM conflicts')).rows[0].n).toBe(0);
+  });
+
+  it('merges a stale edit that only fills a field the other device left empty', async () => {
+    const created = await sync([syncOperation('op-1', 'dailyFeeding', 'create', feeding({ learnersPresent: null }), 0)]);
+    const recordId = created.body.results[0].recordId;
+    await sync([{ ...syncOperation('op-2', 'dailyFeeding', 'update', feeding({ learnersPresent: null, note: 'Sports day' }), 1), baseRecordId: recordId }]);
+
+    // Made on version 1 on another device: adds learners present, has no note
+    const stale = await sync([syncOperation('op-3', 'dailyFeeding', 'update', feeding(), 1)], { clientId: 'device-b' });
+
+    expect(stale.body.results[0]).toMatchObject({ status: 'synced', version: 3, mergedFields: { note: 'Sports day' } });
+    const row = (await pool.query('SELECT learners_present, note, version FROM daily_feeding')).rows[0];
+    expect(row).toEqual({ learners_present: 410, note: 'Sports day', version: 3 });
+  });
+
+  it('still reports a conflict when a number differs, even if an empty field could be filled', async () => {
+    await sync([syncOperation('op-1', 'dailyFeeding', 'create', feeding({ learnersPresent: null }), 0)]);
+
+    const different = await sync([syncOperation('op-2', 'dailyFeeding', 'create', feeding({ learnersFed: 380 }), 0)], { clientId: 'device-b' });
+
+    expect(different.body.results[0]).toMatchObject({ status: 'conflict' });
+    expect((await pool.query('SELECT learners_present, learners_fed FROM daily_feeding')).rows[0]).toEqual({ learners_present: null, learners_fed: 400 });
+  });
+
+  it('reports a conflict when the two devices wrote different notes, or counted different learners present', async () => {
+    await sync([syncOperation('op-1', 'dailyFeeding', 'create', feeding({ note: 'Sports day' }), 0)]);
+
+    const notes = await sync([syncOperation('op-2', 'dailyFeeding', 'create', feeding({ note: 'Parents meeting' }), 0)], { clientId: 'device-b' });
+    const present = await sync([syncOperation('op-3', 'dailyFeeding', 'create', feeding({ learnersPresent: 420, note: 'Sports day' }), 0)], { clientId: 'device-c' });
+
+    expect(notes.body.results[0]).toMatchObject({ status: 'conflict' });
+    expect(present.body.results[0]).toMatchObject({ status: 'conflict' });
+  });
+
   it('applies an edit based on the current version and refuses a stale one', async () => {
     const created = await sync([syncOperation('op-1', 'dailyFeeding', 'create', feeding(), 0)]);
     const recordId = created.body.results[0].recordId;

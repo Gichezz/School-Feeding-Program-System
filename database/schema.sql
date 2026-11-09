@@ -970,3 +970,35 @@ CREATE INDEX IF NOT EXISTS idx_review_items_run ON review_items (run_id, rank);
 CREATE INDEX IF NOT EXISTS idx_review_decisions_week ON review_decisions (week_start);
 
 CREATE INDEX IF NOT EXISTS idx_held_operations_decided_xid ON held_operations (decided_xid);
+
+-- ---------------------------------------------------------------------------
+-- Migrations this schema already includes
+-- ---------------------------------------------------------------------------
+-- The API applies scripts in database/migrations/ that are not listed here when it
+-- starts (backend/src/db/migrate.js). A database built from this file has them all.
+-- Add each new script here as well as in database/migrations/.
+
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    name        TEXT PRIMARY KEY,
+    applied_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+INSERT INTO schema_migrations (name) VALUES
+    ('001_attendance_present_absent_equals_registered.sql'),
+    ('002_user_accounts.sql'),
+    ('003_admin_passkeys.sql'),
+    ('004_staff_devices.sql'),
+    ('005_offline_capture.sql'),
+    ('006_record_integrity.sql'),
+    ('007_admin_totp.sql'),
+    ('008_schools_programme.sql'),
+    ('009_calendar.sql'),
+    ('010_sync_batches.sql'),
+    ('011_enrolment_feeding.sql'),
+    ('012_stock_ledger.sql'),
+    ('013_review_lists.sql'),
+    ('014_held_decisions.sql'),
+    ('015_review_model.sql'),
+    ('016_practice_terms.sql'),
+    ('017_scheduled_review_runs.sql')
+ON CONFLICT (name) DO NOTHING;

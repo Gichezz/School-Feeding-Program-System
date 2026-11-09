@@ -100,7 +100,7 @@ The scoring service ([`forecasting/services/scoring_service.py`](../forecasting/
 3. Each school's week takes its highest-scoring day. The top 3 are the week's list; every school is returned in order. No threshold is used.
 4. Reasons come from the model itself: each feature of the top day is set in turn to its median in the sub-county's training records, and the two that lower the score most are named in plain words ("learners fed 16% below the school's usual number").
 5. Fixed rules run alongside, and their breaches are shown for every school, whatever its rank.
-6. A sub-county with fewer than 60 school days of records is ranked by the fixed rules alone.
+6. A sub-county with fewer than 60 school days of records is ranked by the fixed rules alone. Only schools that broke a rule are listed then: with no model, a school that broke none has nothing to point the officer at.
 7. A school listed again shows the officer's latest decision on it from the previous four weeks, and whether it was on last week's list.
 8. The API scores each finished week by itself, and scores a recent week again when its records change. Officers find the list waiting instead of starting it ([architecture](architecture.md#monitoring)).
 

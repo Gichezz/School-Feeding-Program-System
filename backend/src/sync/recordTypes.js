@@ -12,6 +12,9 @@ const { isoDate: storedDate } = require('../services/integrity');
  *                concurrency. A create for a key that already exists is the same record
  *                when the values match and a conflict when they differ; an edit based on
  *                an older version, or on another server record, is a conflict.
+ *                Except: when the two copies differ only in optional fields that one of
+ *                them left empty (learners present, the reason, the note), they are
+ *                merged without asking anyone, since no number is chosen over another.
  *   append-only  stock ledger entries and stock counts: identified by an id made on the
  *                device, never edited, so they never conflict. A replay of the same entry
  *                is recognised; a mistake is corrected with a reversing entry.
@@ -34,14 +37,43 @@ function basedOnCurrent(record, baseVersion, baseRecordId) {
   return record.version === baseVersion && (!baseRecordId || baseRecordId === record.id);
 }
 
+function sameValue(stored, value) {
+  if (value === null || stored === null) return value === stored;
+  // DATE columns come back as Date objects; compare them as YYYY-MM-DD
+  if (stored instanceof Date) return storedDate(stored) === value;
+  return typeof value === 'number' ? Number(stored) === value : stored === value;
+}
+
 function sameValues(row, values) {
-  return Object.entries(values).every(([column, value]) => {
+  return Object.entries(values).every(([column, value]) => sameValue(row[column], value));
+}
+
+const isEmpty = (value) => value === null || value === undefined || (typeof value === 'string' && value.trim() === '');
+
+/**
+ * Merge the server's copy and the device's when they differ only in fillable columns
+ * that one side left empty: each such column takes the value that was given. Returns
+ * null when any column differs in a way only a person can decide (two different
+ * numbers, or a field that is never empty).
+ *   merged      the columns to store
+ *   fromServer  device field name -> value the device did not have, for its copy
+ */
+function mergeFillable(row, values, fillable) {
+  const merged = { ...values };
+  const fromServer = {};
+  for (const [column, value] of Object.entries(values)) {
     const stored = row[column];
-    if (value === null || stored === null) return value === stored;
-    // DATE columns come back as Date objects; compare them as YYYY-MM-DD
-    if (stored instanceof Date) return storedDate(stored) === value;
-    return typeof value === 'number' ? Number(stored) === value : stored === value;
-  });
+    if (sameValue(stored, value) || (isEmpty(stored) && isEmpty(value))) continue;
+    const field = fillable[column];
+    if (!field) return null;
+    if (isEmpty(value) && !isEmpty(stored)) {
+      merged[column] = stored;
+      fromServer[field] = stored;
+    } else if (!(isEmpty(stored) && !isEmpty(value))) {
+      return null;
+    }
+  }
+  return { merged, fromServer };
 }
 
 function sameKeyConflict(what) {
@@ -55,7 +87,7 @@ function staleEdit(baseVersion, row) {
 /**
  * Create or edit a versioned record. `values` are the columns the device sets.
  */
-function versioned({ table, keyColumns, keyOf, valuesOf, what, onChange = '', lateReason = true }) {
+function versioned({ table, keyColumns, keyOf, valuesOf, what, onChange = '', lateReason = true, fillable = {}, checkMerged = () => null }) {
   const columns = { editable: true, lateReason };
   async function find(client, payload) {
     const key = keyOf(payload);
@@ -63,11 +95,42 @@ function versioned({ table, keyColumns, keyOf, valuesOf, what, onChange = '', la
     return (await client.query(`SELECT * FROM ${table} WHERE ${where}`, keyColumns.map((c) => key[c]))).rows[0] || null;
   }
 
+  async function write(client, id, values, payload, ctx) {
+    const row = { ...values, ...metadata(ctx, payload, columns) };
+    const names = Object.keys(row);
+    const result = await client.query(
+      `UPDATE ${table}
+       SET ${names.map((c, i) => `${c} = $${i + 1}`).join(', ')},
+           version = version + 1, updated_at = NOW() ${onChange}
+       WHERE id = $${names.length + 1}
+       RETURNING id, version`,
+      [...names.map((c) => row[c]), id]
+    );
+    return { recordId: result.rows[0].id, version: result.rows[0].version };
+  }
+
+  /**
+   * Two copies that differ only where one left a field empty: store the merge as a new
+   * version (or nothing, when the server already has every value) and tell the device
+   * what it did not have. Null when a person has to decide.
+   */
+  async function merge(client, current, payload, values, ctx) {
+    const result = mergeFillable(current, values, fillable);
+    if (!result || checkMerged({ ...payload, ...result.fromServer })) return null;
+    if (sameValues(current, result.merged)) {
+      return { recordId: current.id, version: current.version, duplicate: true, mergedFields: result.fromServer };
+    }
+    const saved = await write(client, current.id, result.merged, payload, ctx);
+    return { ...saved, merged: true, mergedFields: result.fromServer };
+  }
+
   async function create(client, payload, ctx) {
     const values = valuesOf(payload);
     const existing = await find(client, payload);
     if (existing) {
       if (sameValues(existing, values)) return { recordId: existing.id, version: existing.version, duplicate: true };
+      const merged = await merge(client, existing, payload, values, ctx);
+      if (merged) return merged;
       throw sameKeyConflict(what);
     }
     const row = { ...keyOf(payload), ...values, ...metadata(ctx, payload, columns) };
@@ -88,19 +151,11 @@ function versioned({ table, keyColumns, keyOf, valuesOf, what, onChange = '', la
     if (!basedOnCurrent(current, baseVersion, baseRecordId)) {
       // Based on an older version, but the server already has these values
       if (sameValues(current, values)) return { recordId: current.id, version: current.version, duplicate: true };
+      const merged = await merge(client, current, payload, values, ctx);
+      if (merged) return merged;
       throw staleEdit(baseVersion, current);
     }
-    const row = { ...values, ...metadata(ctx, payload, columns) };
-    const names = Object.keys(row);
-    const result = await client.query(
-      `UPDATE ${table}
-       SET ${names.map((c, i) => `${c} = $${i + 1}`).join(', ')},
-           version = version + 1, updated_at = NOW() ${onChange}
-       WHERE id = $${names.length + 1}
-       RETURNING id, version`,
-      [...names.map((c) => row[c]), current.id]
-    );
-    return { recordId: result.rows[0].id, version: result.rows[0].version };
+    return write(client, current.id, values, payload, ctx);
   }
 
   return { versioned: true, table, find, create, update };
@@ -193,6 +248,13 @@ const dailyFeeding = {
       note: nullable(p.note),
     }),
     what: 'the feeding record for this date',
+    // Optional fields: copies that differ only where one left these empty are merged
+    fillable: { learners_present: 'learnersPresent', reason_code: 'reasonCode', note: 'note' },
+    // The merged record must still be a valid record (for example, fed no more than present)
+    checkMerged: (p) => feedingError({
+      schoolId: p.schoolId, date: p.feedingDate, happened: p.feedingHappened, present: p.learnersPresent,
+      fed: p.learnersFed, cerealsKg: p.cerealsKg, pulsesKg: p.pulsesKg, reasonCode: p.reasonCode, note: p.note,
+    }),
   }),
   history: (row) => ({
     happened: row.feeding_happened, present: row.learners_present, fed: row.learners_fed,

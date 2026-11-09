@@ -14,7 +14,8 @@ never read. For the week requested:
   4. Every school is returned in rank order, the top k marked as the week's list, each
      with its two main reasons in plain words. Fixed rule breaches are returned for every
      day, whatever the ranking.
-  5. A sub-county with fewer than 60 school days of history is ranked by the rules alone.
+  5. A sub-county with fewer than 60 school days of history is ranked by the rules alone;
+     then only schools that broke a rule are listed, so a quiet week lists nobody.
 
 The method and its settings are those chosen in protocol version 6 (Extended Isolation
 Forest led all three studies; docs/anomaly-detection.md) and stay fixed.
@@ -145,7 +146,8 @@ def score_week(body):
     items.sort(key=lambda i: -i["score"])
     for rank, item in enumerate(items, 1):
         item["rank"] = rank
-        item["listed"] = rank <= k
+        # Ranked by the fixed checks alone, a school that broke none has nothing to look into
+        item["listed"] = rank <= k and (mode != "rules_only" or item["score"] > 0)
 
     breaches = []
     for row in week[week.rule_score >= 1].itertuples():

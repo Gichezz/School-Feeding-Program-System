@@ -451,6 +451,22 @@ describe('feeding records and the stock ledger', () => {
     expect(await db.stockMovements.get(entry.id)).toMatchObject({ syncStatus: 'synced' });
   });
 
+  it('takes the fields the server merged in, when the other device had filled what this one left empty', async () => {
+    const saved = await saveDailyFeeding(day);
+    const [op] = await db.syncQueue.toArray();
+    syncOperations.mockResolvedValueOnce(serverResult({
+      success: true, operationId: op.id, status: 'synced', version: 2, recordId: 'server-day',
+      mergedFields: { learnersPresent: 410, note: 'Sports day' },
+    }));
+
+    await processSyncQueue();
+
+    expect(await db.dailyFeeding.get(saved.id)).toMatchObject({
+      syncStatus: 'synced', version: 2, learnersFed: 400, learnersPresent: 410, note: 'Sports day',
+    });
+    expect(await db.syncQueue.where('status').equals('pending').count()).toBe(0);
+  });
+
   it('marks a feeding record in conflict without touching the attendance records', async () => {
     const saved = await saveDailyFeeding(day);
     const [op] = await db.syncQueue.toArray();

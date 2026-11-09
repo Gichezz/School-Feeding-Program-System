@@ -296,7 +296,10 @@ async function syncOperations(req, res, next) {
           entityType: operation.entityType,
           recordId: result.recordId,
           version: result.version,
-          status: 'synced'
+          status: 'synced',
+          // Merged with the server's copy without a conflict: fields this device left
+          // empty that the server had, so the device's copy matches (recordTypes.js)
+          ...(result.mergedFields && Object.keys(result.mergedFields).length > 0 && { mergedFields: result.mergedFields }),
         });
 
         await client.query('COMMIT');
