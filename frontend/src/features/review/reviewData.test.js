@@ -15,7 +15,7 @@ describe('flagSummaryRows', () => {
   it('shows the numbers, who captured it, the device and both times', () => {
     const rows = flagSummaryRows(flag);
 
-    expect(rows.map((r) => r.label)).toEqual(['Registered', 'Present', 'Absent', 'Captured by', 'Device', 'Captured', 'Reached the server']);
+    expect(rows.map((r) => r.label)).toEqual(['Registered', 'Present', 'Absent', 'Captured by', 'Device', 'Captured', 'Received']);
     expect(rows.find((r) => r.key === 'present').value).toBe('90');
   });
 
@@ -28,7 +28,7 @@ describe('flagSummaryRows', () => {
       ['Captured by', 'Not recorded'],
       ['Device', 'Not a school device'],
       ['Captured', 'Not recorded'],
-      ['Reached the server', expect.any(String)],
+      ['Received', expect.any(String)],
       ['Reason for late entry', 'Register was at the head office'],
     ]);
   });

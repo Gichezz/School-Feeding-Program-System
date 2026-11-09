@@ -56,14 +56,14 @@ function HeldRecordsCard() {
     <Card
       id="held"
       title="Held records"
-      description="Records captured offline that were not applied automatically. Check each one, then apply it or discard it."
+      description="Records that need a check before they count. Apply or discard each one."
     >
       <div className="ui-stack">
         {!isOnline && <Alert tone="neutral" title="You are offline">Reviewing held records needs a connection.</Alert>}
         {error && <Alert tone="danger" title="Not done">{error}</Alert>}
         {isOnline && held === null && <LoadingRegion label="Loading held records"><SkeletonText lines={3} /></LoadingRegion>}
         {held?.length === 0 && !error && (
-          <EmptyState compact icon={CheckCircle2} title="Nothing held" description="Records are held when the same delivery note seems to have been entered twice, when the person who captured them was deactivated or had their password reset, or when the device was removed." />
+          <EmptyState compact icon={CheckCircle2} title="Nothing held" description="No records are waiting for a check." />
         )}
 
         {held?.length > 0 && (
@@ -104,7 +104,7 @@ function HeldRecordsCard() {
                         </div>
                       )}
                     >
-                      It will not be added, and the school's devices drop it with their next sync. The decision is recorded with your name.
+                      It will not be added. Your decision is saved with your name.
                     </Alert>
                   ) : (
                     <div className="held__actions">

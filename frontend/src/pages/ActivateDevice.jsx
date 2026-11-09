@@ -100,7 +100,7 @@ function ActivateDevice() {
             <p className="login__intro">
               {approved
                 ? `${result.user.name}, you can now sign in on ${result.device.name} with your email and PIN.`
-                : `${result.device.name} is registered for your school. Ask an administrator to approve it in Settings → School devices, then sign in with your email and PIN.`}
+                : `${result.device.name} is set up. You can sign in with your email and PIN once it is approved.`}
             </p>
             <Button as={Link} to="/login" icon={LogIn} fullWidth>Go to sign in</Button>
           </div>
@@ -117,7 +117,7 @@ function ActivateDevice() {
           <div>
             <h1 className="login__title">Set up this school device</h1>
             <p className="login__intro">
-              For school staff, on the school's own tablet or phone. You set a PIN for signing in on this device.
+              For school staff, on the school's tablet or phone. You choose a PIN to sign in with here.
             </p>
           </div>
 
@@ -125,7 +125,7 @@ function ActivateDevice() {
             <Alert tone="neutral" icon={Tablet} title={`This is ${identity.name}`}>
               {identity.status === 'approved'
                 ? 'This device is already set up. Add yourself to it, or set a new PIN if you forgot yours.'
-                : 'This device is waiting for an administrator to approve it. You can still add yourself to it.'}
+                : 'This device is waiting for approval. You can still add yourself to it.'}
             </Alert>
           )}
           {!isOnline && <Alert tone="neutral" title="You are offline">Setting up a device needs a connection.</Alert>}
@@ -150,7 +150,7 @@ function ActivateDevice() {
               <FormField
                 id="activate-code"
                 label="Activation code"
-                hint="From your administrator, e.g. ABCD-EFGH-JKLM. It works once, within 48 hours."
+                hint="The code you were given, e.g. ABCD-EFGH-JKLM. It works once, within 48 hours."
                 autoComplete="one-time-code"
                 autoCapitalize="characters"
                 spellCheck={false}
@@ -165,11 +165,11 @@ function ActivateDevice() {
             <FormField id="activate-password" label="Password" type="password" autoComplete="current-password" required {...field('password')} />
           )}
 
-          <FormField id="activate-pin" label="Choose a 6-digit PIN" hint="You sign in on this device with your email and this PIN. Avoid 123456 or 000000." size="lg" required {...pinField('pin')} />
+          <FormField id="activate-pin" label="Choose a 6-digit PIN" hint="Avoid easy ones like 123456 or 000000." size="lg" required {...pinField('pin')} />
           <FormField id="activate-confirm-pin" label="Type the PIN again" size="lg" required {...pinField('confirmPin')} />
 
           {needsDeviceName && (
-            <FormField id="activate-device-name" label="Name for this device" hint="So administrators can recognise it, e.g. Kitchen tablet" maxLength={60} required {...field('deviceName')} />
+            <FormField id="activate-device-name" label="Name for this device" hint="For example, Kitchen tablet" maxLength={60} required {...field('deviceName')} />
           )}
 
           <Button type="submit" icon={Tablet} fullWidth loading={saving} disabled={!isOnline}>Set up this device</Button>

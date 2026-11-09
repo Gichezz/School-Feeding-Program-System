@@ -54,7 +54,7 @@ describe('processSyncQueue', () => {
 
     const result = await processSyncQueue();
 
-    expect(result).toMatchObject({ success: false, message: 'Cannot sync while offline' });
+    expect(result).toMatchObject({ success: false, message: 'You are offline. Your records will sync when you are back online.' });
     expect(syncOperations).not.toHaveBeenCalled();
     expect((await db.syncQueue.toArray())[0].status).toBe('pending');
   });

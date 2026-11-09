@@ -43,12 +43,12 @@ function Requirement({ data, term }) {
       description={`${formatNumber(need.learners)} learners × ${formatNumber(days.length)} school days × the ration, less the food already in the store.`}>
       {enrolment.length === 0 && <Alert tone="warning" title="No enrolment for this term">Record this term’s enrolment first.</Alert>}
       {enrolment.length > 0 && !need.verified && (
-        <Alert tone="warning" title="Enrolment not verified yet">These figures use the school’s own count. The request counts only once a programme officer verifies the enrolment.</Alert>
+        <Alert tone="warning" title="Enrolment not verified yet">These figures may change once it is verified.</Alert>
       )}
       {need.verified && !need.allVerified && <Alert tone="info">Only the verified classes are counted.</Alert>}
       <DataTable caption={`Food needed for ${termLabel(term)}`} columns={columns} rows={rows} getRowKey={(r) => r.key} />
       <p className="recording__note">
-        School days come from the Ministry calendar: weekdays in the term, less half-term, public holidays and school closures.
+        School days follow the Ministry of Education calendar.
       </p>
     </Card>
   );

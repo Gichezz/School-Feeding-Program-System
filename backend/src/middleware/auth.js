@@ -24,11 +24,11 @@ async function requireAuth(req, res, next) {
   try {
     payload = jwt.verify(token, getJwtSecret(), { algorithms: ['HS256'] });
   } catch (error) {
-    const message = error.name === 'TokenExpiredError' ? 'Session expired, please sign in again' : 'Invalid session';
+    const message = error.name === 'TokenExpiredError' ? 'Session expired, please sign in again' : 'Please sign in again';
     return res.status(401).json({ error: message });
   }
   if (!isUuid(payload.sub)) {
-    return res.status(401).json({ error: 'Invalid session' });
+    return res.status(401).json({ error: 'Please sign in again' });
   }
 
   try {
@@ -49,7 +49,7 @@ async function requireAuth(req, res, next) {
     if (user.role === 'school_staff' && (user.device_status !== 'approved' || user.device_school_id !== user.school_id)) {
       return res.status(401).json({
         error: user.device_status === 'revoked'
-          ? 'This device has been removed by an administrator. Set it up again to keep using it.'
+          ? 'This device can no longer be used. Set it up again to keep using it.'
           : SESSION_ENDED,
         ...(user.device_status === 'revoked' && { deviceRevoked: true }),
       });

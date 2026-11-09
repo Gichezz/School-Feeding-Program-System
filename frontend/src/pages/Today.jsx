@@ -132,10 +132,10 @@ function TodayForm({ data }) {
   return (
     <Card title={existing ? `Feeding on ${form.date}` : 'Record feeding'} description={data.school?.name}>
       <form className="recording__form" onSubmit={save} noValidate>
-        {existing && <Alert tone="info" title="This date is already recorded">Saving changes it; the change is kept in the record's history.</Alert>}
+        {existing && <Alert tone="info" title="This date is already recorded">Saving will update it.</Alert>}
         {notSchoolDay && (
           <Alert tone="warning" title={`${form.date} is not a school day`}>
-            {notSchoolDay}. Record feeding for it only if learners really were fed (for example a holiday feeding programme).
+            {notSchoolDay}. Only record feeding if learners were fed.
           </Alert>
         )}
         {submitted && Object.keys(check.errors).length > 0 && (
@@ -153,8 +153,8 @@ function TodayForm({ data }) {
             options={[{ value: '', label: 'Choose' }, { value: 'yes', label: 'Yes' }, { value: 'no', label: 'No, not today' }]} />
         </div>
         {check.late && (
-          <FormField id="today-lateReason" label="Reason for entering this date late" as="textarea" rows={2} maxLength={300} required
-            hint="A programme officer checks late entries against the register." value={form.lateReason}
+          <FormField id="today-lateReason" label="Why is this being entered late?" as="textarea" rows={2} maxLength={300} required
+            value={form.lateReason}
             onChange={set('lateReason')} error={errors.lateReason} />
         )}
         {form.feedingHappened === 'yes' && (

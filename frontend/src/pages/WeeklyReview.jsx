@@ -263,9 +263,8 @@ function WeeklyReview() {
 
         {list && (
           <Alert tone="info" title="A list of what to check first">
-            A school is listed because its records differ from what is usual for it and for similar schools nearby. There
-            is often an ordinary reason (a school event, a late sync, a new term). Settings were tested on simulated
-            records and need checking against real ones.
+            A school is listed because its records differ from what is usual for it and for similar schools nearby.
+            There is often an ordinary reason, such as a school event or a late sync.
           </Alert>
         )}
 

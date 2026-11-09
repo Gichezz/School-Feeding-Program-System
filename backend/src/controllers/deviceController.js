@@ -100,7 +100,7 @@ async function enrol(req, res, next) {
       key = devices.publicJwk(publicKey);
     }
     if (!devices.verifyDeviceSignature(key, signedChallenge, signature)) {
-      return res.status(400).json({ error: 'This device could not prove it holds its key. Start again.' });
+      return res.status(400).json({ error: 'This device could not be checked. Start again.' });
     }
 
     const user = await findStaff(email);
@@ -167,13 +167,13 @@ async function signIn(req, res, next) {
 
     const device = (await pool.query('SELECT id, name, status, school_id, public_key FROM devices WHERE id = $1', [deviceId])).rows[0];
     if (!device || device.status === 'revoked') {
-      return res.status(403).json({ error: 'This device has been removed by an administrator. Set it up again to keep using it.', deviceRevoked: true });
+      return res.status(403).json({ error: 'This device can no longer be used. Set it up again to keep using it.', deviceRevoked: true });
     }
     if (!devices.verifyDeviceSignature(device.public_key, signedChallenge, signature)) {
-      return res.status(401).json({ error: 'This device could not prove it holds its key.' });
+      return res.status(401).json({ error: 'This device could not be checked. Try again.' });
     }
     if (device.status !== 'approved') {
-      return res.status(403).json({ error: 'This device is waiting for an administrator to approve it.', devicePending: true });
+      return res.status(403).json({ error: 'This device is waiting for approval.', devicePending: true });
     }
 
     const user = await findStaff(email);

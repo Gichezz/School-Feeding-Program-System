@@ -109,7 +109,7 @@ export async function processSyncQueue() {
     console.log('Sync already in progress');
     return {
       success: false,
-      message: 'Sync already in progress'
+      message: 'Already syncing.'
     };
   }
 
@@ -117,7 +117,7 @@ export async function processSyncQueue() {
     console.log('Cannot sync while offline');
     return {
       success: false,
-      message: 'Cannot sync while offline'
+      message: 'You are offline. Your records will sync when you are back online.'
     };
   }
 
@@ -156,7 +156,7 @@ export async function processSyncQueue() {
       console.log('No pending operations to sync');
       return {
         success: true,
-        message: 'No pending operations to sync',
+        message: 'Nothing waiting to sync.',
         progress: syncProgress
       };
     }
@@ -299,14 +299,15 @@ export async function processSyncQueue() {
 
     return {
       success: true,
-      message: 'Sync completed',
+      message: 'Everything waiting has been sent.',
       progress: syncProgress
     };
   } catch (error) {
     console.error('Error processing sync queue:', error);
     return {
       success: false,
-      message: error.message,
+      // The error itself goes to the console; the person only needs to know it will be retried
+      message: 'Some records did not send. Lishe will try again.',
       progress: syncProgress
     };
   } finally {

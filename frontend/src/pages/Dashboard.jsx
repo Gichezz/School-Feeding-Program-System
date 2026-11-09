@@ -22,7 +22,7 @@ function NeedsAttention({ decisions, failedCount, failure, openFlags }) {
       key: 'conflicts',
       icon: GitCompareArrows,
       title: decisions === 1 ? '1 record needs a decision' : `${formatNumber(decisions)} records need a decision`,
-      description: "Conflicts between a school's devices and the server, and records held for a decision, such as a delivery note entered twice.",
+      description: 'Records changed on two devices, and records waiting for a check.',
       action: <Button as={Link} to="/conflicts" variant="secondary" size="sm">Decide</Button>,
     });
   }
@@ -31,7 +31,7 @@ function NeedsAttention({ decisions, failedCount, failure, openFlags }) {
       key: 'review',
       icon: Flag,
       title: openFlags === 1 ? '1 flagged record to check' : `${formatNumber(openFlags)} flagged records to check`,
-      description: 'Records that look unusual, such as more learners fed than enrolled, food far from the ration, or a short delivery.',
+      description: 'Records that look unusual.',
       action: <Button as={Link} to="/review" variant="secondary" size="sm">Review</Button>,
     });
   }

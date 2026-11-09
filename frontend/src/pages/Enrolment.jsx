@@ -65,7 +65,7 @@ function EnrolmentForm({ data }) {
         await saveEnrolment({ schoolId: data.schoolId, termId, class: schoolClass, sex, learners: toCount(value) });
       }
       if (isOnline) setTimeout(() => { manualSync().catch(() => {}); }, SYNC_DELAY_MS);
-      toast.show({ title: 'Enrolment saved', description: 'A programme officer verifies it before it counts towards the food request.' });
+      toast.show({ title: 'Enrolment saved', description: 'It counts towards the food request once it is verified.' });
     } finally {
       setSaving(false);
     }
