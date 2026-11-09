@@ -9,6 +9,7 @@ import { manualSync } from '../sync/syncManager';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { formatNumber } from '../utils/format';
 import { termName } from '../features/feeding/planning';
+import { carriedForward } from '../features/feeding/enrolmentCarry';
 
 const CLASSES = ['PP1', 'PP2', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8', 'Grade 9'];
 const SEXES = [['F', 'Girls'], ['M', 'Boys']];
@@ -30,10 +31,20 @@ function EnrolmentForm({ data }) {
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // A term with no enrolment yet starts from the last term's (moved up a class into a new
+  // school year), for staff to check against the register and save
+  const carried = useMemo(() => carriedForward({
+    terms: data.terms, enrolment: data.enrolment, termId, classes: CLASSES, sexes: SEXES.map(([s]) => s),
+  }), [data.terms, data.enrolment, termId]);
+
   useEffect(() => {
-    setValues(Object.fromEntries(CLASSES.flatMap((c) => SEXES.map(([s]) => [cellKey(c, s), saved[cellKey(c, s)] ? String(saved[cellKey(c, s)].learners) : '']))));
+    const start = (key) => {
+      if (saved[key]) return String(saved[key].learners);
+      return carried?.values[key] !== undefined ? String(carried.values[key]) : '';
+    };
+    setValues(Object.fromEntries(CLASSES.flatMap((c) => SEXES.map(([s]) => [cellKey(c, s), start(cellKey(c, s))]))));
     setSubmitted(false);
-  }, [saved]);
+  }, [saved, carried]);
 
   const errors = Object.fromEntries(Object.entries(values)
     .filter(([, v]) => v !== '' && toCount(v) === null)
@@ -70,6 +81,14 @@ function EnrolmentForm({ data }) {
             {verifiedCount === rows.length
               ? 'A programme officer has verified this enrolment.'
               : `${verifiedCount} of ${rows.length} entries verified. Changing a number means it is verified again.`}
+          </Alert>
+        )}
+        {carried && (
+          <Alert tone="info" title={`Filled in from ${termName(carried.fromTerm)}`}>
+            {carried.promoted
+              ? 'Each class has last year’s learners from the class below, and Grade 9 has left. PP1 is empty for new admissions. '
+              : 'The numbers are last term’s. '}
+            Check each class against the admission register, change what is different, then save.
           </Alert>
         )}
         {submitted && changed.length === 0 && Object.keys(errors).length === 0 && <Alert tone="info">Nothing has changed.</Alert>}

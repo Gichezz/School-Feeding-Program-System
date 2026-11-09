@@ -71,7 +71,9 @@ export async function processSingleOperation(operation, options = {}) {
           operationId: operation.id,
           recordId: result.recordId,
           version: result.version,
-          status: 'synced'
+          status: 'synced',
+          // Fields the server merged in from its copy, which this device left empty
+          ...(result.mergedFields && { mergedFields: result.mergedFields }),
         };
       } else if (result.status === 'conflict') {
         return {

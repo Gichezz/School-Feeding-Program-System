@@ -106,6 +106,27 @@ def test_a_new_sub_county_is_ranked_by_the_rules_alone(client, dataset):
 
     assert body["mode"] == "rules_only"
     assert body["model"] is None
+    # Only schools that broke a rule are listed; the rest are ranked but not listed
+    breaking = {b["school_id"] for b in body["rule_breaches"]}
+    assert {i["school_id"] for i in body["items"] if i["listed"]} <= breaking
+    assert all(i["score"] > 0 for i in body["items"] if i["listed"])
+
+
+def test_a_quiet_week_ranked_by_the_rules_alone_lists_nobody(client, dataset):
+    body = body_for(dataset, "North", "2026-02-02", since="2026-01-01")
+    # Every record ordinary: on time, during school hours, food at the ration
+    for r in body["feeding"]:
+        r.update(received_date=r["date"], captured_at=f"{r['date']}T10:00:00", sync_batch_id=f"{r['school_id']}-{r['date']}")
+        if r["feeding_happened"]:
+            r.update(cereals_kg=round(r["learners_fed"] * 0.15 * 2) / 2, pulses_kg=round(r["learners_fed"] * 0.04 * 2) / 2)
+    body["stock_counts"] = []
+
+    result = client.post("/score", json=body).get_json()
+
+    assert result["mode"] == "rules_only"
+    assert result["rule_breaches"] == []
+    assert not any(i["listed"] for i in result["items"])
+    assert len(result["items"]) == len(body["schools"])
 
 
 def test_a_sub_county_with_a_few_days_and_no_stock_counts_is_still_ranked(client, dataset):

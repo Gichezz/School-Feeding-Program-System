@@ -394,7 +394,9 @@ async function updateLocalRecordAfterSync(operation, syncResult) {
     const updates = {
       syncStatus: 'synced',
       version: syncResult.version,
-      ...(syncResult.recordId && { serverId: syncResult.recordId })
+      ...(syncResult.recordId && { serverId: syncResult.recordId }),
+      // Merged with the server's copy: take the fields this device had left empty
+      ...(FEEDING_TABLES[operation.entityType] && syncResult.mergedFields)
     };
     if (operation.entityType === 'attendance') {
       await updateLocalAttendance(operation.recordId, updates);

@@ -75,6 +75,8 @@ All settings come from `.env` in the project folder, which Git ignores. [`.env.e
 | `JWT_EXPIRES_IN` | no | How long a sign-in lasts (`7d`). |
 | `LOAD_DEMO_DATA` | no | `true` loads the demo school and demo accounts on the database's **first** start. Local use only. |
 | `REVIEW_SCHEDULE`, `REVIEW_SCHEDULE_MINUTES` | no | The API scores each sub-county's finished weeks for the weekly review list by itself, and scores a recent week again when records for it sync late (`on`, every `60` minutes). `off` leaves scoring to officers. |
+| `BACKUP_KEEP_DAYS` | no | How many days of daily backups the `backup` service keeps in `./backups` (`14`). |
+| `MIGRATIONS_BASELINE` | once, if needed | Only for a database migrated by hand before the API applied migrations itself: the last script it already has (for example `016`). |
 | `WEB_PORT` | no | Local port for the app (`8080`). |
 | `DOMAIN` | server only | Domain name for HTTPS (`docker-compose.prod.yml`). |
 
@@ -86,21 +88,17 @@ The API's passkey settings are set by the compose files: `localhost` and `http:/
 
 **First start.** When the `db-data` volume is empty, [`database/docker/init.sh`](../database/docker/init.sh) creates the tables from `database/schema.sql`. If `LOAD_DEMO_DATA=true`, it also loads `database/seed.sql`. This runs only once. Changing `LOAD_DEMO_DATA` later has no effect unless you delete the volume.
 
-**Migrations.** A new database already has the latest schema. When a later version adds a script to `database/migrations/`, apply it to the running database (the folder is mounted read-only at `/database`):
+**Migrations are automatic.** A new database already has the latest schema, and `schema_migrations` records every script as applied. When a later version adds a script to `database/migrations/`, the API applies it when it starts, in number order, and records it ([`backend/src/db/migrate.js`](../backend/src/db/migrate.js)). If a script fails, the API stops instead of running on a half-changed schema, and the log names the script. Outside Docker, `npm run migrate` in `backend/` does the same without starting the API.
 
-```bash
-docker compose exec db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f /database/migrations/004_staff_devices.sql'
-```
+A database migrated by hand before this existed has no record of its scripts, and older scripts are not safe to run twice. Set `MIGRATIONS_BASELINE` once, in `.env` (or `backend/.env`), to the number of the last script applied by hand, for example `016`. The API records the scripts up to it and applies the later ones. Until then it applies nothing and says so in the log.
 
-Apply the scripts in number order. Each one explains in its header what it changes.
-
-**Backups.** Take a dump before updating:
+**Backups are automatic.** The `backup` service writes a compressed dump to `./backups` when it starts and every 24 hours after (`lishe-YYYY-MM-DD-HHMM.sql.gz`), keeping the last `BACKUP_KEEP_DAYS` days (14). Copy them off the server now and then; a backup on the same disk does not survive the disk. To take one now, for example before an update:
 
 ```bash
 docker compose exec db sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' > lishe-backup.sql
 ```
 
-Restore into an empty database with `docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < lishe-backup.sql`.
+Restore into an empty database with `gunzip -c backups/<file>.sql.gz | docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'` (or `< lishe-backup.sql` for an uncompressed dump).
 
 ## Updating
 
@@ -109,7 +107,7 @@ git pull
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 ```
 
-Then apply any new migrations. Devices pick up the new version of the app automatically the next time they open it online.
+The API applies any new migrations when it restarts. Devices pick up the new version of the app automatically the next time they open it online.
 
 ## Smoke test
 
