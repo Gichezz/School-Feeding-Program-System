@@ -59,7 +59,7 @@ function DevicesCard() {
     <Card
       id="devices"
       title="School devices"
-      description="Staff record on the school's own tablets and phones. Approve a device before staff can sign in on it; remove one that is lost or no longer used."
+      description="Approve a school's tablet or phone before staff can sign in on it. Remove one that is lost or no longer used."
     >
       <div className="ui-stack">
         {!isOnline && <Alert tone="neutral" title="You are offline">Managing devices needs a connection.</Alert>}
@@ -77,7 +77,7 @@ function DevicesCard() {
             compact
             icon={Tablet}
             title="No school devices yet"
-            description="Staff set up a device from the sign-in page with their activation code. It then appears here for approval."
+            description="A device appears here for approval once staff set it up."
           />
         )}
 
@@ -138,8 +138,7 @@ function DevicesCard() {
                         </div>
                       )}
                     >
-                      Staff are signed out on it straight away and cannot sign in on it again. Records still waiting on
-                      it stay on the device. This cannot be undone; a found device is set up again as new.
+                      Staff are signed out of it straight away and cannot sign in on it again. This cannot be undone.
                     </Alert>
                   ) : (
                     <div className="devices__actions">

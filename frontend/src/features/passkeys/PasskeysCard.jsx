@@ -129,7 +129,7 @@ function PasskeysCard() {
     <Card
       id="passkeys"
       title="Passkeys"
-      description="Administrators sign in with a passkey: your device's fingerprint, face or screen lock. The private key never leaves the device. Add one on each device you use."
+      description="Sign in with your device's fingerprint, face or screen lock. Add one on each device you use."
       actions={!adding && !codes && supported && (
         <Button icon={Fingerprint} onClick={() => setAdding(true)} disabled={!isOnline}>Add a passkey</Button>
       )}

@@ -15,7 +15,7 @@ function SchoolGate({ data, children }) {
         <EmptyState
           icon={School}
           title="This is not a school device"
-          description="Feeding and stock records are kept on the school's own devices. Set this device up for a school from the sign-in page, or open the programme pages instead."
+          description="Feeding and stock are recorded on the school's own devices."
         />
       </Card>
     );
@@ -23,7 +23,7 @@ function SchoolGate({ data, children }) {
   if (data.status === 'no-calendar') {
     return (
       <Alert tone="warning" title="Connect once to download the school calendar">
-        Lishe needs the term dates and the school's ration before it can plan. Connect to the internet and sync; after that it works offline.
+        Connect to the internet once. After that, Lishe works offline.
       </Alert>
     );
   }

@@ -36,7 +36,7 @@ async function login(req, res, next) {
     // School staff sign in on an enrolled school device with their PIN (#60)
     if (user.role === 'school_staff') {
       return res.status(403).json({
-        error: 'School staff sign in on a school device with their email and PIN. Set up this device first if it is new.',
+        error: 'Sign in on the school device with your email and PIN.',
         deviceRequired: true,
       });
     }
@@ -52,7 +52,7 @@ async function login(req, res, next) {
     }
     if (hasPasskey) {
       return res.status(403).json({
-        error: 'This account signs in with a passkey. Use "Sign in with a passkey", or a recovery code if you cannot.',
+        error: 'Sign in with your passkey, or use a recovery code.',
         passkeyRequired: true,
       });
     }

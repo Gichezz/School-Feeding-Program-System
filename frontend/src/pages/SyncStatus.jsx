@@ -23,8 +23,8 @@ const STATUS = {
   pending: { tone: 'neutral', label: 'Waiting' },
   synced: { tone: 'success', label: 'Synced' },
   failed: { tone: 'warning', label: 'Did not sync' },
-  conflict: { tone: 'danger', label: 'Conflict' },
-  held: { tone: 'warning', label: 'Held for review' },
+  conflict: { tone: 'warning', label: 'Being checked' },
+  held: { tone: 'warning', label: 'Being checked' },
 };
 
 /**
@@ -51,9 +51,7 @@ function toRow(op) {
     change: op.operation === 'update' ? 'Edited' : 'New record',
     status,
     savedAt: formatDateTime(op.createdAt),
-    attempts: op.retryCount || 0,
     capturedBy: op.capturedByName || '–',
-    detail: status === 'failed' ? op.errorMessage : status === 'held' ? 'An administrator will review it' : '',
   };
 }
 
@@ -67,7 +65,6 @@ const COLUMNS = [
     render: (row) => <Badge tone={(STATUS[row.status] || STATUS.pending).tone}>{(STATUS[row.status] || STATUS.pending).label}</Badge>,
   },
   { key: 'savedAt', header: 'Saved on device' },
-  { key: 'attempts', header: 'Attempts', align: 'end' },
 ];
 
 /**
@@ -107,13 +104,10 @@ function SyncStatus() {
     .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
     .slice(0, RECENT_LIMIT)
     .map(toRow);
-  const columns = recent.some((row) => row.detail)
-    ? [...COLUMNS, { key: 'detail', header: 'Why' }]
-    : COLUMNS;
 
   return (
     <>
-      <PageHeader title="Sync status" description="What is waiting on this device and what has reached the server." />
+      <PageHeader title="Sync status" description="What is saved on this device and what has been sent." />
 
       <div className="ui-stack">
         <SyncStatusBar
@@ -131,25 +125,24 @@ function SyncStatus() {
         {sync.unresolvedConflicts > 0 && (
           <Alert
             tone="warning"
-            title={sync.unresolvedConflicts === 1 ? '1 record needs a decision' : `${formatNumber(sync.unresolvedConflicts)} records need a decision`}
+            title={sync.unresolvedConflicts === 1 ? '1 record is being checked' : `${formatNumber(sync.unresolvedConflicts)} records are being checked`}
             action={<Button as={Link} to="/conflicts" variant="secondary" size="sm">View</Button>}
           >
-            The same record was changed on this device and on the server.
-            {' Your programme officer chooses which version to keep; changes to it wait here until then.'}
+            It was changed on another device too. Any changes you make to it wait here until it has been checked.
           </Alert>
         )}
 
         <div className="ui-grid ui-grid--4">
           <StatCard label="Waiting" icon={CloudUpload} loading={loading} value={formatNumber(counts.pending || 0)} hint="Saved here, not sent yet" />
-          <StatCard label="Synced" icon={CheckCircle2} loading={loading} value={formatNumber(counts.synced || 0)} hint="Reached the server" />
-          <StatCard label="Did not sync" icon={CloudOff} loading={loading} value={formatNumber(counts.failed || 0)} hint="Retried automatically" />
-          <StatCard label="Conflicts" icon={GitCompareArrows} loading={loading} value={formatNumber(sync.unresolvedConflicts)} hint="Resolved by your programme officer" />
+          <StatCard label="Synced" icon={CheckCircle2} loading={loading} value={formatNumber(counts.synced || 0)} hint="Sent" />
+          <StatCard label="Did not sync" icon={CloudOff} loading={loading} value={formatNumber(counts.failed || 0)} hint="Tried again automatically" />
+          <StatCard label="Being checked" icon={GitCompareArrows} loading={loading} value={formatNumber(sync.unresolvedConflicts)} hint="Changed on another device too" />
         </div>
 
         <Card title="Recent changes" description={`The latest ${RECENT_LIMIT} changes saved on this device, newest first.`}>
           <DataTable
             caption="Recent changes"
-            columns={columns}
+            columns={COLUMNS}
             rows={recent}
             loading={loading}
             emptyState={{ title: 'No changes yet', description: 'Records you save on this device appear here until they sync.' }}
@@ -158,10 +151,9 @@ function SyncStatus() {
 
         <Card title="How syncing works">
           <ul className="sync-status__notes">
-            <li>Every record is saved on this device first, so nothing is lost without a connection.</li>
-            <li>When the device is online and you are signed in, Lishe sends waiting changes automatically. Sync now sends them straight away.</li>
-            <li>A change that does not sync stays on the device and is tried again.</li>
-            <li>If the same record was changed somewhere else first, it becomes a conflict and an administrator chooses which version to keep.</li>
+            <li>Everything you save is kept on this device first, so nothing is lost without a connection.</li>
+            <li>Lishe sends your changes by itself when you are online. Sync now sends them straight away.</li>
+            <li>If something does not send, it stays here and is tried again.</li>
           </ul>
         </Card>
       </div>

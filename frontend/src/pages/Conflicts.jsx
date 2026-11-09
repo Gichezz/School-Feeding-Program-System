@@ -45,18 +45,18 @@ function DeviceConflicts() {
 
   const remove = async () => {
     await deleteConflict(selected.id);
-    toast.show({ tone: 'info', title: 'Removed from this device', description: 'The conflict is still recorded on the server for your programme officer.' });
+    toast.show({ tone: 'info', title: 'Removed from this device', description: 'It will still be checked.' });
     setSelectedId(null);
     setConfirmRemove(false);
   };
 
   if (!selected) {
     return (
-      <Card title="Waiting for your programme officer">
+      <Card title="Being checked">
         {conflicts === null ? (
           <LoadingRegion label="Loading conflicts"><SkeletonText lines={3} /></LoadingRegion>
         ) : conflicts.length === 0 ? (
-          <EmptyState compact icon={CheckCircle2} title="No conflicts" description="When a record saved here was also changed on another device, it appears here until it is resolved." />
+          <EmptyState compact icon={CheckCircle2} title="Nothing being checked" description="A record changed on this device and on another one appears here until it has been checked." />
         ) : (
           <ul className="conflicts__list">
             {conflicts.map((conflict) => {
@@ -89,14 +89,14 @@ function DeviceConflicts() {
         <h2 ref={headingRef} tabIndex={-1} className="conflicts__heading">{type.title} · {type.when(selected.localPayload, selected)}</h2>
         <p className="conflicts__meta">
           {selected.baseVersion === 0
-            ? 'This device recorded this as new, but another device had already synced different numbers for it.'
-            : `This device changed version ${selected.baseVersion}, but the server had already moved on to version ${selected.serverVersion}.`}
+            ? 'Another device had already recorded different numbers for this.'
+            : 'This record was changed on another device before your change was sent.'}
         </p>
         <div className="conflicts__compare-scroll">
           <table className="conflicts__compare">
-            <caption className="visually-hidden">This device compared with the server</caption>
+            <caption className="visually-hidden">Your numbers compared with the saved ones</caption>
             <thead>
-              <tr><th scope="col">Value</th><th scope="col" className="conflicts__num">This device</th><th scope="col" className="conflicts__num">Server</th></tr>
+              <tr><th scope="col">Value</th><th scope="col" className="conflicts__num">Yours</th><th scope="col" className="conflicts__num">Saved</th></tr>
             </thead>
             <tbody>
               {rows.map((row) => (
@@ -116,15 +116,15 @@ function DeviceConflicts() {
           title="Remove this conflict from the device?"
           action={<Button variant="danger" size="sm" onClick={remove}>Remove from this device</Button>}
         >
-          Only this device's copy is removed. The server record does not change, and your programme officer still sees the conflict.
+          It is removed from this device only. It will still be checked.
         </Alert>
       ) : (
         <Alert
           tone="info"
-          title="Your programme officer decides"
+          title="It will be checked"
           action={<Button variant="ghost" size="sm" onClick={() => setConfirmRemove(true)}>Remove from this device</Button>}
         >
-          Keep recording as normal. Changes to this record wait on the device until the conflict is resolved, then sync.
+          Keep recording as normal. Any changes to this record wait here until it has been checked.
         </Alert>
       )}
     </div>
@@ -141,10 +141,10 @@ function Conflicts() {
   return (
     <>
       <PageHeader
-        title="Conflicts"
+        title={resolves ? 'Conflicts' : 'Records being checked'}
         description={resolves
-          ? "Records a school's device changed after they had already changed on the server. Decide which version to keep."
-          : 'Records saved on this device that were also changed on another device.'}
+          ? 'Records changed on two devices with different numbers. Decide which numbers to keep.'
+          : 'Records changed on this device and on another one.'}
       />
       <div className="ui-stack">
         {resolves ? <ServerConflicts /> : <DeviceConflicts />}

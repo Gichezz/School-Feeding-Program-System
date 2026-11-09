@@ -8,9 +8,9 @@ import { compareRows, conflictType, isEditable, mergeStart, mergeValues, showVal
 import { CONFLICTS_CHANGED_EVENT } from './useServerConflictCount';
 
 const CHOICES = [
-  { value: 'keep_local', label: "Keep the device's version", description: "The values the school's device sent replace the server record." },
-  { value: 'keep_server', label: "Keep the server's version", description: "The server record stays as it is; the device's change is dropped." },
-  { value: 'merge', label: 'Enter the correct numbers', description: 'For example after calling the school to check the register. Checked like any other record.' },
+  { value: 'keep_local', label: "Keep the school device's numbers", description: 'They replace the numbers saved before.' },
+  { value: 'keep_server', label: 'Keep the saved numbers', description: "The device's change is dropped." },
+  { value: 'merge', label: 'Enter the correct numbers', description: 'For example, after checking the register with the school.' },
 ];
 
 /** The server's conflict row in the shape the page uses. */
@@ -102,7 +102,7 @@ function ServerConflicts() {
     } catch (err) {
       setStep('choose');
       setError(err.status === 409
-        ? 'The record changed again on the server since this conflict was recorded. The list has been refreshed; review it again.'
+        ? 'This record changed again, so the list has been refreshed. Please check it again.'
         : err.message || 'The conflict could not be resolved. Try again.');
       if (err.status === 409) load();
     } finally {
@@ -111,7 +111,7 @@ function ServerConflicts() {
   };
 
   if (!isOnline) {
-    return <Alert tone="neutral" title="You are offline">Conflicts are kept on the server; reviewing them needs a connection.</Alert>;
+    return <Alert tone="neutral" title="You are offline">Reviewing conflicts needs a connection.</Alert>;
   }
 
   if (!selected) {
@@ -125,7 +125,7 @@ function ServerConflicts() {
             compact
             icon={CheckCircle2}
             title="No conflicts"
-            description="A conflict appears here when a school's device changes a record that had already changed on the server, or two devices record the same day differently. Stock entries never conflict."
+            description="A record changed on two devices with different numbers appears here."
           />
         ) : (
           <ul className="conflicts__list">
@@ -164,17 +164,17 @@ function ServerConflicts() {
             <p className="conflicts__meta">
               {selected.schoolName || 'School'}.{' '}
               {selected.baseVersion === 0
-                ? 'A device recorded this as a new record, but another device had already synced different numbers for it.'
-                : `A device changed version ${selected.baseVersion}, but the server had already moved on to version ${selected.serverVersion}.`}
+                ? 'Two devices recorded different numbers for this.'
+                : 'It was changed on a device after it had already been changed elsewhere.'}
             </p>
             <div className="conflicts__compare-scroll">
               <table className="conflicts__compare">
-                <caption className="visually-hidden">The device's version compared with the server's</caption>
+                <caption className="visually-hidden">The school device's numbers compared with the saved ones</caption>
                 <thead>
                   <tr>
                     <th scope="col">Value</th>
-                    <th scope="col" className="conflicts__num">Device</th>
-                    <th scope="col" className="conflicts__num">Server</th>
+                    <th scope="col" className="conflicts__num">School device</th>
+                    <th scope="col" className="conflicts__num">Saved</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -193,9 +193,9 @@ function ServerConflicts() {
             </div>
           </Card>
 
-          <Card title="Which version should the server keep?">
+          <Card title="Which numbers should be kept?">
             <fieldset className="conflicts__choices">
-              <legend className="visually-hidden">Version to keep</legend>
+              <legend className="visually-hidden">Numbers to keep</legend>
               {choices.map((option) => (
                 <label key={option.value} className="conflicts__choice">
                   <input type="radio" name="resolution" value={option.value} checked={choice === option.value} onChange={() => setChoice(option.value)} />
@@ -207,7 +207,7 @@ function ServerConflicts() {
               ))}
             </fieldset>
             {choices.length < CHOICES.length && (
-              <p className="conflicts__note">The two versions disagree on whether learners were fed, so keep one of them; the numbers can be corrected afterwards.</p>
+              <p className="conflicts__note">They disagree on whether learners were fed, so keep one of them. The numbers can be corrected afterwards.</p>
             )}
 
             {choice === 'merge' && (
@@ -241,9 +241,9 @@ function ServerConflicts() {
         <Card>
           <div className="conflicts__confirm">
             <h2 ref={headingRef} tabIndex={-1} className="conflicts__heading">Check before resolving</h2>
-            <p>{chosen.label}. The server and the school's devices will hold these values for {type.title.toLowerCase()}, {type.when(selected.local, selected)}:</p>
+            <p>{chosen.label}. These will be saved for {type.title.toLowerCase()}, {type.when(selected.local, selected)}:</p>
             <SummaryList rows={resultRows()} />
-            <p className="conflicts__note">This becomes a new version in the record's history, recorded with your name. Earlier versions are kept.</p>
+            <p className="conflicts__note">Your decision is saved with your name. The earlier numbers are kept in the record's history.</p>
             <div className="conflicts__actions">
               <Button onClick={confirm} loading={submitting}>Resolve conflict</Button>
               <Button variant="secondary" icon={ArrowLeft} onClick={() => setStep('choose')} disabled={submitting}>Back</Button>

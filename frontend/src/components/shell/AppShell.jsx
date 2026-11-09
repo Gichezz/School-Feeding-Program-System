@@ -26,25 +26,24 @@ function AppShell() {
           <TopBar />
           <main id="main-content" className="app-main" tabIndex={-1}>
             {signedInOffline && (
-              <Alert tone="neutral" title="Signed in offline on this device" className="app-main__notice">
-                Records you save stay here and sync under your account when the device is back online.
+              <Alert tone="neutral" title="Signed in offline" className="app-main__notice">
+                Your records are saved here and sync when you are back online.
               </Alert>
             )}
             {session && !isValid && session.endedReason === 'deviceRevoked' && (
-              <Alert tone="warning" title="This device was removed by an administrator" className="app-main__notice">
-                Records saved here are kept. To sync them, <Link to="/activate">set this device up again</Link>; an
-                administrator will need to approve it.
+              <Alert tone="warning" title="This device can no longer sync" className="app-main__notice">
+                Your records are still saved here. To sync them, <Link to="/activate">set this device up again</Link>.
               </Alert>
             )}
             {session && !isValid && session.endedReason !== 'deviceRevoked' && (
               <Alert tone="warning" title="Your sign-in has expired" className="app-main__notice">
-                You can keep recording on this device; <Link to="/login">sign in again</Link> to sync.
+                You can keep recording. <Link to="/login">Sign in again</Link> to sync.
               </Alert>
             )}
             {needsPasskey && (
               <Alert
                 tone="warning"
-                title="Add a passkey or authenticator app to secure your administrator account"
+                title="Secure your account with a passkey or authenticator app"
                 className="app-main__notice"
                 action={<Button as={Link} to="/settings#passkeys" variant="secondary" size="sm">Add a passkey</Button>}
               >

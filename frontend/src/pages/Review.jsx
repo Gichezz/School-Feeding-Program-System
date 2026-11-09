@@ -151,7 +151,7 @@ function Review() {
               icon={CheckCircle2}
               title={status === 'open' ? 'Nothing to check' : 'Nothing checked yet'}
               description={status === 'open'
-                ? 'Records are flagged when they are captured outside school hours or entered or synced late, when more learners are fed than enrolled or more food is issued than the store held, when food issued is far from the ration, or when a delivery is short of its note.'
+                ? 'Records that look unusual appear here.'
                 : 'Flags you mark as checked appear here with your notes.'}
             />
           </Card>
@@ -170,7 +170,7 @@ function Review() {
                   <p className="review__detail">{flag.detail}</p>
                   <p className="review__record">
                     {recordHeading(flag)} · {flag.school}
-                    {flag.version > 1 && ` · edit (version ${flag.version})`}
+                    {flag.version > 1 && ' · edited'}
                   </p>
                 </div>
               </div>

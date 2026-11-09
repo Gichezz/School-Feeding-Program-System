@@ -44,8 +44,8 @@ function SyncStatusBar({
     },
     conflict: {
       Icon: GitCompareArrows,
-      title: conflictCount === 1 ? '1 record needs a decision' : `${formatNumber(conflictCount)} records need a decision`,
-      detail: pendingCount > 0 ? pending : 'Changed here and on the server. An administrator chooses which version to keep.',
+      title: conflictCount === 1 ? '1 record is being checked' : `${formatNumber(conflictCount)} records are being checked`,
+      detail: pendingCount > 0 ? pending : 'It was changed on another device too, so it will be checked. You don’t need to do anything.',
     },
     failed: {
       Icon: AlertTriangle,
@@ -58,7 +58,7 @@ function SyncStatusBar({
 
   // Narrow screens: icon, short label and pending count, linking to the Sync page
   if (variant === 'pill') {
-    const short = { offline: 'Offline', syncing: `${Math.round(progress)}%`, synced: lastSyncedAt ? 'Synced' : 'Up to date', conflict: 'Conflict', failed: 'Sync issue' }[state];
+    const short = { offline: 'Offline', syncing: `${Math.round(progress)}%`, synced: lastSyncedAt ? 'Synced' : 'Up to date', conflict: 'Checking', failed: 'Sync issue' }[state];
     return (
       <Link to="/sync" className={`ui-sync-pill ui-sync--${state}`} aria-label={`${content.title}. ${content.detail}`}>
         <Icon className="ui-sync__icon" aria-hidden="true" />

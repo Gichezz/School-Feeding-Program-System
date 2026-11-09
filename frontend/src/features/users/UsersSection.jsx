@@ -413,7 +413,7 @@ function UsersSection() {
   return (
     <Card
       title="Users"
-      description="Everyone who can sign in to Lishe. Only administrators see this section."
+      description="Everyone who can sign in to Lishe."
       actions={panel === null && !activation && (
         <Button icon={UserPlus} onClick={() => setPanel('add')} disabled={!isOnline}>Add user</Button>
       )}

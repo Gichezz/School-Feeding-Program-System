@@ -91,7 +91,7 @@ export function flagSummaryRows(flag) {
     { key: 'by', label: 'Captured by', value: flag.capturedBy || 'Not recorded' },
     { key: 'device', label: 'Device', value: flag.device || 'Not a school device' },
     { key: 'captured', label: 'Captured', value: flag.capturedAt ? formatDateTime(flag.capturedAt) : 'Not recorded' },
-    { key: 'received', label: 'Reached the server', value: flag.receivedAt ? formatDateTime(flag.receivedAt) : 'Not recorded' },
+    { key: 'received', label: 'Received', value: flag.receivedAt ? formatDateTime(flag.receivedAt) : 'Not recorded' },
     ...(flag.lateReason ? [{ key: 'reason', label: 'Reason for late entry', value: flag.lateReason }] : []),
   ];
 }

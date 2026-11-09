@@ -90,7 +90,7 @@ describe('protected routes', () => {
     const res = await request(app).get('/api/schools').set('Authorization', `Bearer ${makeToken()}`);
 
     expect(res.status).toBe(401);
-    expect(res.body).toEqual({ error: 'Invalid session' });
+    expect(res.body).toEqual({ error: 'Please sign in again' });
   });
 
   it('asks the user to sign in again when the session has expired', async () => {

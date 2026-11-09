@@ -6,6 +6,9 @@ process.env.NODE_ENV = 'test';
 // Test-only signing secret; never used outside the test run
 process.env.JWT_SECRET = 'test-only-jwt-secret-0123456789abcdef0123456789';
 delete process.env.JWT_EXPIRES_IN;
+// A baseline set in backend/.env for the development database must not reach the
+// migration tests, which build their own databases
+delete process.env.MIGRATIONS_BASELINE;
 
 // Business rules that depend on "today" (the entry window, #62) see a fixed date, so
 // tests with fixed record dates keep working: Thursday 8 October 2026, 09:00 in Nairobi.

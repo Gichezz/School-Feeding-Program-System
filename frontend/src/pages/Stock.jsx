@@ -122,7 +122,7 @@ function MovementForm({ data }) {
   };
 
   return (
-    <Card title="Record food in or out" description="Every entry is kept. A mistake is corrected by reversing the entry, not by editing it.">
+    <Card title="Record food in or out" description="To fix a mistake, reverse the entry and record it again.">
       <form className="recording__form" onSubmit={save} noValidate>
         <div className="ui-grid ui-grid--3">
           <FormField id="stock-kind" label="What happened" as="select" value={form.kind} onChange={set('kind')}
@@ -184,7 +184,7 @@ function CountForm({ data }) {
   };
 
   return (
-    <Card title="Count the store" description="Weigh what is in the store. Food that left without a record only shows up in a count.">
+    <Card title="Count the store" description="Weigh the food in the store and enter what you count.">
       <form className="recording__form" onSubmit={save} noValidate>
         <div className="ui-grid ui-grid--3">
           <FormField id="count-commodity" label="Food" as="select" value={form.commodity} onChange={(e) => setForm((f) => ({ ...f, commodity: e.target.value }))} options={commodityOptions} />
@@ -195,7 +195,7 @@ function CountForm({ data }) {
         {result && (
           <Alert tone={Math.abs(result.difference) < 0.5 ? 'success' : 'warning'} title={`${COMMODITY_LABELS[result.commodity]}: ${formatNumber(result.counted)} kg counted`}>
             The records say {formatNumber(result.ledger)} kg
-            {Math.abs(result.difference) < 0.5 ? ', so the store matches.' : `: ${formatNumber(Math.abs(result.difference))} kg ${result.difference < 0 ? 'less' : 'more'} than recorded. A programme officer will see this.`}
+            {Math.abs(result.difference) < 0.5 ? ', so the store matches.' : `: ${formatNumber(Math.abs(result.difference))} kg ${result.difference < 0 ? 'less' : 'more'} than recorded.`}
           </Alert>
         )}
         <div className="recording__actions">
@@ -267,10 +267,9 @@ function Stock() {
       <SchoolGate data={data}>
         <div className="ui-stack">
           {data.heldDeliveries?.length > 0 && (
-            <Alert tone="info" title={data.heldDeliveries.length === 1 ? '1 delivery is waiting for a decision' : `${data.heldDeliveries.length} deliveries are waiting for a decision`}>
-              {data.heldDeliveries.map((m) => m.reference).join(', ')}: the same delivery note was already recorded on another device,
-              so it is not counted in the store yet. If it really was a second delivery, it is added once your programme office
-              confirms it.
+            <Alert tone="info" title={data.heldDeliveries.length === 1 ? '1 delivery is being checked' : `${data.heldDeliveries.length} deliveries are being checked`}>
+              {data.heldDeliveries.map((m) => m.reference).join(', ')}: this delivery note was already recorded, so it is not in
+              the store yet. If it was a second delivery, it will be added once it is confirmed.
             </Alert>
           )}
           <Balances data={data} />

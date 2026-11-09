@@ -101,8 +101,9 @@ function useSyncStatusSource() {
   const failure = queue.failed > 0
     ? {
       what: queue.failed === 1 ? '1 change did not sync' : `${queue.failed} changes did not sync`,
-      why: queue.lastError || 'The server could not be reached.',
-      fix: 'Your records are safe on this device. Check the connection and press Sync now; Lishe also retries automatically.',
+      // The server's own message is for the logs, not for the person recording
+      why: 'Lishe could not send it.',
+      fix: 'Your records are safe on this device. Check the connection and press Sync now.',
     }
     : null;
 

@@ -213,12 +213,12 @@ function Login() {
             </div>
             {!isOnline && (
               <Alert tone="neutral" title="You are offline">
-                You can still sign in with your PIN if you have signed in online on this device in the last 7 days.
+                You can still sign in if you have signed in here online in the last 7 days.
               </Alert>
             )}
             {identity.status !== 'approved' && !error && (
-              <Alert tone="info" title="New device">
-                An administrator approves each new device in Settings → School devices. Once they have, you can sign in here.
+              <Alert tone="info" title="Waiting for approval">
+                You can sign in once this device is approved.
               </Alert>
             )}
             {error && <Alert tone="danger" title="Could not sign in">{error}</Alert>}
@@ -264,14 +264,13 @@ function Login() {
                   ? <Button size="sm" variant="secondary" onClick={() => switchMode('device')}>Use PIN sign-in</Button>
                   : <Button as={Link} to="/activate" size="sm" variant="secondary">Set up this device</Button>}
               >
-                School staff sign in on the school's device with their email and PIN.
+                Use your email and PIN on the school device.
                 {!identity && ' If this is the school device, set it up first.'}
               </Alert>
             )}
             {passkeyRequired && (
               <Alert tone="info" title="Use your passkey">
-                This administrator account signs in with a passkey. Choose “Sign in with a passkey”, or use a recovery
-                code if you cannot use any of your passkeys.
+                Choose “Sign in with a passkey”. If you can’t, use a recovery code.
               </Alert>
             )}
 
@@ -314,7 +313,7 @@ function Login() {
             <div>
               <h1 className="login__title">Enter your code</h1>
               <p className="login__intro">
-                Open your authenticator app and enter the 6-digit code it shows for Lishe ({email.trim()}).
+                Enter the 6-digit code your authenticator app shows for Lishe.
               </p>
             </div>
             {!isOnline && <Alert tone="neutral" title="You are offline">Signing in needs a connection.</Alert>}
@@ -350,8 +349,7 @@ function Login() {
             <div>
               <h1 className="login__title">Use a recovery code</h1>
               <p className="login__intro">
-                For administrators who cannot use their passkeys or authenticator app. Each code works once. If you
-                have no codes left, ask another administrator to reset your passkeys and app.
+                Each code works once. If you have none left, ask another administrator for help.
               </p>
             </div>
             {!isOnline && <Alert tone="neutral" title="You are offline">Signing in needs a connection.</Alert>}
