@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {
   challenge,
+  deviceStatus,
   enrol,
   signIn,
   listDevices,
@@ -29,6 +30,12 @@ router.post('/enrol', enrol);
  * Staff sign-in: email + PIN + the device's signature (public)
  */
 router.post('/sign-in', signIn);
+
+/**
+ * POST /api/devices/status
+ * Whether this device has been approved yet, for the waiting screen (public)
+ */
+router.post('/status', deviceStatus);
 
 // Managing devices is for administrators only
 const adminOnly = [requireAuth, requireRole('admin')];

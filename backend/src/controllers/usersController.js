@@ -3,6 +3,7 @@ const { isUuid } = require('../validation/records');
 const crypto = require('crypto');
 const { PUBLIC_COLUMNS, publicUser, hashPassword } = require('../services/userAccounts');
 const { issueActivationCode } = require('../services/devices');
+const { isEmailConfigured, sendMail, activationEmail } = require('../services/mailer');
 const { nameError, emailError, roleError, passwordError, normaliseEmail } = require('../validation/users');
 
 /**
@@ -22,6 +23,25 @@ async function schoolExists(id) {
 async function subCountyExists(name) {
   if (typeof name !== 'string' || !name.trim()) return false;
   return (await pool.query('SELECT 1 FROM schools WHERE sub_county = $1 LIMIT 1', [name.trim()])).rows.length === 1;
+}
+
+/**
+ * Give a feeding teacher a new activation code. When the API can send email, the code
+ * goes only to their address, so only its owner can activate and the address is
+ * verified when they do; the administrator is told it was emailed and does not see it.
+ * Without email, or if sending fails, the administrator gets the code to hand over in
+ * person, as before.
+ */
+async function deliverActivation(user, createdBy) {
+  if (isEmailConfigured()) {
+    const activation = await issueActivationCode(user.id, createdBy, { emailed: true });
+    const mail = await sendMail({ to: user.email, ...activationEmail({ name: user.name, code: activation.code, expiresAt: activation.expiresAt }) });
+    if (mail.sent) return { activationEmailed: true, activationExpiresAt: activation.expiresAt };
+    await pool.query('UPDATE activation_codes SET emailed = false WHERE user_id = $1 AND used_at IS NULL', [user.id]);
+    return { activationCode: activation.code, activationExpiresAt: activation.expiresAt, emailFailed: true };
+  }
+  const activation = await issueActivationCode(user.id, createdBy);
+  return { activationCode: activation.code, activationExpiresAt: activation.expiresAt };
 }
 
 async function findUser(id) {
@@ -53,8 +73,10 @@ async function listUsers(req, res, next) {
  * POST /api/users
  * System administrators: { name, email, role: 'admin', password } → 201 { user }
  * Programme officers: { name, email, role: 'programme_officer', password, subCounty } → 201 { user }
- * School staff: { name, email, role: 'school_staff', schoolId } → 201 { user, activationCode, activationExpiresAt }
- *   Staff set their own password and PIN when they set up a school device with the
+ * Feeding teachers: { name, email, role: 'school_staff', schoolId }
+ *   → 201 { user, activationEmailed: true, activationExpiresAt } when the code was emailed,
+ *     or { user, activationCode, activationExpiresAt[, emailFailed] } to hand over
+ *   They set their own password and PIN when they set up a school device with the
  *   one-time activation code (#60), so no password is chosen for them.
  */
 async function createUser(req, res, next) {
@@ -83,8 +105,7 @@ async function createUser(req, res, next) {
     );
     const user = result.rows[0];
     if (!isStaff) return res.status(201).json({ user: publicUser(user) });
-    const activation = await issueActivationCode(user.id, req.user.id);
-    res.status(201).json({ user: publicUser(user), activationCode: activation.code, activationExpiresAt: activation.expiresAt });
+    res.status(201).json({ user: publicUser(user), ...(await deliverActivation(user, req.user.id)) });
   } catch (error) {
     next(error);
   }
@@ -217,8 +238,8 @@ async function newActivationCode(req, res, next) {
     if (!user) return res.status(404).json({ error: 'User not found' });
     if (user.role !== 'school_staff') return badRequest(res, 'Activation codes are for feeding teachers');
     if (!user.is_active) return badRequest(res, 'Reactivate this user first');
-    const activation = await issueActivationCode(user.id, req.user.id);
-    res.json({ activationCode: activation.code, expiresAt: activation.expiresAt });
+    const delivered = await deliverActivation(user, req.user.id);
+    res.json({ ...delivered, expiresAt: delivered.activationExpiresAt });
   } catch (error) {
     next(error);
   }

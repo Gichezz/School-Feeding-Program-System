@@ -9,7 +9,7 @@ const BCRYPT_ROUNDS = 10;
 /**
  * Columns that are safe to return. password_hash is never selected for responses.
  */
-const PUBLIC_COLUMNS = 'id, name, email, role, school_id, sub_county, is_active, created_at, updated_at';
+const PUBLIC_COLUMNS = 'id, name, email, email_verified_at, role, school_id, sub_county, is_active, created_at, updated_at';
 
 /**
  * A user row in the shape the API returns.
@@ -19,6 +19,7 @@ function publicUser(user) {
     id: user.id,
     name: user.name,
     email: user.email,
+    emailVerified: Boolean(user.email_verified_at),
     role: user.role,
     schoolId: user.school_id || null,
     subCounty: user.sub_county || null,

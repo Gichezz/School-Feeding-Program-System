@@ -64,7 +64,7 @@ describe('GET /api/users', () => {
     // The seeded administrator, programme officer and school staff member
     expect(res.body.users).toHaveLength(3);
     expect(res.body.users.find((u) => u.email === 'admin@demo-school.local')).toEqual({
-      id: expect.any(String), name: expect.any(String), email: expect.any(String), role: expect.any(String),
+      id: expect.any(String), name: expect.any(String), email: expect.any(String), emailVerified: false, role: expect.any(String),
       isActive: true, createdAt: expect.any(String), updatedAt: expect.any(String), passkeyCount: 0, totpEnabled: false,
       schoolId: null, subCounty: null, schoolName: null,
     });

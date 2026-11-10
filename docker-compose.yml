@@ -55,6 +55,15 @@ services:
       # Administrator passkeys belong to this domain and may only be used from this origin
       WEBAUTHN_RP_ID: localhost
       WEBAUTHN_ORIGINS: http://localhost:${WEB_PORT:-8080}
+      # Email (activation codes, device approvals). Locally it goes to Mailpit, a test
+      # mailbox at http://localhost:8025, so nothing reaches a real inbox
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      MAIL_FROM: ${MAIL_FROM:-Lishe <no-reply@lishe.local>}
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}
     volumes:
       # The migration scripts the API applies when it starts, read-only
       - ./database/migrations:/database/migrations:ro
@@ -71,6 +80,14 @@ services:
       - "${WEB_PORT:-8080}:80"
     depends_on:
       - backend
+
+  # A local test mailbox: catches every email the API sends and shows it at
+  # http://localhost:8025. Not used on a public server (docker-compose.prod.yml)
+  mailpit:
+    image: axllent/mailpit:v1.32.0
+    restart: unless-stopped
+    ports:
+      - "${MAILPIT_PORT:-8025}:8025"
 
   # A database backup every day into ./backups, keeping the last BACKUP_KEEP_DAYS
   backup:

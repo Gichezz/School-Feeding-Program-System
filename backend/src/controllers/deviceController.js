@@ -5,6 +5,7 @@ const { passwordError, pinError } = require('../validation/users');
 const { hashPassword, sessionFor } = require('../services/userAccounts');
 const { saveChallenge, consumeChallenge } = require('../services/challenges');
 const devices = require('../services/devices');
+const { sendMail, deviceApprovedEmail } = require('../services/mailer');
 
 /**
  * School devices and staff PIN sign-in (#60).
@@ -108,9 +109,14 @@ async function enrol(req, res, next) {
 
     await client.query('BEGIN');
     if (activationCode) {
-      if (!(await devices.useActivationCode(user.id, activationCode, client))) {
+      const used = await devices.useActivationCode(user.id, activationCode, client);
+      if (!used) {
         await client.query('ROLLBACK');
         return res.status(401).json({ error: 'The activation code is not correct or has expired. Ask an administrator for a new one.' });
+      }
+      // A code that reached them by email proves the address is real and theirs
+      if (used.emailed) {
+        await client.query('UPDATE users SET email_verified_at = COALESCE(email_verified_at, NOW()) WHERE id = $1', [user.id]);
       }
       // The new password replaces any earlier one and ends other sessions
       await client.query(
@@ -266,10 +272,25 @@ async function setStatus(req, res, next, status) {
         : `UPDATE devices SET status = 'revoked', revoked_by = $2, revoked_at = NOW() WHERE id = $1 RETURNING id, name, status, school_id`,
       [req.params.id, req.user.id]
     );
+    if (status === 'approved' && current.status !== 'approved') await tellStaffApproved(result.rows[0]);
     res.json({ device: devicePublic(result.rows[0]) });
   } catch (error) {
     next(error);
   }
+}
+
+/**
+ * Email the staff set up on a newly approved device that they can sign in now. Their
+ * device also finds out by itself (POST /status); the email is for when they are away
+ * from it. A failed email does not undo the approval.
+ */
+async function tellStaffApproved(device) {
+  const staff = (await pool.query(
+    `SELECT u.name, u.email FROM device_users du JOIN users u ON u.id = du.user_id
+     WHERE du.device_id = $1 AND u.is_active`,
+    [device.id]
+  )).rows;
+  await Promise.all(staff.map((person) => sendMail({ to: person.email, ...deviceApprovedEmail({ name: person.name, deviceName: device.name }) })));
 }
 
 /**
@@ -306,9 +327,30 @@ async function unlockDeviceUser(req, res, next) {
   }
 }
 
+/**
+ * POST /api/devices/status { deviceId } → { status } (public)
+ * A device waiting for approval asks this every few seconds while its screen is open,
+ * so the feeding teacher sees "approved" as soon as it is, like a TV waiting for its
+ * sign-in to be approved elsewhere (the OAuth device flow, RFC 8628). The device id is a
+ * random 122-bit UUID the device was given at set-up, which works as the secret, so the
+ * answer says only the status: no school, name or people.
+ */
+async function deviceStatus(req, res, next) {
+  try {
+    const { deviceId } = req.body || {};
+    if (!isUuid(deviceId)) return res.status(404).json({ error: 'Device not found' });
+    const device = (await pool.query('SELECT status FROM devices WHERE id = $1', [deviceId])).rows[0];
+    if (!device) return res.status(404).json({ error: 'Device not found' });
+    res.json({ status: device.status });
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   MAX_PIN_ATTEMPTS,
   challenge,
+  deviceStatus,
   enrol,
   signIn,
   listDevices,

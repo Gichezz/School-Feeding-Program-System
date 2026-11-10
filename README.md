@@ -105,7 +105,7 @@ In `.env`, set `PGPASSWORD` and `JWT_SECRET`, and set `LOAD_DEMO_DATA=true` for 
 docker compose up --build -d
 ```
 
-Open <http://localhost:8080>. This runs the database, API, scoring service, web app and daily backups.
+Open <http://localhost:8080>. This runs the database, API, scoring service, web app, daily backups, and Mailpit, a test mailbox that catches every email the system sends, at <http://localhost:8025>.
 
 To update later, pull and rebuild; database migrations apply themselves:
 
@@ -214,6 +214,7 @@ The API reads `backend/.env`; Docker Compose reads `.env` in the project folder.
 | `REVIEW_SCHEDULE`, `REVIEW_SCHEDULE_MINUTES` | Automatic weekly scoring (`on`, every `60` minutes) |
 | `MIGRATIONS_BASELINE` | Only for a database migrated by hand before migrations were automatic: the last script it has, set once |
 | `BACKUP_KEEP_DAYS` | Days of daily backups kept by Docker Compose (default `14`) |
+| `SMTP_HOST` (and `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`) | Mail server for activation codes and approvals. Without it, codes are shown to the administrator to hand over |
 
 Every setting is listed in [backend/.env.example](backend/.env.example), [.env.example](.env.example) and [docs/deployment.md](docs/deployment.md#configuration).
 

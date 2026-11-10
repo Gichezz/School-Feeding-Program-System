@@ -75,6 +75,8 @@ All settings come from `.env` in the project folder, which Git ignores. [`.env.e
 | `JWT_EXPIRES_IN` | no | How long a sign-in lasts (`7d`). |
 | `LOAD_DEMO_DATA` | no | `true` loads the demo school and demo accounts on the database's **first** start. Local use only. |
 | `REVIEW_SCHEDULE`, `REVIEW_SCHEDULE_MINUTES` | no | The API scores each sub-county's finished weeks for the weekly review list by itself, and scores a recent week again when records for it sync late (`on`, every `60` minutes). `off` leaves scoring to officers. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` | no | The mail server the API sends activation codes and device approvals through. Locally it is Mailpit, a test mailbox that catches every message (<http://localhost:8025>). On a server, set the programme's mail server or an email provider; without `SMTP_HOST`, activation codes are shown to the administrator to hand over. |
+| `PUBLIC_URL` | no | The address people open Lishe at, used for links in emails. |
 | `BACKUP_KEEP_DAYS` | no | How many days of daily backups the `backup` service keeps in `./backups` (`14`). |
 | `MIGRATIONS_BASELINE` | once, if needed | Only for a database migrated by hand before the API applied migrations itself: the last script it already has (for example `016`). |
 | `WEB_PORT` | no | Local port for the app (`8080`). |

@@ -27,6 +27,9 @@ CREATE TABLE IF NOT EXISTS users (
     sub_county      TEXT,
     -- Deactivated users cannot sign in and their sessions stop working
     is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+    -- Set when an activation code that was emailed to this address is used: the address
+    -- is real and theirs (migration 019)
+    email_verified_at TIMESTAMPTZ,
     -- Sessions issued before this time are rejected (set on password change or reset)
     password_changed_at TIMESTAMPTZ,
     -- When an administrator last reset the password; records captured before it are
@@ -389,6 +392,8 @@ CREATE TABLE IF NOT EXISTS activation_codes (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     expires_at      TIMESTAMPTZ NOT NULL,
     used_at         TIMESTAMPTZ,
+    -- sent to the user's email address rather than handed over (migration 019)
+    emailed         BOOLEAN NOT NULL DEFAULT false,
     CONSTRAINT activation_codes_user_fk
         FOREIGN KEY (user_id) REFERENCES users (id)
         ON UPDATE CASCADE
@@ -1003,5 +1008,6 @@ INSERT INTO schema_migrations (name) VALUES
     ('015_review_model.sql'),
     ('016_practice_terms.sql'),
     ('017_scheduled_review_runs.sql'),
-    ('018_delivery_witness.sql')
+    ('018_delivery_witness.sql'),
+    ('019_email_delivery.sql')
 ON CONFLICT (name) DO NOTHING;

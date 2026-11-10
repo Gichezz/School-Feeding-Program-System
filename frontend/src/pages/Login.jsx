@@ -11,6 +11,7 @@ import { useSession } from '../hooks/useSession';
 import { passkeyErrorMessage, passkeysSupported, signInWithPasskey } from '../features/passkeys/passkeyClient';
 import { getDeviceIdentity } from '../features/devices/deviceIdentity';
 import { signInWithPin } from '../features/devices/deviceClient';
+import { useDeviceApproval } from '../features/devices/useDeviceApproval';
 import { signInOffline } from '../features/devices/offlineSignIn';
 import { isCompleteCode, normaliseCode } from '../features/totp/totpFormat';
 
@@ -48,6 +49,21 @@ function Login() {
       setMode(found ? 'device' : 'password');
     });
   }, []);
+
+  // A device waiting for approval finds out by itself, so the teacher can sign in as soon
+  // as it is approved; one that was removed goes back to being set up
+  const approval = useDeviceApproval(identity || null);
+  const [justApproved, setJustApproved] = useState(false);
+  useEffect(() => {
+    if (!identity || approval === identity.status) return;
+    if (approval === 'approved') {
+      setIdentity((current) => (current ? { ...current, status: 'approved' } : current));
+      setJustApproved(true);
+    } else if (approval === 'revoked') {
+      setIdentity(null);
+      setMode('password');
+    }
+  }, [approval, identity]);
 
   function finish(session, destination = '/') {
     saveSession(session);
@@ -218,8 +234,11 @@ function Login() {
             )}
             {identity.status !== 'approved' && !error && (
               <Alert tone="info" title="Waiting for approval">
-                You can sign in once this device is approved.
+                You can sign in once this device is approved. This page will tell you.
               </Alert>
+            )}
+            {justApproved && !error && (
+              <Alert tone="success" title="This device is approved">You can sign in now.</Alert>
             )}
             {error && <Alert tone="danger" title="Could not sign in">{error}</Alert>}
             {emailField}

@@ -365,6 +365,11 @@ export async function getDeviceChallenge() {
   return apiRequest('/devices/challenge', { method: 'POST' });
 }
 
+/** Whether this device has been approved yet: { status } */
+export async function getDeviceApprovalStatus(deviceId) {
+  return apiRequest('/devices/status', { method: 'POST', body: JSON.stringify({ deviceId }) });
+}
+
 export async function enrolDevice(data) {
   return apiRequest('/devices/enrol', {
     method: 'POST',

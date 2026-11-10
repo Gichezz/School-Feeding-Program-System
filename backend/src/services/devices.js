@@ -75,32 +75,33 @@ function normaliseCode(code) {
  * Issue a new activation code for a staff member; any earlier unused code stops working.
  * Returns { code, expiresAt }; only a hash is stored.
  */
-async function issueActivationCode(userId, createdBy) {
+async function issueActivationCode(userId, createdBy, { emailed = false } = {}) {
   const code = generateActivationCode();
   await pool.query('DELETE FROM activation_codes WHERE user_id = $1 AND used_at IS NULL', [userId]);
   const result = await pool.query(
-    `INSERT INTO activation_codes (user_id, code_hash, created_by, expires_at)
-     VALUES ($1, $2, $3, NOW() + make_interval(hours => $4))
+    `INSERT INTO activation_codes (user_id, code_hash, created_by, expires_at, emailed)
+     VALUES ($1, $2, $3, NOW() + make_interval(hours => $4), $5)
      RETURNING expires_at`,
-    [userId, await bcrypt.hash(normaliseCode(code), 10), createdBy, ACTIVATION_TTL_HOURS]
+    [userId, await bcrypt.hash(normaliseCode(code), 10), createdBy, ACTIVATION_TTL_HOURS, emailed]
   );
   return { code, expiresAt: result.rows[0].expires_at };
 }
 
 /**
- * Spend the user's unexpired activation code if it matches. Returns true once.
+ * Spend the user's unexpired activation code if it matches. Returns { emailed } once
+ * (whether the code had been sent to their email address), otherwise false.
  */
 async function useActivationCode(userId, code, client = pool) {
   const normalised = normaliseCode(code);
   if (normalised.length !== 12) return false;
   const result = await client.query(
-    'SELECT id, code_hash FROM activation_codes WHERE user_id = $1 AND used_at IS NULL AND expires_at > NOW()',
+    'SELECT id, code_hash, emailed FROM activation_codes WHERE user_id = $1 AND used_at IS NULL AND expires_at > NOW()',
     [userId]
   );
   for (const row of result.rows) {
     if (await bcrypt.compare(normalised, row.code_hash)) {
       const spent = await client.query('UPDATE activation_codes SET used_at = NOW() WHERE id = $1 AND used_at IS NULL RETURNING id', [row.id]);
-      return spent.rows.length === 1;
+      return spent.rows.length === 1 ? { emailed: row.emailed } : false;
     }
   }
   return false;

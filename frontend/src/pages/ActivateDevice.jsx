@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, Clock, LogIn, Tablet } from 'lucide-react';
 import { Alert, APP_NAME, Button, Card, FormField } from '../components/ui';
@@ -7,6 +7,7 @@ import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { deviceSetupErrors, MIN_PASSWORD_LENGTH } from '../features/users/accountRules';
 import { getDeviceIdentity } from '../features/devices/deviceIdentity';
 import { setUpDevice } from '../features/devices/deviceClient';
+import { useDeviceApproval } from '../features/devices/useDeviceApproval';
 
 const EMPTY = {
   email: '',
@@ -34,6 +35,9 @@ function ActivateDevice() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
+  // After set-up, the screen changes by itself once the device is approved
+  const waiting = useMemo(() => (result ? { status: result.device.status } : null), [result]);
+  const approval = useDeviceApproval(waiting);
   const resultRef = useRef(null);
 
   useEffect(() => {
@@ -83,7 +87,7 @@ function ActivateDevice() {
   if (identity === undefined) return null;
 
   if (result) {
-    const approved = result.device.status === 'approved';
+    const approved = approval === 'approved';
     return (
       <div className="login">
         <div className="login__brand"><LisheLogo withTagline className="login__logo" /></div>
@@ -100,7 +104,7 @@ function ActivateDevice() {
             <p className="login__intro">
               {approved
                 ? `${result.user.name}, you can now sign in on ${result.device.name} with your email and PIN.`
-                : `${result.device.name} is set up. You can sign in with your email and PIN once it is approved.`}
+                : `${result.device.name} is set up. You can sign in with your email and PIN once it is approved. This page will tell you.`}
             </p>
             <Button as={Link} to="/login" icon={LogIn} fullWidth>Go to sign in</Button>
           </div>

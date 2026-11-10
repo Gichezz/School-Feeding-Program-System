@@ -15,7 +15,7 @@ const PASSWORD_HINT = `At least ${MIN_PASSWORD_LENGTH} characters. Share it with
  * A one-time activation code for a staff member, shown once (#60). They use it on the
  * school device, with their email, to choose their password and PIN.
  */
-function ActivationCode({ name, code, expiresAt, onDone }) {
+function ActivationCode({ name, email, code, expiresAt, emailed, emailFailed, onDone }) {
   const toast = useToast();
   const headingRef = useRef(null);
   useEffect(() => headingRef.current?.focus(), []);
@@ -29,9 +29,25 @@ function ActivationCode({ name, code, expiresAt, onDone }) {
     }
   };
 
+  if (emailed) {
+    return (
+      <div className="users__code">
+        <h3 ref={headingRef} tabIndex={-1} className="users__panel-title">Activation code sent to {name}</h3>
+        <p>
+          It has been emailed to <strong>{email}</strong>. It works once, until {formatDateTime(expiresAt)}. If it does not
+          arrive, check the address and issue a new one from Manage.
+        </p>
+        <div className="users__actions">
+          <Button onClick={onDone}>Done</Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="users__code">
       <h3 ref={headingRef} tabIndex={-1} className="users__panel-title">Activation code for {name}</h3>
+      {emailFailed && <Alert tone="warning" title="The email could not be sent">Give them this code in person instead.</Alert>}
       <p className="users__code-value tabular-nums">{code}</p>
       <p>
         Give this code to {name} privately. On the school device they choose <strong>Set up this school device</strong>,
@@ -95,8 +111,11 @@ function AddUserForm({ schools, onDone, onCancel, onCode }) {
         ...(values.role === 'programme_officer' && { subCounty: values.subCounty }),
       });
       toast.show({ tone: 'success', title: `${result.user.name} added` });
-      if (result.activationCode) {
-        onCode({ name: result.user.name, code: result.activationCode, expiresAt: result.activationExpiresAt });
+      if (result.activationCode || result.activationEmailed) {
+        onCode({
+          name: result.user.name, email: result.user.email, code: result.activationCode, expiresAt: result.activationExpiresAt,
+          emailed: Boolean(result.activationEmailed), emailFailed: Boolean(result.emailFailed),
+        });
       } else {
         onDone();
       }
@@ -201,8 +220,11 @@ function EditUserPanel({ user, isSelf, schools, onDone, onCancel, onCode }) {
     setBusy('code');
     setServerError(null);
     try {
-      const { activationCode, expiresAt } = await newActivationCode(user.id);
-      onCode({ name: user.name, code: activationCode, expiresAt });
+      const issued = await newActivationCode(user.id);
+      onCode({
+        name: user.name, email: user.email, code: issued.activationCode, expiresAt: issued.expiresAt,
+        emailed: Boolean(issued.activationEmailed), emailFailed: Boolean(issued.emailFailed),
+      });
     } catch (err) {
       setServerError(err.message);
     } finally {
@@ -407,7 +429,7 @@ function UsersSection() {
         </span>
       ),
     },
-    { key: 'email', header: 'Email' },
+    { key: 'email', header: 'Email', render: (u) => (<>{u.email}{u.emailVerified && <> <Badge tone="success">Verified</Badge></>}</>) },
     { key: 'school', header: 'School or area', render: (u) => u.schoolName || u.subCounty || (u.role === 'admin' ? 'All schools' : '–') },
     { key: 'role', header: 'Role', render: (u) => ROLE_LABEL[u.role] || u.role },
     {
