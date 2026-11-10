@@ -3,7 +3,7 @@
  * or null when the value is valid.
  */
 
-const ROLES = ['admin', 'school_staff'];
+const ROLES = ['admin', 'programme_officer', 'school_staff'];
 const MIN_PASSWORD_LENGTH = 10;
 // bcrypt only uses the first 72 bytes of a password
 const MAX_PASSWORD_BYTES = 72;

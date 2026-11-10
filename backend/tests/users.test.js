@@ -66,7 +66,7 @@ describe('GET /api/users', () => {
     expect(res.body.users.find((u) => u.email === 'admin@demo-school.local')).toEqual({
       id: expect.any(String), name: expect.any(String), email: expect.any(String), role: expect.any(String),
       isActive: true, createdAt: expect.any(String), updatedAt: expect.any(String), passkeyCount: 0, totpEnabled: false,
-      schoolId: null, schoolName: null,
+      schoolId: null, subCounty: null, schoolName: null,
     });
     expect(JSON.stringify(res.body)).not.toMatch(/password|\$2[aby]\$/i);
   });

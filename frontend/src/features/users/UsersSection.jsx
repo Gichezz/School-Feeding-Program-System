@@ -8,7 +8,7 @@ import { formatDate, formatDateTime } from '../../utils/format';
 import { MIN_PASSWORD_LENGTH, newUserErrors, passwordError, ROLE_OPTIONS } from './accountRules';
 
 const ROLE_LABEL = Object.fromEntries(ROLE_OPTIONS.map((r) => [r.value, r.label]));
-const EMPTY_USER = { name: '', email: '', role: 'school_staff', password: '', schoolId: '' };
+const EMPTY_USER = { name: '', email: '', role: 'school_staff', password: '', schoolId: '', subCounty: '' };
 const PASSWORD_HINT = `At least ${MIN_PASSWORD_LENGTH} characters. Share it with them privately; they can change it in Settings.`;
 
 /**
@@ -51,6 +51,13 @@ const schoolOptions = (schools) => [
   ...schools.map((school) => ({ value: school.id, label: school.name })),
 ];
 
+// The sub-counties the programme has schools in
+const subCountyOptions = (schools) => [
+  { value: '', label: 'Choose a sub-county', disabled: true },
+  ...[...new Set(schools.map((school) => school.sub_county || school.subCounty).filter(Boolean))].sort()
+    .map((name) => ({ value: name, label: name })),
+];
+
 /**
  * Add a user. Administrators get an initial password; school staff get a school and a
  * one-time activation code instead (they set their own password and PIN on the device).
@@ -85,6 +92,7 @@ function AddUserForm({ schools, onDone, onCancel, onCode }) {
         email: values.email.trim(),
         role: values.role,
         ...(isStaff ? { schoolId: values.schoolId } : { password: values.password }),
+        ...(values.role === 'programme_officer' && { subCounty: values.subCounty }),
       });
       toast.show({ tone: 'success', title: `${result.user.name} added` });
       if (result.activationCode) {
@@ -110,7 +118,12 @@ function AddUserForm({ schools, onDone, onCancel, onCode }) {
         {values.role === 'school_staff' ? (
           <FormField label="School" as="select" options={schoolOptions(schools)} hint="They can only record for this school" required {...field('schoolId')} />
         ) : (
-          <FormField label="Initial password" type="password" autoComplete="new-password" hint={PASSWORD_HINT} required {...field('password')} />
+          <>
+            {values.role === 'programme_officer' && (
+              <FormField label="Sub-county" as="select" options={subCountyOptions(schools)} hint="They oversee this sub-county's schools" required {...field('subCounty')} />
+            )}
+            <FormField label="Initial password" type="password" autoComplete="new-password" hint={PASSWORD_HINT} required {...field('password')} />
+          </>
         )}
       </div>
       <div className="users__actions">
@@ -129,6 +142,7 @@ function EditUserPanel({ user, isSelf, schools, onDone, onCancel, onCode }) {
   const [name, setName] = useState(user.name);
   const [role, setRole] = useState(user.role);
   const [schoolId, setSchoolId] = useState(user.schoolId || '');
+  const [subCounty, setSubCounty] = useState(user.subCounty || '');
   const [newPassword, setNewPassword] = useState('');
   const [busy, setBusy] = useState(null); // 'save' | 'password' | 'status' | 'passkeys'
   const [confirmStatus, setConfirmStatus] = useState(false);
@@ -162,6 +176,8 @@ function EditUserPanel({ user, isSelf, schools, onDone, onCancel, onCode }) {
     if (role !== user.role) changes.role = role;
     if (role === 'school_staff' && !schoolId) return setErrors({ schoolId: 'Choose their school' });
     if (role === 'school_staff' && schoolId !== (user.schoolId || '')) changes.schoolId = schoolId;
+    if (role === 'programme_officer' && !subCounty) return setErrors({ subCounty: 'Choose their sub-county' });
+    if (role === 'programme_officer' && subCounty !== (user.subCounty || '')) changes.subCounty = subCounty;
     if (Object.keys(changes).length === 0) return onCancel();
     return run('save', () => updateUser(user.id, changes), { title: 'Changes saved', description: changes.role ? `${name.trim()} is now ${ROLE_LABEL[role].toLowerCase()}.` : undefined });
   };
@@ -215,7 +231,7 @@ function EditUserPanel({ user, isSelf, schools, onDone, onCancel, onCode }) {
             value={role}
             onChange={(e) => setRole(e.target.value)}
             disabled={isSelf}
-            hint={isSelf ? 'You cannot change your own role. Ask another administrator.' : undefined}
+            hint={isSelf ? 'You cannot change your own role. Ask another system administrator.' : undefined}
           />
           {role === 'school_staff' && (
             <FormField
@@ -226,6 +242,18 @@ function EditUserPanel({ user, isSelf, schools, onDone, onCancel, onCode }) {
               onChange={(e) => setSchoolId(e.target.value)}
               error={errors.schoolId}
               hint="They can only record for this school"
+              required
+            />
+          )}
+          {role === 'programme_officer' && (
+            <FormField
+              label="Sub-county"
+              as="select"
+              options={subCountyOptions(schools)}
+              value={subCounty}
+              onChange={(e) => setSubCounty(e.target.value)}
+              error={errors.subCounty}
+              hint="They oversee this sub-county's schools"
               required
             />
           )}
@@ -380,7 +408,7 @@ function UsersSection() {
       ),
     },
     { key: 'email', header: 'Email' },
-    { key: 'school', header: 'School', render: (u) => u.schoolName || (u.role === 'admin' ? 'All schools' : '–') },
+    { key: 'school', header: 'School or area', render: (u) => u.schoolName || u.subCounty || (u.role === 'admin' ? 'All schools' : '–') },
     { key: 'role', header: 'Role', render: (u) => ROLE_LABEL[u.role] || u.role },
     {
       key: 'passkey',

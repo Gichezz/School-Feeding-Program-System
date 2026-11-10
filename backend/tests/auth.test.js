@@ -139,16 +139,26 @@ describe('roles', () => {
     expect(conflict.rows[0].status).toBe('unresolved');
   });
 
-  it('lets an admin resolve conflicts and records who did it', async () => {
+  it('does not let a system administrator resolve conflicts', async () => {
     const conflictId = await createConflict();
 
     const res = await api(app, 'admin').post(`/api/sync/conflicts/${conflictId}/resolve`).send({ resolution: 'keep_local' });
 
+    expect(res.status).toBe(403);
+    const conflict = await pool.query('SELECT status FROM conflicts WHERE conflict_id = $1', [conflictId]);
+    expect(conflict.rows[0].status).toBe('unresolved');
+  });
+
+  it('lets the programme officer resolve conflicts and records who did it', async () => {
+    const conflictId = await createConflict();
+
+    const res = await api(app, 'officer').post(`/api/sync/conflicts/${conflictId}/resolve`).send({ resolution: 'keep_local' });
+
     expect(res.status).toBe(200);
     const conflict = await pool.query('SELECT resolved_by FROM conflicts WHERE conflict_id = $1', [conflictId]);
-    expect(conflict.rows[0].resolved_by).toBe(USERS.admin.id);
+    expect(conflict.rows[0].resolved_by).toBe(USERS.officer.id);
     const record = await pool.query("SELECT updated_by FROM attendance_records WHERE attendance_date = '2026-10-06'");
-    expect(record.rows[0].updated_by).toBe(USERS.admin.id);
+    expect(record.rows[0].updated_by).toBe(USERS.officer.id);
   });
 });
 

@@ -4,7 +4,7 @@ import { ChevronDown, LogOut } from 'lucide-react';
 import { useSession } from '../../hooks/useSession';
 import { clearSession } from '../../services/session';
 
-export const ROLE_LABELS = { admin: 'Administrator', school_staff: 'School staff' };
+export const ROLE_LABELS = { admin: 'System administrator', programme_officer: 'Programme officer', school_staff: 'Feeding teacher' };
 
 export function initialsOf(name = '') {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0].toUpperCase()).join('') || '?';

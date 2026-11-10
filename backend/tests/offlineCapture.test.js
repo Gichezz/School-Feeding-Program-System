@@ -3,6 +3,7 @@ const { api, USERS } = require('./helpers/auth');
 const { pool, SCHOOL_ID, TEST_DEVICE_ID, resetDatabase, attendancePayload, syncOperation } = require('./helpers/fixtures');
 
 const asAdmin = api(app, 'admin');
+const asOfficer = api(app, 'officer');
 const asStaff = api(app, 'staff');
 const COLLEAGUE_ID = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
 
@@ -149,13 +150,13 @@ describe('reviewing held records', () => {
   });
 
   it('applies one, keeping the person who captured it as the author', async () => {
-    const res = await asAdmin.post(`/api/sync/held/${await heldId()}/apply`);
+    const res = await asOfficer.post(`/api/sync/held/${await heldId()}/apply`);
 
     expect(res.status).toBe(200);
     const record = await pool.query("SELECT updated_by FROM attendance_records WHERE attendance_date = '2026-10-06'");
     expect(record.rows[0].updated_by).toBe(COLLEAGUE_ID);
     const held = await pool.query('SELECT status, reviewed_by FROM held_operations');
-    expect(held.rows[0]).toEqual({ status: 'applied', reviewed_by: USERS.admin.id });
+    expect(held.rows[0]).toEqual({ status: 'applied', reviewed_by: USERS.officer.id });
     expect((await asAdmin.get('/api/sync/held')).body.held).toEqual([]);
   });
 
@@ -167,7 +168,7 @@ describe('reviewing held records', () => {
     await sync([staleEdit]);
     const stale = (await asAdmin.get('/api/sync/held')).body.held.find((h) => h.payload.attendanceDate === '08-10-2026');
 
-    const res = await asAdmin.post(`/api/sync/held/${stale.id}/apply`);
+    const res = await asOfficer.post(`/api/sync/held/${stale.id}/apply`);
 
     expect(res.status).toBe(409);
     expect((await pool.query("SELECT status FROM held_operations WHERE operation_id = 'op-stale'")).rows[0].status).toBe('pending');
@@ -176,10 +177,10 @@ describe('reviewing held records', () => {
   it('discards one', async () => {
     const id = await heldId();
 
-    const res = await asAdmin.post(`/api/sync/held/${id}/discard`);
+    const res = await asOfficer.post(`/api/sync/held/${id}/discard`);
 
     expect(res.status).toBe(204);
     expect(await attendanceCount()).toBe(0);
-    expect((await asAdmin.post(`/api/sync/held/${id}/discard`)).status).toBe(404);
+    expect((await asOfficer.post(`/api/sync/held/${id}/discard`)).status).toBe(404);
   });
 });

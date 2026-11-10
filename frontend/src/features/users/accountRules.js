@@ -7,9 +7,11 @@ export const MIN_PASSWORD_LENGTH = 10;
 const MAX_PASSWORD_BYTES = 72;
 const EMAIL_FORMAT = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
 
+// The role names people see; the values are the roles the API stores
 export const ROLE_OPTIONS = [
-  { value: 'school_staff', label: 'School staff' },
-  { value: 'admin', label: 'Administrator' },
+  { value: 'school_staff', label: 'Feeding teacher' },
+  { value: 'programme_officer', label: 'Programme officer' },
+  { value: 'admin', label: 'System administrator' },
 ];
 
 export function passwordError(password) {
@@ -42,7 +44,7 @@ export function deviceSetupErrors(values) {
   if (!values.email?.trim()) errors.email = 'Enter your email address';
   else if (!EMAIL_FORMAT.test(values.email.trim())) errors.email = 'Enter a valid email address, like name@school.org';
   if (values.method === 'code') {
-    if (!values.activationCode?.trim()) errors.activationCode = 'Enter the activation code from your administrator';
+    if (!values.activationCode?.trim()) errors.activationCode = 'Enter the activation code you were given';
     const weak = passwordError(values.newPassword);
     if (weak) errors.newPassword = weak;
     else if (values.confirmPassword !== values.newPassword) errors.confirmPassword = 'The passwords do not match';
@@ -59,7 +61,7 @@ export function deviceSetupErrors(values) {
 /**
  * Errors for the new user form, keyed by field.
  */
-export function newUserErrors({ name, email, password, role = 'admin', schoolId }) {
+export function newUserErrors({ name, email, password, role = 'admin', schoolId, subCounty }) {
   const errors = {};
   if (!name?.trim()) errors.name = 'Enter their name';
   else if (name.trim().length > 100) errors.name = 'Use 100 characters or fewer';
@@ -68,6 +70,7 @@ export function newUserErrors({ name, email, password, role = 'admin', schoolId 
   if (role === 'school_staff') {
     if (!schoolId) errors.schoolId = 'Choose their school';
   } else {
+    if (role === 'programme_officer' && !subCounty) errors.subCounty = 'Choose their sub-county';
     const weak = passwordError(password);
     if (weak) errors.password = weak;
   }

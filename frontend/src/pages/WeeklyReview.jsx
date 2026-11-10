@@ -200,7 +200,7 @@ function WeeklyReview() {
     return (
       <>
         <PageHeader title="Weekly review" />
-        <Alert tone="neutral" title="For programme officers">Weekly review lists are for sub-county programme officers and administrators.</Alert>
+        <Alert tone="neutral" title="For programme officers">Weekly review lists are for programme officers and system administrators.</Alert>
       </>
     );
   }
@@ -281,7 +281,7 @@ function WeeklyReview() {
         )}
 
         {listed.map((item) => (
-          <ListedSchool key={item.schoolId} item={item} week={week} canDecide={isOnline} onSaved={load} />
+          <ListedSchool key={item.schoolId} item={item} week={week} canDecide={isOnline && isOfficer} onSaved={load} />
         ))}
 
         {list?.ruleBreaches?.length > 0 && (

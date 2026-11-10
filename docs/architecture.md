@@ -18,11 +18,17 @@ Pipeline: **offline capture → sync → descriptive analytics → anomaly scori
 
 ## Roles
 
-| Role | Works on | Can |
-|---|---|---|
-| `school_staff` | A school device, signed in with the device and a PIN | Record and sync for their own school, offline included |
-| `programme_officer` | A laptop, online | See every school in their sub-county: analytics, the weekly review list (and mark each listed school explained or follow-up), resolve conflicts and held records, and check flagged records |
-| `admin` | A laptop, online | Everything, for every sub-county; users and devices |
+Three roles, each with its own job: one records, one checks and decides, one runs the system. Every check is made by someone other than the person whose work is checked.
+
+| Role (shown as) | Who it is | Works on | Can | Cannot |
+|---|---|---|---|---|
+| `school_staff` (**Feeding teacher**) | The teacher in charge of school feeding; a head teacher who records uses the same role | A school device, signed in with the device and a PIN | Record and sync for their own school, offline included: daily feeding, deliveries (with who witnessed them), losses, store counts, termly enrolment | See other schools; verify their own enrolment; decide conflicts |
+| `programme_officer` (**Programme officer**) | Sub-county education office staff responsible for school meals | A laptop, online | For every school in their sub-county: verify termly enrolment, read analytics, mark weekly review listings explained or follow-up, check flagged records, resolve conflicts and held records | Record school data; manage accounts or devices |
+| `admin` (**System administrator**) | County or ministry staff who run the system | A laptop, online | Create and deactivate accounts (feeding teachers with their school, programme officers with their sub-county), approve and remove devices, reset passwords and passkeys; **read** every sub-county's analytics, lists, flags, conflicts and enrolment | Make any programme decision: these are the programme officer's |
+
+Class teachers keep attendance in the class registers; the feeding teacher copies the day's total if counted. Cooks and the school meals committee do not sign in: the committee member who witnesses a delivery is recorded by name with it (migration 018).
+
+**Enrolment verification.** A school's termly enrolment sets the food it can request, so the programme officer checks it against the admission register and verifies it (**Enrolment checks**, `GET /api/enrolment`, `POST /api/enrolment/:schoolId/:termId/verify`). Verifying records who and when, as a new version in each class's history, so the school's devices download it. A later change on the device clears the verification of the classes it changes, so only numbers as they were checked count as verified.
 
 ## Data
 

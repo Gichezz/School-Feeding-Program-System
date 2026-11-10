@@ -101,7 +101,9 @@ describe('migrations at start-up', () => {
     expect(waiting).toMatchObject({ applied: [], waitingForBaseline: true });
     expect(await hasTable('schema_migrations')).toBe(false);
 
-    const adopted = await migrate({ db, dir, baseline: '17', log: quiet });
+    // The newest real script, so the test holds as scripts are added
+    const newest = migrationFiles(REAL_DIR).at(-1).slice(0, 3);
+    const adopted = await migrate({ db, dir, baseline: newest, log: quiet });
     expect(adopted.applied).toEqual(['999_probe.sql']);
     expect(await recorded()).toEqual([...migrationFiles(REAL_DIR), '999_probe.sql'].sort());
   });

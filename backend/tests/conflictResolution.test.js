@@ -139,7 +139,9 @@ describe('who sees and resolves which conflicts', () => {
     const res = await resolve(elsewhere, { resolution: 'keep_local' });
 
     expect(res.status).toBe(404);
-    expect((await asAdmin.post(`/api/sync/conflicts/${elsewhere}/resolve`).send({ resolution: 'keep_local' })).status).toBe(200);
+    // System administrators can read every conflict but decide none
+    expect((await asAdmin.post(`/api/sync/conflicts/${elsewhere}/resolve`).send({ resolution: 'keep_local' })).status).toBe(403);
+    expect((await asAdmin.get(`/api/sync/conflicts/${elsewhere}`)).status).toBe(200);
   });
 
   it('does not let school staff resolve conflicts', async () => {

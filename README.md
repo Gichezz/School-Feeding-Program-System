@@ -26,23 +26,25 @@ offline capture  →  sync  →  analytics  →  anomaly scoring  →  officer r
 
 ## Features
 
-### For school staff (on the school's device)
+### Feeding teachers (on the school's device)
 
 - **Daily feeding record:** learners fed (and, optionally, present), cereals and pulses issued, or the reason there was no feeding. Each entry is checked as it is typed, against enrolment, the ration and what the store holds.
-- **Food store:** deliveries against their delivery notes, purchases, losses and store counts. The device shows the stock balance and how many school days of food are left.
+- **Food store:** deliveries against their delivery notes (with who witnessed them), purchases, losses and store counts. The device shows the stock balance and how many school days of food are left.
 - **Enrolment and the term plan:** enrolment by class and sex each term, carried forward from the last term for checking. The term's food requirement and an end-of-term report follow the Ministry of Education calendar.
-- **Works offline:** everything is saved on the device first and syncs on its own when a connection returns. Staff can sign in offline with their PIN for 7 days after signing in online.
+- **Works offline:** everything is saved on the device first and syncs on its own when a connection returns. Feeding teachers can sign in offline with their PIN for 7 days after signing in online.
 
-### For programme officers
+### Programme officers (for their sub-county)
 
+- **Enrolment checks:** each school's termly enrolment, checked against the admission register and verified, since it sets the food the school can request.
 - **Analytics:** each school's term so far, covering days recorded, learners fed against enrolment, food against the ration, days of food left, deliveries and how up to date its records are.
 - **Weekly review list:** each finished week, the sub-county's schools are ranked by how unusual their records look (Extended Isolation Forest). The top schools come with plain-language reasons, worded "needs review", never "fraud". The officer marks each one explained or for follow-up.
 - **Record review:** unusual records (late, outside school hours, above enrolment, far from the ration, a short delivery) are flagged for checking, never blocked.
 - **Conflicts and held records:** when two devices record different numbers for the same day, the officer decides which to keep. A delivery note entered twice is held, not counted twice.
 
-### For administrators
+### System administrators
 
-- Users and roles, school devices (each needs approval), passkey or authenticator-app sign-in, and recovery codes.
+- Accounts (feeding teachers with their school, programme officers with their sub-county), school devices (each needs approval), passkey or authenticator-app sign-in, and recovery codes.
+- Read-only access to every sub-county's analytics, review lists, flags, conflicts and enrolment. Programme decisions stay with the programme officer.
 
 ### Automatic
 

@@ -31,17 +31,17 @@ router.get('/conflicts/:conflictId', getConflictById);
 
 /**
  * POST /api/sync/conflicts/:conflictId/resolve
- * Resolve a conflict by choosing local or server version (administrators, and programme
- * officers for schools in their sub-county)
+ * Resolve a conflict by choosing local or server version (programme officers, for schools
+ * in their sub-county; system administrators can only read conflicts)
  */
-router.post('/conflicts/:conflictId/resolve', requireRole('admin', 'programme_officer'), resolveConflict);
+router.post('/conflicts/:conflictId/resolve', requireRole('programme_officer'), resolveConflict);
 
 /**
- * Held records (#61): records a person must apply or discard (administrators, and
- * programme officers for schools in their sub-county)
+ * Held records (#61): records a programme officer applies or discards, for schools in
+ * their sub-county; system administrators can only read them
  */
 router.get('/held', requireRole('admin', 'programme_officer'), listHeld);
-router.post('/held/:id/apply', requireRole('admin', 'programme_officer'), applyHeld);
-router.post('/held/:id/discard', requireRole('admin', 'programme_officer'), discardHeld);
+router.post('/held/:id/apply', requireRole('programme_officer'), applyHeld);
+router.post('/held/:id/discard', requireRole('programme_officer'), discardHeld);
 
 module.exports = router;

@@ -134,7 +134,7 @@ describe('decisions on held records in downloads', () => {
     const heldId = await heldDuplicate();
     const before = (await asStaff.get(`/api/sync/changes?schoolId=${SCHOOL_ID}`)).body;
 
-    await asAdmin.post(`/api/sync/held/${heldId}/discard`);
+    await asOfficer.post(`/api/sync/held/${heldId}/discard`);
     const after = (await asStaff.get(`/api/sync/changes?schoolId=${SCHOOL_ID}&since=${before.cursor}`)).body;
     const later = (await asStaff.get(`/api/sync/changes?schoolId=${SCHOOL_ID}&since=${after.cursor}`)).body;
 
@@ -148,7 +148,7 @@ describe('decisions on held records in downloads', () => {
     const heldId = await heldDuplicate();
     const before = (await asStaff.get(`/api/sync/changes?schoolId=${SCHOOL_ID}`)).body;
 
-    await asAdmin.post(`/api/sync/held/${heldId}/apply`);
+    await asOfficer.post(`/api/sync/held/${heldId}/apply`);
     const after = (await asStaff.get(`/api/sync/changes?schoolId=${SCHOOL_ID}&since=${before.cursor}`)).body;
 
     expect(after.heldDecisions).toEqual([expect.objectContaining({ operationId: 'op-2', decision: 'applied', id: SECOND })]);

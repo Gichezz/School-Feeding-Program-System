@@ -73,7 +73,7 @@ function MovementForm({ data }) {
   const isOnline = useOnlineStatus();
   const toast = useToast();
   const defaultKind = data.school?.programmeType === 'cash_transfer' ? 'purchase' : 'delivery';
-  const empty = { date: todayDate(), kind: defaultKind, commodity: 'cereals', quantityKg: '', noteQuantityKg: '', reference: '', supplier: '', note: '', lateReason: '' };
+  const empty = { date: todayDate(), kind: defaultKind, commodity: 'cereals', quantityKg: '', noteQuantityKg: '', reference: '', supplier: '', witness: '', note: '', lateReason: '' };
   const [form, setForm] = useState(empty);
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -109,6 +109,7 @@ function MovementForm({ data }) {
         quantityKg: toKg(form.quantityKg),
         ...(kind.reference && { reference: form.reference.trim(), noteQuantityKg: toKg(form.noteQuantityKg) }),
         ...(form.supplier.trim() && { supplier: form.supplier.trim() }),
+        ...(kind.reference && form.witness.trim() && { witness: form.witness.trim() }),
         ...(form.note.trim() && { note: form.note.trim() }),
         ...(entry.late && { lateReason: form.lateReason.trim() }),
       });
@@ -143,9 +144,11 @@ function MovementForm({ data }) {
           )}
         </div>
         {kind.reference ? (
-          <div className="ui-grid ui-grid--2">
+          <div className="ui-grid ui-grid--3">
             <FormField id="stock-reference" label={kind.reference} required value={form.reference} onChange={set('reference')} error={shown.reference} maxLength={80} />
             <FormField id="stock-supplier" label="Supplier (optional)" value={form.supplier} onChange={set('supplier')} maxLength={120} />
+            <FormField id="stock-witness" label="Witnessed by (optional)" hint="Who received it with you, e.g. the committee member who signed the note"
+              value={form.witness} onChange={set('witness')} maxLength={120} />
           </div>
         ) : (
           <FormField id="stock-note" label="Why it left the store" required value={form.note} onChange={set('note')} error={shown.note} maxLength={300} />
@@ -237,6 +240,7 @@ function Ledger({ data }) {
     { key: 'commodity', header: 'Food', render: (m) => COMMODITY_LABELS[m.commodity] },
     { key: 'quantityKg', header: 'Kg', align: 'end', render: (m) => `${signed(m) > 0 ? '+' : '−'}${formatNumber(Math.abs(signed(m)))}` },
     { key: 'reference', header: 'Reference', render: (m) => m.reference || m.note || '–' },
+    { key: 'witness', header: 'Witnessed by', render: (m) => m.witness || '–' },
     {
       key: 'actions', header: <span className="visually-hidden">Actions</span>, align: 'end',
       render: (m) => (m.kind === 'reversal' || reversed.has(m.id) ? null : confirming === m.id ? (

@@ -3,6 +3,7 @@ const app = require('../src/app');
 const { api } = require('./helpers/auth');
 
 const asAdmin = api(app);
+const asOfficer = api(app, 'officer');
 const errorHandler = require('../src/middleware/errorHandler');
 const {
   pool,
@@ -132,7 +133,7 @@ describe('conflict ids', () => {
   ])('%s %s returns 400 without database details', async (method, path) => {
     const res = method === 'GET'
       ? await asAdmin.get(path)
-      : await asAdmin.post(path).send({ resolution: 'keep_local' });
+      : await asOfficer.post(path).send({ resolution: 'keep_local' });
 
     expect(res.status).toBe(400);
     expect(res.body).toEqual({ error: 'Invalid conflict ID format' });

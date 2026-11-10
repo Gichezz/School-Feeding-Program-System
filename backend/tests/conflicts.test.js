@@ -2,6 +2,7 @@ const app = require('../src/app');
 const { api, USERS } = require('./helpers/auth');
 
 const asAdmin = api(app);
+const asOfficer = api(app, 'officer');
 const {
   pool,
   MISSING_ID,
@@ -96,7 +97,7 @@ describe('listing conflicts', () => {
 
 describe('resolving conflicts', () => {
   function resolve(conflictId, resolution, values) {
-    return asAdmin.post(`/api/sync/conflicts/${conflictId}/resolve`).send({ resolution, values, clientId: 'device-a' });
+    return asOfficer.post(`/api/sync/conflicts/${conflictId}/resolve`).send({ resolution, values, clientId: 'device-a' });
   }
 
   it('keep_local applies the offline values and bumps the version', async () => {
@@ -109,7 +110,7 @@ describe('resolving conflicts', () => {
     expect(await attendanceRow()).toEqual({ total_present: 80, version: 3 });
 
     const conflict = await pool.query('SELECT status, resolution, resolved_by FROM conflicts WHERE conflict_id = $1', [conflictId]);
-    expect(conflict.rows[0]).toEqual({ status: 'resolved', resolution: 'keep_local', resolved_by: USERS.admin.id });
+    expect(conflict.rows[0]).toEqual({ status: 'resolved', resolution: 'keep_local', resolved_by: USERS.officer.id });
     const op = await pool.query("SELECT status FROM sync_operations WHERE operation_id = 'op-3'");
     expect(op.rows[0].status).toBe('applied');
   });
@@ -146,7 +147,7 @@ describe('resolving conflicts', () => {
     expect(res.body).toMatchObject({ success: true, resolution: 'merge', version: 3 });
     expect(await attendanceRow()).toEqual({ total_present: 84, version: 3 });
     const conflict = await pool.query('SELECT status, resolution, resolved_by FROM conflicts WHERE conflict_id = $1', [conflictId]);
-    expect(conflict.rows[0]).toEqual({ status: 'resolved', resolution: 'merge', resolved_by: USERS.admin.id });
+    expect(conflict.rows[0]).toEqual({ status: 'resolved', resolution: 'merge', resolved_by: USERS.officer.id });
   });
 
   it('merge rejects values that break the record rules and leaves the conflict open', async () => {
@@ -263,11 +264,11 @@ describe('the same day recorded on two devices', () => {
     expect((await pool.query('SELECT count(*)::int AS n FROM conflicts')).rows[0].n).toBe(1);
   });
 
-  it('lets an administrator keep the second device’s numbers', async () => {
+  it('lets the programme officer keep the second device’s numbers', async () => {
     await createOn('device-a', 'op-a', attendancePayload());
     const { conflictId } = (await createOn('device-b', 'op-b', attendancePayload({ totalPresent: 80, totalAbsent: 20 }))).body.results[0];
 
-    const res = await asAdmin.post(`/api/sync/conflicts/${conflictId}/resolve`).send({ resolution: 'keep_local', clientId: 'device-b' });
+    const res = await asOfficer.post(`/api/sync/conflicts/${conflictId}/resolve`).send({ resolution: 'keep_local', clientId: 'device-b' });
 
     expect(res.status).toBe(200);
     expect(await attendanceRow()).toEqual({ total_present: 80, version: 2 });
@@ -277,7 +278,7 @@ describe('the same day recorded on two devices', () => {
     await createOn('device-a', 'op-a', attendancePayload());
     const { conflictId } = (await createOn('device-b', 'op-b', attendancePayload({ totalPresent: 80, totalAbsent: 20 }))).body.results[0];
 
-    await asAdmin.post(`/api/sync/conflicts/${conflictId}/resolve`).send({ resolution: 'keep_server', clientId: 'device-b' });
+    await asOfficer.post(`/api/sync/conflicts/${conflictId}/resolve`).send({ resolution: 'keep_server', clientId: 'device-b' });
 
     expect(await attendanceRow()).toEqual({ total_present: 90, version: 1 });
   });

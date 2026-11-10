@@ -43,7 +43,7 @@ function valuesFor(entityType, row) {
     case 'stock_movement':
       return {
         date: iso(row.movement_date), kind: row.kind, commodity: row.commodity, quantityKg: num(row.quantity_kg),
-        noteQuantityKg: num(row.note_quantity_kg), reference: row.reference,
+        noteQuantityKg: num(row.note_quantity_kg), reference: row.reference, witness: row.witness || null,
       };
     case 'stock_count':
       return { date: iso(row.count_date), commodity: row.commodity, countedKg: num(row.counted_kg) };
