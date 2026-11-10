@@ -4,6 +4,7 @@ const { pool, SCHOOL_ID, TEST_DEVICE_ID, resetDatabase, attendancePayload, mealP
 
 // "Today" in these tests is Thursday 8 October 2026, 09:00 in Nairobi (tests/setupEnv.js)
 const asAdmin = api(app, 'admin');
+const asOfficer = api(app, 'officer');
 const asStaff = api(app, 'staff');
 
 beforeEach(resetDatabase);
@@ -172,35 +173,35 @@ describe('reviewing flags', () => {
   it('marks a flag checked with a note, once', async () => {
     const [flag] = (await asAdmin.get('/api/review/flags')).body.flags;
 
-    const res = await asAdmin.post(`/api/review/flags/${flag.id}/check`).send({ note: 'Matches the paper register' });
+    const res = await asOfficer.post(`/api/review/flags/${flag.id}/check`).send({ note: 'Matches the paper register' });
 
     expect(res.status).toBe(200);
     const after = await asAdmin.get('/api/review/flags');
     expect(after.body).toMatchObject({ flags: [], openCount: 0 });
     const checked = await asAdmin.get('/api/review/flags?status=checked');
-    expect(checked.body.flags[0]).toMatchObject({ status: 'checked', note: 'Matches the paper register', checkedBy: USERS.admin.name });
-    expect((await asAdmin.post(`/api/review/flags/${flag.id}/check`).send({})).status).toBe(404);
+    expect(checked.body.flags[0]).toMatchObject({ status: 'checked', note: 'Matches the paper register', checkedBy: USERS.officer.name });
+    expect((await asOfficer.post(`/api/review/flags/${flag.id}/check`).send({})).status).toBe(404);
   });
 
   it('refuses a note that is too long', async () => {
     const [flag] = (await asAdmin.get('/api/review/flags')).body.flags;
 
-    expect((await asAdmin.post(`/api/review/flags/${flag.id}/check`).send({ note: 'x'.repeat(501) })).status).toBe(400);
+    expect((await asOfficer.post(`/api/review/flags/${flag.id}/check`).send({ note: 'x'.repeat(501) })).status).toBe(400);
   });
 });
 
-describe('administrators’ conflict decisions', () => {
+describe('programme officers’ conflict decisions', () => {
   it('are kept in the record history without being flagged', async () => {
     await syncCaptured('op-1', 'attendance', attendancePayload({ attendanceDate: '07-10-2026' }));
     await asAdmin.post('/api/sync').send({ clientId: 'device-b', operations: [syncOperation('op-2', 'attendance', 'update', attendancePayload({ attendanceDate: '07-10-2026', totalPresent: 88, totalAbsent: 12 }), 1)] });
     const stale = await asStaff.post('/api/sync').send({ clientId: 'device-a', operations: [syncOperation('op-3', 'attendance', 'update', attendancePayload({ attendanceDate: '07-10-2026', totalPresent: 80, totalAbsent: 20 }), 1)] });
     const flagsBefore = (await pool.query('SELECT count(*)::int AS n FROM record_flags')).rows[0].n;
 
-    await asAdmin.post(`/api/sync/conflicts/${stale.body.results[0].conflictId}/resolve`).send({ resolution: 'keep_local', clientId: 'device-a' });
+    await asOfficer.post(`/api/sync/conflicts/${stale.body.results[0].conflictId}/resolve`).send({ resolution: 'keep_local', clientId: 'device-a' });
 
     const record = (await pool.query("SELECT id FROM attendance_records WHERE attendance_date = '2026-10-07'")).rows[0];
     const history = (await asAdmin.get(`/api/review/records/attendance/${record.id}/history`)).body.history;
-    expect(history.at(-1)).toMatchObject({ version: 3, changedBy: USERS.admin.name, values: expect.objectContaining({ present: 80 }) });
+    expect(history.at(-1)).toMatchObject({ version: 3, changedBy: USERS.officer.name, values: expect.objectContaining({ present: 80 }) });
     expect((await pool.query('SELECT count(*)::int AS n FROM record_flags')).rows[0].n).toBe(flagsBefore);
   });
 });

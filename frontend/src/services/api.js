@@ -178,6 +178,19 @@ export async function decideReviewItem(week, schoolId, { status, note }) {
  * Term analytics for a sub-county (officers see their own; administrators name one)
  * params: subCounty, termId (default: the term running today)
  */
+/**
+ * Enrolment checks: each school's termly enrolment and whether a programme officer has
+ * verified it. Administrators name the sub-county; officers see their own.
+ */
+export async function getEnrolmentChecks(params = {}) {
+  const query = new URLSearchParams(params).toString();
+  return apiRequest(`/enrolment${query ? `?${query}` : ''}`);
+}
+
+export async function verifyEnrolment(schoolId, termId) {
+  return apiRequest(`/enrolment/${schoolId}/${termId}/verify`, { method: 'POST' });
+}
+
 export async function getTermAnalytics(params = {}) {
   const query = new URLSearchParams(params).toString();
   return apiRequest(`/analytics/term${query ? `?${query}` : ''}`);

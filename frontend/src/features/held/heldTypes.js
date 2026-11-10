@@ -24,6 +24,7 @@ export function describeHeld(record) {
         { key: 'quantity', label: 'Received', value: kg(p.quantityKg) },
         ...(p.noteQuantityKg ? [{ key: 'note', label: 'On the delivery note', value: kg(p.noteQuantityKg) }] : []),
         ...(p.reference ? [{ key: 'reference', label: 'Delivery note or receipt', value: p.reference }] : []),
+        ...(p.witness ? [{ key: 'witness', label: 'Witnessed by', value: p.witness }] : []),
         ...(p.note ? [{ key: 'why', label: 'Note', value: p.note }] : []),
       ],
     };

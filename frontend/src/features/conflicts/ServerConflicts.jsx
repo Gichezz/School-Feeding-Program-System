@@ -6,6 +6,7 @@ import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { formatDateTime } from '../../utils/format';
 import { compareRows, conflictType, isEditable, mergeStart, mergeValues, showValue } from './conflictTypes';
 import { CONFLICTS_CHANGED_EVENT } from './useServerConflictCount';
+import { useSession } from '../../hooks/useSession';
 
 const CHOICES = [
   { value: 'keep_local', label: "Keep the school device's numbers", description: 'They replace the numbers saved before.' },
@@ -35,6 +36,8 @@ function fromServer(row) {
  * device; the decision reaches its devices with their next download.
  */
 function ServerConflicts() {
+  // System administrators see this but decide nothing; the programme officer decides
+  const { isAdmin } = useSession();
   const isOnline = useOnlineStatus();
   const toast = useToast();
   const [conflicts, setConflicts] = useState(null);
@@ -193,6 +196,7 @@ function ServerConflicts() {
             </div>
           </Card>
 
+          {!isAdmin && (
           <Card title="Which numbers should be kept?">
             <fieldset className="conflicts__choices">
               <legend className="visually-hidden">Numbers to keep</legend>
@@ -236,6 +240,7 @@ function ServerConflicts() {
               <Button icon={ArrowRight} iconPosition="end" onClick={() => setStep('confirm')} disabled={!canContinue}>Continue</Button>
             </div>
           </Card>
+          )}
         </>
       ) : (
         <Card>

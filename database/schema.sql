@@ -800,6 +800,8 @@ CREATE TABLE IF NOT EXISTS stock_movements (
     note_quantity_kg NUMERIC(10, 2),
     reference       TEXT,
     supplier        TEXT,
+    -- who witnessed a delivery, usually the committee member who signed the note (migration 018)
+    witness         TEXT,
     note            TEXT,
     -- set on a reversing entry: the entry it cancels
     reverses_id     UUID,
@@ -1000,5 +1002,6 @@ INSERT INTO schema_migrations (name) VALUES
     ('014_held_decisions.sql'),
     ('015_review_model.sql'),
     ('016_practice_terms.sql'),
-    ('017_scheduled_review_runs.sql')
+    ('017_scheduled_review_runs.sql'),
+    ('018_delivery_witness.sql')
 ON CONFLICT (name) DO NOTHING;

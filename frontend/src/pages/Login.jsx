@@ -242,7 +242,7 @@ function Login() {
               New on this device, or forgot your PIN?
             </Button>
             <Button variant="ghost" icon={Fingerprint} fullWidth onClick={() => switchMode('password')}>
-              Administrator sign-in
+              System administrator sign-in
             </Button>
           </form>
         ) : mode === 'password' ? (
@@ -250,7 +250,7 @@ function Login() {
             <div>
               <h1 className="login__title">Sign in</h1>
               <p className="login__intro">
-                {user ? 'Sign in again to keep syncing. Records saved on this device are kept.' : 'Use the account your programme administrator gave you.'}
+                {user ? 'Sign in again to keep syncing. Records saved on this device are kept.' : 'Use the account you were given.'}
               </p>
             </div>
 
@@ -284,7 +284,7 @@ function Login() {
 
             {canUsePasskeys && (
               <>
-                <p className="login__divider"><span>Administrators</span></p>
+                <p className="login__divider"><span>System administrators</span></p>
                 <Button
                   variant={passkeyRequired ? 'primary' : 'secondary'}
                   icon={Fingerprint}
@@ -301,7 +301,7 @@ function Login() {
               </>
             )}
 
-            <p className="login__divider"><span>School staff</span></p>
+            <p className="login__divider"><span>Feeding teachers</span></p>
             {identity ? (
               <Button variant="secondary" icon={Tablet} fullWidth onClick={() => switchMode('device')}>Sign in with your PIN</Button>
             ) : (

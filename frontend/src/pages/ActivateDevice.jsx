@@ -117,7 +117,7 @@ function ActivateDevice() {
           <div>
             <h1 className="login__title">Set up this school device</h1>
             <p className="login__intro">
-              For school staff, on the school's tablet or phone. You choose a PIN to sign in with here.
+              For feeding teachers, on the school's tablet or phone. You choose a PIN to sign in with here.
             </p>
           </div>
 

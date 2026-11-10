@@ -121,7 +121,7 @@ function feedingError({ schoolId, date, happened, present, fed, cerealsKg, pulse
 /**
  * A stock ledger entry. Returns an error message, or null when valid.
  */
-function movementError({ id, schoolId, date, commodity, kind, quantityKg, noteQuantityKg, reference, note, reversesId }) {
+function movementError({ id, schoolId, date, commodity, kind, quantityKg, noteQuantityKg, reference, note, reversesId, witness }) {
   if (!isUuid(id)) return 'Invalid entry ID format';
   if (!isUuid(schoolId)) return 'Invalid school ID format';
   if (!isDisplayDate(date)) return DATE_ERROR;
@@ -137,6 +137,9 @@ function movementError({ id, schoolId, date, commodity, kind, quantityKg, noteQu
       : 'A purchase needs its receipt or invoice number';
   }
   if ((kind === 'loss' || kind === 'return') && !hasText(note)) return 'Say why the food left the store';
+  if (witness !== undefined && witness !== null && (typeof witness !== 'string' || witness.length > 120)) {
+    return 'The witness name must be at most 120 characters';
+  }
   if ((kind === 'reversal') !== isUuid(reversesId)) return 'A reversal names the entry it cancels, and only a reversal does';
   return null;
 }

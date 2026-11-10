@@ -58,7 +58,7 @@ describe('deviceSetupErrors', () => {
 
   it('asks for the code, matching passwords and PINs, and a device name for a new device', () => {
     expect(deviceSetupErrors({ ...withCode, activationCode: '', confirmPassword: 'other', confirmPin: '111222', deviceName: ' ' })).toEqual({
-      activationCode: 'Enter the activation code from your administrator',
+      activationCode: 'Enter the activation code you were given',
       confirmPassword: 'The passwords do not match',
       confirmPin: 'The PINs do not match',
       deviceName: 'Give this device a name, e.g. Kitchen tablet',
@@ -72,5 +72,14 @@ describe('newUserErrors for school staff', () => {
   it('needs a school instead of a password', () => {
     expect(newUserErrors({ name: 'Peter', email: 'peter@example.org', role: 'school_staff' })).toEqual({ schoolId: 'Choose their school' });
     expect(newUserErrors({ name: 'Peter', email: 'peter@example.org', role: 'school_staff', schoolId: 's1' })).toEqual({});
+  });
+});
+
+describe('newUserErrors for programme officers', () => {
+  it('needs the sub-county they cover as well as a password', () => {
+    expect(newUserErrors({ name: 'Wanjiru', email: 'wanjiru@example.org', role: 'programme_officer', password: 'county-ledger-2026' }))
+      .toEqual({ subCounty: 'Choose their sub-county' });
+    expect(newUserErrors({ name: 'Wanjiru', email: 'wanjiru@example.org', role: 'programme_officer', password: 'county-ledger-2026', subCounty: 'Mfano Sub-County' }))
+      .toEqual({});
   });
 });

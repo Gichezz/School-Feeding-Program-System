@@ -47,7 +47,7 @@ const SHAPES = {
   stockMovements: (r) => ({
     id: r.id, schoolId: r.school_id, movementDate: displayDate(r.movement_date), commodity: r.commodity,
     kind: r.kind, quantityKg: kg(r.quantity_kg), noteQuantityKg: kg(r.note_quantity_kg), reference: r.reference,
-    supplier: r.supplier, note: r.note, reversesId: r.reverses_id, capturedBy: r.captured_by,
+    supplier: r.supplier, witness: r.witness, note: r.note, reversesId: r.reverses_id, capturedBy: r.captured_by,
   }),
   stockCounts: (r) => ({
     id: r.id, schoolId: r.school_id, countDate: displayDate(r.count_date), commodity: r.commodity,

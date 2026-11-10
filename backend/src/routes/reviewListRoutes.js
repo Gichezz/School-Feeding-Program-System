@@ -28,6 +28,7 @@ router.post('/:week/run', runWeek);
  * PUT /api/review-lists/:week/decisions/:schoolId
  * Mark a school's week explained or follow-up, with a note
  */
-router.put('/:week/decisions/:schoolId', decide);
+// The officer's decision; system administrators only read lists
+router.put('/:week/decisions/:schoolId', requireRole('programme_officer'), decide);
 
 module.exports = router;

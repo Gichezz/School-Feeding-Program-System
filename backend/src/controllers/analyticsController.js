@@ -178,4 +178,4 @@ async function getTermAnalytics(req, res, next) {
   }
 }
 
-module.exports = { getTermAnalytics };
+module.exports = { getTermAnalytics, chooseTerm, termLabel };

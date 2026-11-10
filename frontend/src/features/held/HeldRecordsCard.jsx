@@ -6,6 +6,7 @@ import { describeHeld } from './heldTypes';
 import { CONFLICTS_CHANGED_EVENT } from '../conflicts/useServerConflictCount';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { formatDateTime } from '../../utils/format';
+import { useSession } from '../../hooks/useSession';
 
 /**
  * Held records (#61), for programme officers (their sub-county's schools) and
@@ -15,6 +16,8 @@ import { formatDateTime } from '../../utils/format';
  * note already recorded.
  */
 function HeldRecordsCard() {
+  // System administrators see this but decide nothing; the programme officer decides
+  const { isAdmin } = useSession();
   const isOnline = useOnlineStatus();
   const toast = useToast();
   const [held, setHeld] = useState(null);
@@ -106,7 +109,7 @@ function HeldRecordsCard() {
                     >
                       It will not be added. Your decision is saved with your name.
                     </Alert>
-                  ) : (
+                  ) : !isAdmin && (
                     <div className="held__actions">
                       <Button
                         size="sm"

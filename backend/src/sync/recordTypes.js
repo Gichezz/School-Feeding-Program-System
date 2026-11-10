@@ -266,7 +266,7 @@ const stockMovement = {
   dbType: 'stock_movement',
   validate: (p) => movementError({
     id: p.id, schoolId: p.schoolId, date: p.movementDate, commodity: p.commodity, kind: p.kind,
-    quantityKg: p.quantityKg, noteQuantityKg: p.noteQuantityKg, reference: p.reference, note: p.note, reversesId: p.reversesId,
+    quantityKg: p.quantityKg, noteQuantityKg: p.noteQuantityKg, reference: p.reference, note: p.note, reversesId: p.reversesId, witness: p.witness,
   }),
   date: (p) => p.movementDate,
   ...appendOnly({
@@ -280,6 +280,7 @@ const stockMovement = {
       note_quantity_kg: nullable(p.noteQuantityKg),
       reference: nullable(p.reference),
       supplier: nullable(p.supplier),
+      witness: nullable(p.witness),
       note: nullable(p.note),
       reverses_id: nullable(p.reversesId),
     }),

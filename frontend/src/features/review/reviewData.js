@@ -68,6 +68,7 @@ function valueRows(flag) {
       { key: 'quantity', label: 'Received', value: kg(v.quantityKg) },
       ...(v.noteQuantityKg ? [{ key: 'note', label: 'On the delivery note', value: kg(v.noteQuantityKg) }] : []),
       ...(v.reference ? [{ key: 'reference', label: 'Delivery note or receipt', value: v.reference }] : []),
+      ...(v.witness ? [{ key: 'witness', label: 'Witnessed by', value: v.witness }] : []),
     ];
   }
   if (flag.entityType === 'stock_count') return [{ key: 'counted', label: 'Counted', value: kg(v.countedKg) }];

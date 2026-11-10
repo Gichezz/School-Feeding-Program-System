@@ -167,7 +167,7 @@ function PasskeysCard() {
             compact
             icon={KeyRound}
             title="No passkey yet"
-            description="Add a passkey to secure your administrator account. After that, signing in needs the passkey, not just your password."
+            description="Add a passkey to secure your account. After that, signing in needs the passkey, not just your password."
           />
         )}
 

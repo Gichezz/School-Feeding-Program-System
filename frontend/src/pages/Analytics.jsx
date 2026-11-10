@@ -111,7 +111,7 @@ function Analytics() {
     return (
       <>
         <PageHeader title="Analytics" />
-        <Alert tone="neutral" title="For programme officers">Sub-county analytics are for programme officers and administrators.</Alert>
+        <Alert tone="neutral" title="For programme officers">Sub-county analytics are for programme officers and system administrators.</Alert>
       </>
     );
   }

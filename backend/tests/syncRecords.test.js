@@ -382,12 +382,12 @@ describe('the same delivery note entered twice', () => {
     expect(await ledgerCereals()).toBe(450);
   });
 
-  it('counts a held delivery once an administrator applies it', async () => {
+  it('counts a held delivery once the programme officer applies it', async () => {
     await sync([syncOperation('op-1', 'stockMovement', 'create', delivery(), 0)]);
     await sync([syncOperation('op-2', 'stockMovement', 'create', delivery({ quantityKg: 300 }), 0)], { clientId: 'device-b' });
     const [held] = (await asAdmin.get('/api/sync/held')).body.held;
 
-    const res = await asAdmin.post(`/api/sync/held/${held.id}/apply`);
+    const res = await asOfficer.post(`/api/sync/held/${held.id}/apply`);
 
     expect(res.status).toBe(200);
     expect(await ledgerCereals()).toBe(800);
@@ -428,7 +428,8 @@ describe('held records and programme officers', () => {
     expect((await asOfficer.get('/api/sync/held')).body.held).toEqual([]);
     expect((await asOfficer.post(`/api/sync/held/${held.id}/discard`)).status).toBe(404);
     expect((await asOfficer.post(`/api/sync/held/${held.id}/apply`)).status).toBe(404);
-    expect((await asAdmin.post(`/api/sync/held/${held.id}/discard`)).status).toBe(204);
+    // A system administrator sees it but cannot decide it
+    expect((await asAdmin.post(`/api/sync/held/${held.id}/discard`)).status).toBe(403);
   });
 });
 
