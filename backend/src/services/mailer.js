@@ -4,14 +4,17 @@ const nodemailer = require('nodemailer');
  * Sending email: activation codes to new feeding teachers, and a note when their school
  * device is approved.
  *
- * Configured with SMTP_HOST (and SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASS, MAIL_FROM).
+ * Configured with SMTP_HOST (and SMTP_PORT, SMTP_SECURE, SMTP_REQUIRE_TLS, SMTP_USER,
+ * SMTP_PASS, MAIL_FROM), all from the environment, never from the code. In production use
+ * an authenticated provider with SMTP_SECURE=true (port 465) or SMTP_REQUIRE_TLS=true
+ * (STARTTLS on 587), and a sender domain with SPF, DKIM and DMARC (docs/deployment.md).
  * Docker Compose points it at Mailpit, a local test mailbox that catches every message
  * and shows it at http://localhost:8025, so nothing reaches a real inbox. On a server it
  * is the programme's own mail server or an email provider.
  *
- * Without SMTP_HOST, nothing is sent and callers fall back to what they did before
- * (the administrator hands the activation code over). A failed send never fails the
- * request that caused it.
+ * Without SMTP_HOST, nothing is sent. A failed send never fails the request that caused
+ * it; services/emailDelivery.js records each attempt so it can be seen and sent again.
+ * Logs never contain the recipient or the message, which may hold an activation code.
  */
 
 let transport = null;
@@ -28,7 +31,11 @@ function getTransport() {
       port,
       secure: String(process.env.SMTP_SECURE || '').toLowerCase() === 'true' || port === 465,
       ...(process.env.SMTP_USER && { auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS || '' } }),
+      requireTLS: String(process.env.SMTP_REQUIRE_TLS || '').toLowerCase() === 'true',
+      // Give up rather than hold a request: connecting, the server's greeting, and silence
       connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 20000,
     });
   }
   return transport;
@@ -46,8 +53,9 @@ async function sendMail({ to, subject, text }) {
     });
     return { sent: true };
   } catch (error) {
-    console.warn(`Email to ${to} not sent: ${error.message}`);
-    return { sent: false, error: error.message };
+    // The reason only: no address or message content in the logs
+    console.warn(`Email not sent: ${error.code || 'error'}`);
+    return { sent: false, error: String(error.message || error.code || 'Not sent').slice(0, 300) };
   }
 }
 

@@ -24,6 +24,13 @@ function makeDevice() {
   };
 }
 
+/** A new feeding teacher, and a code handed over in person (email is not set up in tests). */
+async function newTeacherWithCode() {
+  const { user } = (await asAdmin.post('/api/users').send({ name: 'Peter Otieno', email: 'peter@example.org', role: 'school_staff', schoolId: SCHOOL_ID })).body;
+  const { activationCode } = (await asAdmin.post(`/api/users/${user.id}/activation/hand-over`).send({ note: 'Test' })).body;
+  return { user, activationCode };
+}
+
 async function getChallenge() {
   return (await request(app).post('/api/devices/challenge')).body.challenge;
 }
@@ -64,7 +71,7 @@ describe('setting up a device', () => {
   });
 
   it('with an activation code: sets the new staff member’s password and spends the code', async () => {
-    const created = (await asAdmin.post('/api/users').send({ name: 'Peter Otieno', email: 'peter@example.org', role: 'school_staff', schoolId: SCHOOL_ID })).body;
+    const created = await newTeacherWithCode();
     const device = makeDevice();
     const body = { email: 'peter@example.org', activationCode: created.activationCode.toLowerCase(), newPassword: 'peters-own-password', pin: '739104', publicKey: device.publicKey, deviceName: 'Store phone' };
 
@@ -78,7 +85,7 @@ describe('setting up a device', () => {
   });
 
   it('refuses an expired activation code', async () => {
-    const created = (await asAdmin.post('/api/users').send({ name: 'Peter Otieno', email: 'peter@example.org', role: 'school_staff', schoolId: SCHOOL_ID })).body;
+    const created = await newTeacherWithCode();
     await pool.query("UPDATE activation_codes SET expires_at = NOW() - interval '1 minute'");
     const device = makeDevice();
 

@@ -84,17 +84,16 @@ describe('POST /api/users', () => {
     expect((await login('grace@example.org', 'kitchen-ledger-42')).status).toBe(200);
   });
 
-  it('adds a school staff member at a school with a one-time activation code instead of a password', async () => {
+  it('adds a school staff member at a school, waiting for activation, and never returns a code', async () => {
     const res = await asAdmin.post('/api/users').send(newStaff());
 
     expect(res.status).toBe(201);
     expect(res.body.user).toMatchObject({ email: 'peter@example.org', role: 'school_staff', schoolId: SCHOOL_ID });
-    expect(res.body.activationCode).toMatch(/^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/);
-    const hours = (new Date(res.body.activationExpiresAt) - Date.now()) / 3600000;
-    expect(hours).toBeGreaterThan(47.9);
-    expect(hours).toBeLessThanOrEqual(48);
-    const code = await pool.query('SELECT code_hash, used_at FROM activation_codes WHERE user_id = $1', [res.body.user.id]);
-    expect(code.rows).toEqual([{ code_hash: expect.stringMatching(/^\$2[aby]\$10\$/), used_at: null }]);
+    // Email is not set up in tests: nothing is sent, and no code is made or shown
+    expect(res.body.activation).toEqual({ status: 'not_sent', emailConfigured: false });
+    expect(res.body).not.toHaveProperty('activationCode');
+    const listed = (await asAdmin.get('/api/users')).body.users.find((u) => u.id === res.body.user.id);
+    expect(listed.activation).toEqual({ activated: false, email: null, codeExpiresAt: null });
   });
 
   it.each([
@@ -126,21 +125,52 @@ describe('POST /api/users', () => {
   });
 });
 
-describe('POST /api/users/:id/activation-code', () => {
-  it('replaces a staff member’s activation code; the old one is gone', async () => {
+describe('handing an activation code over in person', () => {
+  const handOver = (id, note = 'No email access; given at the sub-county office') =>
+    asAdmin.post(`/api/users/${id}/activation/hand-over`).send({ note });
+
+  it('gives a 48-hour code, stores only its hash, and records who did it and why', async () => {
     const created = (await asAdmin.post('/api/users').send(newStaff())).body;
 
-    const res = await asAdmin.post(`/api/users/${created.user.id}/activation-code`);
+    const res = await handOver(created.user.id);
 
     expect(res.status).toBe(200);
-    expect(res.body.activationCode).not.toBe(created.activationCode);
+    expect(res.body.activationCode).toMatch(/^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/);
+    const hours = (new Date(res.body.expiresAt) - Date.now()) / 3600000;
+    expect(hours).toBeGreaterThan(47.9);
+    expect(hours).toBeLessThanOrEqual(48);
+    const code = await pool.query('SELECT code_hash, used_at, emailed FROM activation_codes WHERE user_id = $1', [created.user.id]);
+    expect(code.rows).toEqual([{ code_hash: expect.stringMatching(/^\$2[aby]\$10\$/), used_at: null, emailed: false }]);
+    const history = (await asAdmin.get(`/api/users/${created.user.id}/history`)).body;
+    expect(history.events).toEqual([expect.objectContaining({
+      kind: 'activation_handed_over', note: 'No email access; given at the sub-county office', by: USERS.admin.name,
+    })]);
+  });
+
+  it('replaces any earlier code', async () => {
+    const created = (await asAdmin.post('/api/users').send(newStaff())).body;
+    const first = (await handOver(created.user.id)).body.activationCode;
+
+    const second = (await handOver(created.user.id)).body.activationCode;
+
+    expect(second).not.toBe(first);
     const codes = await pool.query('SELECT count(*)::int AS n FROM activation_codes WHERE user_id = $1 AND used_at IS NULL', [created.user.id]);
     expect(codes.rows[0].n).toBe(1);
   });
 
-  it('is only for active school staff', async () => {
-    expect((await asAdmin.post(`/api/users/${USERS.admin.id}/activation-code`)).status).toBe(400);
-    expect((await asStaff.post(`/api/users/${USERS.staff.id}/activation-code`)).status).toBe(403);
+  it('needs a note, and is only for active school staff, by administrators', async () => {
+    const created = (await asAdmin.post('/api/users').send(newStaff())).body;
+
+    expect((await handOver(created.user.id, '  ')).status).toBe(400);
+    expect((await handOver(created.user.id, 'x'.repeat(501))).status).toBe(400);
+    expect((await handOver(USERS.admin.id)).status).toBe(400);
+    expect((await asStaff.post(`/api/users/${USERS.staff.id}/activation/hand-over`).send({ note: 'x' })).status).toBe(403);
+  });
+
+  it('cannot be emailed when email is not set up', async () => {
+    const created = (await asAdmin.post('/api/users').send(newStaff())).body;
+
+    expect((await asAdmin.post(`/api/users/${created.user.id}/activation/email`)).status).toBe(400);
   });
 });
 

@@ -75,7 +75,7 @@ All settings come from `.env` in the project folder, which Git ignores. [`.env.e
 | `JWT_EXPIRES_IN` | no | How long a sign-in lasts (`7d`). |
 | `LOAD_DEMO_DATA` | no | `true` loads the demo school and demo accounts on the database's **first** start. Local use only. |
 | `REVIEW_SCHEDULE`, `REVIEW_SCHEDULE_MINUTES` | no | The API scores each sub-county's finished weeks for the weekly review list by itself, and scores a recent week again when records for it sync late (`on`, every `60` minutes). `off` leaves scoring to officers. |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` | no | The mail server the API sends activation codes and device approvals through. Locally it is Mailpit, a test mailbox that catches every message (<http://localhost:8025>). On a server, set the programme's mail server or an email provider; without `SMTP_HOST`, activation codes are shown to the administrator to hand over. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_REQUIRE_TLS`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` | no | The mail server the API sends activation codes and device approvals through. Locally it is Mailpit, a test mailbox that catches every message (<http://localhost:8025>). On a server, set the programme's mail server or an email provider (see **Email in production** below). Without `SMTP_HOST`, nothing is sent and new feeding teachers wait for activation until an administrator hands a code over in person, which is recorded. |
 | `PUBLIC_URL` | no | The address people open Lishe at, used for links in emails. |
 | `BACKUP_KEEP_DAYS` | no | How many days of daily backups the `backup` service keeps in `./backups` (`14`). |
 | `MIGRATIONS_BASELINE` | once, if needed | Only for a database migrated by hand before the API applied migrations itself: the last script it already has (for example `016`). |
@@ -128,6 +128,25 @@ BASE_URL=https://lishe.example.org SMOKE_EMAIL=admin@example.org SMOKE_PASSWORD=
 ```
 
 (In PowerShell, set the variables first with `$env:BASE_URL = "..."` and so on.) `SMOKE_EMAIL` is a system administrator. The teacher and officer accounts are optional; without them the recording and review checks are skipped. The teacher is set up on a new device named "Smoke test device", which is removed again at the end. Each run writes one attendance record and one meal record at the teacher's school, on a random day between 2000 and 2009, so real school days are untouched.
+
+### Email in production
+
+Mailpit is for development only. On a server, Lishe sends through the same code to an authenticated SMTP provider (a transactional email service, or the programme's own mail server):
+
+- **Credentials** go in the server's environment (`SMTP_USER`, `SMTP_PASS`), never in the repository.
+- **An encrypted connection:** `SMTP_SECURE=true` on port 465, or `SMTP_REQUIRE_TLS=true` with STARTTLS on port 587.
+- **A sender domain the provider is allowed to send for** (`MAIL_FROM`), with **SPF**, **DKIM** and **DMARC** records set up as the provider describes. Without them, activation emails are likely to land in spam or be rejected.
+- **Timeouts:** the API gives up after 10 seconds connecting or waiting for the server's greeting, and 20 seconds of silence. A failed send is recorded and can be sent again; it never fails the request that caused it.
+
+Before real schools use it, test against the real provider, not only Mailpit:
+
+1. A new teacher's activation email is accepted and arrives, and the code works.
+2. Wrong `SMTP_PASS`: the accounts list shows the email as failed, with the reason; **Email a new code** works once it is fixed.
+3. The provider unreachable (a wrong `SMTP_HOST` or a blocked port): the send gives up after the timeout and is recorded as failed; the account waits.
+4. A rejected address (one the provider refuses): recorded as failed.
+5. Approving a device whose teacher's address is verified: the approval email is accepted; with the provider down, it is recorded as failed and **Send again** in the device list sends it without approving again.
+
+"Accepted" in Lishe means the provider took the message. Whether it reached the inbox shows only in the provider's own delivery logs.
 
 The browser parts of offline use cannot be scripted against a server. After deploying, check them on a phone:
 

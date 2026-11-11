@@ -214,7 +214,7 @@ The API reads `backend/.env`; Docker Compose reads `.env` in the project folder.
 | `REVIEW_SCHEDULE`, `REVIEW_SCHEDULE_MINUTES` | Automatic weekly scoring (`on`, every `60` minutes) |
 | `MIGRATIONS_BASELINE` | Only for a database migrated by hand before migrations were automatic: the last script it has, set once |
 | `BACKUP_KEEP_DAYS` | Days of daily backups kept by Docker Compose (default `14`) |
-| `SMTP_HOST` (and `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`) | Mail server for activation codes and approvals. Without it, codes are shown to the administrator to hand over |
+| `SMTP_HOST` (and `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`) | Mail server for activation codes and approvals (see `docs/deployment.md` for production). Without it, an administrator hands a code over in person, which is recorded |
 
 Every setting is listed in [backend/.env.example](backend/.env.example), [.env.example](.env.example) and [docs/deployment.md](docs/deployment.md#configuration).
 

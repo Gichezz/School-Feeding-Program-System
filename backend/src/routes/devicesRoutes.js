@@ -9,6 +9,7 @@ const {
   approveDevice,
   revokeDevice,
   unlockDeviceUser,
+  resendApprovalEmail,
 } = require('../controllers/deviceController');
 const { requireAuth, requireRole } = require('../middleware/auth');
 
@@ -50,6 +51,8 @@ router.get('/', adminOnly, listDevices);
  * POST /api/devices/:id/approve and /revoke
  */
 router.post('/:id/approve', adminOnly, approveDevice);
+// Send the approval notice again to staff whose last one failed (the device stays approved)
+router.post('/:id/approval-email', adminOnly, resendApprovalEmail);
 router.post('/:id/revoke', adminOnly, revokeDevice);
 
 /**

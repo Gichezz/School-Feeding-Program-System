@@ -87,6 +87,25 @@ async function issueActivationCode(userId, createdBy, { emailed = false } = {}) 
   return { code, expiresAt: result.rows[0].expires_at };
 }
 
+/** Wrong tries allowed before an activation code stops working. */
+const MAX_ACTIVATION_ATTEMPTS = 5;
+
+/**
+ * A wrong activation code was entered for this user: count it against their live code,
+ * which stops working after MAX_ACTIVATION_ATTEMPTS. Returns true when it just stopped.
+ */
+async function recordWrongActivationCode(userId) {
+  const result = await pool.query(
+    `UPDATE activation_codes
+     SET failed_attempts = failed_attempts + 1,
+         expires_at = CASE WHEN failed_attempts + 1 >= $2 THEN NOW() ELSE expires_at END
+     WHERE user_id = $1 AND used_at IS NULL AND expires_at > NOW()
+     RETURNING failed_attempts`,
+    [userId, MAX_ACTIVATION_ATTEMPTS]
+  );
+  return result.rows.some((r) => r.failed_attempts >= MAX_ACTIVATION_ATTEMPTS);
+}
+
 /**
  * Spend the user's unexpired activation code if it matches. Returns { emailed } once
  * (whether the code had been sent to their email address), otherwise false.
@@ -108,6 +127,8 @@ async function useActivationCode(userId, code, client = pool) {
 }
 
 module.exports = {
+  MAX_ACTIVATION_ATTEMPTS,
+  recordWrongActivationCode,
   ACTIVATION_TTL_HOURS,
   publicKeyError,
   publicJwk,

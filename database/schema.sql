@@ -394,6 +394,8 @@ CREATE TABLE IF NOT EXISTS activation_codes (
     used_at         TIMESTAMPTZ,
     -- sent to the user's email address rather than handed over (migration 019)
     emailed         BOOLEAN NOT NULL DEFAULT false,
+    -- wrong tries; the code stops working after 5 (migration 021)
+    failed_attempts INTEGER NOT NULL DEFAULT 0,
     CONSTRAINT activation_codes_user_fk
         FOREIGN KEY (user_id) REFERENCES users (id)
         ON UPDATE CASCADE
@@ -406,6 +408,48 @@ CREATE TABLE IF NOT EXISTS activation_codes (
 
 CREATE INDEX IF NOT EXISTS idx_devices_school
     ON devices (school_id);
+
+-- Every email Lishe tries to send, and its state (migration 021). 'accepted' means the
+-- provider took it, not that it reached or was read in the inbox.
+CREATE TABLE IF NOT EXISTS email_deliveries (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    kind            TEXT NOT NULL,
+    user_id         UUID NOT NULL,
+    device_id       UUID,
+    status          TEXT NOT NULL DEFAULT 'queued',
+    attempts        INTEGER NOT NULL DEFAULT 0,
+    last_error      TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    accepted_at     TIMESTAMPTZ,
+    CONSTRAINT email_deliveries_kind_check CHECK (kind IN ('activation', 'device_approved')),
+    CONSTRAINT email_deliveries_status_check CHECK (status IN ('queued', 'failed', 'accepted')),
+    CONSTRAINT email_deliveries_user_fk FOREIGN KEY (user_id) REFERENCES users (id)
+        ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT email_deliveries_device_fk FOREIGN KEY (device_id) REFERENCES devices (id)
+        ON UPDATE CASCADE ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_email_deliveries_user ON email_deliveries (user_id, created_at DESC);
+
+-- What happened to an account and who did it (migration 021). Handing an activation
+-- code over in person is its own recorded action, with a note.
+CREATE TABLE IF NOT EXISTS account_events (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID NOT NULL,
+    kind            TEXT NOT NULL,
+    actor_id        UUID,
+    note            TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT account_events_kind_check CHECK (kind IN (
+        'activation_emailed', 'activation_email_failed', 'activation_handed_over',
+        'activation_code_locked', 'activated')),
+    CONSTRAINT account_events_note_length CHECK (char_length(note) <= 500),
+    CONSTRAINT account_events_user_fk FOREIGN KEY (user_id) REFERENCES users (id)
+        ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT account_events_actor_fk FOREIGN KEY (actor_id) REFERENCES users (id)
+        ON UPDATE CASCADE ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_account_events_user ON account_events (user_id, created_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_device_users_user
     ON device_users (user_id);
@@ -1023,5 +1067,6 @@ INSERT INTO schema_migrations (name) VALUES
     ('017_scheduled_review_runs.sql'),
     ('018_delivery_witness.sql'),
     ('019_email_delivery.sql'),
-    ('020_enrolment_discrepancy.sql')
+    ('020_enrolment_discrepancy.sql'),
+    ('021_email_deliveries_and_account_events.sql')
 ON CONFLICT (name) DO NOTHING;

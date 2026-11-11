@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Copy, Fingerprint, KeyRound, Pencil, Ticket, UserPlus, UserRoundCheck, UserRoundX } from 'lucide-react';
+import { Copy, Fingerprint, HandHelping, KeyRound, Mail, Pencil, UserPlus, UserRoundCheck, UserRoundX } from 'lucide-react';
 import { Alert, Badge, Button, Card, DataTable, FormField, useToast } from '../../components/ui';
-import { createUser, getSchools, getUsers, newActivationCode, resetUserPasskeys, resetUserPassword, updateUser } from '../../services/api';
+import {
+  createUser, emailActivationCode, getAccountHistory, getSchools, getUsers, handOverActivationCode, resetUserPasskeys, resetUserPassword, updateUser,
+} from '../../services/api';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { useSession } from '../../hooks/useSession';
 import { formatDate, formatDateTime } from '../../utils/format';
@@ -12,10 +14,13 @@ const EMPTY_USER = { name: '', email: '', role: 'school_staff', password: '', sc
 const PASSWORD_HINT = `At least ${MIN_PASSWORD_LENGTH} characters. Share it with them privately; they can change it in Settings.`;
 
 /**
- * A one-time activation code for a staff member, shown once (#60). They use it on the
- * school device, with their email, to choose their password and PIN.
+ * What happened when a feeding teacher was given an activation code (#60). The code goes
+ * to their email and is not shown here. It is shown only after a recorded hand-over in
+ * person, once.
+ *   status: 'accepted' (the email provider took it), 'failed', 'not_sent' (no email on
+ *   this server), or 'handed_over' (with code)
  */
-function ActivationCode({ name, email, code, expiresAt, emailed, emailFailed, onDone }) {
+function ActivationCode({ name, email, status, code, expiresAt, onDone }) {
   const toast = useToast();
   const headingRef = useRef(null);
   useEffect(() => headingRef.current?.focus(), []);
@@ -29,35 +34,151 @@ function ActivationCode({ name, email, code, expiresAt, emailed, emailFailed, on
     }
   };
 
-  if (emailed) {
+  const done = <div className="users__actions"><Button onClick={onDone}>Done</Button></div>;
+
+  if (status === 'accepted') {
     return (
       <div className="users__code">
-        <h3 ref={headingRef} tabIndex={-1} className="users__panel-title">Activation code sent to {name}</h3>
+        <h3 ref={headingRef} tabIndex={-1} className="users__panel-title">Activation email sent to {name}</h3>
         <p>
-          It has been emailed to <strong>{email}</strong>. It works once, until {formatDateTime(expiresAt)}. If it does not
-          arrive, check the address and issue a new one from Manage.
+          The email to <strong>{email}</strong> was accepted for sending. That does not mean it has arrived. The code works
+          once, until {formatDateTime(expiresAt)}. If it does not arrive, check the address and email a new one from Manage.
         </p>
-        <div className="users__actions">
-          <Button onClick={onDone}>Done</Button>
-        </div>
+        {done}
       </div>
     );
   }
-
+  if (status === 'failed' || status === 'not_sent') {
+    return (
+      <div className="users__code">
+        <h3 ref={headingRef} tabIndex={-1} className="users__panel-title">{name} is waiting for an activation code</h3>
+        <Alert tone="warning" title={status === 'failed' ? 'The email could not be sent' : 'Email is not set up'}>
+          {status === 'failed'
+            ? 'Email them a new code from Manage, or hand one over in person if they cannot get email.'
+            : 'Hand a code over in person from Manage. It is recorded in their account history.'}
+        </Alert>
+        {done}
+      </div>
+    );
+  }
   return (
     <div className="users__code">
       <h3 ref={headingRef} tabIndex={-1} className="users__panel-title">Activation code for {name}</h3>
-      {emailFailed && <Alert tone="warning" title="The email could not be sent">Give them this code in person instead.</Alert>}
       <p className="users__code-value tabular-nums">{code}</p>
       <p>
-        Give this code to {name} privately. On the school device they choose <strong>Set up this school device</strong>,
+        Give this code to {name} in person. On the school device they choose <strong>Set up this school device</strong>,
         enter their email and this code, and pick their own password and PIN. It works once and expires {formatDateTime(expiresAt)}.
-        It will not be shown again; you can issue a new one from Manage.
+        It will not be shown again. This hand-over is recorded in their account history.
       </p>
       <div className="users__actions">
         <Button variant="secondary" icon={Copy} onClick={copy}>Copy code</Button>
         <Button onClick={onDone}>Done</Button>
       </div>
+    </div>
+  );
+}
+
+const EVENT_LABEL = {
+  activation_emailed: 'Activation code emailed',
+  activation_email_failed: 'Activation email could not be sent',
+  activation_handed_over: 'Activation code handed over in person',
+  activation_code_locked: 'Activation code stopped working after 5 wrong tries',
+  activated: 'Account activated on a school device',
+};
+const EMAIL_LABEL = { queued: 'Waiting to send', failed: 'Could not be sent', accepted: 'Accepted for sending' };
+
+/** An account's history: who did what, and the emails sent for it. */
+function AccountHistory({ userId }) {
+  const [history, setHistory] = useState(null);
+  const [error, setError] = useState(null);
+  useEffect(() => {
+    getAccountHistory(userId).then(setHistory).catch((err) => setError(err.message));
+  }, [userId]);
+
+  if (error) return <Alert tone="danger" title="Could not load the history">{error}</Alert>;
+  if (!history) return <p className="users__panel-meta">Loading the history…</p>;
+  const items = [
+    ...history.events.map((e) => ({ at: e.at, text: `${EVENT_LABEL[e.kind] || e.kind}${e.by ? ` by ${e.by}` : ''}${e.note ? `: ${e.note}` : ''}` })),
+    ...history.emails.map((e) => ({
+      at: e.updatedAt,
+      text: `${e.kind === 'activation' ? 'Activation email' : 'Device approved email'}: ${EMAIL_LABEL[e.status]}${e.error ? ` (${e.error})` : ''}`,
+    })),
+  ].sort((x, y) => new Date(y.at) - new Date(x.at));
+  if (items.length === 0) return <p className="users__panel-meta">Nothing recorded yet.</p>;
+  return (
+    <ul className="users__history">
+      {items.map((item, i) => <li key={i}><span className="tabular-nums">{formatDateTime(item.at)}</span> {item.text}</li>)}
+    </ul>
+  );
+}
+
+/** A feeding teacher's activation: where it stands, a new email, or a recorded hand-over. */
+function ActivationSection({ user, busy, setBusy, setServerError, onCode }) {
+  const [handingOver, setHandingOver] = useState(false);
+  const [note, setNote] = useState('');
+  const [noteError, setNoteError] = useState(null);
+  const activation = user.activation || {};
+
+  const act = async (kind, call) => {
+    setBusy(kind);
+    setServerError(null);
+    try {
+      await call();
+    } catch (err) {
+      setServerError(err.message);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const sendEmail = () => act('email', async () => {
+    const { activation: sent } = await emailActivationCode(user.id);
+    onCode({ name: user.name, email: user.email, status: sent.status, expiresAt: sent.expiresAt });
+  });
+
+  const handOver = () => {
+    if (!note.trim()) return setNoteError('Say why the code is being handed over, and how');
+    setNoteError(null);
+    return act('handover', async () => {
+      const issued = await handOverActivationCode(user.id, note.trim());
+      onCode({ name: user.name, email: user.email, status: 'handed_over', code: issued.activationCode, expiresAt: issued.expiresAt });
+    });
+  };
+
+  const state = activation.activated
+    ? 'Activated.'
+    : `Waiting for activation.${activation.email ? ` Last email: ${EMAIL_LABEL[activation.email].toLowerCase()}.` : ''}${
+      activation.codeExpiresAt ? ` The current code works until ${formatDateTime(activation.codeExpiresAt)}.` : ''}`;
+
+  return (
+    <div className="users__section">
+      <h4 className="users__section-title">Activation</h4>
+      <p className="users__panel-meta">
+        {state} A new code is for setting up a school device for the first time, or after forgetting their password. Any earlier code stops working.
+      </p>
+      <div className="users__actions">
+        <Button variant="secondary" icon={Mail} onClick={sendEmail} loading={busy === 'email'} disabled={Boolean(busy)}>
+          Email a new code
+        </Button>
+        {!handingOver && (
+          <Button variant="secondary" icon={HandHelping} onClick={() => setHandingOver(true)} disabled={Boolean(busy)}>
+            Hand over in person
+          </Button>
+        )}
+      </div>
+      {handingOver && (
+        <div className="ui-stack">
+          <FormField id={`handover-${user.id}`} label="Why in person, and how" as="textarea" rows={2} maxLength={500}
+            hint="For example: No email access; given at the sub-county office. Kept in their account history."
+            value={note} onChange={(e) => setNote(e.target.value)} error={noteError || undefined} />
+          <div className="users__actions">
+            <Button onClick={handOver} loading={busy === 'handover'} disabled={Boolean(busy)}>Show a code to hand over</Button>
+            <Button variant="secondary" onClick={() => setHandingOver(false)} disabled={Boolean(busy)}>Cancel</Button>
+          </div>
+        </div>
+      )}
+      <h4 className="users__section-title">Account history</h4>
+      <AccountHistory userId={user.id} />
     </div>
   );
 }
@@ -76,7 +197,7 @@ const subCountyOptions = (schools) => [
 
 /**
  * Add a user. Administrators get an initial password; school staff get a school and a
- * one-time activation code instead (they set their own password and PIN on the device).
+ * one-time activation code by email instead (they set their own password and PIN on the device).
  */
 function AddUserForm({ schools, onDone, onCancel, onCode }) {
   const toast = useToast();
@@ -111,11 +232,8 @@ function AddUserForm({ schools, onDone, onCancel, onCode }) {
         ...(values.role === 'programme_officer' && { subCounty: values.subCounty }),
       });
       toast.show({ tone: 'success', title: `${result.user.name} added` });
-      if (result.activationCode || result.activationEmailed) {
-        onCode({
-          name: result.user.name, email: result.user.email, code: result.activationCode, expiresAt: result.activationExpiresAt,
-          emailed: Boolean(result.activationEmailed), emailFailed: Boolean(result.emailFailed),
-        });
+      if (result.activation) {
+        onCode({ name: result.user.name, email: result.user.email, status: result.activation.status, expiresAt: result.activation.expiresAt });
       } else {
         onDone();
       }
@@ -216,22 +334,6 @@ function EditUserPanel({ user, isSelf, schools, onDone, onCancel, onCode }) {
     description: user.isActive ? 'They can no longer sign in, and their sessions have ended.' : 'They can sign in again.',
   });
 
-  const issueCode = async () => {
-    setBusy('code');
-    setServerError(null);
-    try {
-      const issued = await newActivationCode(user.id);
-      onCode({
-        name: user.name, email: user.email, code: issued.activationCode, expiresAt: issued.expiresAt,
-        emailed: Boolean(issued.activationEmailed), emailFailed: Boolean(issued.emailFailed),
-      });
-    } catch (err) {
-      setServerError(err.message);
-    } finally {
-      setBusy(null);
-    }
-  };
-
   const resetPasskeys = () => run('passkeys', () => resetUserPasskeys(user.id), {
     title: `${user.name}'s passkeys and authenticator app reset`,
     description: 'They have been signed out everywhere. They sign in with their password and set up a passkey or app again.',
@@ -287,17 +389,7 @@ function EditUserPanel({ user, isSelf, schools, onDone, onCancel, onCode }) {
       </form>
 
       {user.role === 'school_staff' && user.isActive && (
-        <div className="users__section">
-          <h4 className="users__section-title">Activation code</h4>
-          <p className="users__panel-meta">
-            For setting up a school device for the first time, or after forgetting their password. Any earlier code stops working.
-          </p>
-          <div>
-            <Button variant="secondary" icon={Ticket} onClick={issueCode} loading={busy === 'code'} disabled={Boolean(busy)}>
-              Issue a new activation code
-            </Button>
-          </div>
-        </div>
+        <ActivationSection user={user} busy={busy} setBusy={setBusy} setServerError={setServerError} onCode={onCode} />
       )}
 
       <div className="users__section">
@@ -426,6 +518,11 @@ function UsersSection() {
         <span className="users__name">
           {u.name}
           {u.id === me?.id && <Badge tone="brand">You</Badge>}
+          {u.role === 'school_staff' && u.isActive && u.activation && !u.activation.activated && (
+            <Badge tone={u.activation.email === 'failed' ? 'danger' : 'warning'}>
+              {u.activation.email === 'failed' ? 'Activation email failed' : 'Waiting for activation'}
+            </Badge>
+          )}
         </span>
       ),
     },

@@ -371,6 +371,15 @@
   outline: none;
 }
 
+.users__history {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--color-ink-muted);
+}
+
 .users__panel-meta {
   margin-top: calc(var(--space-3) * -1);
   font-size: var(--font-size-sm);
