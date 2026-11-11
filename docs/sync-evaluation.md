@@ -122,6 +122,6 @@ It needs PostgreSQL with the connection settings in `backend/.env`, and the back
 ## 7. Limitations
 
 - The network is simulated in each device process (delays and losses on whole requests). Real networks also vary in ways this does not model, such as very long interruptions in the middle of a sync.
-- Devices sign in as the seeded administrator, because staff sign-in needs an enrolled device with a hardware-backed key (#60). Sync treats both roles the same way, so this does not change the results.
+- Devices sign in as the seeded administrator, because staff sign-in needs an enrolled device with a non-extractable WebCrypto key and a PIN (#60). Sync treats both roles the same way, so this does not change the results.
 - Everything runs on one machine, so the latencies show the effect of the app's behaviour and the network profile, not of a real server's distance or load.
 - Convergence is measured after each device's next sync, which in the app happens when it is opened, brought into view or reconnects. A device nobody opens stays behind until it is opened; analytics show officers how far behind each school's records are.

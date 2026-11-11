@@ -10,6 +10,9 @@ const { migrate, migrationFiles } = require('../src/db/migrate');
  * (never the shared test database) and its own folder of scripts.
  */
 
+// Each test builds a scratch database from schema.sql, which can take a few seconds
+jest.setTimeout(30000);
+
 const REAL_DIR = path.join(__dirname, '..', '..', 'database', 'migrations');
 const quiet = { info: () => {}, warn: () => {} };
 const scratchName = `${databaseName(testDatabaseUrl())}_migrations_test`;

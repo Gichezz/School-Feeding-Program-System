@@ -32,6 +32,18 @@ Class teachers keep attendance in the class registers; the feeding teacher copie
 
 ## Data
 
+**Food issued, eaten and in store are different quantities.**
+- *Issued* is what the teacher records as taken from the store for the day's meal. Cereals and pulses are weighed; oil and salt are worked out from the ration (5 g and 2 g per learner per meal) for the learners fed.
+- *Eaten* is not measured: leftovers and plate waste are not recorded, so the system never claims food issued was eaten.
+- *In store* by the records is everything received, minus everything issued, lost or returned. A *store count* is what was actually weighed.
+
+The ration check compares food issued with the ration for the **learners fed**. A difference between the records and a count is an **unexplained stock variance** to look into, not a finding of theft.
+
+**Hard rules and warnings on the device.**
+- **Hard rules** stop a record from being saved, and are the same ones the server applies: missing answers, a future date, learners fed above the present count when one is given, food recorded on a day without feeding, and a late entry without a reason.
+- **Warnings** are checks against what the device knows, which can be out of date: more fed than enrolled (enrolment may not be updated yet), and more issued or lost than the device's stock balance (a delivery recorded on another device may not have arrived). The teacher sees "Check before saving" and can save anyway.
+- **The server is authoritative.** It checks every record against its own complete records and **flags** it for the programme officer to review (`fed_exceeds_enrolled`, `issue_exceeds_stock`, `usage_far_from_ration`), keeping the record as entered. Two devices that each issue within their own balance, but together exceed the store, are caught this way.
+
 **Device (IndexedDB, Dexie version 8)**
 
 | Table | Contents |
@@ -72,7 +84,18 @@ Version-based optimistic concurrency for editable records, an append-only ledger
    - a record captured by someone since deactivated, or on a device since removed, is **held** too.
 4. While a record is in conflict, later edits to it wait on the device, so nothing overwrites a decision that has not been made.
 
-**Downloading (server → device).** After each sync the device asks for its school's changes since its cursor (`GET /api/sync/changes`). The cursor is a PostgreSQL transaction id (`xid8`): each saved row is stamped with the transaction that wrote it, and a download returns rows from transactions that had committed when it started (`pg_snapshot_xmin`). Unlike a timestamp, this cannot miss a slow save that commits after a faster one. The same download carries conflicts resolved and held records decided since the cursor:
+**Downloading (server → device).** After each sync the device asks for its school's changes since its cursor (`GET /api/sync/changes`). The cursor is a PostgreSQL transaction id (`xid8`). Each saved row is stamped with the id of the transaction that wrote it (a trigger, using `pg_current_xact_id()`). A download runs in one `REPEATABLE READ` snapshot and returns the rows stamped from the device's cursor up to, but not including, that snapshot's `xmin`: **the oldest transaction still running when the download started**. The next cursor is that `xmin`.
+
+Why this cannot permanently miss a committed change, even when transactions start and commit in a different order:
+- Every transaction with an id below `xmin` had finished (committed or rolled back) before the snapshot was taken. So every committed row in the returned range is visible to the download, and rolled-back rows never are.
+- A transaction still running has an id at or above `xmin`, so the cursor never moves past it. Its rows are sent in a later download, once it commits.
+- The cost is that a transaction left open holds the cursor back. Rows saved after it may be sent again in the next downloads, but the device ignores a version it already has, so a repeat changes nothing.
+- A cursor based on the **newest** transaction id, or on a timestamp, *could* miss a slow save. That is why `xmin` is used.
+- `xid8` includes the epoch, so it does not wrap around.
+
+Tests cover a save that commits after a later one, a save left open across several downloads, a rolled-back save, a device catching up after missing several edits (it gets only the latest version), and a repeated download (`backend/tests/syncChanges.test.js`). Rows are never deleted from the synced tables (the stock ledger is append-only, and a discarded held record travels as a decision), so a cursor of changed rows is enough.
+
+The same download carries conflicts resolved and held records decided since the cursor:
 - a resolved conflict closes the device's copy; if the device's version was kept, the edits waiting behind it are re-based on the new version;
 - a discarded held record leaves the device: a stock entry is removed (so it leaves the balance), and an editable record takes the server's copy.
 
@@ -115,9 +138,24 @@ The officer marks each listed school's week explained or follow-up, with a note.
 
 ## Sign-in and record integrity
 
-**Administrator passkeys (#57) and authenticator app codes (#63).** Administrators sign in with a WebAuthn passkey (the private key never leaves the device's secure hardware), or with a password and a 6-digit code from an authenticator app. Ten one-time recovery codes cover a lost device. Once an account has a passkey, the password alone is refused.
+**Administrator passkeys (#57) and authenticator app codes (#63).** Administrators sign in with a WebAuthn passkey (the server stores only the public key), or with a password and a 6-digit code from an authenticator app. Ten one-time recovery codes cover a lost device. Once an account has a passkey, the password alone is refused.
 
 **School devices and staff PINs (#60).** Staff record on designated school devices. An administrator creates the account and gets a one-time activation code; on the device the staff member chooses a password and a 6-digit PIN, and the browser creates a non-extractable P-256 key pair. An administrator approves the device. Staff sign in with email and PIN, and the server checks the PIN and the device's signature over a fresh challenge, so sign-in needs both the enrolled device and the PIN. Removing a device ends its sessions at once.
+
+**What the device key and the PIN protect, stated carefully.**
+- The device key is a P-256 key the browser creates with WebCrypto as **non-extractable**: the browser refuses to export it, so the app cannot read or send it. It is not proven to be held in secure hardware; it lives in the browser's storage for this site.
+- **The key and the PIN are two separate factors, both checked by the server.** The key proves the request comes from the approved device; the PIN proves which person is using it. The PIN does not encrypt or unlock the key. Online, five wrong PINs lock that person on that device until an administrator unlocks them, and this is enforced by the server.
+- **Offline,** the PIN is checked against a PBKDF2 hash kept on the device (600,000 iterations), with a lock after five wrong tries. Someone who copied the browser's storage could try every 6-digit PIN against that hash on another computer. The harm is limited: offline sign-in only allows recording, and every offline record is checked again by the server at sync (the person and device must still be active), and names who captured it.
+- Administrator passkeys are WebAuthn credentials: the server stores only the public key, and the private key stays with the person's authenticator (a phone or laptop screen lock, a security key, or a password manager that may sync it to the cloud).
+
+**What happens when …**
+
+| Event | Result |
+|---|---|
+| The browser's storage for Lishe is cleared, or the device is reset | The device key, offline sign-in and **any records not yet synced are lost**. The device must be set up again and approved as a new device. Records already synced are safe on the server. |
+| A device is lost or stolen | An administrator removes it: its sessions end at once, it can no longer sign in or sync, and records it sends afterwards are held for review. Records not yet synced are lost with it. |
+| The 7-day offline period runs out | Offline sign-in stops until the person signs in online once. Records already saved stay on the device and sync when someone signs in. |
+| A person is deactivated | They cannot sign in; records they captured offline and sync afterwards are held for review. |
 
 **Offline sign-in and who captured each record (#61).** A staff member who has signed in online on a device can sign in there offline for up to 7 days (PBKDF2 hash of the PIN, 600,000 iterations). Every queued record carries who captured it, on which device and when, and the server decides per record: applied if the signed-in user captured it; deferred if a colleague on the same device did, until that colleague syncs; held if the person was deactivated or the device removed since.
 
