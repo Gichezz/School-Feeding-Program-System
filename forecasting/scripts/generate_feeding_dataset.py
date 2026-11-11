@@ -310,15 +310,43 @@ def simulate_school(s, calendar, episodes, cfg, rng):
     return feeding, movements, counts, enrolment
 
 
-def assign_sync_batches(feeding, calendar, schools):
+def plan_outages(cfg, calendar, schools):
+    """Connectivity outages (version 7): per school and term, maybe one run of school days
+    when the device cannot sync. Drawn from their own random stream, so adding them changes
+    nothing else in the data. Returns [{school_id, start_index, end_index}]."""
+    spec = cfg["entry"].get("outages")
+    if not spec:
+        return []
+    rng = np.random.default_rng(cfg["seed"] + spec.get("seed_offset", 7))
+    out = []
+    for s in schools.school_id:
+        for _, term in calendar.groupby("term_id", sort=False):
+            if rng.random() >= spec["per_term_probability"]:
+                continue
+            length = int(rng.integers(spec["length_school_days"]["min"], spec["length_school_days"]["max"] + 1))
+            first, last = int(term.index.min()), int(term.index.max())
+            start = int(rng.integers(first, max(first + 1, last - length + 2)))
+            out.append({"school_id": s, "start_index": start, "end_index": min(last, start + length - 1)})
+    return out
+
+
+def assign_sync_batches(feeding, calendar, schools, outages=()):
     """A school's device syncs every few school days: each record goes up in the first
-    sync on or after the day it was captured, together with the others waiting."""
+    sync on or after the day it was captured, together with the others waiting. During a
+    connectivity outage nothing syncs; everything waiting goes up on the first school day
+    after it, in one batch."""
     every = dict(zip(schools.school_id, schools.sync_every))
     dates = calendar.date.tolist()
+    blocked = {}
+    for o in outages:
+        for i in range(o["start_index"], o["end_index"] + 1):
+            blocked.setdefault(o["school_id"], {})[i] = o["end_index"] + 1
     received, batch = [], []
     for s, idx in zip(feeding.school_id, feeding.capture_index):
-        sync_index = min(len(dates) - 1, ((idx // every[s]) + 1) * every[s] - 1)
-        received.append(dates[max(idx, sync_index)])
+        sync_index = min(len(dates) - 1, max(idx, ((idx // every[s]) + 1) * every[s] - 1))
+        # A sync that falls in an outage happens the day after it ends
+        sync_index = min(len(dates) - 1, blocked.get(s, {}).get(sync_index, sync_index))
+        received.append(dates[sync_index])
         batch.append(f"{s}-B{sync_index}")
     feeding["captured_date"] = [dates[i] for i in feeding.capture_index]
     feeding["captured_at"] = [f"{dates[i]}T{h:02d}:{m:02d}:00" for i, h, m in
@@ -344,7 +372,8 @@ def generate(cfg, out_dir=OUT_DIR, quiet=False):
         movements += m
         counts += c
         enrolment += e
-    feeding = assign_sync_batches(pd.DataFrame(feeding), calendar, schools)
+    outages = plan_outages(cfg, calendar, schools)
+    feeding = assign_sync_batches(pd.DataFrame(feeding), calendar, schools, outages)
     labels = feeding[feeding.label != ""][["school_id", "date", "label"]]
     # A leak is only visible when the store is counted: the first count after a leak
     # episode is the day it can be found, so it needs review too
@@ -364,12 +393,16 @@ def generate(cfg, out_dir=OUT_DIR, quiet=False):
     pd.DataFrame(counts).to_csv(out_dir / "stock_counts.csv", index=False)
     labels.to_csv(out_dir / "labels.csv", index=False)
     episodes.to_csv(out_dir / "episodes.csv", index=False)
+    dates = calendar.date.tolist()
+    pd.DataFrame([{"school_id": o["school_id"], "start": dates[o["start_index"]], "end": dates[o["end_index"]]} for o in outages],
+                 columns=["school_id", "start", "end"]).to_csv(out_dir / "outages.csv", index=False)
     calendar.to_csv(out_dir / "school_days.csv", index=False)
     write_json(out_dir / "metadata.json", {
         "schools": len(schools), "school_days": len(calendar), "feeding_records": len(feeding),
         "labelled_school_days": labels.groupby("label").size().to_dict(),
         "episodes": episodes.groupby("type").size().to_dict(),
         "not_fed_days": int((~feeding.feeding_happened).sum()),
+        "outages": len(outages),
         "source_type": "synthetic",
     })
     if not quiet:

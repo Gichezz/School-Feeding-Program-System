@@ -33,8 +33,8 @@ FEATURES = {
     "pulse_ratio": "pulses issued against the ration for learners fed",
     "usage_trend": "the recent rise in food issued per learner",
     "count_gap_change": "the change in the store count's gap with the records",
-    "entry_delay": "school days between the date and when the record reached the server",
-    "batch_dates": "dates sent together in one sync",
+    "entry_delay": "school days between the date and when the record was entered",
+    "entry_batch": "dates entered in the same sitting",
     "after_hours_share": "recent records entered outside school hours",
     "round_share": "round numbers among recent records",
     "fed_steadiness": "how little learners fed, for that kind of day, changed from day to day",
@@ -81,7 +81,10 @@ def _school_day_index(school_days):
     return {d: i for i, d in enumerate(pd.to_datetime(school_days.date))}
 
 
-def build_features(schools, enrolment, feeding, counts, school_days):
+def build_features(schools, enrolment, feeding, counts, school_days, timing="capture"):
+    """timing: 'capture' (version 7) measures entry delay and entry batches from when each
+    record was entered on the device. 'sync' reproduces version 6, which measured them from
+    when records reached the server, for the connectivity check only."""
     days = school_days.assign(date=pd.to_datetime(school_days.date))
     index = _school_day_index(days)
     f = feeding.assign(date=pd.to_datetime(feeding.date), received_date=pd.to_datetime(feeding.received_date))
@@ -144,9 +147,21 @@ def build_features(schools, enrolment, feeding, counts, school_days):
     f = f.join(worst, on=["school_id", "date"])
     f["count_gap_change"] = f.count_gap_change.astype(float).fillna(0.0)
 
-    f["entry_delay"] = [index.get(r, index[d]) - index[d] if r in index else (r - d).days * 5 / 7
-                        for d, r in zip(f.date, f.received_date)]
-    f["batch_dates"] = f.groupby("sync_batch_id").date.transform("nunique")
+    def school_days_between(start, end):
+        return [index.get(e, index[s]) - index[s] if e in index else (e - s).days * 5 / 7 for s, e in zip(start, end)]
+
+    # When the record was entered on the device, and when it reached the server. Entering
+    # late, or many past days in one sitting, is about the records; waiting for a connection
+    # is not, so the sync figures are kept for reporting and analytics but are not features
+    captured_day = pd.to_datetime(f.captured_at).dt.normalize()
+    f["sync_delay"] = school_days_between(captured_day, f.received_date)
+    f["sync_batch_dates"] = f.groupby("sync_batch_id").date.transform("nunique")
+    if timing == "sync":
+        f["entry_delay"] = school_days_between(f.date, f.received_date)
+        f["entry_batch"] = f["sync_batch_dates"]
+    else:
+        f["entry_delay"] = school_days_between(f.date, captured_day)
+        f["entry_batch"] = f.groupby([f.school_id, captured_day]).date.transform("nunique")
     round_fed = ((f.learners_fed % 10 == 0) & (f.learners_fed > 0)).astype(float).where(f.feeding_happened)
     f["round_share"] = round_fed.groupby(f.school_id).transform(lambda s: s.rolling(ROUND_WINDOW, min_periods=3).mean()).fillna(0.0)
     # Day to day, after the kind of day is allowed for: a closing day is not a jump

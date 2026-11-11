@@ -39,9 +39,9 @@ def describe(feature, row):
         return f"the store count {abs(row['count_gap_change']):.1f} days of food {'short of' if row['count_gap_change'] < 0 else 'above'} the records"
     if feature == "entry_delay":
         return f"entered {row['entry_delay']:.0f} school days after the date"
-    if feature == "batch_dates":
-        n = int(row["batch_dates"])
-        return "synced on its own, apart from the school's other records" if n == 1 else f"{n} dates sent together in one sync"
+    if feature == "entry_batch":
+        n = int(row["entry_batch"])
+        return "entered on its own" if n == 1 else f"{n} dates entered in the same sitting"
     if feature == "round_share":
         return f"round numbers on {row['round_share'] * 100:.0f}% of recent days"
     if feature == "fed_steadiness":

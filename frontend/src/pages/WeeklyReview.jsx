@@ -275,7 +275,7 @@ function WeeklyReview() {
               title="No schools listed"
               description={list.mode === 'rules_only'
                 ? 'No school broke a fixed check this week. Every school is still ranked below.'
-                : 'No school had records for this week.'}
+                : 'No school’s records were unusual enough to list this week. Every school is still ranked below.'}
             />
           </Card>
         )}

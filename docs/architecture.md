@@ -121,9 +121,9 @@ Held records (possible duplicate deliveries, records from deactivated users or r
 
 **Weekly review list.** For a sub-county and week, the API gathers the sub-county's records (`backend/src/services/reviewInputs.js`) and sends them to the scoring service, which:
 
-1. builds context-adjusted features per school-day (learners fed against what is usual for that kind of day, against peers, against last term; food against the ration; store-count gaps; entry delays and batch sizes; round numbers; after-hours entry);
+1. builds context-adjusted features per school-day (learners fed against what is usual for that kind of day, against peers, against last term; food against the ration; store-count gaps; how late records were entered and how many in one sitting (not when they synced, so an outage is not evidence); round numbers; after-hours entry);
 2. fits Extended Isolation Forest on the sub-county's previous 125 school days, refitting every 20 school days and leaving out school-weeks an officer marked follow-up;
-3. scores the week, takes each school's highest day, and lists the top 3 with their two main reasons in plain words, always worded "needs review";
+3. scores the week, takes each school's highest day, and lists up to 3 above a review threshold (more unusual than 98% of the training window's school-weeks, so a quiet week can list none), with their two main reasons in plain words, always worded "needs review";
 4. ranks by fixed rules alone while a sub-county has fewer than 60 school days of records, and then lists only schools that broke a rule, so a quiet week lists nobody.
 
 A school listed again shows the officer's latest decision on it from the previous four weeks.

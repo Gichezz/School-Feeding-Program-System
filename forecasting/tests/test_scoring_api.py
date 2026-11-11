@@ -73,7 +73,7 @@ def test_health(client):
     assert client.get("/health").get_json() == {"status": "ok", "service": "school-feeding-scoring", "method": "extended_isolation_forest"}
 
 
-def test_ranks_every_school_lists_the_top_three_and_explains_each(client, dataset):
+def test_ranks_every_school_and_lists_at_most_three_above_the_review_threshold(client, dataset):
     res = client.post("/score", json=body_for(dataset, "North", "2026-03-02"))
 
     body = res.get_json()
@@ -81,7 +81,10 @@ def test_ranks_every_school_lists_the_top_three_and_explains_each(client, datase
     assert body["mode"] == "extended_isolation_forest"
     assert len(body["items"]) == 6
     assert [i["rank"] for i in body["items"]] == [1, 2, 3, 4, 5, 6]
-    assert [i["listed"] for i in body["items"]] == [True] * 3 + [False] * 3
+    # Version 7: up to 3, and only school-weeks above the review threshold, so a quiet week lists fewer
+    threshold = body["model"]["review_threshold"]
+    assert body["model"]["review_quantile"] == 0.98
+    assert [i["listed"] for i in body["items"]] == [i["rank"] <= 3 and i["score"] > threshold for i in body["items"]]
     assert all(i["explanation"].startswith("Needs review") for i in body["items"])
     assert body["model"]["window_school_days"] <= 125
     assert "does not decide anything" in body["notice"]
@@ -153,7 +156,7 @@ def test_follow_up_school_weeks_are_left_out_of_the_fit(client, dataset):
     assert excluded["model"]["fitted_on_rows"] < plain["model"]["fitted_on_rows"]
 
 
-def test_a_backdated_catch_up_makes_the_list_for_its_week(client, dataset):
+def test_a_backdated_catch_up_is_ranked_first_and_breaks_the_entry_rules(client, dataset):
     episodes = pd.read_csv(dataset / "episodes.csv", parse_dates=["start", "end"])
     ep = episodes[episodes.type == "backdated_bulk_entry"].iloc[0]
     sub_county = pd.read_csv(dataset / "schools.csv").set_index("school_id").sub_county[ep.school_id]
@@ -161,8 +164,11 @@ def test_a_backdated_catch_up_makes_the_list_for_its_week(client, dataset):
 
     body = client.post("/score", json=body_for(dataset, sub_county, str(monday))).get_json()
 
-    listed = [i["school_id"] for i in body["items"] if i["listed"]]
-    assert ep.school_id in listed
+    # The model ranks it first; whether it is also above the review threshold depends on the
+    # sub-county's weeks, but the fixed checks always show it to the officer
+    assert body["items"][0]["school_id"] == ep.school_id
+    breaches = {(b["school_id"], b["rule"]) for b in body["rule_breaches"]}
+    assert {(ep.school_id, "entry_delay"), (ep.school_id, "entry_batch")} <= breaches
 
 
 @pytest.mark.parametrize("change, message", [
