@@ -7,7 +7,34 @@
 # Version 2, committed before it was run. Version 1 (in git history) left out records
 # the app collects and the problem behind Kenya's capitation audit, so version 2 adds
 # them and its results supersede version 1's. Version 1's results stay in git history.
-version: 6
+version: 7
+changes_from_version_6:
+  - Written before any version 7 run, from a review of version 6 against how schools with
+    unreliable internet behave. Each change answers one finding; none is chosen for its
+    effect on a result.
+  - Finding - entry_delay measured from the date to when the record reached the server, and
+    batch_dates counted the dates that arrived in one sync. Both mix two behaviours. A school
+    that recorded every day on time but was offline for two weeks looked like one that
+    backdated two weeks, so a connectivity outage alone could raise a school's score.
+  - entry_delay now measures school days from the date to when the record was captured on
+    the device. batch_dates is replaced by entry_batch, the number of different dates the
+    school captured in the same sitting (the same school and capture date). A catch-up of
+    past days entered together still shows; records that waited for a connection do not.
+  - Sync delay (capture to receipt) and sync batch size are no longer model inputs. They are
+    still computed, shown in analytics, and reported by connectivity group (below), but an
+    outage is not evidence about the records.
+  - The data now includes connectivity outages (forecasting/config/feeding_dataset.yaml,
+    entry.outages), during which a device records on time but cannot sync, then sends
+    everything at once. Version 6's data had none, so it could not show the problem.
+    Outages are drawn from their own random stream, so every other value in the data is
+    unchanged from version 6's generator.
+  - The fixed rules follow the features - more than 5 school days between the date and its
+    capture, and 10 or more dates captured in one sitting.
+  - Methods, grids, periods, held-out types, the primary metric and the decision rule are
+    otherwise unchanged. The deployment test gains a review threshold, Recall@3, workload
+    and wider fairness measures (config/anomaly_deployment_test.yaml); the robustness study
+    gains a scenario with more outages; a feature ablation is reported. Version 7 supersedes
+    version 6's results, which stay in git history.
 changes_from_version_5:
   - From the audit of version 5 (docs/anomaly-model-audit.md), written after its results
     and after exploratory checks on the same data, so recorded as a deviation. Each change
@@ -132,8 +159,8 @@ features:
   pulse_ratio: pulses issued against the ration for learners fed
   usage_trend: recent rise in food issued per learner
   count_gap_change: new gap between the store count and the records, in days of food
-  entry_delay: school days between the date and when the record reached the server
-  batch_dates: dates sent together in one sync
+  entry_delay: school days between the date and when the record was captured on the device (not when it reached the server)
+  entry_batch: different dates the school captured in the same sitting (a catch-up of past days; waiting for a connection does not count)
   after_hours_share: share of the school's last 10 records entered outside school hours (a pattern, not one entry)
   round_share: round numbers among recent records
   fed_steadiness: how little learners fed, for that kind of day, changes from day to day
@@ -165,7 +192,20 @@ tuning:
   rules: {}                   # thresholds fixed by programme logic, not tuned
   random_seed: 20261031
 
+# Version 7 - feature ablation, reported and not used to choose features (a change on its
+# basis would be version 8). The recommended method, with its chosen settings, is refitted
+# without one feature at a time, and without each group below; precision@k on the selection
+# year and the test year, and recall per anomaly type, are reported against the full set.
+ablation:
+  groups:
+    entry_timing: [entry_delay, entry_batch, after_hours_share]
+    made_up_figures: [round_share, fed_steadiness]
+    headcount: [fed_rate, fed_vs_own, fed_vs_peers, fed_rate_vs_last_term]
+    food: [cereal_ratio, pulse_ratio, usage_trend]
+
 scoring:
+  # The unit scored is the school-day; review lists are built from school-weeks (each school's
+  # highest-scoring day that week); every method is judged on the same units and periods
   unit: school-day
   # A programme officer reviews a short list each week, so the primary metric is the
   # share of listed school-weeks that really contain an anomaly.
