@@ -1,80 +1,97 @@
-# Anomaly detection: deployment-matching test
+# Anomaly detection: deployment-matching test (protocol version 7)
 
-Plan: [`forecasting\config\anomaly_deployment_test.yaml`](../../../../config/anomaly_deployment_test.yaml), committed before it was run. Each sub-county is refitted every 20 school days on its last 125 school days, with the settings fixed from the main evaluation and no labels or threshold; each week every officer gets the top 3 school-weeks; school-weeks the officer marks follow-up are left out of later fits. 4 datasets × 5 model seeds; scored 2025-01-06 to 2026-10-23.
+Plan: [`forecasting/config/anomaly_deployment_test.yaml`](../../../../config/anomaly_deployment_test.yaml), written before it was run. Each sub-county is refitted every 20 school days on its last 125, with the settings fixed from the main evaluation and no labels. Each week the officer gets up to 3 school-weeks: the highest-scoring, above the review threshold. School-weeks marked follow-up are left out of later fits. 4 datasets × 5 model seeds. The unit is the school-week. The threshold is chosen on 2025; the figures below are for 2026.
 
-**Deployed, the methods rank differently from the evaluation: Extended Isolation Forest does best, 1.2 points above One-class SVM.**
+**The evaluation's conclusion holds in deployment: Extended Isolation Forest has the highest mean Precision@3.**
 
-| Method | Precision@3 (mean) | Spread across runs (sd, points) | Share of best possible | Problem school-weeks listed | Seconds per refit |
-|---|---|---|---|---|---|
-| Extended Isolation Forest | 15.8% | ±0.7 | 73.6% | 73.4% | 0.36 |
-| SGD one-class SVM | 15.2% | ±0.9 | 70.7% | 70.5% | 0.02 |
-| Isolation Forest | 14.8% | ±1.0 | 69.1% | 68.9% | 0.77 |
-| Local Outlier Factor | 14.6% | ±0.6 | 68.2% | 68.0% | 0.06 |
-| One-class SVM | 14.6% | ±0.9 | 67.9% | 67.8% | 0.01 |
-| Fixed rules | 9.6% | ±0.5 | 44.6% | 44.5% | 0.00 |
+| Method | Review threshold (q) | Precision@3 | Recall@3 | F1@3 | Weeks with nothing listed | Schools listed per officer-week | Ordinary schools listed per officer-term |
+|---|---|---|---|---|---|---|---|
+| Extended Isolation Forest | 0.98 | 43.8% | 30.3% | 35.7% | 68.4% | 0.52 | 3.8 |
+| Isolation Forest | 0.95 | 39.1% | 43.7% | 41.2% | 41.1% | 0.84 | 6.6 |
+| SGD one-class SVM | 0.95 | 37.2% | 44.2% | 40.1% | 43.3% | 0.89 | 7.3 |
+| Local Outlier Factor | 0.95 | 37.0% | 42.3% | 39.1% | 45.7% | 0.85 | 6.9 |
+| One-class SVM | 0.95 | 35.3% | 37.5% | 36.1% | 47.9% | 0.80 | 6.7 |
+| Fixed rules | none (always 3) | 32.1% | 31.1% | 31.4% | 53.1% | 0.71 | 6.2 |
+
+## The same methods without a threshold (always 3 a week)
+
+| Method | Precision@3 | Recall@3 | F1@3 | Ordinary schools listed per officer-term |
+|---|---|---|---|---|
+| Extended Isolation Forest | 18.9% | 75.0% | 30.1% | 31.6 |
+| Isolation Forest | 17.7% | 70.4% | 28.3% | 32.1 |
+| Local Outlier Factor | 17.7% | 70.4% | 28.3% | 32.1 |
+| One-class SVM | 17.5% | 69.5% | 27.9% | 32.2 |
+| Fixed rules | 32.1% | 31.1% | 31.4% | 6.2 |
+| SGD one-class SVM | 18.2% | 72.1% | 29.0% | 31.9 |
+
+## Choosing the threshold (2025, the selection year)
+
+The protocol chooses each method's q by the highest F1@3 on the selection year; ties go to the lower q.
+
+| Method | q | Precision@3 | Recall@3 | F1@3 |
+|---|---|---|---|---|
+| Extended Isolation Forest | 0.90 | 22.6% | 44.2% | 29.9% |
+| Extended Isolation Forest | 0.95 | 27.0% | 35.0% | 30.4% |
+| Extended Isolation Forest | 0.98 | 37.7% | 25.7% | 30.6% |
+| Extended Isolation Forest | none (always 3) | 12.3% | 68.6% | 20.8% |
+| Isolation Forest | 0.90 | 18.9% | 44.9% | 26.6% |
+| Isolation Forest | 0.95 | 24.3% | 31.3% | 27.3% |
+| Isolation Forest | 0.98 | 31.2% | 17.2% | 22.2% |
+| Isolation Forest | none (always 3) | 11.2% | 62.6% | 19.0% |
+| Local Outlier Factor | 0.90 | 20.0% | 43.8% | 27.4% |
+| Local Outlier Factor | 0.95 | 25.1% | 31.0% | 27.6% |
+| Local Outlier Factor | 0.98 | 33.6% | 21.2% | 25.4% |
+| Local Outlier Factor | none (always 3) | 11.2% | 62.6% | 19.0% |
+| One-class SVM | 0.90 | 19.1% | 44.0% | 26.5% |
+| One-class SVM | 0.95 | 25.6% | 34.4% | 29.1% |
+| One-class SVM | 0.98 | 34.9% | 25.1% | 28.6% |
+| One-class SVM | none (always 3) | 11.4% | 63.5% | 19.3% |
+| Fixed rules | none (always 3) | 16.5% | 20.2% | 18.1% |
+| SGD one-class SVM | 0.90 | 19.4% | 47.6% | 27.5% |
+| SGD one-class SVM | 0.95 | 26.9% | 36.3% | 30.6% |
+| SGD one-class SVM | 0.98 | 33.0% | 21.8% | 25.9% |
+| SGD one-class SVM | none (always 3) | 11.8% | 65.5% | 19.9% |
 
 ## Problem school-weeks listed, by type
 
 | Method | backdated_bulk_entry | consumption_drift | ghost_learners | inflated_headcount | round_number_entry | stock_leakage |
 |---|---|---|---|---|---|---|
-| Extended Isolation Forest | 100.0% | 71.9% | 87.3% | 76.2% | 87.4% | 48.6% |
-| SGD one-class SVM | 100.0% | 82.0% | 83.9% | 74.2% | 71.7% | 36.9% |
-| Isolation Forest | 97.9% | 65.8% | 84.1% | 81.9% | 68.7% | 39.6% |
-| Local Outlier Factor | 100.0% | 77.9% | 85.3% | 62.6% | 73.8% | 38.9% |
-| One-class SVM | 100.0% | 82.8% | 78.0% | 70.5% | 68.3% | 33.5% |
-| Fixed rules | 100.0% | 46.7% | 51.4% | 26.6% | 21.2% | 43.2% |
+| Extended Isolation Forest | 100.0% | 27.3% | 16.8% | 5.7% | 20.7% | 31.9% |
+| Isolation Forest | 92.5% | 27.3% | 51.6% | 39.3% | 37.6% | 10.4% |
+| SGD one-class SVM | 100.0% | 56.3% | 46.6% | 32.6% | 33.3% | 6.0% |
+| Local Outlier Factor | 100.0% | 51.2% | 46.1% | 13.5% | 31.5% | 10.7% |
+| One-class SVM | 100.0% | 57.0% | 31.8% | 30.4% | 20.6% | 4.8% |
+| Fixed rules | 100.0% | 25.4% | 31.4% | 8.0% | 4.2% | 19.4% |
 
-## Precision by kind of week
+## Fairness (Extended Isolation Forest, preliminary)
 
-Weeks holding the last day of the school year (closing day), the first day, and all others. The best possible differs by kind of week, so the share of it is the fair comparison.
+For each group, ordinary school-weeks listed (false listing rate) and problem school-weeks listed (detection rate), against the overall rates (3.2% and 30.0%). A group is over-listed above 1.5 times the overall false listing rate. 40 synthetic schools: small groups, so these are indications, not conclusions.
 
-| Method | Kind of week | Precision@3 | Best possible | Share of best possible |
-|---|---|---|---|---|
-| Extended Isolation Forest | other | 16.5% | 22.4% | 73.7% |
-| Extended Isolation Forest | school_year_end | 6.2% | 8.3% | 83.3% |
-| Extended Isolation Forest | school_year_start | 2.1% | 4.2% | 50.0% |
-| Isolation Forest | other | 15.5% | 22.4% | 69.3% |
-| Isolation Forest | school_year_end | 5.2% | 8.3% | 72.2% |
-| Isolation Forest | school_year_start | 2.1% | 4.2% | 50.0% |
-| Local Outlier Factor | other | 15.3% | 22.4% | 68.3% |
-| Local Outlier Factor | school_year_end | 4.2% | 8.3% | 63.9% |
-| Local Outlier Factor | school_year_start | 3.1% | 4.2% | 75.0% |
-| One-class SVM | other | 15.2% | 22.4% | 68.1% |
-| One-class SVM | school_year_end | 4.2% | 8.3% | 63.9% |
-| One-class SVM | school_year_start | 3.1% | 4.2% | 75.0% |
-| Fixed rules | other | 10.0% | 22.4% | 44.7% |
-| Fixed rules | school_year_end | 3.1% | 8.3% | 52.8% |
-| Fixed rules | school_year_start | 2.1% | 4.2% | 50.0% |
-| SGD one-class SVM | other | 15.9% | 22.4% | 70.9% |
-| SGD one-class SVM | school_year_end | 4.2% | 8.3% | 63.9% |
-| SGD one-class SVM | school_year_start | 3.1% | 4.2% | 75.0% |
-
-**Closing-week check (One-class SVM):** share of the best possible 4.2 points lower in school-year-end weeks than in other weeks - within the plan's 10 points, so the closing-week problem counts as fixed. Under version 4's features: 11.1% in school-year-end weeks against 70.8% in other weeks.
-
-## Who is listed for nothing
-
-For each group, its share of the listed school-weeks that contain no problem, over its share of all school-weeks with no problem: 1.00 means it is listed for nothing exactly as often as its size says; over 1.50 counts as over-listed (plan: fairness_check).
-
-| Method | large schools | small schools | medium schools | food delivered | cash transfer |
+| Group | By | Ordinary weeks | False listing rate | Against overall | Detection rate |
 |---|---|---|---|---|---|
-| Extended Isolation Forest | 1.01 | 1.03 | 0.95 | 0.97 | 0.98 |
-| SGD one-class SVM | 1.06 | 0.97 | 0.96 | 0.93 | 1.07 |
-| Isolation Forest | 1.02 | 1.03 | 0.94 | 0.95 | 1.03 |
-| Local Outlier Factor | 1.03 | 0.97 | 1.00 | 0.96 | 1.04 |
-| One-class SVM | 1.06 | 0.99 | 0.94 | 0.93 | 1.08 |
-| Fixed rules | 0.88 | 1.10 | 1.01 | 0.92 | 1.11 |
+| medium schools | size | 8295 | 4.0% | 1.24 | 26.1% |
+| small schools | size | 8980 | 2.9% | 0.92 | 34.7% |
+| large schools | size | 9350 | 2.7% | 0.86 | 29.0% |
+| cash transfer | programme | 7710 | 1.3% | 0.40 | 25.1% |
+| food delivered | programme | 18915 | 4.0% | 1.24 | 31.8% |
+| Mfano East | sub county | 6730 | 3.4% | 1.06 | 26.4% |
+| Mfano North | sub county | 6670 | 3.3% | 1.02 | 35.3% |
+| Mfano South | sub county | 6605 | 3.0% | 0.95 | 28.4% |
+| Mfano West | sub county | 6620 | 3.1% | 0.96 | 29.8% |
+| syncs every 3-5 days | sync | 17505 | 3.2% | 0.99 | 31.4% |
+| syncs every 1-2 days | sync | 9120 | 3.2% | 1.01 | 27.6% |
+| week without | in outage | 24550 | 3.2% | 1.01 | 29.3% |
+| week with an outage | in outage | 2075 | 2.8% | 0.89 | 40.0% |
 
-**Fairness check (One-class SVM):** no group over 1.50; the highest is cash transfer at 1.08.
+**Over-listed:** none.
 
-## Precision by dataset
+## Connectivity check
 
-| Method | main | seed_101 | seed_202 | seed_303 |
+Ordinary school-weeks listed, in weeks when the school's device could not sync and in other weeks, with version 7's features (entry measured from capture) and with version 6's (entry measured from server receipt), on the same data.
+
+| Timing features | Ordinary outage weeks listed | Ordinary other weeks listed | Precision@3 | Recall@3 |
 |---|---|---|---|---|
-| Extended Isolation Forest | 16.6% | 14.8% | 16.2% | 15.6% |
-| SGD one-class SVM | 15.6% | 13.8% | 16.0% | 15.3% |
-| Isolation Forest | 15.8% | 13.4% | 15.3% | 14.9% |
-| Local Outlier Factor | 14.5% | 14.0% | 15.5% | 14.6% |
-| One-class SVM | 15.4% | 13.1% | 15.2% | 14.7% |
-| Fixed rules | 9.8% | 10.0% | 9.7% | 8.8% |
+| Version 7 (capture) | 2.8% | 3.2% | 43.5% | 30.0% |
+| Version 6 timing (server receipt) | 7.1% | 2.7% | 44.7% | 30.0% |
 
-Synthetic data: the test shows the methods behave in deployment as in the evaluation, not how often they would be right at real schools.
+Synthetic data: this shows how the methods behave in deployment on records shaped like Kenyan school feeding records, not how often they would be right at real schools.

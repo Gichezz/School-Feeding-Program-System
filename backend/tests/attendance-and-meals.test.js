@@ -1,6 +1,8 @@
 const app = require('../src/app');
 const { api } = require('./helpers/auth');
 
+// Records come from the school's devices; system administrators see none (least privilege)
+const asStaff = api(app, 'staff');
 const asAdmin = api(app);
 const { pool, SCHOOL_ID, MISSING_ID, resetDatabase } = require('./helpers/fixtures');
 
@@ -30,7 +32,7 @@ function mealBody(overrides = {}) {
 
 describe('attendance records', () => {
   it('creates a record at version 1 and returns DD-MM-YYYY dates', async () => {
-    const res = await asAdmin.post('/api/attendance').send(attendanceBody());
+    const res = await asStaff.post('/api/attendance').send(attendanceBody());
 
     expect(res.status).toBe(201);
     expect(res.body.attendance).toMatchObject({
@@ -42,9 +44,9 @@ describe('attendance records', () => {
   });
 
   it('lists records filtered by school and date', async () => {
-    await asAdmin.post('/api/attendance').send(attendanceBody());
+    await asStaff.post('/api/attendance').send(attendanceBody());
 
-    const res = await asAdmin.get(`/api/attendance?school_id=${SCHOOL_ID}&date=05-10-2026`);
+    const res = await asStaff.get(`/api/attendance?school_id=${SCHOOL_ID}&date=05-10-2026`);
 
     expect(res.status).toBe(200);
     expect(res.body.count).toBe(1);
@@ -52,11 +54,11 @@ describe('attendance records', () => {
   });
 
   it('returns a record by id, 400 for a malformed id and 404 for an unknown id', async () => {
-    const created = await asAdmin.post('/api/attendance').send(attendanceBody());
+    const created = await asStaff.post('/api/attendance').send(attendanceBody());
 
-    const found = await asAdmin.get(`/api/attendance/${created.body.attendance.id}`);
-    const malformed = await asAdmin.get('/api/attendance/abc');
-    const missing = await asAdmin.get(`/api/attendance/${MISSING_ID}`);
+    const found = await asStaff.get(`/api/attendance/${created.body.attendance.id}`);
+    const malformed = await asStaff.get('/api/attendance/abc');
+    const missing = await asStaff.get(`/api/attendance/${MISSING_ID}`);
 
     expect(found.status).toBe(200);
     expect(found.body.attendance.total_present).toBe(95);
@@ -72,22 +74,22 @@ describe('attendance records', () => {
     ['present + absent below registered', { total_present: 90, total_absent: 5 }],
     ['a malformed school id', { school_id: 'abc' }],
   ])('rejects %s with 400', async (_, overrides) => {
-    const res = await asAdmin.post('/api/attendance').send(attendanceBody(overrides));
+    const res = await asStaff.post('/api/attendance').send(attendanceBody(overrides));
 
     expect(res.status).toBe(400);
     expect(res.body.error).toBeTruthy();
   });
 
   it('rejects a second record for the same school and date with 409', async () => {
-    await asAdmin.post('/api/attendance').send(attendanceBody());
+    await asStaff.post('/api/attendance').send(attendanceBody());
 
-    const res = await asAdmin.post('/api/attendance').send(attendanceBody({ total_present: 90, total_absent: 10 }));
+    const res = await asStaff.post('/api/attendance').send(attendanceBody({ total_present: 90, total_absent: 10 }));
 
     expect(res.status).toBe(409);
   });
 
   it('rejects a non-JSON body with 400', async () => {
-    const res = await asAdmin.post('/api/attendance').set('Content-Type', 'text/plain').send('hello');
+    const res = await asStaff.post('/api/attendance').set('Content-Type', 'text/plain').send('hello');
 
     expect(res.status).toBe(400);
   });
@@ -95,7 +97,7 @@ describe('attendance records', () => {
 
 describe('meal distributions', () => {
   it('creates a record at version 1', async () => {
-    const res = await asAdmin.post('/api/meals').send(mealBody());
+    const res = await asStaff.post('/api/meals').send(mealBody());
 
     expect(res.status).toBe(201);
     expect(res.body.meal).toMatchObject({
@@ -107,9 +109,9 @@ describe('meal distributions', () => {
   });
 
   it('lists records for the school, including seed data', async () => {
-    await asAdmin.post('/api/meals').send(mealBody());
+    await asStaff.post('/api/meals').send(mealBody());
 
-    const res = await asAdmin.get(`/api/meals?school_id=${SCHOOL_ID}`);
+    const res = await asStaff.get(`/api/meals?school_id=${SCHOOL_ID}`);
 
     expect(res.status).toBe(200);
     expect(res.body.count).toBe(2);
@@ -121,16 +123,35 @@ describe('meal distributions', () => {
     ['negative counts', { meals_prepared: -5 }],
     ['more meals served than prepared', { meals_served: 101 }],
   ])('rejects %s with 400', async (_, overrides) => {
-    const res = await asAdmin.post('/api/meals').send(mealBody(overrides));
+    const res = await asStaff.post('/api/meals').send(mealBody(overrides));
 
     expect(res.status).toBe(400);
   });
 
   it('rejects a second record for the same school and date with 409', async () => {
-    await asAdmin.post('/api/meals').send(mealBody());
+    await asStaff.post('/api/meals').send(mealBody());
 
-    const res = await asAdmin.post('/api/meals').send(mealBody());
+    const res = await asStaff.post('/api/meals').send(mealBody());
 
     expect(res.status).toBe(409);
+  });
+});
+
+describe('who may see and send records', () => {
+  it('refuses system administrators, who run accounts and devices but see no school records', async () => {
+    expect((await asAdmin.post('/api/attendance').send(attendanceBody())).status).toBe(403);
+    expect((await asAdmin.get(`/api/attendance?school_id=${SCHOOL_ID}`)).status).toBe(403);
+    expect((await asAdmin.get(`/api/meals?school_id=${SCHOOL_ID}`)).status).toBe(403);
+  });
+
+  it('keeps the feeding teacher to their own school', async () => {
+    const created = await asStaff.post('/api/attendance').send(attendanceBody());
+    const other = '11111111-1111-1111-1111-111111111112';
+
+    expect((await asStaff.post('/api/attendance').send(attendanceBody({ school_id: other }))).status).toBe(403);
+    // Asking for another school still returns only their own
+    const list = await asStaff.get(`/api/attendance?school_id=${other}`);
+    expect([...new Set(list.body.attendance.map((a) => a.school_id))]).toEqual([SCHOOL_ID]);
+    expect((await asAdmin.get(`/api/attendance/${created.body.attendance.id}`)).status).toBe(403);
   });
 });

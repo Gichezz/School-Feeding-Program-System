@@ -3,8 +3,9 @@ const router = express.Router();
 const { listRuns, getRun, runWeek, decide } = require('../controllers/reviewListController');
 const { requireRole } = require('../middleware/auth');
 
-// Weekly review lists are for programme officers (their own sub-county) and administrators
-router.use(requireRole('admin', 'programme_officer'));
+// Programme records are for programme officers, for their own sub-county. System
+// administrators run accounts, devices and configuration, and do not see them (least privilege)
+router.use(requireRole('programme_officer'));
 
 /**
  * GET /api/review-lists?subCounty=
@@ -28,7 +29,6 @@ router.post('/:week/run', runWeek);
  * PUT /api/review-lists/:week/decisions/:schoolId
  * Mark a school's week explained or follow-up, with a note
  */
-// The officer's decision; system administrators only read lists
-router.put('/:week/decisions/:schoolId', requireRole('programme_officer'), decide);
+router.put('/:week/decisions/:schoolId', decide);
 
 module.exports = router;

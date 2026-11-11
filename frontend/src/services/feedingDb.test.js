@@ -55,6 +55,19 @@ describe('saveEnrolment', () => {
     const rows = await db.enrolment.toArray();
     expect(rows.map((r) => [r.sex, r.learners, r.version])).toEqual([['F', 53, 2], ['M', 49, 1]]);
   });
+
+  it('sends the reason for changing a verified class, which is then no longer verified but keeps its verified number', async () => {
+    const entry = { schoolId: SCHOOL_ID, termId: TERM_ID, class: 'Grade 4', sex: 'F', learners: 52 };
+    // As downloaded after the officer verified it
+    await db.enrolment.add({ ...entry, serverId: 'e1', version: 2, verified: true, verifiedLearners: 52, syncStatus: 'synced' });
+
+    await saveEnrolment({ ...entry, learners: 47, changeReason: 'correction' });
+
+    const row = await db.enrolment.where('serverId').equals('e1').first();
+    expect(row).toMatchObject({ learners: 47, verified: false, verifiedLearners: 52, version: 3 });
+    const [queued] = await db.syncQueue.toArray();
+    expect(queued.payload).toMatchObject({ learners: 47, changeReason: 'correction' });
+  });
 });
 
 describe('addStockMovement', () => {

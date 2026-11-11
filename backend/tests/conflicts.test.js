@@ -1,7 +1,8 @@
 const app = require('../src/app');
-const { api, USERS } = require('./helpers/auth');
+const { api, asSchool, USERS } = require('./helpers/auth');
 
 const asAdmin = api(app);
+const schoolDevice = asSchool(app);
 const asOfficer = api(app, 'officer');
 const {
   pool,
@@ -16,7 +17,7 @@ beforeEach(resetDatabase);
 afterAll(() => pool.end());
 
 function sync(clientId, operations) {
-  return asAdmin.post('/api/sync').send({ clientId, operations });
+  return schoolDevice.post('/api/sync').send({ clientId, operations });
 }
 
 /**
@@ -79,17 +80,20 @@ describe('listing conflicts', () => {
   it('lists unresolved conflicts and returns one by id', async () => {
     const { conflictId } = await createAttendanceConflict();
 
-    const list = await asAdmin.get('/api/sync/conflicts?status=unresolved');
-    const one = await asAdmin.get(`/api/sync/conflicts/${conflictId}`);
+    const list = await asOfficer.get('/api/sync/conflicts?status=unresolved');
+    const one = await asOfficer.get(`/api/sync/conflicts/${conflictId}`);
 
     expect(list.status).toBe(200);
     expect(list.body.conflicts.map((c) => c.conflict_id)).toEqual([conflictId]);
     expect(one.status).toBe(200);
     expect(one.body.conflict).toMatchObject({ conflict_id: conflictId, server_version: 2, base_version: 1 });
+    // System administrators see no school records, conflicts included
+    expect((await asAdmin.get('/api/sync/conflicts?status=unresolved')).status).toBe(403);
+    expect((await asAdmin.get(`/api/sync/conflicts/${conflictId}`)).status).toBe(403);
   });
 
   it('returns 404 for an unknown conflict', async () => {
-    const res = await asAdmin.get(`/api/sync/conflicts/${MISSING_ID}`);
+    const res = await asOfficer.get(`/api/sync/conflicts/${MISSING_ID}`);
 
     expect(res.status).toBe(404);
   });

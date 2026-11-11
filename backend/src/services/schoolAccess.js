@@ -9,7 +9,8 @@ async function visibleSchool(db, user, schoolId) {
   if (!school) return null;
   if (user.role === 'admin') return school;
   if (user.role === 'programme_officer') return school.sub_county === user.subCounty ? school : null;
-  return school.id === user.schoolId ? school : null;
+  if (user.role === 'school_staff') return school.id === user.schoolId ? school : null;
+  return null;
 }
 
 const { ValidationError, NotFoundError } = require('../utils/errors');

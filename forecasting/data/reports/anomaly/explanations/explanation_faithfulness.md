@@ -8,14 +8,14 @@ On each listing's highest-scoring day, the two named features are reset together
 
 | Measure | Result | Plan's bar |
 |---|---|---|
-| Named pair's drop, as a share of the best pair's (mean) | 98.0% | ≥ 80% |
+| Named pair's drop, as a share of the best pair's (mean) | 98.1% | ≥ 80% |
 | Listings where the named pair drops more than the median pair | 100.0% | ≥ 90% |
 | Where the named pair falls among all pairs (mean percentile) | 99.6 | – |
 
 | Listings | Count | Share of best pair | Beats the median pair |
 |---|---|---|---|
-| with a problem | 547 | 98.9% | 100.0% |
-| ordinary | 2909 | 97.9% | 100.0% |
+| with a problem | 535 | 98.6% | 100.0% |
+| ordinary | 2921 | 98.1% | 100.0% |
 
 **The reasons are faithful by the plan's rule.**
 
@@ -25,17 +25,17 @@ Listings holding one injected problem type: the share where at least one reason 
 
 | Problem type | Listings | A reason matches | Chance | Better than chance |
 |---|---|---|---|---|
-| inflated_headcount | 115 | 62.6% | 57.1% | yes |
-| consumption_drift | 114 | 94.7% | 37.1% | yes |
-| stock_leakage | 85 | 56.5% | 13.3% | yes |
+| inflated_headcount | 117 | 63.2% | 57.1% | yes |
+| consumption_drift | 112 | 95.5% | 37.1% | yes |
+| stock_leakage | 76 | 63.2% | 13.3% | yes |
 | backdated_bulk_entry | 56 | 100.0% | 57.1% | yes |
-| round_number_entry | 49 | 91.8% | 25.7% | yes |
-| ghost_learners | 126 | 95.2% | 65.7% | yes |
+| round_number_entry | 50 | 96.0% | 25.7% | yes |
+| ghost_learners | 122 | 93.4% | 65.7% | yes |
 
 Better than chance for 6 of the 6 types with at least 20 listings.
 
 ## 3. Does a second model seed give the same reasons?
 
-On the main dataset, 98.6% of school-weeks listed under seed 1 are listed under seed 2 too. Of those (852), 94.5% get the same two reasons and 99.9% share at least one. Reported, not judged.
+On the main dataset, 96.3% of school-weeks listed under seed 1 are listed under seed 2 too. Of those (832), 90.1% get the same two reasons and 99.5% share at least one. Reported, not judged.
 
 Synthetic data: this shows the reasons describe the model and the injected problems; whether officers find them useful needs real use.

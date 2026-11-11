@@ -24,13 +24,33 @@ Three roles, each with its own job: one records, one checks and decides, one run
 |---|---|---|---|---|
 | `school_staff` (**Feeding teacher**) | The teacher in charge of school feeding; a head teacher who records uses the same role | A school device, signed in with the device and a PIN | Record and sync for their own school, offline included: daily feeding, deliveries (with who witnessed them), losses, store counts, termly enrolment | See other schools; verify their own enrolment; decide conflicts |
 | `programme_officer` (**Programme officer**) | Sub-county education office staff responsible for school meals | A laptop, online | For every school in their sub-county: verify termly enrolment, read analytics, mark weekly review listings explained or follow-up, check flagged records, resolve conflicts and held records | Record school data; manage accounts or devices |
-| `admin` (**System administrator**) | County or ministry staff who run the system | A laptop, online | Create and deactivate accounts (feeding teachers with their school, programme officers with their sub-county), approve and remove devices, reset passwords and passkeys; **read** every sub-county's analytics, lists, flags, conflicts and enrolment | Make any programme decision: these are the programme officer's |
+| `admin` (**System administrator**) | County or ministry staff who run the system | A laptop, online | Create and deactivate accounts (feeding teachers with their school, programme officers with their sub-county), approve and remove devices, unlock PIN sign-ins, reset passwords and passkeys | See or send any school's records: feeding, stock, enrolment, analytics, review lists, flags, conflicts or held records; make any programme decision |
+
+**Least privilege for the system administrator.** The administrator's job is accounts, devices and configuration, so the API refuses them every school record: `/api/analytics`, `/api/review-lists`, `/api/review`, `/api/enrolment`, the sync record endpoints (`POST /api/sync`, `/changes`, `/conflicts`, `/held`) and the older `/api/attendance`, `/api/meals` and `/api/reports` endpoints (403). The app shows them a dashboard of devices waiting for approval, locked sign-ins and accounts, and only the Dashboard and Settings pages. Approving a device shows its school and who set it up, but none of the school's records. A ministry auditor or county coordinator who needs to read programme records across sub-counties would be a separate read-only role, not the administrator.
 
 Class teachers keep attendance in the class registers; the feeding teacher copies the day's total if counted. Cooks and the school meals committee do not sign in: the committee member who witnesses a delivery is recorded by name with it (migration 018).
 
 **Enrolment verification.** A school's termly enrolment sets the food it can request, so the programme officer checks it against the admission register and verifies it (**Enrolment checks**, `GET /api/enrolment`, `POST /api/enrolment/:schoolId/:termId/verify`). Verifying records who and when, as a new version in each class's history, so the school's devices download it. A later change on the device clears the verification of the classes it changes, so only numbers as they were checked count as verified.
 
+Each school's term has one of five states: **Not entered**, **To check** (entered, never verified), **Changed since checked**, **Verified**, and **Discrepancy**. The changes are auditable (migration 020):
+
+- **Discrepancy.** When the numbers do not match the register, the officer records a discrepancy with a note (`POST /api/enrolment/:schoolId/:termId/discrepancy`), for example "Grade 4 girls are 47 in the admission register". Every class for the term becomes a new version, no longer verified, with the note. The school's devices download it and show it on the Enrolment page. The school's next change answers it: the note is cleared and the term goes back to the officer as changed.
+- **A reason for changing a verified class.** Changing a class that the officer has verified needs a reason: new admissions, transfers in or out, or a correction. The device asks for it; the server refuses the change without one. The reason is kept with the record and in its history. A class never verified can be corrected without one.
+- **The last verified number stays in use.** `verified_learners` keeps the number as last verified. Until the officer checks a change, the term plan counts the class at that number and says so, so a raised enrolment cannot raise the food request before it is checked.
+
 ## Data
+
+**Food issued, eaten and in store are different quantities.**
+- *Issued* is what the teacher records as taken from the store for the day's meal. Cereals and pulses are weighed; oil and salt are worked out from the ration (5 g and 2 g per learner per meal) for the learners fed.
+- *Eaten* is not measured: leftovers and plate waste are not recorded, so the system never claims food issued was eaten.
+- *In store* by the records is everything received, minus everything issued, lost or returned. A *store count* is what was actually weighed.
+
+The ration check compares food issued with the ration for the **learners fed**. A difference between the records and a count is an **unexplained stock variance** to look into, not a finding of theft.
+
+**Hard rules and warnings on the device.**
+- **Hard rules** stop a record from being saved, and are the same ones the server applies: missing answers, a future date, learners fed above the present count when one is given, food recorded on a day without feeding, and a late entry without a reason.
+- **Warnings** are checks against what the device knows, which can be out of date: more fed than enrolled (enrolment may not be updated yet), and more issued or lost than the device's stock balance (a delivery recorded on another device may not have arrived). The teacher sees "Check before saving" and can save anyway.
+- **The server is authoritative.** It checks every record against its own complete records and **flags** it for the programme officer to review (`fed_exceeds_enrolled`, `issue_exceeds_stock`, `usage_far_from_ration`), keeping the record as entered. Two devices that each issue within their own balance, but together exceed the store, are caught this way.
 
 **Device (IndexedDB, Dexie version 8)**
 
@@ -72,7 +92,18 @@ Version-based optimistic concurrency for editable records, an append-only ledger
    - a record captured by someone since deactivated, or on a device since removed, is **held** too.
 4. While a record is in conflict, later edits to it wait on the device, so nothing overwrites a decision that has not been made.
 
-**Downloading (server → device).** After each sync the device asks for its school's changes since its cursor (`GET /api/sync/changes`). The cursor is a PostgreSQL transaction id (`xid8`): each saved row is stamped with the transaction that wrote it, and a download returns rows from transactions that had committed when it started (`pg_snapshot_xmin`). Unlike a timestamp, this cannot miss a slow save that commits after a faster one. The same download carries conflicts resolved and held records decided since the cursor:
+**Downloading (server → device).** After each sync the device asks for its school's changes since its cursor (`GET /api/sync/changes`). The cursor is a PostgreSQL transaction id (`xid8`). Each saved row is stamped with the id of the transaction that wrote it (a trigger, using `pg_current_xact_id()`). A download runs in one `REPEATABLE READ` snapshot and returns the rows stamped from the device's cursor up to, but not including, that snapshot's `xmin`: **the oldest transaction still running when the download started**. The next cursor is that `xmin`.
+
+Why this cannot permanently miss a committed change, even when transactions start and commit in a different order:
+- Every transaction with an id below `xmin` had finished (committed or rolled back) before the snapshot was taken. So every committed row in the returned range is visible to the download, and rolled-back rows never are.
+- A transaction still running has an id at or above `xmin`, so the cursor never moves past it. Its rows are sent in a later download, once it commits.
+- The cost is that a transaction left open holds the cursor back. Rows saved after it may be sent again in the next downloads, but the device ignores a version it already has, so a repeat changes nothing.
+- A cursor based on the **newest** transaction id, or on a timestamp, *could* miss a slow save. That is why `xmin` is used.
+- `xid8` includes the epoch, so it does not wrap around.
+
+Tests cover a save that commits after a later one, a save left open across several downloads, a rolled-back save, a device catching up after missing several edits (it gets only the latest version), and a repeated download (`backend/tests/syncChanges.test.js`). Rows are never deleted from the synced tables (the stock ledger is append-only, and a discarded held record travels as a decision), so a cursor of changed rows is enough.
+
+The same download carries conflicts resolved and held records decided since the cursor:
 - a resolved conflict closes the device's copy; if the device's version was kept, the edits waiting behind it are re-based on the new version;
 - a discarded held record leaves the device: a stock entry is removed (so it leaves the balance), and an editable record takes the server's copy.
 
@@ -82,7 +113,7 @@ A delivery held as a possible duplicate is left out of the device's stock balanc
 
 ## Conflicts and held records
 
-A conflict happens on a school's device; the programme officer for that school's sub-county (or an administrator) resolves it from the server's list, on their own laptop. They see the device's values beside the server's and choose:
+A conflict happens on a school's device; the programme officer for that school's sub-county resolves it from the server's list, on their own laptop. They see the device's values beside the server's and choose:
 
 - **Keep the server's version:** the device's change is dropped.
 - **Keep the device's version:** applied as a new version.
@@ -98,9 +129,9 @@ Held records (possible duplicate deliveries, records from deactivated users or r
 
 **Weekly review list.** For a sub-county and week, the API gathers the sub-county's records (`backend/src/services/reviewInputs.js`) and sends them to the scoring service, which:
 
-1. builds context-adjusted features per school-day (learners fed against what is usual for that kind of day, against peers, against last term; food against the ration; store-count gaps; entry delays and batch sizes; round numbers; after-hours entry);
+1. builds context-adjusted features per school-day (learners fed against what is usual for that kind of day, against peers, against last term; food against the ration; store-count gaps; how late records were entered and how many in one sitting (not when they synced, so an outage is not evidence); round numbers; after-hours entry);
 2. fits Extended Isolation Forest on the sub-county's previous 125 school days, refitting every 20 school days and leaving out school-weeks an officer marked follow-up;
-3. scores the week, takes each school's highest day, and lists the top 3 with their two main reasons in plain words, always worded "needs review";
+3. scores the week, takes each school's highest day, and lists up to 3 above a review threshold (more unusual than 98% of the training window's school-weeks, so a quiet week can list none), with their two main reasons in plain words, always worded "needs review";
 4. ranks by fixed rules alone while a sub-county has fewer than 60 school days of records, and then lists only schools that broke a rule, so a quiet week lists nobody.
 
 A school listed again shows the officer's latest decision on it from the previous four weeks.
@@ -115,9 +146,24 @@ The officer marks each listed school's week explained or follow-up, with a note.
 
 ## Sign-in and record integrity
 
-**Administrator passkeys (#57) and authenticator app codes (#63).** Administrators sign in with a WebAuthn passkey (the private key never leaves the device's secure hardware), or with a password and a 6-digit code from an authenticator app. Ten one-time recovery codes cover a lost device. Once an account has a passkey, the password alone is refused.
+**Administrator passkeys (#57) and authenticator app codes (#63).** Administrators sign in with a WebAuthn passkey (the server stores only the public key), or with a password and a 6-digit code from an authenticator app. Ten one-time recovery codes cover a lost device. Once an account has a passkey, the password alone is refused.
 
 **School devices and staff PINs (#60).** Staff record on designated school devices. An administrator creates the account and gets a one-time activation code; on the device the staff member chooses a password and a 6-digit PIN, and the browser creates a non-extractable P-256 key pair. An administrator approves the device. Staff sign in with email and PIN, and the server checks the PIN and the device's signature over a fresh challenge, so sign-in needs both the enrolled device and the PIN. Removing a device ends its sessions at once.
+
+**What the device key and the PIN protect, stated carefully.**
+- The device key is a P-256 key the browser creates with WebCrypto as **non-extractable**: the browser refuses to export it, so the app cannot read or send it. It is not proven to be held in secure hardware; it lives in the browser's storage for this site.
+- **The key and the PIN are two separate factors, both checked by the server.** The key proves the request comes from the approved device; the PIN proves which person is using it. The PIN does not encrypt or unlock the key. Online, five wrong PINs lock that person on that device until an administrator unlocks them, and this is enforced by the server.
+- **Offline,** the PIN is checked against a PBKDF2 hash kept on the device (600,000 iterations), with a lock after five wrong tries. Someone who copied the browser's storage could try every 6-digit PIN against that hash on another computer. The harm is limited: offline sign-in only allows recording, and every offline record is checked again by the server at sync (the person and device must still be active), and names who captured it.
+- Administrator passkeys are WebAuthn credentials: the server stores only the public key, and the private key stays with the person's authenticator (a phone or laptop screen lock, a security key, or a password manager that may sync it to the cloud).
+
+**What happens when …**
+
+| Event | Result |
+|---|---|
+| The browser's storage for Lishe is cleared, or the device is reset | The device key, offline sign-in and **any records not yet synced are lost**. The device must be set up again and approved as a new device. Records already synced are safe on the server. |
+| A device is lost or stolen | An administrator removes it: its sessions end at once, it can no longer sign in or sync, and records it sends afterwards are held for review. Records not yet synced are lost with it. |
+| The 7-day offline period runs out | Offline sign-in stops until the person signs in online once. Records already saved stay on the device and sync when someone signs in. |
+| A person is deactivated | They cannot sign in; records they captured offline and sync afterwards are held for review. |
 
 **Offline sign-in and who captured each record (#61).** A staff member who has signed in online on a device can sign in there offline for up to 7 days (PBKDF2 hash of the PIN, 600,000 iterations). Every queued record carries who captured it, on which device and when, and the server decides per record: applied if the signed-in user captured it; deferred if a colleague on the same device did, until that colleague syncs; held if the person was deactivated or the device removed since.
 

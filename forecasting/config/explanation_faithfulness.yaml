@@ -42,7 +42,8 @@ agreement:
     consumption_drift: [cereal_ratio, pulse_ratio, usage_trend]
     stock_leakage: [count_gap_change]
     # Entered late and together, with the usual number rounded to 10 every day
-    backdated_bulk_entry: [entry_delay, batch_dates, after_hours_share, round_share, fed_steadiness]
+    # Version 7: batch_dates was renamed entry_batch (dates entered in one sitting)
+    backdated_bulk_entry: [entry_delay, entry_batch, after_hours_share, round_share, fed_steadiness]
     round_number_entry: [round_share, fed_steadiness]
     # Enrolment up for the term; part of the extra recorded as fed, the rest leaves the store
     ghost_learners: [enrolment_change, fed_rate, fed_vs_own, fed_vs_peers, fed_rate_vs_last_term, count_gap_change]

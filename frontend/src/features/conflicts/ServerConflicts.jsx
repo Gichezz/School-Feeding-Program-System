@@ -6,7 +6,6 @@ import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { formatDateTime } from '../../utils/format';
 import { compareRows, conflictType, isEditable, mergeStart, mergeValues, showValue } from './conflictTypes';
 import { CONFLICTS_CHANGED_EVENT } from './useServerConflictCount';
-import { useSession } from '../../hooks/useSession';
 
 const CHOICES = [
   { value: 'keep_local', label: "Keep the school device's numbers", description: 'They replace the numbers saved before.' },
@@ -36,8 +35,6 @@ function fromServer(row) {
  * device; the decision reaches its devices with their next download.
  */
 function ServerConflicts() {
-  // System administrators see this but decide nothing; the programme officer decides
-  const { isAdmin } = useSession();
   const isOnline = useOnlineStatus();
   const toast = useToast();
   const [conflicts, setConflicts] = useState(null);
@@ -196,51 +193,49 @@ function ServerConflicts() {
             </div>
           </Card>
 
-          {!isAdmin && (
-          <Card title="Which numbers should be kept?">
-            <fieldset className="conflicts__choices">
-              <legend className="visually-hidden">Numbers to keep</legend>
-              {choices.map((option) => (
-                <label key={option.value} className="conflicts__choice">
-                  <input type="radio" name="resolution" value={option.value} checked={choice === option.value} onChange={() => setChoice(option.value)} />
-                  <span className="conflicts__choice-text">
-                    <span className="conflicts__choice-label">{option.label}</span>
-                    <span className="conflicts__choice-description">{option.description}</span>
-                  </span>
-                </label>
-              ))}
-            </fieldset>
-            {choices.length < CHOICES.length && (
-              <p className="conflicts__note">They disagree on whether learners were fed, so keep one of them. The numbers can be corrected afterwards.</p>
-            )}
-
-            {choice === 'merge' && (
-              <div className="ui-grid ui-grid--2 conflicts__merge">
-                {type.fields.filter(isEditable).map((field) => (
-                  <FormField
-                    key={field.name}
-                    label={field.label}
-                    size="lg"
-                    type="number"
-                    inputMode="decimal"
-                    min="0"
-                    step={field.kind === 'kg' ? '0.5' : '1'}
-                    suffix={field.kind === 'kg' ? 'kg' : undefined}
-                    hint={field.optional ? 'Optional' : undefined}
-                    value={form[field.name] ?? ''}
-                    onChange={(e) => setForm((v) => ({ ...v, [field.name]: e.target.value }))}
-                    error={merge?.errors[field.name]}
-                    required={!field.optional}
-                  />
-                ))}
-              </div>
-            )}
-
-            <div className="conflicts__actions">
-              <Button icon={ArrowRight} iconPosition="end" onClick={() => setStep('confirm')} disabled={!canContinue}>Continue</Button>
-            </div>
-          </Card>
+        <Card title="Which numbers should be kept?">
+          <fieldset className="conflicts__choices">
+            <legend className="visually-hidden">Numbers to keep</legend>
+            {choices.map((option) => (
+              <label key={option.value} className="conflicts__choice">
+                <input type="radio" name="resolution" value={option.value} checked={choice === option.value} onChange={() => setChoice(option.value)} />
+                <span className="conflicts__choice-text">
+                  <span className="conflicts__choice-label">{option.label}</span>
+                  <span className="conflicts__choice-description">{option.description}</span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
+          {choices.length < CHOICES.length && (
+            <p className="conflicts__note">They disagree on whether learners were fed, so keep one of them. The numbers can be corrected afterwards.</p>
           )}
+
+          {choice === 'merge' && (
+            <div className="ui-grid ui-grid--2 conflicts__merge">
+              {type.fields.filter(isEditable).map((field) => (
+                <FormField
+                  key={field.name}
+                  label={field.label}
+                  size="lg"
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step={field.kind === 'kg' ? '0.5' : '1'}
+                  suffix={field.kind === 'kg' ? 'kg' : undefined}
+                  hint={field.optional ? 'Optional' : undefined}
+                  value={form[field.name] ?? ''}
+                  onChange={(e) => setForm((v) => ({ ...v, [field.name]: e.target.value }))}
+                  error={merge?.errors[field.name]}
+                  required={!field.optional}
+                />
+              ))}
+            </div>
+          )}
+
+          <div className="conflicts__actions">
+            <Button icon={ArrowRight} iconPosition="end" onClick={() => setStep('confirm')} disabled={!canContinue}>Continue</Button>
+          </div>
+        </Card>
         </>
       ) : (
         <Card>

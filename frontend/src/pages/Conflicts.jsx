@@ -132,7 +132,7 @@ function DeviceConflicts() {
 }
 
 /**
- * Conflicts: officers and administrators resolve them from the server's list; a school
+ * Conflicts: programme officers resolve them from the server's list; a school
  * device shows those waiting on it.
  */
 function Conflicts() {

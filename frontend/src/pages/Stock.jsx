@@ -77,6 +77,7 @@ function MovementForm({ data }) {
   const [form, setForm] = useState(empty);
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [confirming, setConfirming] = useState(null);
   const set = (name) => (event) => setForm((f) => ({ ...f, [name]: event.target.value }));
   const kind = KINDS[form.kind];
   const entry = toDate(form.date) ? checkEntryWindow(form.date) : { late: false, future: false };
@@ -89,16 +90,25 @@ function MovementForm({ data }) {
   if (form.noteQuantityKg !== '' && toKg(form.noteQuantityKg) === null) errors.noteQuantityKg = 'Enter the kilograms on the note, or leave it empty';
   if (kind.reference && !form.reference.trim()) errors.reference = `Enter the ${kind.reference.toLowerCase()}`;
   if (kind.sign < 0 && !form.note.trim()) errors.note = 'Say why the food left the store';
+  // This device's balance can be out of date (a delivery recorded on another device may
+  // not have arrived yet), so more out than it shows is a warning to confirm, not a block;
+  // the server checks the entry against its own ledger and flags it for review if needed
+  let warning = null;
   if (kind.sign < 0 && toKg(form.quantityKg) !== null) {
     const balance = stockBalances({ movements: data.movements, feedingDays: data.feedingDays, ration: data.ration })[form.commodity];
-    if (toKg(form.quantityKg) > balance) errors.quantityKg = `The store has only ${formatNumber(balance)} kg of ${COMMODITY_LABELS[form.commodity].toLowerCase()}`;
+    if (toKg(form.quantityKg) > balance) warning = `This device shows only ${formatNumber(balance)} kg of ${COMMODITY_LABELS[form.commodity].toLowerCase()} in the store`;
   }
+  const showWarning = warning !== null && confirming === warning;
   const shown = submitted ? errors : {};
 
   const save = async (event) => {
     event.preventDefault();
     setSubmitted(true);
     if (Object.keys(errors).length > 0) return;
+    if (warning && confirming !== warning) {
+      setConfirming(warning);
+      return;
+    }
     setSaving(true);
     try {
       await addStockMovement({
@@ -117,6 +127,7 @@ function MovementForm({ data }) {
       toast.show({ title: `${kind.label} recorded`, description: isOnline ? 'Lishe is syncing it now.' : 'It will sync when you are back online.' });
       setForm({ ...empty, kind: form.kind });
       setSubmitted(false);
+      setConfirming(null);
     } finally {
       setSaving(false);
     }
@@ -153,8 +164,13 @@ function MovementForm({ data }) {
         ) : (
           <FormField id="stock-note" label="Why it left the store" required value={form.note} onChange={set('note')} error={shown.note} maxLength={300} />
         )}
+        {showWarning && (
+          <Alert tone="warning" title="Check before saving">
+            {warning}. If the amount is right, save anyway. A delivery recorded on another device may not be here yet.
+          </Alert>
+        )}
         <div className="recording__actions">
-          <Button type="submit" size="lg" icon={PackagePlus} loading={saving}>Save entry</Button>
+          <Button type="submit" size="lg" icon={PackagePlus} loading={saving}>{showWarning ? 'Save anyway' : 'Save entry'}</Button>
         </div>
       </form>
     </Card>

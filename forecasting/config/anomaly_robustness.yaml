@@ -39,6 +39,10 @@ scenarios:
     description: Store counted every 10 school days instead of 20
     overrides:
       stock: {count_every_school_days: 10}
+  connectivity_outages:
+    description: Version 7 - outages twice as common and up to five weeks long, so many honest records arrive late and together
+    overrides:
+      entry: {outages: {per_term_probability: 0.7, length_school_days: {min: 10, max: 25}}}
   irregular_entry:
     description: Schools that often enter late and sync rarely, so ordinary records look more like backdating
     overrides:

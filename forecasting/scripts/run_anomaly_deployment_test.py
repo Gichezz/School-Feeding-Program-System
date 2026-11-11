@@ -5,30 +5,38 @@ the system, following config/anomaly_deployment_test.yaml (committed before it w
 For each sub-county, week by week through the scored period:
   1. if 20 school days have passed since the last fit, refit on the sub-county's last
      125 school days, leaving out school-weeks an officer has marked follow-up;
-  2. score the week's school-days with the current model;
-  3. list the 3 school-weeks with the highest scores for the officer;
+  2. score the week's school-days with the current model; each school's week takes its
+     highest-scoring day;
+  3. list up to 3 school-weeks: the highest-scoring, and (version 7) only those whose
+     score is above the review threshold, the q-quantile of the school-week scores in the
+     model's own training window. q = none lists the top 3 every week;
   4. the officer marks a listed school-week follow-up when it really contains a problem
      (from the injected labels, which nothing else here uses), so later fits leave it out.
-Settings are those chosen in the main evaluation and stay fixed. No threshold is used.
+Settings are those chosen in the main evaluation and stay fixed. Because what is listed
+feeds back into later fits, every threshold is its own run.
+
+Version 7 reports, for the selection year (2025) and the test year (2026) separately:
+Precision@3, Recall@3, F1@3, empty officer-weeks, listings per officer-week and false
+listings per officer-term; q is chosen per method on the selection year by F1@3. For the
+recommended method it also reports fairness by school size, programme type, sub-county and
+connectivity, and a connectivity check against version 6's sync-based timing features.
 
 Outputs
   data/reports/anomaly/deployment/anomaly_deployment_test.json
   data/reports/anomaly/deployment/anomaly_deployment_test.md
 
-Precision is also reported by kind of week (the week holding the last day of the school
-year, the week holding the first, and the rest), with each kind's best possible.
-
 Usage
   python forecasting/scripts/run_anomaly_deployment_test.py
-  # Only some methods, into another folder (for example a baseline under older features)
-  python forecasting/scripts/run_anomaly_deployment_test.py --methods one_class_svm --report-dir <folder>
+  python forecasting/scripts/run_anomaly_deployment_test.py --methods extended_isolation_forest --workers 6
 """
 
 import argparse
 import copy
 import json
+import os
 import sys
 import time
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 FORECASTING_DIR = Path(__file__).resolve().parent.parent
@@ -48,17 +56,17 @@ PLAN = FORECASTING_DIR / "config" / "anomaly_deployment_test.yaml"
 EVALUATION = REPORTS_DIR / "anomaly" / "anomaly_evaluation.json"
 DATA_ROOT = PROCESSED_DIR / "feeding_deployment"
 REPORT_DIR = REPORTS_DIR / "anomaly" / "deployment"
-BASELINE = REPORT_DIR / "version_4_week_types" / "anomaly_deployment_test.json"
 WEEK_TYPES = {"last day of school year": "school_year_end", "first day of school year": "school_year_start"}
 LABELS = {"rules": "Fixed rules", "isolation_forest": "Isolation Forest", "extended_isolation_forest": "Extended Isolation Forest",
           "one_class_svm": "One-class SVM", "local_outlier_factor": "Local Outlier Factor",
           "sgd_one_class_svm": "SGD one-class SVM"}
-OVER_LISTED = 1.5   # plan: fairness_check
+WEEKS_PER_TERM = 13
+_CACHE = {}
 
 
-def load_dataset(data_dir):
+def load_dataset(data_dir, timing="capture"):
     r = lambda n: pd.read_csv(data_dir / f"{n}.csv")  # noqa: E731
-    feats = build_features(r("schools"), r("enrolment"), r("feeding"), r("stock_counts"), r("school_days"))
+    feats = build_features(r("schools"), r("enrolment"), r("feeding"), r("stock_counts"), r("school_days"), timing=timing)
     labels = r("labels").assign(date=lambda d: pd.to_datetime(d.date))
     feats = feats.merge(labels, on=["school_id", "date"], how="left")
     feats["label"] = feats.label.fillna("")
@@ -67,260 +75,329 @@ def load_dataset(data_dir):
     feats["week"] = feats.date.dt.strftime("%G-%V")
     kinds = feats[feats.day_type.isin(WEEK_TYPES)].drop_duplicates("week").set_index("week").day_type.map(WEEK_TYPES)
     feats["week_type"] = feats.week.map(kinds).fillna("other")
-    # Groups for the fairness check: thirds by mean enrolment, and programme type
+    schools = r("schools").set_index("school_id")
     size = r("enrolment").groupby("school_id").learners.mean()
-    third = pd.qcut(size, 3, labels=["small schools", "medium schools", "large schools"]).astype(str)
-    programme = r("schools").set_index("school_id").programme_type.map({"in_kind": "food delivered", "cash_transfer": "cash transfer"})
-    feats["size_group"] = feats.school_id.map(third)
-    feats["programme_group"] = feats.school_id.map(programme)
+    feats["size_group"] = feats.school_id.map(pd.qcut(size, 3, labels=["small schools", "medium schools", "large schools"]).astype(str))
+    feats["programme_group"] = feats.school_id.map(schools.programme_type.map({"in_kind": "food delivered", "cash_transfer": "cash transfer"}))
+    feats["sync_group"] = feats.school_id.map(schools.sync_every.map(lambda n: "syncs every 1-2 days" if n <= 2 else "syncs every 3-5 days"))
+    # A school-day inside a connectivity outage (the device could not sync that day)
+    feats["in_outage"] = False
+    path = data_dir / "outages.csv"
+    if path.exists():
+        for o in pd.read_csv(path, parse_dates=["start", "end"]).itertuples():
+            feats.loc[(feats.school_id == o.school_id) & feats.date.between(o.start, o.end), "in_outage"] = True
     return feats
 
 
-def run(feats, method, params, model_seed, plan):
-    """Weekly lists for one method, deployed per sub-county. Returns the listed school-weeks."""
-    dep = plan["deployment"]
+def _dataset(data_dir, timing):
+    key = (str(data_dir), timing)
+    if key not in _CACHE:
+        _CACHE[key] = load_dataset(Path(data_dir), timing)
+    return _CACHE[key]
+
+
+def run(task):
+    """One method, one model seed, one dataset, one threshold: every scored school-week
+    with its score, whether it was listed, and what it really contained."""
+    data_dir, timing, method, params, model_seed, q, dep = task
+    feats = _dataset(data_dir, timing)
     start, end = pd.Timestamp(dep["scored_period"]["start"]), pd.Timestamp(dep["scored_period"]["end"])
     k = dep["review_list"]["k"]
-    listed, fit_seconds = [], []
+    rows_out = []
     for sub_county, rows in feats.groupby("sub_county"):
         rows = rows.sort_values(["date", "school_id"])
-        follow_up = set()                       # (school_id, week) marked follow-up
-        model, next_refit = None, None
+        follow_up = set()
+        model, next_refit, threshold = None, None, None
         for week, week_rows in rows[(rows.date >= start) & (rows.date <= end)].groupby("week", sort=True):
             first_day = int(week_rows.day_index.min())
-            if method == "rules":
-                scores = METHODS["rules"]().score(week_rows)
+            rules_only = method == "rules"
+            if not rules_only and (model is None or first_day >= next_refit):
+                history = rows[(rows.day_index < first_day) & (rows.day_index >= first_day - dep["window_school_days"])]
+                history = history[[(s, w) not in follow_up for s, w in zip(history.school_id, history.week)]]
+                if history.day_index.nunique() < dep["min_history_school_days"]:
+                    model = None
+                else:
+                    model = METHODS[method](**dict(params, random_state=model_seed)).fit(history)
+                    next_refit = first_day + dep["refit_every_school_days"]
+                    weekly_hist = history.assign(score=model.score(history)).groupby(["school_id", "week"]).score.max()
+                    threshold = -np.inf if q == "none" else float(weekly_hist.quantile(float(q)))
+            if rules_only or model is None:
+                # Ranked by the fixed checks: only a school that broke one is listed
+                scores, cut = METHODS["rules"]().score(week_rows), 0.0
             else:
-                if model is None or first_day >= next_refit:
-                    history = rows[(rows.day_index < first_day) & (rows.day_index >= first_day - dep["window_school_days"])]
-                    keep = [(s, w) not in follow_up for s, w in zip(history.school_id, history.week)]
-                    history = history[keep]
-                    if history.day_index.nunique() < dep["min_history_school_days"]:
-                        scores = METHODS["rules"]().score(week_rows)
-                        model = None
-                    else:
-                        kwargs = dict(params, random_state=model_seed)
-                        began = time.perf_counter()
-                        model = METHODS[method](**kwargs).fit(history)
-                        fit_seconds.append(time.perf_counter() - began)
-                        next_refit = first_day + dep["refit_every_school_days"]
-                if model is not None:
-                    scores = model.score(week_rows)
+                scores, cut = model.score(week_rows), threshold
             weekly = (week_rows.assign(score=scores)
                       .groupby("school_id").agg(score=("score", "max"), labels=("label", lambda s: sorted(set(s) - {""})),
-                                                week_type=("week_type", "first"))
-                      .reset_index())
-            top = weekly.sort_values("score", ascending=False).head(k)
-            for row in top.itertuples():
-                listed.append({"sub_county": sub_county, "week": week, "school_id": row.school_id,
-                               "anomalous": bool(row.labels), "types": row.labels, "week_type": row.week_type})
-                if row.labels and dep["exclude_follow_up_from_training"]:
+                                                week_type=("week_type", "first"), in_outage=("in_outage", "max"),
+                                                size_group=("size_group", "first"), programme_group=("programme_group", "first"),
+                                                sync_group=("sync_group", "first"))
+                      .reset_index().sort_values("score", ascending=False))
+            weekly["listed"] = False
+            eligible = weekly[weekly.score > cut].head(k).index
+            weekly.loc[eligible, "listed"] = True
+            for row in weekly.itertuples():
+                rows_out.append({"sub_county": sub_county, "week": week, "school_id": row.school_id, "listed": bool(row.listed),
+                                 "anomalous": bool(row.labels), "types": row.labels, "week_type": row.week_type,
+                                 "in_outage": bool(row.in_outage), "size_group": row.size_group,
+                                 "programme_group": row.programme_group, "sync_group": row.sync_group})
+                if row.listed and row.labels and dep["exclude_follow_up_from_training"]:
                     follow_up.add((row.school_id, week))
-    return pd.DataFrame(listed), (float(np.mean(fit_seconds)) if fit_seconds else 0.0)
+    return pd.DataFrame(rows_out)
 
 
-def truth_weeks(feats, plan):
-    dep = plan["deployment"]
-    scored = feats[(feats.date >= pd.Timestamp(dep["scored_period"]["start"])) & (feats.date <= pd.Timestamp(dep["scored_period"]["end"]))]
-    weeks = (scored.groupby(["sub_county", "week", "school_id"])
-             .agg(label=("label", lambda s: sorted(set(s) - {""})), week_type=("week_type", "first")).reset_index())
-    weeks["anomalous"] = weeks.label.map(bool)
-    return weeks
+def week_date(week):
+    return pd.Timestamp.fromisocalendar(int(week[:4]), int(week[5:]), 1)
 
 
-def ordinary_listings(listed, truth, feats):
-    """For each group: its share of listed school-weeks with no problem, over its share of
-    all school-weeks with no problem (1.0 = listed for nothing as often as its size says)."""
-    groups = feats.drop_duplicates("school_id").set_index("school_id")[["size_group", "programme_group"]]
+def measure(weeks, k):
+    """Precision@k, Recall@k, F1@k and workload for a table of scored school-weeks."""
+    listed = weeks[weeks.listed]
+    officer_weeks = weeks.groupby(["sub_county", "week"]).listed.sum()
+    precision = float(listed.anomalous.mean()) if len(listed) else float("nan")
+    problems = weeks[weeks.anomalous]
+    recall = float(problems.listed.mean()) if len(problems) else float("nan")
+    f1 = 2 * precision * recall / (precision + recall) if precision and recall and precision + recall > 0 else 0.0
+    by_type = {}
+    for t in sorted({x for xs in weeks.types for x in xs}):
+        of_type = weeks[weeks.types.map(lambda xs, t=t: t in xs)]
+        by_type[t] = float(of_type.listed.mean())
+    per_week = weeks.groupby(["sub_county", "week"]).anomalous.sum()
+    ceiling = float(np.minimum(per_week, k).sum() / (k * len(per_week)))
+    return {
+        "precision_at_k": precision, "recall_at_k": recall, "f1_at_k": f1,
+        "empty_weeks_share": float((officer_weeks == 0).mean()),
+        "listings_per_officer_week": float(officer_weeks.mean()),
+        "false_listings_per_officer_term": float((~listed.anomalous).sum() / len(officer_weeks) * WEEKS_PER_TERM),
+        "listed_by_type": by_type, "precision_ceiling_top_k": ceiling,
+    }
+
+
+def split(weeks, periods):
+    dates = weeks.week.map(week_date)
     out = {}
-    calm_listed = listed[~listed.anomalous].join(groups, on="school_id")
-    calm_all = truth[~truth.anomalous].join(groups, on="school_id")
-    for column in ("size_group", "programme_group"):
-        listed_share = calm_listed[column].value_counts(normalize=True)
-        all_share = calm_all[column].value_counts(normalize=True)
-        for group, share in all_share.items():
-            out[group] = float(listed_share.get(group, 0.0) / share)
+    for name, p in periods.items():
+        out[name] = weeks[(dates >= pd.Timestamp(p["start"])) & (dates <= pd.Timestamp(p["end"]))]
     return out
 
 
-def measure(listed, truth, k):
-    per_week = truth.groupby(["sub_county", "week"]).anomalous.sum()
-    ceiling = float(np.minimum(per_week, k).sum() / (k * len(per_week)))
-    precision = float(listed.anomalous.mean())
-    caught = listed[listed.anomalous].set_index(["sub_county", "week", "school_id"]).index
-    anomalous = truth[truth.anomalous].set_index(["sub_county", "week", "school_id"])
-    recall = float(anomalous.index.isin(caught).mean())
-    by_type = {}
-    for t in sorted({x for xs in truth.label for x in xs}):
-        of_type = truth[truth.label.map(lambda xs, t=t: t in xs)].set_index(["sub_county", "week", "school_id"]).index
-        by_type[t] = float(of_type.isin(caught).mean())
-    by_week_type = {}
-    for kind, of_kind in truth.groupby("week_type"):
-        per_kind_week = of_kind.groupby(["sub_county", "week"]).anomalous.sum()
-        kind_ceiling = float(np.minimum(per_kind_week, k).sum() / (k * len(per_kind_week)))
-        kind_precision = float(listed[listed.week_type == kind].anomalous.mean())
-        by_week_type[kind] = {"precision_at_k": kind_precision, "ceiling": kind_ceiling,
-                              "share_of_ceiling": kind_precision / kind_ceiling if kind_ceiling else float("nan"),
-                              "weeks": int(len(per_kind_week))}
-    return {"precision_at_k": precision, "share_of_ceiling": precision / ceiling, "anomalous_weeks_listed": recall,
-            "listed_by_type": by_type, "by_week_type": by_week_type, "ceiling": ceiling}
+def fairness(weeks, ratio_limit):
+    """False listing and detection rates by group, against the overall rates."""
+    ordinary, problems = weeks[~weeks.anomalous], weeks[weeks.anomalous]
+    overall_false = float(ordinary.listed.mean())
+    groups = {}
+    for column, label in (("size_group", None), ("programme_group", None), ("sub_county", None),
+                          ("sync_group", None), ("in_outage", {True: "week with an outage", False: "week without"})):
+        for value in weeks[column].dropna().unique():
+            name = label[value] if label else value
+            o, p = ordinary[ordinary[column] == value], problems[problems[column] == value]
+            false_rate = float(o.listed.mean()) if len(o) else float("nan")
+            groups[str(name)] = {
+                "by": column, "ordinary_weeks": int(len(o)), "problem_weeks": int(len(p)),
+                "false_listing_rate": false_rate, "detection_rate": float(p.listed.mean()) if len(p) else float("nan"),
+                "false_listing_ratio": false_rate / overall_false if overall_false else float("nan"),
+            }
+    over = [g for g, v in groups.items() if v["false_listing_ratio"] > ratio_limit]
+    return {"overall_false_listing_rate": overall_false, "overall_detection_rate": float(problems.listed.mean()),
+            "groups": groups, "over_listed": over}
 
 
-def week_type_table(df):
-    """Mean precision, best possible and share of it, per method and kind of week."""
-    rows = [{"method": r.method, "week_type": kind, **v} for r in df.itertuples() for kind, v in r.by_week_type.items()]
-    return pd.DataFrame(rows).groupby(["method", "week_type"])[["precision_at_k", "ceiling", "share_of_ceiling"]].mean()
+def write_report(out, plan, report_dir):
+    """The Markdown report, from the saved results (so it can be rebuilt with --report-only)."""
+    dep, k = plan["deployment"], plan["deployment"]["review_list"]["k"]
+    pct = lambda v: "–" if v is None or (isinstance(v, float) and np.isnan(v)) else f"{v * 100:.1f}%"  # noqa: E731
+    qlabel = lambda q: "none (always 3)" if q == "none" else f"{float(q):.2f}"  # noqa: E731
+    year = lambda d: str(d)[:4]  # noqa: E731
+    summary, fair, conn = out["summary"], out["fairness"], out["connectivity_check"]
+    rec = out["evaluation_recommended"]
+    types = sorted({t for r in out["listed_by_type"] for t in r if t != "method"})
+    by_type = {r["method"]: r for r in out["listed_by_type"]}
+    lines = [
+        "# Anomaly detection: deployment-matching test (protocol version 7)",
+        "",
+        f"Plan: [`{out['plan'].replace(chr(92), '/')}`](../../../../config/anomaly_deployment_test.yaml), written before it was run. "
+        f"Each sub-county is refitted every {dep['refit_every_school_days']} school days on its last {dep['window_school_days']}, "
+        f"with the settings fixed from the main evaluation and no labels. Each week the officer gets up to {k} school-weeks: the "
+        "highest-scoring, above the review threshold. School-weeks marked follow-up are left out of later fits. "
+        f"{1 + len(plan['datasets']['seeds'])} datasets × {len(plan['model_seeds'])} model seeds. The unit is the school-week. "
+        f"The threshold is chosen on {year(plan['periods']['selection']['start'])}; the figures below are for "
+        f"{year(plan['periods']['test']['start'])}.",
+        "",
+        f"**{out['conclusion']}**",
+        "",
+        md_table([[LABELS[r["method"]], qlabel(r["q"]), pct(r["precision_at_k"]), pct(r["recall_at_k"]), pct(r["f1_at_k"]),
+                   pct(r["empty_weeks_share"]), f"{r['listings_per_officer_week']:.2f}", f"{r['false_listings_per_officer_term']:.1f}"]
+                  for r in summary],
+                 ["Method", "Review threshold (q)", "Precision@3", "Recall@3", "F1@3", "Weeks with nothing listed",
+                  "Schools listed per officer-week", "Ordinary schools listed per officer-term"]),
+        "",
+        "## The same methods without a threshold (always 3 a week)",
+        "",
+        md_table([[LABELS[r["method"]], pct(r["precision_at_k"]), pct(r["recall_at_k"]), pct(r["f1_at_k"]),
+                   f"{r['false_listings_per_officer_term']:.1f}"] for r in out["without_threshold"]],
+                 ["Method", "Precision@3", "Recall@3", "F1@3", "Ordinary schools listed per officer-term"]),
+        "",
+        f"## Choosing the threshold ({year(plan['periods']['selection']['start'])}, the selection year)",
+        "",
+        "The protocol chooses each method's q by the highest F1@3 on the selection year; ties go to the lower q.",
+        "",
+        md_table([[LABELS[r["method"]], qlabel(r["q"]), pct(r["precision_at_k"]), pct(r["recall_at_k"]), pct(r["f1_at_k"])]
+                  for r in out["selection_by_threshold"]],
+                 ["Method", "q", "Precision@3", "Recall@3", "F1@3"]),
+        "",
+        "## Problem school-weeks listed, by type",
+        "",
+        md_table([[LABELS[r["method"]]] + [pct(by_type[r["method"]].get(t)) for t in types] for r in summary if r["method"] in by_type],
+                 ["Method"] + types),
+        "",
+    ]
+    if fair:
+        lines += [
+            f"## Fairness ({LABELS[rec]}, preliminary)",
+            "",
+            "For each group, ordinary school-weeks listed (false listing rate) and problem school-weeks listed (detection rate), "
+            f"against the overall rates ({pct(fair['overall_false_listing_rate'])} and {pct(fair['overall_detection_rate'])}). "
+            f"A group is over-listed above {plan['fairness_v7']['over_listed_ratio']:.1f} times the overall false listing rate. "
+            "40 synthetic schools: small groups, so these are indications, not conclusions.",
+            "",
+            md_table([[g, v["by"].replace("_group", "").replace("_", " "), str(v["ordinary_weeks"]), pct(v["false_listing_rate"]),
+                       f"{v['false_listing_ratio']:.2f}", pct(v["detection_rate"])] for g, v in fair["groups"].items()],
+                     ["Group", "By", "Ordinary weeks", "False listing rate", "Against overall", "Detection rate"]),
+            "",
+            f"**Over-listed:** {', '.join(fair['over_listed']) if fair['over_listed'] else 'none'}.",
+            "",
+        ]
+    if conn:
+        lines += [
+            "## Connectivity check",
+            "",
+            "Ordinary school-weeks listed, in weeks when the school's device could not sync and in other weeks, with version 7's "
+            "features (entry measured from capture) and with version 6's (entry measured from server receipt), on the same data.",
+            "",
+            md_table([[name, pct(c["outage_weeks"]), pct(c["other_weeks"]), pct(c["precision_at_k"]), pct(c["recall_at_k"])]
+                      for name, c in (("Version 7 (capture)", conn["version_7"]), ("Version 6 timing (server receipt)", conn["version_6_timing"]))],
+                     ["Timing features", "Ordinary outage weeks listed", "Ordinary other weeks listed", "Precision@3", "Recall@3"]),
+            "",
+        ]
+    lines += ["Synthetic data: this shows how the methods behave in deployment on records shaped like Kenyan school feeding "
+              "records, not how often they would be right at real schools.", ""]
+    (report_dir / "anomaly_deployment_test.md").write_text(chr(10).join(lines), encoding="utf-8")
+    print(f"Wrote {report_dir / 'anomaly_deployment_test.md'}")
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--methods", nargs="*", help="only these methods (default: the plan's)")
     parser.add_argument("--report-dir", type=Path, default=REPORT_DIR)
+    parser.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) - 1))
+    parser.add_argument("--report-only", action="store_true", help="rebuild the report from the saved results")
     args = parser.parse_args()
-    report_dir = args.report_dir
     started = time.time()
     plan = yaml.safe_load(open(PLAN, encoding="utf-8"))
+    if args.report_only:
+        write_report(json.load(open(args.report_dir / "anomaly_deployment_test.json", encoding="utf-8")), plan, args.report_dir)
+        return
     if args.methods:
         plan["methods"] = args.methods
+    dep, k = plan["deployment"], plan["deployment"]["review_list"]["k"]
     evaluation = json.load(open(EVALUATION, encoding="utf-8"))
     params = {m: evaluation["results"][m]["params"] for m in plan["methods"] if m in evaluation["results"]}
+    recommended = evaluation["recommended"]
     base = yaml.safe_load(open(FORECASTING_DIR.parent / plan["datasets"]["main"], encoding="utf-8"))
     datasets = {"main": MAIN_DATA}
     for seed in plan["datasets"]["seeds"]:
         out = DATA_ROOT / f"seed_{seed}"
         generate(dict(copy.deepcopy(base), seed=seed), out, quiet=True)
         datasets[f"seed_{seed}"] = out
+    quantiles = plan["review_threshold"]["candidates"]
 
-    rows = []
+    # Every method x seed x dataset x threshold, plus the connectivity check
+    tasks, keys = [], []
     for dataset, data_dir in datasets.items():
-        feats = load_dataset(data_dir)
-        truth = truth_weeks(feats, plan)
         for method in plan["methods"]:
             seeds = [plan["model_seeds"][0]] if method == "rules" else plan["model_seeds"]
             for model_seed in seeds:
-                listed, fit_s = run(feats, method, params.get(method, {}), model_seed, plan)
-                m = measure(listed, truth, plan["deployment"]["review_list"]["k"])
-                m["ordinary_listings"] = ordinary_listings(listed, truth, feats)
-                rows.append({"dataset": dataset, "method": method, "model_seed": model_seed, "fit_seconds": fit_s, **m})
-            print(f"{dataset} {method} done ({time.time() - started:.0f}s)")
-    df = pd.DataFrame(rows)
+                for q in (["none"] if method == "rules" else quantiles):
+                    tasks.append((str(data_dir), "capture", method, params.get(method, {}), model_seed, str(q), dep))
+                    keys.append((dataset, method, model_seed, str(q), "capture"))
+    with ProcessPoolExecutor(max_workers=args.workers) as pool:
+        results = list(pool.map(run, tasks))
+    print(f"Main runs done ({time.time() - started:.0f}s)")
 
-    summary = df.groupby("method").agg(
-        precision_at_k=("precision_at_k", "mean"), precision_sd=("precision_at_k", "std"),
-        share_of_ceiling=("share_of_ceiling", "mean"), anomalous_weeks_listed=("anomalous_weeks_listed", "mean"),
-        fit_seconds=("fit_seconds", "mean")).sort_values("precision_at_k", ascending=False)
-    by_type = pd.DataFrame([{**{"method": r.method}, **r.listed_by_type} for r in df.itertuples()]).groupby("method").mean()
-    by_dataset = df.pivot_table(index="method", columns="dataset", values="precision_at_k", aggfunc="mean")
-    by_week = week_type_table(df)
-    fairness = pd.DataFrame([{"method": r.method, **r.ordinary_listings} for r in df.itertuples()]).groupby("method").mean()
+    def table(rows):
+        return pd.DataFrame(rows)
+
+    per_run = []
+    for (dataset, method, model_seed, q, _), weeks in zip(keys, results):
+        for period, part in split(weeks, plan["periods"]).items():
+            per_run.append({"dataset": dataset, "method": method, "model_seed": model_seed, "q": q, "period": period, **measure(part, k)})
+    df = table(per_run)
+
+    # q chosen per method on the selection year: highest mean F1@k; ties to the lower q
+    order = {str(q): i for i, q in enumerate(quantiles)}
+    chosen = {}
+    for method, part in df[df.period == "selection"].groupby("method"):
+        means = part.groupby("q").f1_at_k.mean()
+        best = means.max()
+        chosen[method] = sorted([q for q, v in means.items() if v >= best - 1e-12], key=lambda q: order.get(q, -1))[0]
+    test = df[(df.period == "test") & (df.apply(lambda r: r.q == chosen[r.method], axis=1))]
+    summary = test.groupby("method").agg(
+        q=("q", "first"), precision_at_k=("precision_at_k", "mean"), precision_sd=("precision_at_k", "std"),
+        recall_at_k=("recall_at_k", "mean"), f1_at_k=("f1_at_k", "mean"), empty_weeks_share=("empty_weeks_share", "mean"),
+        listings_per_officer_week=("listings_per_officer_week", "mean"),
+        false_listings_per_officer_term=("false_listings_per_officer_term", "mean")).sort_values("precision_at_k", ascending=False)
+    no_threshold = df[(df.period == "test") & (df.q == "none")].groupby("method")[
+        ["precision_at_k", "recall_at_k", "f1_at_k", "false_listings_per_officer_term"]].mean()
+    by_type = pd.DataFrame([{"method": r.method, **r.listed_by_type} for r in test.itertuples()]).groupby("method").mean()
+    selection_grid = df[df.period == "selection"].groupby(["method", "q"])[["precision_at_k", "recall_at_k", "f1_at_k"]].mean()
+
+    # Fairness and the connectivity check, for the recommended method at its chosen q
+    fair = conn = None
+    if recommended in chosen:
+        rec_q = chosen[recommended]
+        rec_weeks = [w for key, w in zip(keys, results) if key[1] == recommended and key[3] == rec_q]
+        test_weeks = pd.concat([split(w, plan["periods"])["test"] for w in rec_weeks], ignore_index=True)
+        fair = fairness(test_weeks, plan["fairness_v7"]["over_listed_ratio"])
+        conn_tasks = [(str(d), "sync", recommended, params[recommended], s, rec_q, dep)
+                      for d in datasets.values() for s in plan["model_seeds"]]
+        with ProcessPoolExecutor(max_workers=args.workers) as pool:
+            v6 = pd.concat([split(w, plan["periods"])["test"] for w in pool.map(run, conn_tasks)], ignore_index=True)
+
+        def outage_rates(weeks):
+            ordinary = weeks[~weeks.anomalous]
+            return {"outage_weeks": float(ordinary[ordinary.in_outage].listed.mean()),
+                    "other_weeks": float(ordinary[~ordinary.in_outage].listed.mean()),
+                    "precision_at_k": float(weeks[weeks.listed].anomalous.mean()),
+                    "recall_at_k": float(weeks[weeks.anomalous].listed.mean())}
+        conn = {"version_7": outage_rates(test_weeks), "version_6_timing": outage_rates(v6)}
+        print(f"Fairness and connectivity done ({time.time() - started:.0f}s)")
+
     best = summary.index[0]
-    recommended = evaluation["recommended"]
-    holds = summary.loc[recommended, "precision_at_k"] >= summary.loc[best, "precision_at_k"] - 0.01
-
-    # The closing-week check (plan: week_type_check), for the recommended method
-    week_check = None
-    if recommended in by_week.index.get_level_values(0) and "school_year_end" in by_week.loc[recommended].index:
-        mine = by_week.loc[recommended]
-        gap = mine.loc["other", "share_of_ceiling"] - mine.loc["school_year_end", "share_of_ceiling"]
-        baseline = None
-        if BASELINE.exists() and report_dir.resolve() != BASELINE.parent.resolve():
-            old = pd.DataFrame(json.load(open(BASELINE, encoding="utf-8"))["by_week_type"]).set_index(["method", "week_type"])
-            if recommended in old.index.get_level_values(0):
-                baseline = old.loc[recommended].share_of_ceiling.to_dict()
-        week_check = {"method": recommended, "gap_points": round(float(gap) * 100, 1), "fixed": bool(gap <= 0.10),
-                      "share_of_ceiling": mine.share_of_ceiling.round(4).to_dict(), "version_4": baseline}
+    holds = recommended in summary.index and summary.loc[recommended, "precision_at_k"] >= summary.loc[best, "precision_at_k"] - 0.01
     conclusion = (f"The evaluation's conclusion holds in deployment: {LABELS[recommended]} "
-                  + ("has the highest mean precision@k." if best == recommended else
-                     f"is within 1 point of the best ({LABELS[best]}).")
+                  + ("has the highest mean Precision@3." if best == recommended else f"is within 1 point of the best ({LABELS[best]}).")
                   if holds else
-                  f"Deployed, the methods rank differently from the evaluation: {LABELS[best]} does best, "
-                  f"{(summary.loc[best, 'precision_at_k'] - summary.loc[recommended, 'precision_at_k']) * 100:.1f} points "
-                  f"above {LABELS[recommended]}.")
+                  f"Deployed, {LABELS[best]} does best, "
+                  f"{(summary.loc[best, 'precision_at_k'] - summary.loc[recommended, 'precision_at_k']) * 100:.1f} points above "
+                  f"{LABELS[recommended]}.")
 
-    fair_check = None
-    if recommended in fairness.index:
-        row = fairness.loc[recommended]
-        fair_check = {"method": recommended, "over_listed": [g for g, v in row.items() if v > OVER_LISTED],
-                      "highest": [row.idxmax(), round(float(row.max()), 3)]}
+    report_dir = args.report_dir
     report_dir.mkdir(parents=True, exist_ok=True)
     write_json(report_dir / "anomaly_deployment_test.json", {
-        "plan": str(PLAN.relative_to(FORECASTING_DIR.parent)), "settings": params,
+        "plan": str(PLAN.relative_to(FORECASTING_DIR.parent)), "protocol_version": 7, "settings": params,
+        "chosen_threshold_quantile": chosen,
         "summary": summary.round(4).reset_index().to_dict(orient="records"),
+        "without_threshold": no_threshold.round(4).reset_index().to_dict(orient="records"),
+        "selection_by_threshold": selection_grid.round(4).reset_index().to_dict(orient="records"),
         "listed_by_type": by_type.round(4).reset_index().to_dict(orient="records"),
-        "by_week_type": by_week.round(4).reset_index().to_dict(orient="records"),
-        "week_type_check": week_check,
-        "ordinary_listings_by_group": fairness.round(3).reset_index().to_dict(orient="records"),
-        "fairness_check": fair_check,
-        "per_run": df.drop(columns=["listed_by_type", "by_week_type", "ordinary_listings"]).round(4).to_dict(orient="records"),
+        "fairness": fair, "connectivity_check": conn,
+        "per_run": df.drop(columns=["listed_by_type"]).round(4).to_dict(orient="records"),
         "evaluation_recommended": recommended, "deployed_best": best, "conclusion": conclusion,
         "runtime_seconds": round(time.time() - started),
     })
-    pct = lambda v: f"{v * 100:.1f}%"  # noqa: E731
-    dep = plan["deployment"]
-    names = list(summary.index)
-    types = list(by_type.columns)
-    lines = [
-        "# Anomaly detection: deployment-matching test",
-        "",
-        f"Plan: [`{PLAN.relative_to(FORECASTING_DIR.parent)}`](../../../../config/anomaly_deployment_test.yaml), committed before "
-        f"it was run. Each sub-county is refitted every {dep['refit_every_school_days']} school days on its last "
-        f"{dep['window_school_days']} school days, with the settings fixed from the main evaluation and no labels or threshold; "
-        f"each week every officer gets the top {dep['review_list']['k']} school-weeks; school-weeks the officer marks follow-up "
-        f"are left out of later fits. {len(datasets)} datasets × {len(plan['model_seeds'])} model seeds; scored "
-        f"{dep['scored_period']['start']} to {dep['scored_period']['end']}.",
-        "",
-        f"**{conclusion}**",
-        "",
-        md_table([[LABELS[m], pct(r.precision_at_k), f"±{r.precision_sd * 100:.1f}" if not np.isnan(r.precision_sd) else "–",
-                   pct(r.share_of_ceiling), pct(r.anomalous_weeks_listed), f"{r.fit_seconds:.2f}"]
-                  for m, r in summary.iterrows()],
-                 ["Method", f"Precision@{dep['review_list']['k']} (mean)", "Spread across runs (sd, points)",
-                  "Share of best possible", "Problem school-weeks listed", "Seconds per refit"]),
-        "",
-        "## Problem school-weeks listed, by type",
-        "",
-        md_table([[LABELS[m]] + [pct(by_type.loc[m, t]) for t in types] for m in names], ["Method"] + types),
-        "",
-        "## Precision by kind of week",
-        "",
-        "Weeks holding the last day of the school year (closing day), the first day, and all others. The best possible "
-        "differs by kind of week, so the share of it is the fair comparison.",
-        "",
-        md_table([[LABELS[m], kind, pct(r.precision_at_k), pct(r.ceiling), pct(r.share_of_ceiling)]
-                  for (m, kind), r in by_week.iterrows()],
-                 ["Method", "Kind of week", f"Precision@{dep['review_list']['k']}", "Best possible", "Share of best possible"]),
-        "",
-        *([f"**Closing-week check ({LABELS[week_check['method']]}):** share of the best possible "
-           f"{week_check['gap_points']:.1f} points lower in school-year-end weeks than in other weeks - "
-           + ("within the plan's 10 points, so the closing-week problem counts as fixed."
-              if week_check["fixed"] else "more than the plan's 10 points, so the weakness remains.")
-           + (f" Under version 4's features: {pct(week_check['version_4']['school_year_end'])} in school-year-end weeks "
-              f"against {pct(week_check['version_4']['other'])} in other weeks." if week_check["version_4"] else ""),
-           ""] if week_check else []),
-        "## Who is listed for nothing",
-        "",
-        "For each group, its share of the listed school-weeks that contain no problem, over its share of all school-weeks "
-        f"with no problem: 1.00 means it is listed for nothing exactly as often as its size says; over {OVER_LISTED:.2f} counts "
-        "as over-listed (plan: fairness_check).",
-        "",
-        md_table([[LABELS[m]] + [f"{fairness.loc[m, g]:.2f}" for g in fairness.columns] for m in names], ["Method"] + list(fairness.columns)),
-        "",
-        f"**Fairness check ({LABELS[recommended]}):** "
-        + (f"over-listed: {', '.join(fair_check['over_listed'])}. This is a known bias of the weekly list." if fair_check["over_listed"]
-           else f"no group over {OVER_LISTED:.2f}; the highest is {fair_check['highest'][0]} at {fair_check['highest'][1]:.2f}."),
-        "",
-        "## Precision by dataset",
-        "",
-        md_table([[LABELS[m]] + [pct(by_dataset.loc[m, d]) for d in by_dataset.columns] for m in names],
-                 ["Method"] + list(by_dataset.columns)),
-        "",
-        "Synthetic data: the test shows the methods behave in deployment as in the evaluation, not how often they would be right "
-        "at real schools.",
-        "",
-    ]
-    (report_dir / "anomaly_deployment_test.md").write_text("\n".join(lines), encoding="utf-8")
+
+    write_report(json.load(open(report_dir / "anomaly_deployment_test.json", encoding="utf-8")), plan, report_dir)
     print(conclusion)
-    print(f"Wrote {report_dir / 'anomaly_deployment_test.md'} ({time.time() - started:.0f}s)")
+    print(f"Done ({time.time() - started:.0f}s)")
 
 
 if __name__ == "__main__":

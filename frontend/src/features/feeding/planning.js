@@ -178,19 +178,34 @@ export function foodRemaining({ balances, fedPerDay, ration = DEFAULT_RATION, re
 
 /**
  * Food to request for a term: enrolled learners × school days × ration, minus the stock
- * carried over. Only verified enrolment counts; if none is verified yet the total is
- * shown but marked as unverified.
+ * carried over. Only verified enrolment counts: a class changed since it was checked
+ * counts at its last verified number until the officer checks it again. If nothing is
+ * verified yet the total is shown but marked as unverified.
  */
+export function verifiedFigure(e) {
+  if (e.verified) return e.learners;
+  return e.verifiedLearners ?? null;
+}
+
 export function termRequirement({ enrolment, schoolDayCount, ration = DEFAULT_RATION, carryOver }) {
-  const verified = enrolment.filter((e) => e.verified);
-  const counted = verified.length > 0 ? verified : enrolment;
-  const learners = counted.reduce((sum, e) => sum + e.learners, 0);
+  const verified = enrolment.filter((e) => verifiedFigure(e) !== null);
+  const learners = verified.length > 0
+    ? verified.reduce((sum, e) => sum + verifiedFigure(e), 0)
+    : enrolment.reduce((sum, e) => sum + e.learners, 0);
+  const awaitingCheck = enrolment.filter((e) => !e.verified && e.verifiedLearners != null && e.verifiedLearners !== e.learners).length;
   const perCommodity = Object.fromEntries(COMMODITIES.map((c) => {
     const needKg = round2((learners * schoolDayCount * ration[c]) / 1000);
     const carryKg = Math.max(0, carryOver[c] || 0);
     return [c, { needKg, carryKg: round2(carryKg), requestKg: round2(Math.max(0, needKg - carryKg)) }];
   }));
-  return { learners, verified: verified.length > 0, allVerified: verified.length === enrolment.length && enrolment.length > 0, schoolDayCount, perCommodity };
+  return {
+    learners,
+    verified: verified.length > 0,
+    allVerified: enrolment.length > 0 && enrolment.every((e) => e.verified),
+    awaitingCheck,
+    schoolDayCount,
+    perCommodity,
+  };
 }
 
 function toKg(value) {
@@ -201,9 +216,15 @@ function toKg(value) {
 }
 
 /**
- * Check the daily feeding form on the device, with the server's rules plus two only the
- * school's own records can check: no more learners fed than enrolled, and no more food
- * issued than the store holds. Returns { errors: { field: message }, values }.
+ * Check the daily feeding form on the device. Returns { errors, warnings, values, late }.
+ *
+ *   errors    hard rules, the same the server applies: the record cannot be saved
+ *             (a missing answer, fed more than the present count given, a future date)
+ *   warnings  checks against what this device knows, which can be out of date: more fed
+ *             than enrolled (enrolment may not be updated yet) and more issued than this
+ *             device's stock balance (a delivery recorded on another device may not have
+ *             arrived yet). The teacher can confirm and save; the server checks the
+ *             record against its own full records and flags it for review if needed.
  *
  * form: strings from the inputs; feedingHappened is 'yes', 'no' or ''.
  * enrolled: learners enrolled this term, or null when no enrolment is recorded yet.
@@ -211,6 +232,7 @@ function toKg(value) {
  */
 export function validateFeeding(form, { enrolled = null, available = null, now = new Date() } = {}) {
   const errors = {};
+  const warnings = {};
   if (!toDate(form.date)) errors.date = 'Enter the date as DD-MM-YYYY';
   const entry = form.date && toDate(form.date) ? checkEntryWindow(form.date, now) : { future: false, late: false };
   if (entry.future) errors.date = 'The date cannot be in the future';
@@ -245,16 +267,16 @@ export function validateFeeding(form, { enrolled = null, available = null, now =
     if (cereals === null) errors.cerealsKg = 'Enter the kilograms of cereals issued, to at most 2 decimals';
     if (pulses === null) errors.pulsesKg = 'Enter the kilograms of pulses issued, to at most 2 decimals';
     if (fed !== null && present !== null && fed > present) errors.learnersFed = `Learners fed cannot be more than the ${present} present`;
-    else if (fed !== null && enrolled !== null && fed > enrolled) errors.learnersFed = `Learners fed cannot be more than the ${enrolled} enrolled this term`;
-    if (available && cereals !== null && cereals > available.cereals) errors.cerealsKg = `The store has only ${available.cereals} kg of cereals`;
-    if (available && pulses !== null && pulses > available.pulses) errors.pulsesKg = `The store has only ${available.pulses} kg of pulses`;
+    else if (fed !== null && enrolled !== null && fed > enrolled) warnings.learnersFed = `${fed} learners fed is more than the ${enrolled} enrolled this term`;
+    if (available && cereals !== null && cereals > available.cereals) warnings.cerealsKg = `This device shows only ${available.cereals} kg of cereals in the store`;
+    if (available && pulses !== null && pulses > available.pulses) warnings.pulsesKg = `This device shows only ${available.pulses} kg of pulses in the store`;
     if (values.reasonCode && !UNUSUAL_REASONS[values.reasonCode]) errors.reasonCode = 'Choose a reason for a day when learners were fed';
     Object.assign(values, { learnersFed: fed, cerealsKg: cereals, pulsesKg: pulses });
   } else if (form.feedingHappened === 'no') {
     if (!values.reasonCode || !NOT_FED_REASONS[values.reasonCode]) errors.reasonCode = 'Choose why learners were not fed';
   }
   if (values.reasonCode === 'other' && !values.note) errors.note = 'Describe the reason';
-  return { errors, values, late: entry.late };
+  return { errors, warnings, values, late: entry.late };
 }
 
 /**

@@ -1,8 +1,9 @@
 const app = require('../src/app');
-const { api } = require('./helpers/auth');
+const { api, asSchool } = require('./helpers/auth');
 const { pool, resetDatabase, SCHOOL_ID, syncOperation } = require('./helpers/fixtures');
 
 const asAdmin = api(app);
+const schoolDevice = asSchool(app);
 const asStaff = api(app, 'staff');
 const asOfficer = api(app, 'officer');
 
@@ -27,7 +28,7 @@ function feeding(date, overrides = {}) {
 }
 
 function sync(operations) {
-  return asAdmin.post('/api/sync').send({ clientId: 'device-a', operations });
+  return schoolDevice.post('/api/sync').send({ clientId: 'device-a', operations });
 }
 
 function changes(since, { as = asStaff, schoolId = SCHOOL_ID } = {}) {
@@ -103,6 +104,81 @@ describe('GET /api/sync/changes', () => {
     }
   });
 
+  it('holds the cursor back while a save stays open across several downloads, then sends it once committed', async () => {
+    // The cursor is the oldest transaction still running when the download starts, so it
+    // cannot move past a save that has not committed: later saves may be sent again, but
+    // nothing committed is ever skipped
+    const slow = await pool.connect();
+    try {
+      await slow.query('BEGIN');
+      await slow.query(
+        `INSERT INTO daily_feeding (school_id, feeding_date, feeding_happened, learners_fed, cereals_kg, pulses_kg)
+         VALUES ($1, '2026-10-01', true, 380, 57, 15.2)`,
+        [SCHOOL_ID]
+      );
+      let cursor;
+      const seen = [];
+      for (const [i, date] of ['05-10-2026', '06-10-2026', '07-10-2026'].entries()) {
+        await sync([syncOperation(`op-${i}`, 'dailyFeeding', 'create', feeding(date), 0)]);
+        const download = (await changes(cursor)).body;
+        seen.push(...download.dailyFeeding.map((r) => r.feedingDate));
+        expect(download.dailyFeeding.map((r) => r.feedingDate)).not.toContain('01-10-2026');
+        cursor = download.cursor;
+      }
+
+      await slow.query('COMMIT');
+      const after = (await changes(cursor)).body;
+      seen.push(...after.dailyFeeding.map((r) => r.feedingDate));
+
+      expect([...new Set(seen)].sort()).toEqual(['01-10-2026', '05-10-2026', '06-10-2026', '07-10-2026']);
+      // What was sent again is the same version, so a device applying it again changes nothing
+      expect(after.dailyFeeding.every((r) => r.version === 1)).toBe(true);
+    } finally {
+      slow.release();
+    }
+  });
+
+  it('gives a device that missed several edits only the latest version of each record', async () => {
+    const created = await sync([syncOperation('op-1', 'dailyFeeding', 'create', feeding('06-10-2026'), 0)]);
+    const old = (await changes()).body.cursor;
+    const recordId = created.body.results[0].recordId;
+    for (const [i, fed] of [395, 390, 388].entries()) {
+      await sync([{ ...syncOperation(`op-edit-${i}`, 'dailyFeeding', 'update', feeding('06-10-2026', { learnersFed: fed }), i + 1), baseRecordId: recordId }]);
+    }
+
+    const caughtUp = (await changes(old)).body;
+
+    expect(caughtUp.dailyFeeding).toEqual([expect.objectContaining({ feedingDate: '06-10-2026', learnersFed: 388, version: 4 })]);
+  });
+
+  it('never sends a save that was rolled back', async () => {
+    const failed = await pool.connect();
+    try {
+      await failed.query('BEGIN');
+      await failed.query(
+        `INSERT INTO daily_feeding (school_id, feeding_date, feeding_happened, learners_fed, cereals_kg, pulses_kg)
+         VALUES ($1, '2026-10-02', true, 380, 57, 15.2)`,
+        [SCHOOL_ID]
+      );
+      await failed.query('ROLLBACK');
+    } finally {
+      failed.release();
+    }
+
+    expect((await changes()).body.dailyFeeding).toEqual([]);
+  });
+
+  it('gives the same answer when a device downloads twice from the same cursor', async () => {
+    const first = (await changes()).body;
+    await sync([syncOperation('op-1', 'dailyFeeding', 'create', feeding('06-10-2026'), 0)]);
+
+    const once = (await changes(first.cursor)).body;
+    const again = (await changes(first.cursor)).body;
+
+    expect(again.dailyFeeding).toEqual(once.dailyFeeding);
+    expect(once.dailyFeeding).toHaveLength(1);
+  });
+
   it('lets programme officers download schools in their sub-county only', async () => {
     expect((await changes(undefined, { as: asOfficer, schoolId: SAME_SUB_COUNTY_SCHOOL })).status).toBe(200);
     expect((await changes(undefined, { as: asOfficer, schoolId: ELSEWHERE_SCHOOL })).status).toBe(404);
@@ -125,9 +201,9 @@ describe('decisions on held records in downloads', () => {
   const SECOND = 'eeeeeeee-0000-4000-8000-000000000002';
 
   async function heldDuplicate() {
-    await asAdmin.post('/api/sync').send({ clientId: 'device-a', operations: [syncOperation('op-1', 'stockMovement', 'create', delivery(FIRST), 0)] });
-    await asAdmin.post('/api/sync').send({ clientId: 'device-b', operations: [syncOperation('op-2', 'stockMovement', 'create', delivery(SECOND, 300), 0)] });
-    return (await asAdmin.get('/api/sync/held')).body.held[0].id;
+    await schoolDevice.post('/api/sync').send({ clientId: 'device-a', operations: [syncOperation('op-1', 'stockMovement', 'create', delivery(FIRST), 0)] });
+    await schoolDevice.post('/api/sync').send({ clientId: 'device-b', operations: [syncOperation('op-2', 'stockMovement', 'create', delivery(SECOND, 300), 0)] });
+    return (await asOfficer.get('/api/sync/held')).body.held[0].id;
   }
 
   it('tells the school\'s devices a duplicate was discarded, once', async () => {

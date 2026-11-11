@@ -113,9 +113,8 @@ describe('access', () => {
     expect((await asStaff.get('/api/analytics/term')).status).toBe(403);
   });
 
-  it('needs administrators to name a sub-county', async () => {
-    expect((await asAdmin.get('/api/analytics/term')).status).toBe(400);
-    expect((await asAdmin.get('/api/analytics/term?subCounty=Mfano%20Sub-County')).status).toBe(200);
+  it('is refused to system administrators, who see no school records', async () => {
+    expect((await asAdmin.get('/api/analytics/term?subCounty=Mfano%20Sub-County')).status).toBe(403);
   });
 
   it('keeps officers to their own sub-county', async () => {

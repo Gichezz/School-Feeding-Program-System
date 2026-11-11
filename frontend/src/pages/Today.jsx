@@ -104,6 +104,10 @@ function TodayForm({ data }) {
   const notSchoolDay = useMemo(() => whyNotSchoolDay(form.date, data.terms, data.events), [form.date, data.terms, data.events]);
   const check = validateFeeding(form, { enrolled, available });
   const errors = submitted ? check.errors : {};
+  // Warnings can be out of date on this device, so they are shown once and can be confirmed
+  const warningKey = Object.values(check.warnings).join('|');
+  const [confirming, setConfirming] = useState(null);
+  const needsConfirm = warningKey !== '' && confirming !== warningKey;
   const set = (name) => (event) => setForm((f) => ({ ...f, [name]: event.target.value }));
 
   const fed = Number(form.learnersFed);
@@ -115,6 +119,10 @@ function TodayForm({ data }) {
     event.preventDefault();
     setSubmitted(true);
     if (Object.keys(check.errors).length > 0) return;
+    if (needsConfirm) {
+      setConfirming(warningKey);
+      return;
+    }
     setSaving(true);
     try {
       await saveDailyFeeding(check.values);
@@ -124,10 +132,12 @@ function TodayForm({ data }) {
         description: isOnline ? 'Lishe is syncing it now.' : 'Saved on this device. It will sync when you are back online.',
       });
       setSubmitted(false);
+      setConfirming(null);
     } finally {
       setSaving(false);
     }
   };
+  const showWarnings = confirming === warningKey && warningKey !== '';
 
   return (
     <Card title={existing ? `Feeding on ${form.date}` : 'Record feeding'} description={data.school?.name}>
@@ -183,11 +193,19 @@ function TodayForm({ data }) {
               value={form.note} onChange={set('note')} error={errors.note} />
           </div>
         )}
+        {showWarnings && (
+          <Alert tone="warning" title="Check before saving">
+            <ul className="recording__error-list">
+              {Object.values(check.warnings).map((message) => <li key={message}>{message}.</li>)}
+            </ul>
+            If the numbers are right, save anyway. A delivery or enrolment change recorded on another device may not be here yet.
+          </Alert>
+        )}
         <p className="recording__note">
           {isOnline ? 'Saved on this device and synced straight away.' : 'You are offline. Saved on this device and synced when you are back online.'}
         </p>
         <div className="recording__actions">
-          <Button type="submit" size="lg" icon={Save} loading={saving}>{existing ? 'Save changes' : 'Save'}</Button>
+          <Button type="submit" size="lg" icon={Save} loading={saving}>{showWarnings ? 'Save anyway' : existing ? 'Save changes' : 'Save'}</Button>
         </div>
       </form>
     </Card>

@@ -3,10 +3,9 @@ const router = express.Router();
 const { listFlags, checkFlag, recordHistory } = require('../controllers/reviewController');
 const { requireRole } = require('../middleware/auth');
 
-// Record review: programme officers for their sub-county's schools (#62). System
-// administrators can read every flag and history but decide nothing
-router.use(requireRole('admin', 'programme_officer'));
-const officerOnly = requireRole('programme_officer');
+// Programme records are for programme officers, for their own sub-county. System
+// administrators run accounts, devices and configuration, and do not see them (least privilege)
+router.use(requireRole('programme_officer'));
 
 /**
  * GET /api/review/flags?status=open|checked
@@ -18,7 +17,7 @@ router.get('/flags', listFlags);
  * POST /api/review/flags/:id/check
  * Mark a flag as checked, with an optional note
  */
-router.post('/flags/:id/check', officerOnly, checkFlag);
+router.post('/flags/:id/check', checkFlag);
 
 /**
  * GET /api/review/records/:entityType/:id/history

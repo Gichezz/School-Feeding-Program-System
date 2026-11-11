@@ -104,6 +104,18 @@ describe('termRequirement', () => {
   it('marks the requirement unverified when no enrolment has been verified', () => {
     expect(termRequirement({ enrolment: [{ learners: 100, verified: false }], schoolDayCount: 10, carryOver: {} }).verified).toBe(false);
   });
+
+  it('counts a class changed since it was checked at its last verified number', () => {
+    const enrolment = [
+      { learners: 200, verified: true, verifiedLearners: 200 },
+      // Raised from 210 to 260 on the device; the officer has not checked it yet
+      { learners: 260, verified: false, verifiedLearners: 210 },
+    ];
+
+    const result = termRequirement({ enrolment, schoolDayCount: 10, carryOver: {} });
+
+    expect(result).toMatchObject({ learners: 410, verified: true, allVerified: false, awaitingCheck: 1 });
+  });
 });
 
 describe('validateFeeding', () => {
@@ -117,11 +129,20 @@ describe('validateFeeding', () => {
     expect(values).toMatchObject({ feedingHappened: true, learnersFed: 400, cerealsKg: 60, reasonCode: null });
   });
 
-  it('refuses more fed than enrolled, and more issued than the store holds', () => {
-    const { errors } = validateFeeding({ ...form, learnersPresent: '' }, { enrolled: 350, available: { cereals: 40, pulses: 100 }, now });
+  it('warns, without refusing, about more fed than enrolled and more issued than this device shows in store', () => {
+    const { errors, warnings } = validateFeeding({ ...form, learnersPresent: '' }, { enrolled: 350, available: { cereals: 40, pulses: 100 }, now });
 
-    expect(errors.learnersFed).toMatch(/350 enrolled/);
-    expect(errors.cerealsKg).toMatch(/only 40 kg/);
+    // Enrolment and this device's stock balance can be out of date, so these can be confirmed
+    expect(errors).toEqual({});
+    expect(warnings.learnersFed).toMatch(/350 enrolled/);
+    expect(warnings.cerealsKg).toMatch(/only 40 kg/);
+  });
+
+  it('still refuses more fed than the present count given', () => {
+    const { errors, warnings } = validateFeeding({ ...form, learnersPresent: '390' }, { enrolled: 350, now });
+
+    expect(errors.learnersFed).toMatch(/390 present/);
+    expect(warnings.learnersFed).toBeUndefined();
   });
 
   it('asks for a reason when learners were not fed, and records nothing issued', () => {

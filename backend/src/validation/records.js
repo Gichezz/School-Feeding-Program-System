@@ -74,17 +74,23 @@ function hasText(value) {
   return typeof value === 'string' && value.trim() !== '';
 }
 
+// Why a verified class's number changed (020): a new admission, a transfer, or a correction
+const ENROLMENT_CHANGE_REASONS = ['admission', 'transfer', 'correction'];
+
 const DATE_ERROR = 'Invalid date. Use a real date in DD-MM-YYYY format (e.g., 15-09-2026)';
 
 /**
  * Termly enrolment for one class and sex. Returns an error message, or null when valid.
  */
-function enrolmentError({ schoolId, termId, schoolClass, sex, learners }) {
+function enrolmentError({ schoolId, termId, schoolClass, sex, learners, changeReason }) {
   if (!isUuid(schoolId)) return 'Invalid school ID format';
   if (!isUuid(termId)) return 'Invalid term ID format';
   if (!CLASSES.includes(schoolClass)) return `Class must be one of ${CLASSES.join(', ')}`;
   if (sex !== 'F' && sex !== 'M') return 'Sex must be F or M';
   if (!isCount(learners)) return `Learners must be a whole number between 0 and ${MAX_COUNT}`;
+  if (changeReason !== undefined && changeReason !== null && !ENROLMENT_CHANGE_REASONS.includes(changeReason)) {
+    return `Reason for the change must be one of ${ENROLMENT_CHANGE_REASONS.join(', ')}`;
+  }
   return null;
 }
 
@@ -178,6 +184,7 @@ function syncPayloadError(entityType, payload) {
 }
 
 module.exports = {
+  ENROLMENT_CHANGE_REASONS,
   isUuid,
   isDisplayDate,
   attendanceError,

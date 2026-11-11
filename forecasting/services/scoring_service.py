@@ -40,6 +40,10 @@ REFIT_EVERY = 20
 WINDOW = 125
 MIN_HISTORY = 60
 DEFAULT_K = 3
+# Version 7: a school-week is listed only if it is also more unusual than this share of the
+# school-weeks in the model's own training window, so a quiet week can list fewer than 3, or
+# none. Chosen on the selection year in the deployment test (None: always the top 3).
+REVIEW_QUANTILE = 0.98   # protocol version 7: chosen on 2025 by F1@3 (data/reports/anomaly/deployment)
 NOTICE = ("Ranks records for review; it does not decide anything. Thresholds and settings were tested on "
           "synthetic data and need checking against real records.")
 
@@ -125,11 +129,14 @@ def score_week(body):
         model = ExtendedIsolationForestMethod(**SETTINGS, random_state=0).fit(history)
         scores = model.score(week)
         mode = METHOD
+        weekly_history = history.assign(score=model.score(history)).groupby(["school_id", "week"]).score.max()
+        threshold = None if REVIEW_QUANTILE is None else float(weekly_history.quantile(REVIEW_QUANTILE))
         model_info = {"method": METHOD, "settings": SETTINGS, "fitted_on_rows": int(len(history)),
                       "window_school_days": int(history.day_index.nunique()),
-                      "refit_point": str(pd.Timestamp(calendar.date.iloc[anchor]).date()) if anchor < len(calendar) else None}
+                      "refit_point": str(pd.Timestamp(calendar.date.iloc[anchor]).date()) if anchor < len(calendar) else None,
+                      "review_quantile": REVIEW_QUANTILE, "review_threshold": threshold}
     else:
-        model, scores, mode = None, rule_scores, "rules_only"
+        model, scores, mode, threshold = None, rule_scores, "rules_only", None
 
     week = week.assign(score=scores, rule_score=rule_scores)
     items = []
@@ -146,8 +153,12 @@ def score_week(body):
     items.sort(key=lambda i: -i["score"])
     for rank, item in enumerate(items, 1):
         item["rank"] = rank
-        # Ranked by the fixed checks alone, a school that broke none has nothing to look into
-        item["listed"] = rank <= k and (mode != "rules_only" or item["score"] > 0)
+        # Ranked by the fixed checks alone, a school that broke none has nothing to look into;
+        # ranked by the model, only a week above the review threshold is listed
+        if mode == "rules_only":
+            item["listed"] = rank <= k and item["score"] > 0
+        else:
+            item["listed"] = rank <= k and (threshold is None or item["score"] > threshold)
 
     breaches = []
     for row in week[week.rule_score >= 1].itertuples():
