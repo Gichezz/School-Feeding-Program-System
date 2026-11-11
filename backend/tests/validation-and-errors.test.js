@@ -1,9 +1,11 @@
 const request = require('supertest');
 const app = require('../src/app');
-const { api } = require('./helpers/auth');
+const { api, asSchool } = require('./helpers/auth');
 
 const asAdmin = api(app);
+const schoolDevice = asSchool(app);
 const asOfficer = api(app, 'officer');
+const asStaff = api(app, 'staff');
 const errorHandler = require('../src/middleware/errorHandler');
 const {
   pool,
@@ -18,7 +20,7 @@ beforeEach(resetDatabase);
 afterAll(() => pool.end());
 
 function sync(operations) {
-  return asAdmin.post('/api/sync').send({ clientId: 'device-a', operations });
+  return schoolDevice.post('/api/sync').send({ clientId: 'device-a', operations });
 }
 
 describe('sync payload validation', () => {
@@ -83,7 +85,7 @@ describe('REST record validation', () => {
     ['an impossible date', { attendance_date: '30-02-2026' }],
     ['counts sent as text', { total_present: '95' }],
   ])('rejects attendance with %s', async (_, overrides) => {
-    const res = await asAdmin.post('/api/attendance').send({
+    const res = await asStaff.post('/api/attendance').send({
       school_id: SCHOOL_ID,
       attendance_date: '05-10-2026',
       total_registered: 100,
@@ -96,7 +98,7 @@ describe('REST record validation', () => {
   });
 
   it('rejects meals with fractional counts', async () => {
-    const res = await asAdmin.post('/api/meals').send({
+    const res = await asStaff.post('/api/meals').send({
       school_id: SCHOOL_ID,
       distribution_date: '05-10-2026',
       meals_prepared: 100.5,
@@ -119,7 +121,7 @@ describe('request body handling', () => {
   });
 
   it('rejects malformed JSON with 400 and a generic message', async () => {
-    const res = await asAdmin.post('/api/attendance').set('Content-Type', 'application/json').send('{"school_id":');
+    const res = await asStaff.post('/api/attendance').set('Content-Type', 'application/json').send('{"school_id":');
 
     expect(res.status).toBe(400);
     expect(res.body).toEqual({ error: 'Malformed JSON body' });
@@ -132,7 +134,7 @@ describe('conflict ids', () => {
     ['POST', '/api/sync/conflicts/not-a-uuid/resolve'],
   ])('%s %s returns 400 without database details', async (method, path) => {
     const res = method === 'GET'
-      ? await asAdmin.get(path)
+      ? await asOfficer.get(path)
       : await asOfficer.post(path).send({ resolution: 'keep_local' });
 
     expect(res.status).toBe(400);

@@ -21,7 +21,8 @@ import {
  * adminOnly: only shown to administrators
  * staffOnly: only shown to school staff, who record on the school's devices
  * notStaff: not shown to school staff
- * oversight: only shown to programme officers and administrators
+ * oversight: only shown to programme officers (system administrators see no school records)
+ * notAdmin: not shown to system administrators, who record nothing
  * badge: name of a live count shown next to the item
  */
 export const NAV_GROUPS = [
@@ -49,7 +50,7 @@ export const NAV_GROUPS = [
   {
     label: 'Data sync',
     items: [
-      { to: '/sync', label: 'Sync Status', shortLabel: 'Sync', icon: RefreshCw, mobileTab: true },
+      { to: '/sync', label: 'Sync Status', shortLabel: 'Sync', icon: RefreshCw, mobileTab: true, notAdmin: true },
       { to: '/conflicts', label: 'Conflicts', icon: GitCompareArrows, oversight: true, badge: 'conflicts' },
       { to: '/review', label: 'Record review', shortLabel: 'Review', icon: Flag, oversight: true, badge: 'review' },
     ],
@@ -65,7 +66,8 @@ function canSee(item, { isAdmin, role }) {
   if (item.adminOnly && !isAdmin) return false;
   if (item.staffOnly && !isStaff) return false;
   if (item.notStaff && isStaff) return false;
-  if (item.oversight && !isAdmin && role !== 'programme_officer') return false;
+  if (item.notAdmin && isAdmin) return false;
+  if (item.oversight && role !== 'programme_officer') return false;
   return true;
 }
 

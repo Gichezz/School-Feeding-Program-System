@@ -35,7 +35,7 @@ offline capture  →  sync  →  analytics  →  anomaly scoring  →  officer r
 
 ### Programme officers (for their sub-county)
 
-- **Enrolment checks:** each school's termly enrolment, checked against the admission register and verified, since it sets the food the school can request.
+- **Enrolment checks:** each school's termly enrolment, checked against the admission register and verified, since it sets the food the school can request. When it does not match, the officer records a discrepancy with a note the school sees. A school changing a verified class gives a reason (admission, transfer or correction), and the term plan keeps the last verified number until the officer checks it.
 - **Analytics:** each school's term so far, covering days recorded, learners fed against enrolment, food against the ration, days of food left, deliveries and how up to date its records are.
 - **Weekly review list:** each finished week, the sub-county's schools are ranked by how unusual their records look (Extended Isolation Forest). The top schools come with plain-language reasons, worded "needs review", never "fraud". The officer marks each one explained or for follow-up.
 - **Record review:** unusual records (late, outside school hours, above enrolment, far from the ration, a short delivery) are flagged for checking, never blocked.
@@ -44,7 +44,7 @@ offline capture  →  sync  →  analytics  →  anomaly scoring  →  officer r
 ### System administrators
 
 - Accounts (feeding teachers with their school, programme officers with their sub-county), school devices (each needs approval), passkey or authenticator-app sign-in, and recovery codes.
-- Read-only access to every sub-county's analytics, review lists, flags, conflicts and enrolment. Programme decisions stay with the programme officer.
+- No access to school records (least privilege): their dashboard shows devices waiting for approval, locked sign-ins and accounts. Programme records and decisions stay with the programme officer.
 
 ### Automatic
 

@@ -14,41 +14,41 @@
   "listings": 3456,
   "deletion_checked": 3456,
   "deletion": {
-    "share_of_best_pair": 0.9802457294042154,
+    "share_of_best_pair": 0.9813278468698501,
     "beats_median_pair": 1.0,
-    "pair_percentile": 99.5907738095238,
+    "pair_percentile": 99.61281966490299,
     "faithful": true,
     "by_kind": {
       "with a problem": {
-        "listings": 547,
-        "share_of_best_pair": 0.989480952053703,
+        "listings": 535,
+        "share_of_best_pair": 0.9858440837569513,
         "beats_median_pair": 1.0
       },
       "ordinary": {
-        "listings": 2909,
-        "share_of_best_pair": 0.9785091646777562,
+        "listings": 2921,
+        "share_of_best_pair": 0.980500668939484,
         "beats_median_pair": 1.0
       }
     }
   },
   "agreement": {
     "inflated_headcount": {
-      "listings": 115,
-      "agreement": 0.6260869565217392,
+      "listings": 117,
+      "agreement": 0.6324786324786325,
       "chance": 0.5714285714285714,
       "judged": true,
       "better_than_chance": true
     },
     "consumption_drift": {
-      "listings": 114,
-      "agreement": 0.9473684210526315,
+      "listings": 112,
+      "agreement": 0.9553571428571429,
       "chance": 0.37142857142857144,
       "judged": true,
       "better_than_chance": true
     },
     "stock_leakage": {
-      "listings": 85,
-      "agreement": 0.5647058823529412,
+      "listings": 76,
+      "agreement": 0.631578947368421,
       "chance": 0.1333333333333333,
       "judged": true,
       "better_than_chance": true
@@ -61,42 +61,42 @@
       "better_than_chance": true
     },
     "round_number_entry": {
-      "listings": 49,
-      "agreement": 0.9183673469387755,
+      "listings": 50,
+      "agreement": 0.96,
       "chance": 0.2571428571428571,
       "judged": true,
       "better_than_chance": true
     },
     "ghost_learners": {
-      "listings": 126,
-      "agreement": 0.9523809523809523,
+      "listings": 122,
+      "agreement": 0.9344262295081968,
       "chance": 0.6571428571428571,
       "judged": true,
       "better_than_chance": true
     }
   },
   "reasons_named_on_single_type_listings": {
-    "enrolment_change": 128,
-    "uptake": 119,
-    "cereal_ratio": 102,
-    "usage_trend": 97,
-    "pulse_ratio": 96,
-    "round_share": 94,
-    "count_gap_change": 86,
-    "fed_steadiness": 79,
-    "entry_delay": 67,
-    "fed_rate_vs_last_term": 56,
-    "after_hours_share": 48,
-    "fed_vs_peers": 35,
-    "batch_dates": 34,
-    "fed_vs_own": 33,
+    "enrolment_change": 116,
+    "uptake": 110,
+    "entry_delay": 104,
+    "pulse_ratio": 94,
+    "usage_trend": 94,
+    "cereal_ratio": 91,
+    "round_share": 89,
+    "count_gap_change": 81,
+    "fed_steadiness": 69,
+    "entry_batch": 60,
+    "fed_rate_vs_last_term": 51,
+    "after_hours_share": 34,
+    "fed_vs_peers": 30,
+    "fed_vs_own": 27,
     "fed_rate": 16
   },
   "stability": {
-    "listed_under_both_seeds": 0.9861111111111112,
-    "same_two_reasons": 0.9448356807511737,
-    "at_least_one_in_common": 0.9988262910798122,
-    "compared": 852
+    "listed_under_both_seeds": 0.9629629629629629,
+    "same_two_reasons": 0.9014423076923077,
+    "at_least_one_in_common": 0.9951923076923077,
+    "compared": 832
   },
-  "runtime_seconds": 295
+  "runtime_seconds": 217
 }

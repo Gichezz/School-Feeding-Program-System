@@ -7,10 +7,10 @@ import { useSession } from '../../hooks/useSession';
 export const CONFLICTS_CHANGED_EVENT = 'lishe:conflicts-changed';
 const REFRESH_MS = 5 * 60 * 1000;
 
-/** Programme officers and administrators: they resolve conflicts from the server's list. */
+/** Programme officers resolve conflicts from the server's list. System administrators see no school records. */
 export function useResolvesConflicts() {
-  const { isAdmin, user } = useSession();
-  return isAdmin || user?.role === 'programme_officer';
+  const { user } = useSession();
+  return user?.role === 'programme_officer';
 }
 
 /**

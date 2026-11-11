@@ -1,4 +1,5 @@
 const { pool } = require('../db/pool');
+const { schoolInScope } = require('../middleware/scope');
 const { checkEntryWindow } = require('../validation/entryWindow');
 const { afterRecordSaved } = require('../services/integrity');
 const clock = require('../utils/clock');
@@ -108,7 +109,8 @@ async function getAttendanceById(req, res, next) {
       [id]
     );
 
-    if (result.rows.length === 0) {
+    // Records of a school outside the person's scope are treated as not found
+    if (result.rows.length === 0 || !(await schoolInScope(req.user, result.rows[0].school_id))) {
       throw new NotFoundError('Attendance record not found');
     }
 
@@ -135,10 +137,6 @@ async function createAttendance(req, res, next) {
   try {
     const { school_id, attendance_date, total_registered, total_present, total_absent, client_id } = req.body;
 
-    if (req.user?.role === 'school_staff' && school_id !== req.user.schoolId) {
-      return res.status(403).json({ error: 'You can only record attendance for your own school' });
-    }
-
     // Validate required fields
     if (!school_id || !attendance_date || total_registered === undefined || total_present === undefined || total_absent === undefined) {
       throw new ValidationError('Missing required fields: school_id, attendance_date, total_registered, total_present, total_absent');
@@ -154,6 +152,11 @@ async function createAttendance(req, res, next) {
     });
     if (invalid) {
       throw new ValidationError(invalid);
+    }
+
+    // Checked after the fields, so a malformed request is refused as such
+    if (req.user?.role === 'school_staff' && school_id !== req.user.schoolId) {
+      return res.status(403).json({ error: 'You can only record attendance for your own school' });
     }
 
     // Today or up to 3 school days back; older needs a reason (#62)

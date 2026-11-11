@@ -117,6 +117,10 @@ jobs:
           BASE_URL: http://localhost:8080
           SMOKE_EMAIL: admin@demo-school.local
           SMOKE_PASSWORD: ChangeMeAdmin1
+          SMOKE_STAFF_EMAIL: staff@demo-school.local
+          SMOKE_STAFF_PASSWORD: ChangeMeStaff1
+          SMOKE_OFFICER_EMAIL: officer@demo-school.local
+          SMOKE_OFFICER_PASSWORD: ChangeMeOfficer1
         run: node deploy/smoke-test.mjs
       - name: Create an administrator with the script, then sign in as them
         run: |

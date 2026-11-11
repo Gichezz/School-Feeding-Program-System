@@ -1,4 +1,5 @@
 const { pool } = require('../db/pool');
+const { schoolInScope } = require('../middleware/scope');
 const { checkEntryWindow } = require('../validation/entryWindow');
 const { afterRecordSaved } = require('../services/integrity');
 const clock = require('../utils/clock');
@@ -108,7 +109,8 @@ async function getMealById(req, res, next) {
       [id]
     );
 
-    if (result.rows.length === 0) {
+    // Records of a school outside the person's scope are treated as not found
+    if (result.rows.length === 0 || !(await schoolInScope(req.user, result.rows[0].school_id))) {
       throw new NotFoundError('Meal distribution record not found');
     }
 
@@ -135,10 +137,6 @@ async function createMeal(req, res, next) {
   try {
     const { school_id, distribution_date, meals_prepared, meals_served, client_id } = req.body;
 
-    if (req.user?.role === 'school_staff' && school_id !== req.user.schoolId) {
-      return res.status(403).json({ error: 'You can only record meals for your own school' });
-    }
-
     // Validate required fields
     if (!school_id || !distribution_date || meals_prepared === undefined || meals_served === undefined) {
       throw new ValidationError('Missing required fields: school_id, distribution_date, meals_prepared, meals_served');
@@ -153,6 +151,11 @@ async function createMeal(req, res, next) {
     });
     if (invalid) {
       throw new ValidationError(invalid);
+    }
+
+    // Checked after the fields, so a malformed request is refused as such
+    if (req.user?.role === 'school_staff' && school_id !== req.user.schoolId) {
+      return res.status(403).json({ error: 'You can only record meals for your own school' });
     }
 
     // Today or up to 3 school days back; older needs a reason (#62)

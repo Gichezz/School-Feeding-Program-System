@@ -87,7 +87,15 @@ function staleEdit(baseVersion, row) {
 /**
  * Create or edit a versioned record. `values` are the columns the device sets.
  */
-function versioned({ table, keyColumns, keyOf, valuesOf, what, onChange = '', lateReason = true, fillable = {}, checkMerged = () => null }) {
+function versioned({
+  table, keyColumns, keyOf, valuesOf, what, onChange = '', lateReason = true, fillable = {}, checkMerged = () => null,
+  // Columns saved with each write but not compared between copies (for example a reason)
+  extraOf = () => ({}),
+  // An edit the server refuses given the current record: returns a message, or null
+  checkEdit = () => null,
+  // Runs after an edit is saved, in the same transaction
+  afterEdit = async () => {},
+}) {
   const columns = { editable: true, lateReason };
   async function find(client, payload) {
     const key = keyOf(payload);
@@ -96,7 +104,7 @@ function versioned({ table, keyColumns, keyOf, valuesOf, what, onChange = '', la
   }
 
   async function write(client, id, values, payload, ctx) {
-    const row = { ...values, ...metadata(ctx, payload, columns) };
+    const row = { ...values, ...extraOf(payload), ...metadata(ctx, payload, columns) };
     const names = Object.keys(row);
     const result = await client.query(
       `UPDATE ${table}
@@ -133,7 +141,7 @@ function versioned({ table, keyColumns, keyOf, valuesOf, what, onChange = '', la
       if (merged) return merged;
       throw sameKeyConflict(what);
     }
-    const row = { ...keyOf(payload), ...values, ...metadata(ctx, payload, columns) };
+    const row = { ...keyOf(payload), ...values, ...extraOf(payload), ...metadata(ctx, payload, columns) };
     const names = Object.keys(row);
     const result = await client.query(
       `INSERT INTO ${table} (${names.join(', ')}, version)
@@ -155,7 +163,11 @@ function versioned({ table, keyColumns, keyOf, valuesOf, what, onChange = '', la
       if (merged) return merged;
       throw staleEdit(baseVersion, current);
     }
-    return write(client, current.id, values, payload, ctx);
+    const refused = checkEdit(current, values, payload, ctx);
+    if (refused) throw new Error(refused);
+    const saved = await write(client, current.id, values, payload, ctx);
+    await afterEdit(client, current, saved);
+    return saved;
   }
 
   return { versioned: true, table, find, create, update };
@@ -212,20 +224,55 @@ function metadata(ctx, payload, { editable, lateReason }) {
 
 const enrolment = {
   dbType: 'enrolment',
-  validate: (p) => enrolmentError({ schoolId: p.schoolId, termId: p.termId, schoolClass: p.class, sex: p.sex, learners: p.learners }),
+  validate: (p) => enrolmentError({
+    schoolId: p.schoolId, termId: p.termId, schoolClass: p.class, sex: p.sex, learners: p.learners, changeReason: p.changeReason,
+  }),
   date: () => null,
   ...versioned({
     table: 'enrolment',
     keyColumns: ['school_id', 'term_id', 'class', 'sex'],
     keyOf: (p) => ({ school_id: p.schoolId, term_id: p.termId, class: p.class, sex: p.sex }),
     valuesOf: (p) => ({ learners: p.learners }),
+    extraOf: (p) => ({ change_reason: nullable(p.changeReason) }),
     what: 'enrolment for this class and term',
-    // A changed count needs verifying again
+    // A changed count needs verifying again; verified_learners keeps the last verified
+    // number, which the term plan uses until the officer checks the new one
     onChange: ', verified_by = NULL, verified_at = NULL',
+    // A school changing a class that was verified says why (020). Officers applying a
+    // conflict decision are not asked
+    checkEdit: (current, values, payload, ctx) => (
+      ctx.capture?.deviceId && current.verified_learners !== null && values.learners !== current.learners && !payload.changeReason
+        ? 'Say why the number changed: a new admission, a transfer or a correction'
+        : null
+    ),
+    // The school has answered the officer's discrepancy: the term is to be checked again
+    // (the edited class keeps the version the device was told; the others get a new one
+    // so the school's devices download the change)
+    afterEdit: async (client, current, saved) => {
+      if (current.discrepancy_note === null) return;
+      const others = (await client.query(
+        `UPDATE enrolment SET discrepancy_note = NULL, discrepancy_by = NULL, discrepancy_at = NULL,
+                version = version + CASE WHEN id = $3 THEN 0 ELSE 1 END, updated_at = NOW()
+         WHERE school_id = $1 AND term_id = $2 AND discrepancy_note IS NOT NULL
+         RETURNING id, version, term_id, class, sex, learners, updated_by`,
+        [current.school_id, current.term_id, saved.recordId]
+      )).rows.filter((r) => r.id !== saved.recordId);
+      // Their new versions are kept in the history like any other
+      for (const r of others) {
+        await client.query(
+          `INSERT INTO record_history (entity_type, record_id, version, values, changed_by)
+           VALUES ('enrolment', $1, $2, $3, $4)`,
+          [r.id, r.version, JSON.stringify({ term: r.term_id, class: r.class, sex: r.sex, learners: r.learners, discrepancy: null }), r.updated_by]
+        );
+      }
+    },
     // Enrolment is for a term, not a date, so there is no late entry to explain
     lateReason: false,
   }),
-  history: (row) => ({ term: row.term_id, class: row.class, sex: row.sex, learners: row.learners }),
+  history: (row) => ({
+    term: row.term_id, class: row.class, sex: row.sex, learners: row.learners,
+    ...(row.change_reason && { reason: row.change_reason }),
+  }),
 };
 const dailyFeeding = {
   dbType: 'daily_feeding',

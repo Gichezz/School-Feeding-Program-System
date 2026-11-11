@@ -10,6 +10,14 @@
 # to fail in the last week of the school year: precision is also reported by kind of
 # week, because an average over about 75 school weeks hides one bad week a year. The rest of the
 # plan and the conclusion rule are unchanged.
+#
+# Version 7, written before it was run (protocol version 7, config/anomaly_evaluation.yaml).
+# The deployed list shows each officer up to 3 schools a week, so this test is where the
+# methods are judged as used. Added:
+#   - Recall@3 next to Precision@3, both reported for the selection year (2025) and the
+#     test year (2026) separately. The unit is the school-week, within a sub-county-week.
+#   - A review threshold, so a quiet week can list fewer than 3 schools, or none.
+#   - Workload, wider fairness and a connectivity check (below).
 
 datasets:
   # The main dataset and three new baseline datasets from the robustness plan's seeds
@@ -33,6 +41,49 @@ deployment:
   scored_period: {start: 2025-01-06, end: 2026-10-23}
 
 methods: [rules, isolation_forest, extended_isolation_forest, one_class_svm, local_outlier_factor, sgd_one_class_svm]
+
+# Version 7. Selection on 2025 school-weeks, the test on 2026 school-weeks, scored the same
+# way; the selection year chooses the threshold, the test year is reported once.
+periods:
+  selection: {start: 2025-01-06, end: 2025-12-31}
+  test: {start: 2026-01-01, end: 2026-10-23}
+
+# Version 7. A school-week is listed only if it is among the top 3 AND its score is above
+# the q-quantile of the school-week scores in the model's own training window (the last 125
+# school days): "more unusual than q of the past two terms' weeks". No labels are needed, so
+# it can run in the system. q = none lists the top 3 every week, as version 6 did. For each
+# method, q is chosen on the selection year by the highest F1@3 (the harmonic mean of
+# Precision@3 and Recall@3); ties go to the lower q (more listings). The fixed rules list
+# only school-weeks that broke a rule, whatever q.
+review_threshold:
+  candidates: [none, 0.90, 0.95, 0.98]
+  choose_by: f1_at_k
+  choose_on: selection
+
+deployment_metrics:
+  - precision_at_k        # listed school-weeks that contain a problem
+  - recall_at_k           # problem school-weeks that were listed
+  - f1_at_k
+  - empty_weeks_share     # officer-weeks with nothing listed
+  - listings_per_officer_week
+  - false_listings_per_officer_term   # ordinary school-weeks listed, per sub-county, per 13 weeks
+  - listed_by_type        # problem school-weeks listed, per anomaly type
+
+# Version 7 fairness, reported for the recommended method and described as preliminary
+# (40 synthetic schools). For school size thirds, programme type, sub-county and
+# connectivity (sync every 1-2 vs 3-5 school days; school-weeks with an outage vs without):
+#   false listing rate  ordinary school-weeks listed / ordinary school-weeks, in the group
+#   detection rate      problem school-weeks listed / problem school-weeks, in the group
+# A group is over-listed if its false listing rate is more than 1.5 times the overall rate.
+fairness_v7:
+  groups: [size, programme_type, sub_county, sync_interval, outage_week]
+  over_listed_ratio: 1.5
+
+# Version 7 connectivity check, reported and not used to choose: the recommended method is
+# also run with version 6's sync-based timing features (entry delay to receipt; dates sent in
+# one sync) on the same data, and the false listing rate in outage weeks is compared.
+connectivity_check:
+  compare_with: version_6_timing_features
 
 metrics:
   - precision_at_k                     # share of listed school-weeks with a real problem

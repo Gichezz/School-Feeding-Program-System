@@ -1,167 +1,77 @@
-# Historical Dataset and Synthetic Kenyan School Data (Phase 9)
+# The synthetic school feeding dataset
 
-This phase prepares a historical dataset for the later meal-demand forecasting phase. It does **not** implement forecasting, connect data to PostgreSQL, or change the application.
+The anomaly detection methods are compared on a **synthetic dataset**, because no real school feeding records were available. This document says exactly how it is generated, so its results can be read for what they are.
 
-> **What this dataset is.** A synthetic dataset for **one simulated Kenyan school**, generated under documented, configurable assumptions. It is not observed Kenyan data, and it is not representative of all Kenyan schools. Calendar dates are illustrative (not official Ministry of Education dates), and rainfall is simulated (not Kenya Meteorological Department observations).
+**What it can and cannot show.** It tests whether anomaly detection is **feasible under simulated Kenyan school-feeding conditions**: whether the methods find planted irregularities in records shaped like real ones, including irregularities they were never tuned on. It does **not** measure how often they would be right about **naturally occurring** irregularities at real schools. Real misreporting may look different from what was planted, and real schools vary in ways the generator does not imagine. A pilot comparing the weekly lists with schools' registers and store books is the step that would establish real-world accuracy.
 
-## 1. Files
+- Generator: [`forecasting/scripts/generate_feeding_dataset.py`](../forecasting/scripts/generate_feeding_dataset.py)
+- Settings: [`forecasting/config/feeding_dataset.yaml`](../forecasting/config/feeding_dataset.yaml)
+- Real Kenyan inputs: [`forecasting/config/kenya_inputs.yaml`](../forecasting/config/kenya_inputs.yaml)
 
-```text
-forecasting/
-├── config/
-│   └── synthetic_kenya_school.yaml          # all simulation assumptions + random seed
-├── scripts/
-│   ├── common.py                            # shared paths/helpers
-│   ├── inspect_us_dataset.py                # step 1: inspect raw US data (read-only)
-│   ├── generate_synthetic_dataset.py        # step 2: generate synthetic dataset
-│   ├── validate_synthetic_dataset.py        # step 3: automated validation checks
-│   └── data_quality_report.py               # step 4: data-quality assessment
-└── data/
-    ├── raw/
-    │   └── us_school_attendance.csv         # original Kaggle file - never modified
-    ├── processed/
-    │   ├── us_reference_daily.csv           # US all-school daily aggregate (transformed)
-    │   ├── us_reference_profile.json        # US-derived reference patterns (transformed)
-    │   ├── synthetic_kenya_school_daily.csv # the synthetic dataset
-    │   └── synthetic_kenya_school_metadata.json
-    └── reports/
-        ├── us_dataset_inspection.{md,json}
-        ├── validation_report.{md,json}
-        └── data_quality_report.md
-```
+## 1. What is real and what is assumed
 
-Raw, processed (transformed US) and synthetic data are kept in separate files. Nothing is merged into one table.
+| Input | Source |
+|---|---|
+| Term dates, half-terms, public holidays 2024–2026 | **Real**: Ministry of Education calendar and gazetted holidays (`kenya_inputs.yaml`) |
+| Ration: 150 g cereals, 40 g pulses, 5 g oil, 2 g salt per learner per meal | **Real**: School Meals Programme ration |
+| How much learners fed varies from day to day, and on each kind of day (first days, closing day) | **Calibrated** from a real dataset: 15 Swedish school canteens, 2010–2020 |
+| Enrolment 180–950, participation 82–95%, 30% cash-transfer schools, deliveries, losses, store counts, entry and sync behaviour, outages | **Assumptions**, stated in `feeding_dataset.yaml` |
 
-## 2. Commands
+## 2. Schools and the normal day
 
-Run from the repository root (Python 3.10+, dependencies in `forecasting/requirements.txt`):
+- **40 schools in 4 sub-counties** (10 each), from January 2024 to the last school day of Term 3 2026. Each school gets an enrolment, a participation rate, an in-kind or cash-transfer programme, how often its device syncs (every 1–5 school days), and whether it records learners present (70% do).
+- **Learners fed** each school day = enrolment × participation × the effect of the kind of day × day-to-day noise (log-normal, sd 0.05, correlated day to day). Some days have no feeding, with a reason: no food in store, or the school closed.
+- **Food issued** = learners fed × the ration, with small variation (sd 3%), rounded to 0.5 kg (cooks measure with tins). Oil and salt follow the ration.
+- **Stock:**
+  - in-kind schools get 75–100% of the term's need, 1–4 weeks into the term, and 15% of deliveries weigh less than the delivery note;
+  - cash-transfer schools buy about every 20 school days;
+  - genuine recorded losses (pests, damp) happen about 1.5 times a school a year;
+  - the store is counted every 20 school days, with a small weighing error.
+- **Entering and syncing:**
+  - 85% of days are entered the same day, the rest 1–3 school days late, during school hours (5% after hours);
+  - each device syncs every 1–5 school days, sending everything waiting in one batch;
+  - **connectivity outages** (protocol version 7): in each term, each school has a 35% chance of one outage of 5–15 school days. The device keeps recording on time but cannot sync, then sends everything at once. Outages use their own random stream, so adding them changed no other value in the data.
+
+## 3. The six planted problems
+
+Each problem is an **episode** at one school, with a start, an end and a **strength** drawn uniformly between 0 and 1 that sets how severe it is. A school never has two episodes at once. Every school-day in an episode is labelled with its type; the labels are used only to score methods, never by a method.
+
+| Problem | How it is generated | Severity (by strength) | Duration |
+|---|---|---|---|
+| **Inflated headcount** | More learners recorded as fed than were fed; food issued follows the recorded number, so the store empties faster | +12% to +35% learners fed, capped just below enrolment | 10–30 school days |
+| **Consumption drift** | Food issued per learner creeps up over the episode | from 0 to +20%…+45% by the end | 10–30 school days |
+| **Stock leakage** | Food leaves the store unrecorded each day; it only shows at the next store count, which is also labelled | 15%–40% of a day's real use, each day | 10–30 school days |
+| **Backdated bulk entry** | The whole episode is entered in one sitting, 8–25 school days after it ended (60% after hours), with figures from memory: the usual number rounded to 10, food exactly at the ration | delay 8 → 25 school days | 10–30 school days |
+| **Round-number entry** | Learners fed rounded to the nearest 10, or 50 for stronger episodes; food at exactly the ration | rounding to 10 or 50 | 10–30 school days |
+| **Ghost learners** | Enrolment inflated for a whole term, so more food is allocated; part of the extra (0–100%) is recorded as fed, the rest leaves the store unrecorded | +10% to +30% enrolment | a whole term |
+
+**How often, and where:**
+- 2024 and 2025 (tuning): 14 episodes a year, cycling through the **three tuning types** (inflated headcount, consumption drift, stock leakage).
+- 2026 (test): 18 episodes, **three of each of the six types**. The other three (backdated bulk entry, round-number entry, ghost learners) are **held out**: they never appear before the test year, so no method or setting is tuned on them.
+- Schools are chosen at random for each episode, and start dates fall at random within the year.
+
+Labelled school-days in the main dataset: inflated headcount 260, consumption drift 240, stock leakage 242, ghost learners 148, backdated bulk entry 60, round-number entry 55 (1,005 of 20,360 school-days, about 5%).
+
+## 4. Guarding against learning the generator's quirks
+
+A method could score well by spotting something only this generator does. These checks make that less likely:
+1. **Held-out types.** Three of the six problems are only in the test year, so a method can't have been tuned to them.
+2. **Context is not evidence.** The kind of day adjusts what is normal (protocol version 3); closing days and opening days are not flagged for being unusual.
+3. **Timing reflects the records, not the network.** Entry delay and entry batches are measured from when records were entered, not when they arrived (protocol version 7), so connectivity outages, which are planted for ordinary schools too, are not a shortcut.
+4. **No future records.** Every feature uses only records up to the day it describes, checked by a test.
+5. **Different data, same conclusion.** The robustness study regenerates the data under 7 scenarios (noisier days, subtler problems, a larger programme, more frequent counts, irregular entry, heavy connectivity outages, and the baseline) with 3 seeds each.
+6. **Run as deployed.** The deployment test refits monthly per sub-county without labels, on the main dataset and three more seeds.
+7. **Feature ablation.** Each feature and group is removed in turn, to see which carry the results ([anomaly evaluation report](../forecasting/data/reports/anomaly/anomaly_evaluation.md)).
+
+## 5. Limitations of the data itself
+- **Small groups.** A sub-county has 10 schools, so a school's "similar schools nearby" is the median of the other 9. Peer comparisons are indications, not statistical conclusions, and so are fairness results by group.
+- **Assumed behaviour.** How often schools enter late, sync, lose connection, or record learners present is assumed, not measured.
+- **Imagined problems.** The six problems are the ones described in audits and programme reviews. Collusion that keeps every record consistent (including store counts) is not simulated, and no method here would find it from records alone.
+
+## 6. Reproducing
 
 ```bash
-python forecasting/scripts/inspect_us_dataset.py
-python forecasting/scripts/generate_synthetic_dataset.py
-python forecasting/scripts/validate_synthetic_dataset.py
-python forecasting/scripts/data_quality_report.py
+python forecasting/scripts/generate_feeding_dataset.py
 ```
 
-`validate_synthetic_dataset.py` exits with status 1 if any check fails. It regenerates the dataset in memory and compares it byte-for-byte with the saved file (use `--skip-reproducibility` to skip this; the skipped check is then reported as failed, not passed).
-
-## 3. The original US dataset
-
-Full findings: [`forecasting/data/reports/us_dataset_inspection.md`](../forecasting/data/reports/us_dataset_inspection.md).
-
-| Property | Value |
-|---|---|
-| File | `us_school_attendance.csv` (CSV, 8.1 MB) |
-| Size | 277,153 rows × 6 columns |
-| Columns | `School DBN` (text), `Date` (int, YYYYMMDD), `Enrolled`, `Absent`, `Present`, `Released` (int) |
-| Dates | 2018-09-04 to 2019-06-26, 185 unique dates, weekdays only (one US school year) |
-| Schools | 1,583 (DBN codes in New York City Department of Education format) |
-| Missing values | none |
-| Duplicates | no duplicate rows, no duplicate (School DBN, Date) keys |
-| Identity | `Present + Absent + Released = Enrolled` on every row |
-
-Data-quality issues: only one school year; 7 dates with very low coverage (1 to 519 schools reporting, e.g. 2019-02-19..21 with a single school); schools with short histories; `Released` is undocumented and sometimes large; 3,161 school-days with attendance below 50%; no meal, weather, holiday, exam or event fields; non-school days are simply absent.
-
-## 4. Suitability assessment
-
-The dataset is US school data. It is **not** treated as Kenyan data and no US attendance values are copied into the synthetic dataset.
-
-**Useful (as reference patterns only)**
-
-| Derived from US data | How it is used |
-|---|---|
-| Relative weekday pattern of attendance (logit offsets relative to each school's mean) | `attendance.dow_logit_offsets: us_reference` — Friday lowest, midweek highest |
-| Lag-1 autocorrelation of within-school daily deviations (0.47) | `attendance.noise_ar1: us_reference` — day-to-day persistence |
-| Dip on the last school day before a break (−0.16 logit) | `attendance.pre_break_logit: us_reference` |
-| Attendance rate level and spread | Reported for comparison only |
-
-**Unsuitable for direct reuse**
-
-- `Enrolled` / `Present` / `Absent` counts: US school sizes and US attendance levels.
-- `Date`: US calendar (September–June year, US holidays). Kenyan terms run January–November.
-- `School DBN`, `Released`: US-specific or undocumented.
-- The mean US attendance rate (0.898) is **not** used as the Kenyan base rate. The noise level (US robust SD 0.35 logit) mixes many schools and district-wide shocks, so the single-school noise level is a separate assumption (0.22).
-
-**Generated for the Kenyan context** (no US equivalent): the full calendar (terms, half-terms, public holidays, exam periods), enrollment trajectory, rainfall and weather category, special events, meal planning/preparation/serving, latent meal demand, supply shortfalls, and provenance fields.
-
-## 5. Field dictionary
-
-One record per calendar day, 1998-01-01 to 2025-12-31 (10,227 records).
-
-| Field | Description |
-|---|---|
-| `date` | ISO date. Unique, contiguous, chronological. |
-| `day_of_week` | Monday..Sunday, derived from `date`. |
-| `is_school_day` | School operates: configured weekday, inside a term, not half-term, not a public holiday. |
-| `is_school_holiday` | Inter-term holiday, half-term, or public holiday. In-term weekends are neither school days nor holidays. |
-| `is_public_holiday` | Date is in the simplified public-holiday list (extra field). |
-| `term` | `YYYY-T1`/`T2`/`T3` for every date inside a term span (weekends and half-term included); `holiday` otherwise. |
-| `school_year` | Academic year = calendar year (Kenyan year runs Jan–Dec). |
-| `week_of_term` | Week number within the term (week 1 = the Monday-to-Sunday week containing the term start). Null outside term. |
-| `is_half_term` | Simulated half-term break. |
-| `is_exam_period` | Simulated exam school day (mid-term or end-of-term). Only true on school days. |
-| `students_enrolled` | Simulated register size. Changes only at term starts and weekly in-term transfers; constant during holidays. |
-| `rainfall_mm` | Simulated daily rainfall (0.1 mm resolution). |
-| `weather_category` | `dry` < 1 mm ≤ `light_rain` < 10 mm ≤ `moderate_rain` < 30 mm ≤ `heavy_rain`. |
-| `is_special_event` / `special_event_type` | Scheduled event on a school day; type is null when there is no event. |
-| `students_present` | Simulated attendance. Null on non-school days. |
-| `meals_planned` | Meals planned before the day (see §6.5). Null on non-school days. |
-| `meals_prepared` | Meals actually prepared. |
-| `meals_served` | `min(estimated_meal_demand, meals_prepared)`. |
-| `estimated_meal_demand` | Latent demand: present students who would take a meal if enough were available. |
-| `is_supply_shortfall` | A supply shortfall reduced preparation below plan (extra field). |
-| `source_type` | `synthetic` for every record in this file (`transformed` in the US reference files). |
-| `synthetic_scenario` | Scenario name from the config (`baseline_v1`). |
-
-Attendance and meal fields are **null, not zero**, on non-school days: no session took place, so there is no observation.
-
-## 6. Generation process and assumptions
-
-All values below live in `forecasting/config/synthetic_kenya_school.yaml`. The seed (`random_seed: 20250901`) feeds a NumPy `SeedSequence` that is split into independent streams (enrollment, rainfall, events, attendance, shocks, effects, uptake, preparation), so changing one component's parameters does not reshuffle the others.
-
-### 6.1 Period and record count
-28 full school years (1998–2025) × 365/366 days = **10,227 records**, of which 4,867 are school days. The period was chosen to reach approximately 10,000 daily records without duplicating dates or inventing calendar days. Real-world disruptions in this period (for example the 2020 COVID-19 closures and the compressed 2021–2022 calendars) are **not** modelled; `calendar.term_overrides` can be used to insert real dates.
-
-### 6.2 Calendar (illustrative)
-Three terms per year, each starting on the first Monday on/after an anchor date: T1 from 3 Jan (13 weeks), T2 from 28 Apr (14 weeks), T3 from 25 Aug (10 weeks). Half-terms of 2–3 weekdays mid-term. Exams: 3 school days before half-term in T1/T2, the last 5 school days of T1/T2 and the last 10 of T3. Public holidays: New Year, Good Friday, Easter Monday, Labour Day, Madaraka Day, Mashujaa Day, Jamhuri Day, Christmas, Boxing Day, with Sunday holidays observed on Monday. Idd-ul-Fitr and holidays that changed during the period (e.g. Moi/Utamaduni Day) are omitted. Saturday classes are not modelled. The result is 172–175 school days per year.
-
-### 6.3 Enrollment
-Starts at 480. At each T1 start: growth ~ Normal(1.8%, 2.5%) (new intake minus leavers). At T2/T3 starts: change ~ Normal(−0.3%, 0.8%). Each in-term Monday: Poisson(0.5) transfers in, Poisson(0.55) out. Bounded to [200, 1500]. Result: 480 → 594 over 28 years, largest daily change 5.7%.
-
-### 6.4 Rainfall
-A two-state (wet/dry) Markov chain per day with month-specific wet-day probability and gamma-distributed wet-day amounts, peaking in the long rains (Mar–May) and short rains (Oct–Dec). Each season in each year gets a lognormal multiplier (SD 0.30) for year-to-year variability. This is a simplified illustration of Kenya's bimodal pattern, not a climate model.
-
-### 6.5 Attendance
-`students_present ~ Binomial(students_enrolled, p)`, which guarantees `0 ≤ present ≤ enrolled`. `logit(p)` is the sum of:
-- base rate 0.92 (Kenyan-context assumption);
-- weekday offset (US reference);
-- school-year effect ~ N(0, 0.08);
-- first day of term −0.45, week 1 −0.30, last week −0.10, day before an in-term break (US reference), exam period +0.35;
-- weather effect **drawn per day** from Normal(mean, sd) for the category (heavy rain: mean −0.25, sd 0.15), so rainy days reduce attendance only on average;
-- event effect drawn per day (e.g. sports day +0.15, school meeting −0.15);
-- occasional multi-day shock episodes (≈0.3 per term, 3–10 school days, e.g. illness outbreaks);
-- AR(1) noise across consecutive school days (SD 0.22, persistence from US reference).
-
-### 6.6 Meals
-- **Demand**: `estimated_meal_demand ~ Binomial(students_present, uptake)`, with uptake ≈ 0.97 varied by event and day-level noise. It is generated separately from preparation, so it measures what *would* have been served with unlimited supply. In a real deployment demand is not directly observed; this field exists because the data is synthetic.
-- **Planning** (no leakage): `meals_planned = ceil_to_5( mean attendance rate over the previous 10 school days × previous day's enrollment × calendar/event adjustments × 1.03 )`. Adjustments use only information known in advance: first day/week of term, exam period, scheduled event type. Same-day attendance and rainfall are never used.
-- **Preparation**: normally planned × (1 + N(0, 1%)); on a supply shortfall (3% of school days, ×1.5 in rainy-season months) preparation falls 10–40% below plan.
-- **Serving**: `meals_served = min(demand, prepared)`, so `0 ≤ served ≤ min(prepared, present)`. The gap between prepared and served is not labelled food waste.
-
-### 6.7 Special events
-Per term, Poisson(3) events on eligible school days (not exam days, not the first 3 school days), with term-specific type weights (e.g. more academic events in T3, more cultural days in T2).
-
-## 7. Validation and quality reporting
-
-`validate_synthetic_dataset.py` runs 79 checks across structure, dates, calendar consistency, events, enrollment/weather, attendance/meals, leakage, provenance and reproducibility. The leakage checks re-run the planning function on the saved CSV and confirm (a) every `meals_planned` value is reproduced, and (b) setting a day's `students_present` to 0 and `rainfall_mm` to 999 does not change that day's plan. Results: [`validation_report.md`](../forecasting/data/reports/validation_report.md).
-
-`data_quality_report.py` summarises distributions and relationships and checks that the data follows the configured assumptions: [`data_quality_report.md`](../forecasting/data/reports/data_quality_report.md). It measures internal consistency, **not** real-world accuracy.
-
-## 8. Forecasting readiness (for the next phase)
-
-- **Target**: `estimated_meal_demand`. `meals_served` is censored by `meals_prepared` on shortfall days (demand exceeded preparation on ~4% of school days), so it understates demand. If only real served data were available, shortfall days should be treated as censored or excluded.
-- **Date field**: `date` (Prophet `ds`), filtered to `is_school_day == True`. Non-school days have no target and should not be passed as zeros.
-- **Candidate predictors known in advance**: `day_of_week`, `term`, `week_of_term`, `is_exam_period`, `is_half_term`/holiday adjacency, `is_special_event`/`special_event_type`, `students_enrolled` (previous day's value), lagged attendance or demand (strictly prior days). `rainfall_mm`/`weather_category` may only be used as a *forecast* input (a weather forecast), not same-day observed rainfall, unless the evaluation explicitly assumes perfect weather forecasts.
-- **Leakage risks**: same-day `students_present`, `meals_served`, `meals_prepared`, `is_supply_shortfall` and observed same-day rainfall are not available before the day and must not be predictors. `meals_planned` is a legitimate *baseline for comparison* (it uses prior information only), but it is not a target.
-- **Evaluation**: chronological splits only — never random shuffling. Suggested: train 1998–2021, validate 2022–2023, test 2024–2025; or a rolling-origin evaluation by term. Compare against `meals_planned` and against simple baselines in the next phase.
-- **Limitations**: all relationships were written into the generator, so a model can at best rediscover the configured assumptions. Results on this data demonstrate that the pipeline works, not that forecasts would be accurate for a real Kenyan school. The same seed produces one realisation; robustness can be explored with other seeds or scenarios.
+The same seed gives the same data. The robustness study and deployment test generate their own seeded copies.

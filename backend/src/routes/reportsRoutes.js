@@ -1,5 +1,10 @@
 const express = require('express');
 const router = express.Router();
+const { scopeToSchool } = require('../middleware/scope');
+
+// One school's figures: school staff their own, officers a school in their sub-county.
+// System administrators do not see school records (least privilege)
+router.use(scopeToSchool);
 const { 
   getDashboardSummary, 
   getAttendanceReport, 

@@ -116,8 +116,8 @@ def test_uptake_is_neutral_where_present_is_not_recorded_and_after_hours_is_flag
 def test_explanations_read_correctly_at_the_edges():
     from anomaly.explain import describe
 
-    assert describe("batch_dates", {"batch_dates": 1}) == "synced on its own, apart from the school's other records"
-    assert describe("batch_dates", {"batch_dates": 6}) == "6 dates sent together in one sync"
+    assert describe("entry_batch", {"entry_batch": 1}) == "entered on its own"
+    assert describe("entry_batch", {"entry_batch": 6}) == "6 dates entered in the same sitting"
     assert describe("fed_steadiness", {"fed_steadiness": -0.005}) == "almost the same number of learners fed day after day"
     assert describe("fed_steadiness", {"fed_steadiness": -0.2}) == "learners fed changing by 20% a day on average"
     assert describe("fed_rate_vs_last_term", {"fed_rate_vs_last_term": -0.57}) == "a share of learners fed, for that kind of day, 57 percentage points below last term's"
@@ -164,3 +164,46 @@ def test_rounding_to_half_a_kilogram_is_not_read_as_unusual():
     f = build_features(schools, enrolment, feeding, counts, school_days)
 
     assert (f.pulse_ratio.abs() < 0.03).all()
+
+
+def test_an_outage_does_not_look_like_late_entry_but_a_catch_up_does():
+    schools, enrolment, feeding, counts, school_days = tiny_dataset()
+    dates = list(school_days.date)
+    a = feeding.school_id == "A"
+    # Outage: school A records every day on time, but days 20-34 only reach the server on day 35
+    outage = a & feeding.date.isin(dates[20:35])
+    feeding.loc[outage, "received_date"] = dates[35]
+    feeding.loc[outage, "sync_batch_id"] = "A-after-outage"
+    # Catch-up: school B enters days 40-49 in one sitting on day 52
+    catch_up = (feeding.school_id == "B") & feeding.date.isin(dates[40:50])
+    feeding.loc[catch_up, "captured_at"] = f"{dates[52].date()}T19:00:00"
+    feeding.loc[catch_up, "received_date"] = dates[52]
+    feeding.loc[catch_up, "sync_batch_id"] = "B-catch-up"
+
+    f = build_features(schools, enrolment, feeding, counts, school_days)
+    after_outage = f[(f.school_id == "A") & f.date.isin(dates[20:35])]
+    caught_up = f[(f.school_id == "B") & f.date.isin(dates[40:50])]
+
+    # The outage shows in the sync figures, which are not features...
+    assert after_outage.sync_delay.max() == 15
+    assert after_outage.sync_batch_dates.max() == 15
+    # ...and not in the entry figures, which are
+    assert after_outage.entry_delay.max() == 0
+    assert after_outage.entry_batch.max() == 1
+    # A real catch-up still stands out
+    assert caught_up.entry_delay.max() >= 12
+    # The 10 past days, plus day 52's own record entered that day
+    assert caught_up.entry_batch.min() == 11
+
+
+def test_version_6_timing_reads_the_outage_as_late_entry():
+    # Kept only for the connectivity check that compares the two
+    schools, enrolment, feeding, counts, school_days = tiny_dataset()
+    dates = list(school_days.date)
+    outage = (feeding.school_id == "A") & feeding.date.isin(dates[20:35])
+    feeding.loc[outage, "received_date"] = dates[35]
+    feeding.loc[outage, "sync_batch_id"] = "A-after-outage"
+
+    f = build_features(schools, enrolment, feeding, counts, school_days, timing="sync")
+
+    assert f[(f.school_id == "A") & f.date.isin(dates[20:35])].entry_batch.max() == 15

@@ -226,7 +226,7 @@ describe('access', () => {
   it("keeps officers to their own sub-county", async () => {
     await pool.query("UPDATE schools SET sub_county = 'Other Sub-County' WHERE id = $1", [OTHER_SCHOOL_ID]);
     requestScores.mockResolvedValue(scores([SCHOOL_ID]));
-    await asAdmin.post('/api/review-lists/05-10-2026/run').send({ subCounty: 'Other Sub-County' });
+    await asOfficer.post('/api/review-lists/05-10-2026/run').send({ subCounty: 'Other Sub-County' });
 
     const named = await asOfficer.get('/api/review-lists?subCounty=Other%20Sub-County');
     const decision = await asOfficer.put(`/api/review-lists/05-10-2026/decisions/${OTHER_SCHOOL_ID}`).send({ status: 'explained', note: 'Fine' });
@@ -235,15 +235,13 @@ describe('access', () => {
     expect(decision.status).toBe(404);
   });
 
-  it('needs administrators to name a sub-county', async () => {
-    const res = await asAdmin.post('/api/review-lists/05-10-2026/run').send({});
-
-    expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/subCounty/);
+  it('is refused to system administrators, who see no school records', async () => {
+    expect((await asAdmin.post('/api/review-lists/05-10-2026/run').send({ subCounty: 'Mfano Sub-County' })).status).toBe(403);
+    expect((await asAdmin.get('/api/review-lists?subCounty=Mfano%20Sub-County')).status).toBe(403);
   });
 
   it('refuses an unknown sub-county', async () => {
-    const res = await asAdmin.post('/api/review-lists/05-10-2026/run').send({ subCounty: 'Nowhere' });
+    const res = await asOfficer.post('/api/review-lists/05-10-2026/run').send({ subCounty: 'Nowhere' });
 
     expect(res.status).toBe(404);
     expect(requestScores).not.toHaveBeenCalled();

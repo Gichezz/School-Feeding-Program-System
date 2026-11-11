@@ -19,7 +19,6 @@ import { useResolvesConflicts } from '../features/conflicts/useServerConflictCou
 import { FLAGS_CHANGED_EVENT } from '../features/review/useOpenFlagCount';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { formatDateTime } from '../utils/format';
-import { useSession } from '../hooks/useSession';
 
 const MAX_NOTE_LENGTH = 500;
 
@@ -58,13 +57,11 @@ function RecordHistory({ entityType, recordId }) {
 }
 
 /**
- * Record review (#62), for programme officers (their sub-county) and administrators:
+ * Record review (#62), for programme officers (their sub-county):
  * records that look unusual are flagged, never blocked. Check each against the school's
  * register or store book, then mark it checked with a note of what you found.
  */
 function Review() {
-  // System administrators see this but decide nothing; the programme officer decides
-  const { isAdmin } = useSession();
   const isOnline = useOnlineStatus();
   const reviews = useResolvesConflicts();
   const toast = useToast();
@@ -210,7 +207,7 @@ function Review() {
                 </div>
               ) : (
                 <div className="review__actions">
-                  {flag.status === 'open' && !isAdmin && (
+                  {flag.status === 'open' && (
                     <Button size="sm" icon={CheckCircle2} disabled={!isOnline} onClick={() => startCheck(flag)}>
                       Mark as checked
                     </Button>

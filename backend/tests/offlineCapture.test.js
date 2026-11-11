@@ -131,11 +131,11 @@ describe('reviewing held records', () => {
   });
 
   async function heldId() {
-    return (await asAdmin.get('/api/sync/held')).body.held[0].id;
+    return (await asOfficer.get('/api/sync/held')).body.held[0].id;
   }
 
   it('lists them for administrators with who, where, when and why', async () => {
-    const res = await asAdmin.get('/api/sync/held');
+    const res = await asOfficer.get('/api/sync/held');
 
     expect(res.body.held).toEqual([expect.objectContaining({
       entityType: 'attendance',
@@ -157,7 +157,7 @@ describe('reviewing held records', () => {
     expect(record.rows[0].updated_by).toBe(COLLEAGUE_ID);
     const held = await pool.query('SELECT status, reviewed_by FROM held_operations');
     expect(held.rows[0]).toEqual({ status: 'applied', reviewed_by: USERS.officer.id });
-    expect((await asAdmin.get('/api/sync/held')).body.held).toEqual([]);
+    expect((await asOfficer.get('/api/sync/held')).body.held).toEqual([]);
   });
 
   it('refuses to apply an edit when the server copy has changed since (409)', async () => {
@@ -166,7 +166,7 @@ describe('reviewing held records', () => {
     const staleEdit = { ...syncOperation('op-stale', 'attendance', 'update', attendancePayload({ attendanceDate: '08-10-2026', totalPresent: 50, totalAbsent: 50 }), 0), capturedBy: COLLEAGUE_ID, deviceId: TEST_DEVICE_ID, capturedAt: new Date().toISOString() };
     await pool.query('UPDATE users SET is_active = FALSE WHERE id = $1', [COLLEAGUE_ID]);
     await sync([staleEdit]);
-    const stale = (await asAdmin.get('/api/sync/held')).body.held.find((h) => h.payload.attendanceDate === '08-10-2026');
+    const stale = (await asOfficer.get('/api/sync/held')).body.held.find((h) => h.payload.attendanceDate === '08-10-2026');
 
     const res = await asOfficer.post(`/api/sync/held/${stale.id}/apply`);
 

@@ -138,7 +138,7 @@ def test_three_weeks_entered_together_long_after_the_fact_are_listed(base, schoo
     result = score_week(body)
 
     assert school in listed(result)
-    assert {"entry_delay", "batch_dates"} & breaches(result, school)
+    assert {"entry_delay", "entry_batch"} & breaches(result, school)
 
 
 # Invariance ------------------------------------------------------------------------------
@@ -206,11 +206,27 @@ def test_more_food_issued_for_the_same_learners_never_lowers_the_score(base, sch
     assert scores[-1] > scores[0]
 
 
-def test_records_reaching_the_server_later_never_lower_the_score(base, school):
-    def delay(days):
-        return lambda r: r.update(received_date=str((pd.Timestamp(r["date"]) + pd.Timedelta(days=days)).date()))
+def test_records_waiting_for_a_connection_do_not_change_the_score(base, school):
+    # Version 7: entered on time but sent days later, together (an outage) is not evidence
+    def sent_late(days):
+        def change(r):
+            later = str((pd.Timestamp(r["date"]) + pd.Timedelta(days=days)).date())
+            r.update(received_date=later, sync_batch_id=f"after-outage-{days}")
+        return change
 
-    scores = [score_with(base, school, delay(d)) for d in (0, 7, 14)]
+    scores = [score_with(base, school, sent_late(d)) for d in (0, 7, 14)]
+
+    assert scores[0] == scores[1] == scores[2]
+
+
+def test_records_entered_later_never_lower_the_score(base, school):
+    def entered_late(days):
+        def change(r):
+            later = str((pd.Timestamp(r["date"]) + pd.Timedelta(days=days)).date())
+            r.update(captured_at=f"{later}T10:00:00", received_date=later)
+        return change
+
+    scores = [score_with(base, school, entered_late(d)) for d in (0, 7, 14)]
 
     assert scores == sorted(scores)
     assert scores[-1] > scores[0]

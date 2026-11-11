@@ -45,7 +45,10 @@ function Requirement({ data, term }) {
       {enrolment.length > 0 && !need.verified && (
         <Alert tone="warning" title="Enrolment not verified yet">These figures may change once it is verified.</Alert>
       )}
-      {need.verified && !need.allVerified && <Alert tone="info">Only the verified classes are counted.</Alert>}
+      {need.awaitingCheck > 0 && (
+        <Alert tone="info">Changed classes count at their last verified number until the programme officer checks them.</Alert>
+      )}
+      {need.verified && !need.allVerified && need.awaitingCheck === 0 && <Alert tone="info">Only the verified classes are counted.</Alert>}
       <DataTable caption={`Food needed for ${termLabel(term)}`} columns={columns} rows={rows} getRowKey={(r) => r.key} />
       <p className="recording__note">
         School days follow the Ministry of Education calendar.

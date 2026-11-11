@@ -1,8 +1,9 @@
 const app = require('../src/app');
-const { api } = require('./helpers/auth');
+const { api, asSchool } = require('./helpers/auth');
 const { pool, resetDatabase, SCHOOL_ID, syncOperation } = require('./helpers/fixtures');
 
 const asAdmin = api(app);
+const schoolDevice = asSchool(app);
 const asStaff = api(app, 'staff');
 const asOfficer = api(app, 'officer');
 
@@ -26,7 +27,7 @@ function feeding(overrides = {}) {
 }
 
 function sync(clientId, operations) {
-  return asAdmin.post('/api/sync').send({ clientId, operations });
+  return schoolDevice.post('/api/sync').send({ clientId, operations });
 }
 
 /** Device A records the day first; device B's different numbers for it become a conflict. */
@@ -139,9 +140,9 @@ describe('who sees and resolves which conflicts', () => {
     const res = await resolve(elsewhere, { resolution: 'keep_local' });
 
     expect(res.status).toBe(404);
-    // System administrators can read every conflict but decide none
+    // System administrators see no school's conflicts and decide none
     expect((await asAdmin.post(`/api/sync/conflicts/${elsewhere}/resolve`).send({ resolution: 'keep_local' })).status).toBe(403);
-    expect((await asAdmin.get(`/api/sync/conflicts/${elsewhere}`)).status).toBe(200);
+    expect((await asAdmin.get(`/api/sync/conflicts/${elsewhere}`)).status).toBe(403);
   });
 
   it('does not let school staff resolve conflicts', async () => {
@@ -157,7 +158,7 @@ describe('who sees and resolves which conflicts', () => {
 
     expect(await ids(asStaff)).toEqual([own]);
     expect(await ids(asOfficer)).toEqual([own]);
-    expect(await ids(asAdmin)).toEqual([own, elsewhere].sort());
+    expect((await asAdmin.get('/api/sync/conflicts')).status).toBe(403);
     expect((await asOfficer.get(`/api/sync/conflicts/${elsewhere}`)).status).toBe(404);
   });
 });

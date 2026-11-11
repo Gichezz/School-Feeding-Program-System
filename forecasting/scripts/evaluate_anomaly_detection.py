@@ -33,7 +33,7 @@ import yaml  # noqa: E402
 
 from anomaly.explain import explain  # noqa: E402
 from anomaly.features import build_features  # noqa: E402
-from anomaly.methods import METHODS  # noqa: E402
+from anomaly.methods import FEATURE_NAMES, METHODS  # noqa: E402
 from common import REPORTS_DIR, md_table, sha256_of, write_json  # noqa: E402
 from generate_feeding_dataset import OUT_DIR as DATA_DIR, PROTOCOL  # noqa: E402
 
@@ -111,7 +111,44 @@ def precision_at_k(weeks, k):
     return listed.anomalous.mean(), listed
 
 
-def evaluate(data_dir=DATA_DIR, report_dir=REPORT_DIR, quiet=False):
+def ablation(protocol, method, params, fitting, selection, tuning, test, k, seed):
+    """Version 7: the recommended method refitted without one feature at a time, and without
+    each group in the protocol. Reported only; features are never chosen from it."""
+    if method in ("rules", "robust_zscore") or "ablation" not in protocol:
+        return None
+    variants = {"all features": []}
+    variants.update({f"without {f}": [f] for f in FEATURE_NAMES})
+    variants.update({f"without the {g.replace('_', ' ')} group": fs for g, fs in protocol["ablation"]["groups"].items()})
+
+    def run(drop, train, scored):
+        model = METHODS[method](**dict(params, random_state=seed))
+        model.features = [f for f in FEATURE_NAMES if f not in drop]
+        model.fit(train)
+        weeks = review_weeks(scored, model.score(scored))
+        types = scored.assign(week=scored.date.dt.strftime("%G-%V")).groupby(["week", "school_id"]).label.agg(lambda s: sorted(set(s) - {""}))
+        weeks = weeks.join(types.rename("types"), on=["week", "school_id"])
+        pk, listed = precision_at_k(weeks, k)
+        caught = set(zip(listed.week, listed.school_id))
+        by_type = {}
+        for t in sorted({x for xs in weeks.types for x in xs}):
+            of_type = weeks[weeks.types.map(lambda xs, t=t: t in xs)]
+            by_type[t] = round(float(np.mean([(w, s) in caught for w, s in zip(of_type.week, of_type.school_id)])), 4)
+        return float(pk), by_type
+
+    rows = []
+    for name, drop in variants.items():
+        sel_pk, _ = run(drop, fitting, selection)
+        test_pk, by_type = run(drop, tuning, test)
+        rows.append({"variant": name, "dropped": drop, "selection_precision_at_k": round(sel_pk, 4),
+                     "test_precision_at_k": round(test_pk, 4), "test_listed_by_type": by_type})
+    full = rows[0]
+    for r in rows:
+        r["selection_change"] = round(r["selection_precision_at_k"] - full["selection_precision_at_k"], 4)
+        r["test_change"] = round(r["test_precision_at_k"] - full["test_precision_at_k"], 4)
+    return {"method": method, "variants": rows}
+
+
+def evaluate(data_dir=DATA_DIR, report_dir=REPORT_DIR, quiet=False, with_ablation=False):
     """Run the protocol on one dataset; write the report into report_dir (None: no files). Returns the results."""
     started = time.time()
     protocol = yaml.safe_load(open(PROTOCOL, encoding="utf-8"))
@@ -251,8 +288,14 @@ def evaluate(data_dir=DATA_DIR, report_dir=REPORT_DIR, quiet=False):
         examples.append({"school": top.school_id, "date": str(top.date.date()), "truth": top.label or "none",
                          "explanation": explain(top, contrib)})
 
+    abl = ablation(protocol, recommended, models[recommended]["params"], fitting, selection, tuning, test, k, seed) if with_ablation else None
+    if abl and not quiet:
+        print(f"Ablation done ({time.time() - started:.0f}s)")
+
     out = {
         "protocol": str(PROTOCOL.relative_to(FORECASTING_DIR.parent)),
+        "protocol_version": protocol.get("version"),
+        "ablation": abl,
         "dataset_sha256": hashes,
         "rows": {"tuning": int(len(tuning)), "test": int(len(test)),
                  "tuning_anomalous": int((tuning.label != "").sum()), "test_anomalous": int((test.label != "").sum())},
@@ -298,11 +341,29 @@ def benchmark(models, tuning, seed):
 
 
 def main():
-    evaluate()
+    evaluate(with_ablation=True)
 
 
 def pct(v):
     return f"{v * 100:.1f}%"
+
+
+def ablation_section(out):
+    abl = out["ablation"]
+    types = sorted(abl["variants"][0]["test_listed_by_type"])
+    return [
+        f"## Feature ablation ({LABELS[abl['method']]})",
+        "",
+        "The recommended method refitted without one feature, or one group, at a time; precision@k on the selection year "
+        "(2025) and the test year (2026), and the share of each problem type's school-weeks listed in the test year. "
+        "Reported only: features are not chosen from it (protocol version 7).",
+        "",
+        md_table([[r["variant"], pct(r["selection_precision_at_k"]), f"{r['selection_change'] * 100:+.1f}",
+                   pct(r["test_precision_at_k"]), f"{r['test_change'] * 100:+.1f}"]
+                  + [pct(r["test_listed_by_type"].get(t)) for t in types] for r in abl["variants"]],
+                 ["Variant", "Precision@k 2025", "Change (points)", "Precision@k 2026", "Change (points)"] + types),
+        "",
+    ]
 
 
 def write_report(out, protocol, report_dir=REPORT_DIR):
@@ -369,6 +430,7 @@ def write_report(out, protocol, report_dir=REPORT_DIR):
                   + [f"{out['timings'][n][str(BENCHMARK_ROWS[-1])]['score_seconds']:.2f}"] for n in names],
                  ["Method"] + [f"Fit, {b:,} rows" for b in BENCHMARK_ROWS] + ["Score 5,000 rows"]),
         "",
+        *(ablation_section(out) if out.get("ablation") else []),
         f"## Example review-list entries ({LABELS[out['recommended']]})",
         "",
         md_table([[e["school"], e["date"], e["truth"], e["explanation"]] for e in out["examples"]],

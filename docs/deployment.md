@@ -117,16 +117,17 @@ The API applies any new migrations when it restarts. Devices pick up the new ver
 
 - the app, deep links, service worker and manifest are served correctly
 - the API is healthy and refuses requests without sign-in
-- you can sign in
-- an attendance record can be saved online
-- a meal record captured offline syncs and shows in reports
+- the system administrator can sign in, and is refused school records
+- a school device can be set up for a feeding teacher, approved, and signed in on with a PIN
+- the teacher can save an attendance record online, and a meal record captured offline syncs and shows in reports
+- the programme officer sees those late entries under Record review
 - the API reaches the scoring service
 
 ```bash
-BASE_URL=https://lishe.example.org SMOKE_EMAIL=you@example.org SMOKE_PASSWORD=... node deploy/smoke-test.mjs
+BASE_URL=https://lishe.example.org SMOKE_EMAIL=admin@example.org SMOKE_PASSWORD=... SMOKE_STAFF_EMAIL=teacher@example.org SMOKE_STAFF_PASSWORD=... SMOKE_OFFICER_EMAIL=officer@example.org SMOKE_OFFICER_PASSWORD=... node deploy/smoke-test.mjs
 ```
 
-(In PowerShell, set the variables first with `$env:BASE_URL = "..."` and so on.) Each run writes one attendance record and one meal record on a random day between 2000 and 2009, so real school days are untouched.
+(In PowerShell, set the variables first with `$env:BASE_URL = "..."` and so on.) `SMOKE_EMAIL` is a system administrator. The teacher and officer accounts are optional; without them the recording and review checks are skipped. The teacher is set up on a new device named "Smoke test device", which is removed again at the end. Each run writes one attendance record and one meal record at the teacher's school, on a random day between 2000 and 2009, so real school days are untouched.
 
 The browser parts of offline use cannot be scripted against a server. After deploying, check them on a phone:
 

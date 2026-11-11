@@ -51,6 +51,11 @@ entry:
   school_hours: {start: 7, end: 17}
   after_hours_probability: 0.05
   catch_up_after_hours_probability: 0.6
+  # Connectivity outages (version 7): the device keeps recording on time but cannot sync,
+  # then sends everything at once. Per school and term, the chance of one outage and its
+  # length in school days (assumption, for rural schools on mobile data). Drawn from a
+  # separate random stream (seed + outages.seed_offset) so nothing else in the data changes.
+  outages: {per_term_probability: 0.35, length_school_days: {min: 5, max: 15}, seed_offset: 7}
 
 present:
   # Learners present is optional on the form; most schools fill it in (assumption)
