@@ -180,7 +180,7 @@ export async function decideReviewItem(week, schoolId, { status, note }) {
  */
 /**
  * Enrolment checks: each school's termly enrolment and whether a programme officer has
- * verified it. Administrators name the sub-county; officers see their own.
+ * verified it, for the officer's own sub-county.
  */
 export async function getEnrolmentChecks(params = {}) {
   const query = new URLSearchParams(params).toString();
@@ -189,6 +189,11 @@ export async function getEnrolmentChecks(params = {}) {
 
 export async function verifyEnrolment(schoolId, termId) {
   return apiRequest(`/enrolment/${schoolId}/${termId}/verify`, { method: 'POST' });
+}
+
+/** The school's enrolment does not match the register: a note the school sees. */
+export async function recordEnrolmentDiscrepancy(schoolId, termId, note) {
+  return apiRequest(`/enrolment/${schoolId}/${termId}/discrepancy`, { method: 'POST', body: JSON.stringify({ note }) });
 }
 
 export async function getTermAnalytics(params = {}) {

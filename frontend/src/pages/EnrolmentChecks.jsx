@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Alert, Badge, Button, Card, DataTable, FormField, PageHeader, useToast } from '../components/ui';
-import { getEnrolmentChecks, getSchools, verifyEnrolment } from '../services/api';
+import { getEnrolmentChecks, recordEnrolmentDiscrepancy, verifyEnrolment } from '../services/api';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useSession } from '../hooks/useSession';
 import { formatDateTime, formatNumber } from '../utils/format';
@@ -10,8 +10,19 @@ const STATUS = {
   verified: { tone: 'success', label: 'Verified' },
   not_verified: { tone: 'warning', label: 'To check' },
   changed: { tone: 'warning', label: 'Changed since checked' },
+  discrepancy: { tone: 'danger', label: 'Discrepancy' },
   not_entered: { tone: 'neutral', label: 'Not entered' },
 };
+
+const REASONS = { admission: 'new admission', transfer: 'transfer', correction: 'correction' };
+const TO_CHECK = ['not_verified', 'changed', 'discrepancy'];
+
+/** A class's number, with the last verified one when it has changed since. */
+function count(c) {
+  if (!c) return '–';
+  if (c.verified || c.verifiedLearners === null || c.verifiedLearners === c.learners) return formatNumber(c.learners);
+  return `${formatNumber(c.learners)} (was ${formatNumber(c.verifiedLearners)})`;
+}
 
 const CLASS_ORDER = ['PP1', 'PP2', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8', 'Grade 9'];
 
@@ -26,9 +37,10 @@ function ClassTable({ school }) {
       return {
         key: name,
         class: name,
-        girls: girls ? formatNumber(girls.learners) : '–',
-        boys: boys ? formatNumber(boys.learners) : '–',
+        girls: count(girls),
+        boys: count(boys),
         changed: [girls, boys].some((c) => c && !c.verified),
+        reasons: [...new Set([girls, boys].filter((c) => c && !c.verified && c.changeReason).map((c) => REASONS[c.changeReason]))],
       };
     })
     .filter(Boolean);
@@ -38,7 +50,14 @@ function ClassTable({ school }) {
       getRowKey={(r) => r.key}
       rows={rows}
       columns={[
-        { key: 'class', header: 'Class', primary: true, render: (r) => (school.status === 'changed' && r.changed ? <>{r.class} <Badge tone="warning">Changed</Badge></> : r.class) },
+        {
+          key: 'class',
+          header: 'Class',
+          primary: true,
+          render: (r) => (school.status === 'changed' && r.changed
+            ? <>{r.class} <Badge tone="warning">{r.reasons.length ? `Changed: ${r.reasons.join(', ')}` : 'Changed'}</Badge></>
+            : r.class),
+        },
         { key: 'girls', header: 'Girls', align: 'end' },
         { key: 'boys', header: 'Boys', align: 'end' },
       ]}
@@ -47,45 +66,97 @@ function ClassTable({ school }) {
 }
 
 /**
+ * What the officer found does not match the register: a note the school sees on its
+ * Enrolment page. The school's next change sends it back to be checked.
+ */
+function DiscrepancyForm({ school, termId, onRecorded }) {
+  const toast = useToast();
+  const [writing, setWriting] = useState(false);
+  const [note, setNote] = useState('');
+  const [error, setError] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  const save = async (event) => {
+    event.preventDefault();
+    if (!note.trim()) return setError('Say what does not match the register');
+    setSaving(true);
+    setError(null);
+    try {
+      await recordEnrolmentDiscrepancy(school.schoolId, termId, note.trim());
+      toast.show({ title: 'Discrepancy recorded', description: `${school.schoolName} will see your note.` });
+      setWriting(false);
+      setNote('');
+      await onRecorded();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+    return undefined;
+  };
+
+  if (!writing) {
+    return (
+      <Button variant="secondary" size="sm" icon={AlertTriangle} onClick={() => setWriting(true)}>
+        Does not match the register
+      </Button>
+    );
+  }
+  return (
+    <form className="ui-stack" onSubmit={save} noValidate>
+      <FormField id={`discrepancy-${school.schoolId}`} label="What does not match" as="textarea" rows={3} maxLength={500}
+        hint="For example: Grade 4 girls are 47 in the admission register." value={note}
+        onChange={(e) => setNote(e.target.value)} error={error || undefined} />
+      <div className="users__actions">
+        <Button type="submit" size="sm" loading={saving}>Record discrepancy</Button>
+        <Button variant="secondary" size="sm" onClick={() => setWriting(false)} disabled={saving}>Cancel</Button>
+      </div>
+    </form>
+  );
+}
+
+/** A school's classes, any discrepancy already recorded, and the option to record one. */
+function SchoolDetail({ school, termId, onRecorded }) {
+  return (
+    <div className="ui-stack">
+      {school.discrepancy && (
+        <Alert tone="danger" title="Discrepancy recorded">
+          {school.discrepancy.note} ({formatDateTime(school.discrepancy.at)}{school.discrepancy.by ? `, ${school.discrepancy.by}` : ''})
+        </Alert>
+      )}
+      <ClassTable school={school} />
+      {school.status !== 'discrepancy' && <DiscrepancyForm school={school} termId={termId} onRecorded={onRecorded} />}
+    </div>
+  );
+}
+
+/**
  * Enrolment checks, for programme officers: each school's termly enrolment, to check
  * against the admission register and verify, since it sets the food a school can request.
- * System administrators see the same list without the option to verify.
+ * When it does not match, the officer records a discrepancy with a note for the school.
  */
 function EnrolmentChecks() {
   const isOnline = useOnlineStatus();
   const toast = useToast();
-  const { user, isAdmin } = useSession();
+  const { user } = useSession();
   const isOfficer = user?.role === 'programme_officer';
-  const allowed = isAdmin || isOfficer;
-  const [subCounties, setSubCounties] = useState([]);
-  const [subCounty, setSubCounty] = useState('');
+  const allowed = isOfficer;
   const [termId, setTermId] = useState('');
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [open, setOpen] = useState(null);
   const [busy, setBusy] = useState(null);
 
-  useEffect(() => {
-    if (!isAdmin || !isOnline) return;
-    getSchools()
-      .then((res) => {
-        const names = [...new Set((res.schools || []).map((s) => s.sub_county).filter(Boolean))].sort();
-        setSubCounties(names);
-        setSubCounty((current) => current || names[0] || '');
-      })
-      .catch((err) => setError(err.message));
-  }, [isAdmin, isOnline]);
-
-  const ready = allowed && isOnline && (!isAdmin || subCounty);
+  const ready = allowed && isOnline;
 
   const load = useCallback(async () => {
     setError(null);
     try {
-      setData(await getEnrolmentChecks({ ...(isAdmin && { subCounty }), ...(termId && { termId }) }));
+      setData(await getEnrolmentChecks({ ...(termId && { termId }) }));
     } catch (err) {
       setError(err.message);
     }
-  }, [isAdmin, subCounty, termId]);
+  }, [termId]);
 
   useEffect(() => {
     setData(null);
@@ -109,13 +180,13 @@ function EnrolmentChecks() {
     return (
       <>
         <PageHeader title="Enrolment checks" />
-        <Alert tone="neutral" title="For programme officers">Enrolment checks are for programme officers and system administrators.</Alert>
+        <Alert tone="neutral" title="For programme officers">Enrolment checks are for programme officers.</Alert>
       </>
     );
   }
 
   const schools = data?.schools || [];
-  const toCheck = schools.filter((s) => s.status === 'not_verified' || s.status === 'changed').length;
+  const toCheck = schools.filter((s) => TO_CHECK.includes(s.status)).length;
 
   return (
     <>
@@ -126,10 +197,6 @@ function EnrolmentChecks() {
       <div className="ui-stack">
         <Card>
           <div className="weekly-review__controls">
-            {isAdmin && (
-              <FormField id="enrolment-sub-county" label="Sub-county" as="select" value={subCounty}
-                onChange={(e) => setSubCounty(e.target.value)} options={subCounties.map((n) => ({ value: n, label: n }))} />
-            )}
             <FormField id="enrolment-term" label="Term" as="select" value={termId || data?.term.id || ''}
               onChange={(e) => setTermId(e.target.value)}
               options={(data?.terms || []).map((t) => ({ value: t.id, label: t.label }))} />
@@ -169,7 +236,7 @@ function EnrolmentChecks() {
                         {open === s.schoolId ? 'Hide' : 'Classes'}
                       </Button>
                     )}
-                    {isOfficer && (s.status === 'not_verified' || s.status === 'changed') && (
+                    {isOfficer && TO_CHECK.includes(s.status) && (
                       <Button size="sm" icon={CheckCircle2} loading={busy === s.schoolId} disabled={Boolean(busy)} onClick={() => verify(s)}>
                         Verify
                       </Button>
@@ -179,7 +246,9 @@ function EnrolmentChecks() {
               },
             ]}
           />
-          {schools.filter((s) => s.schoolId === open).map((s) => <ClassTable key={s.schoolId} school={s} />)}
+          {schools.filter((s) => s.schoolId === open).map((s) => (
+            <SchoolDetail key={s.schoolId} school={s} termId={data.term.id} onRecorded={load} />
+          ))}
         </Card>
       </div>
     </>

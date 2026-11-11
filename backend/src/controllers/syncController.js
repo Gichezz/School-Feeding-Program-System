@@ -44,10 +44,7 @@ async function syncOperations(req, res, next) {
     // Recorded as updated_by on every record this request writes
     const userId = req.user?.id || null;
 
-    // Programme officers review records; only schools and administrators send them
-    if (req.user?.role === 'programme_officer') {
-      return res.status(403).json({ error: 'Programme officers cannot send records' });
-    }
+    // Only school devices send records (routes/syncRoutes.js)
 
     // Validate request structure
     if (!clientId || typeof clientId !== 'string') {

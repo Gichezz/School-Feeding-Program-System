@@ -693,6 +693,14 @@ CREATE TABLE IF NOT EXISTS enrolment (
     learners        INTEGER NOT NULL,
     verified_by     UUID,
     verified_at     TIMESTAMPTZ,
+    -- The last verified number, used for planning until the officer checks a change (020)
+    verified_learners INTEGER,
+    -- Why a verified class was changed: a new admission, a transfer or a correction (020)
+    change_reason   TEXT,
+    -- The officer found the numbers do not match the admission register (020)
+    discrepancy_note TEXT,
+    discrepancy_by  UUID,
+    discrepancy_at  TIMESTAMPTZ,
     captured_by     UUID,
     device_id       UUID,
     captured_at     TIMESTAMPTZ,
@@ -710,12 +718,17 @@ CREATE TABLE IF NOT EXISTS enrolment (
         'Grade 7', 'Grade 8', 'Grade 9')),
     CONSTRAINT enrolment_sex_check CHECK (sex IN ('F', 'M')),
     CONSTRAINT enrolment_learners_nonneg CHECK (learners >= 0),
+    CONSTRAINT enrolment_verified_learners_nonneg CHECK (verified_learners >= 0),
+    CONSTRAINT enrolment_change_reason_check CHECK (change_reason IN ('admission', 'transfer', 'correction')),
+    CONSTRAINT enrolment_discrepancy_note_length CHECK (char_length(discrepancy_note) BETWEEN 1 AND 500),
     CONSTRAINT enrolment_version_positive CHECK (version >= 1),
     CONSTRAINT enrolment_school_fk FOREIGN KEY (school_id) REFERENCES schools (id)
         ON UPDATE CASCADE ON DELETE RESTRICT,
     CONSTRAINT enrolment_term_fk FOREIGN KEY (term_id) REFERENCES school_terms (id)
         ON UPDATE CASCADE ON DELETE RESTRICT,
     CONSTRAINT enrolment_verified_by_fk FOREIGN KEY (verified_by) REFERENCES users (id)
+        ON UPDATE CASCADE ON DELETE SET NULL,
+    CONSTRAINT enrolment_discrepancy_by_fk FOREIGN KEY (discrepancy_by) REFERENCES users (id)
         ON UPDATE CASCADE ON DELETE SET NULL,
     CONSTRAINT enrolment_updated_by_fk FOREIGN KEY (updated_by) REFERENCES users (id)
         ON UPDATE CASCADE ON DELETE SET NULL,
@@ -1003,5 +1016,6 @@ INSERT INTO schema_migrations (name) VALUES
     ('015_review_model.sql'),
     ('016_practice_terms.sql'),
     ('017_scheduled_review_runs.sql'),
-    ('018_delivery_witness.sql')
+    ('018_delivery_witness.sql'),
+    ('020_enrolment_discrepancy.sql')
 ON CONFLICT (name) DO NOTHING;

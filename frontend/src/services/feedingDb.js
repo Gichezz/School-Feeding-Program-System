@@ -12,7 +12,8 @@ import { addToSyncQueue } from '../sync/syncQueue';
  *                            never changed; a mistake is corrected by a reversing entry.
  */
 
-const ENROLMENT_FIELDS = ['schoolId', 'termId', 'class', 'sex', 'learners'];
+// changeReason: why a class that was verified changed (admission, transfer or correction)
+const ENROLMENT_FIELDS = ['schoolId', 'termId', 'class', 'sex', 'learners', 'changeReason'];
 const FEEDING_FIELDS = ['schoolId', 'feedingDate', 'feedingHappened', 'learnersPresent', 'learnersFed',
   'cerealsKg', 'pulsesKg', 'reasonCode', 'note', 'lateReason'];
 
@@ -24,7 +25,7 @@ function pick(values, fields) {
  * Save a versioned record: a new one is queued as a create; an existing one (captured
  * here or downloaded) is edited and queued as an update based on its current version.
  */
-async function saveVersioned(table, entityType, existing, values) {
+async function saveVersioned(table, entityType, existing, values, local = {}) {
   const now = new Date().toISOString();
   return db.transaction('rw', db[table], db.syncQueue, db.metadata, async () => {
     if (!existing) {
@@ -33,7 +34,7 @@ async function saveVersioned(table, entityType, existing, values) {
       await addToSyncQueue({ entityType, recordId: id, operation: 'create', payload: values, baseVersion: 0 });
       return { ...record, id };
     }
-    const record = { ...existing, ...values, version: existing.version + 1, syncStatus: 'pending', updatedAt: now };
+    const record = { ...existing, ...values, ...local, version: existing.version + 1, syncStatus: 'pending', updatedAt: now };
     await db[table].put(record);
     await addToSyncQueue({ entityType, recordId: existing.id, operation: 'update', payload: values, baseVersion: existing.version });
     return record;
@@ -44,7 +45,10 @@ export async function saveEnrolment(values) {
   const fields = pick(values, ENROLMENT_FIELDS);
   const existing = await db.enrolment
     .where('[schoolId+termId+class+sex]').equals([fields.schoolId, fields.termId, fields.class, fields.sex]).first();
-  return saveVersioned('enrolment', 'enrolment', existing, fields);
+  // A changed number is no longer verified; the last verified number (verifiedLearners)
+  // stays for the term plan until the officer checks the new one
+  const local = existing && existing.learners !== fields.learners ? { verified: false } : {};
+  return saveVersioned('enrolment', 'enrolment', existing, fields, local);
 }
 
 export async function saveDailyFeeding(values) {

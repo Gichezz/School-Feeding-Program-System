@@ -3,8 +3,9 @@ const router = express.Router();
 const { getTermAnalytics } = require('../controllers/analyticsController');
 const { requireRole } = require('../middleware/auth');
 
-// Sub-county analytics are for programme officers (their own sub-county) and administrators
-router.use(requireRole('admin', 'programme_officer'));
+// Programme records are for programme officers, for their own sub-county. System
+// administrators run accounts, devices and configuration, and do not see them (least privilege)
+router.use(requireRole('programme_officer'));
 
 /**
  * GET /api/analytics/term?subCounty=&termId=

@@ -104,6 +104,18 @@ describe('termRequirement', () => {
   it('marks the requirement unverified when no enrolment has been verified', () => {
     expect(termRequirement({ enrolment: [{ learners: 100, verified: false }], schoolDayCount: 10, carryOver: {} }).verified).toBe(false);
   });
+
+  it('counts a class changed since it was checked at its last verified number', () => {
+    const enrolment = [
+      { learners: 200, verified: true, verifiedLearners: 200 },
+      // Raised from 210 to 260 on the device; the officer has not checked it yet
+      { learners: 260, verified: false, verifiedLearners: 210 },
+    ];
+
+    const result = termRequirement({ enrolment, schoolDayCount: 10, carryOver: {} });
+
+    expect(result).toMatchObject({ learners: 410, verified: true, allVerified: false, awaitingCheck: 1 });
+  });
 });
 
 describe('validateFeeding', () => {

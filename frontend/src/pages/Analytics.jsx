@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle, CalendarCheck, CloudOff, Users, Warehouse } from 'lucide-react';
 import { Alert, Badge, Card, DataTable, FormField, PageHeader, StatCard } from '../components/ui';
-import { getSchools, getTermAnalytics } from '../services/api';
+import { getTermAnalytics } from '../services/api';
 import { ATTENTION, attention, summary } from '../features/analytics/analyticsData';
 import { NOT_FED_REASONS } from '../features/feeding/planning';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
@@ -75,43 +75,30 @@ function columns() {
  */
 function Analytics() {
   const isOnline = useOnlineStatus();
-  const { user, isAdmin } = useSession();
-  const allowed = isAdmin || user?.role === 'programme_officer';
-  const [subCounties, setSubCounties] = useState([]);
-  const [subCounty, setSubCounty] = useState('');
+  const { user } = useSession();
+  const allowed = user?.role === 'programme_officer';
   const [termId, setTermId] = useState('');
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    if (!isAdmin || !isOnline) return;
-    getSchools()
-      .then((res) => {
-        const names = [...new Set((res.schools || []).map((s) => s.sub_county).filter(Boolean))].sort();
-        setSubCounties(names);
-        setSubCounty((current) => current || names[0] || '');
-      })
-      .catch((err) => setError(err.message));
-  }, [isAdmin, isOnline]);
-
-  const ready = allowed && isOnline && (!isAdmin || subCounty);
+  const ready = allowed && isOnline;
 
   useEffect(() => {
     if (!ready) return undefined;
     let active = true;
     setData(null);
     setError(null);
-    getTermAnalytics({ ...(isAdmin && { subCounty }), ...(termId && { termId }) })
+    getTermAnalytics({ ...(termId && { termId }) })
       .then((res) => { if (active) setData(res); })
       .catch((err) => { if (active) setError(err.message); });
     return () => { active = false; };
-  }, [ready, isAdmin, subCounty, termId]);
+  }, [ready, termId]);
 
   if (!allowed) {
     return (
       <>
         <PageHeader title="Analytics" />
-        <Alert tone="neutral" title="For programme officers">Sub-county analytics are for programme officers and system administrators.</Alert>
+        <Alert tone="neutral" title="For programme officers">Sub-county analytics are for programme officers.</Alert>
       </>
     );
   }
@@ -129,10 +116,6 @@ function Analytics() {
       <div className="ui-stack">
         <Card>
           <div className="weekly-review__controls">
-            {isAdmin && (
-              <FormField id="analytics-sub-county" label="Sub-county" as="select" value={subCounty}
-                onChange={(e) => setSubCounty(e.target.value)} options={subCounties.map((n) => ({ value: n, label: n }))} />
-            )}
             <FormField id="analytics-term" label="Term" as="select" value={termId || data?.term.id || ''}
               onChange={(e) => setTermId(e.target.value)}
               options={(data?.terms || []).map((t) => ({ value: t.id, label: t.label }))} />

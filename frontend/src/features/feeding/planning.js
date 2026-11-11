@@ -178,19 +178,34 @@ export function foodRemaining({ balances, fedPerDay, ration = DEFAULT_RATION, re
 
 /**
  * Food to request for a term: enrolled learners × school days × ration, minus the stock
- * carried over. Only verified enrolment counts; if none is verified yet the total is
- * shown but marked as unverified.
+ * carried over. Only verified enrolment counts: a class changed since it was checked
+ * counts at its last verified number until the officer checks it again. If nothing is
+ * verified yet the total is shown but marked as unverified.
  */
+export function verifiedFigure(e) {
+  if (e.verified) return e.learners;
+  return e.verifiedLearners ?? null;
+}
+
 export function termRequirement({ enrolment, schoolDayCount, ration = DEFAULT_RATION, carryOver }) {
-  const verified = enrolment.filter((e) => e.verified);
-  const counted = verified.length > 0 ? verified : enrolment;
-  const learners = counted.reduce((sum, e) => sum + e.learners, 0);
+  const verified = enrolment.filter((e) => verifiedFigure(e) !== null);
+  const learners = verified.length > 0
+    ? verified.reduce((sum, e) => sum + verifiedFigure(e), 0)
+    : enrolment.reduce((sum, e) => sum + e.learners, 0);
+  const awaitingCheck = enrolment.filter((e) => !e.verified && e.verifiedLearners != null && e.verifiedLearners !== e.learners).length;
   const perCommodity = Object.fromEntries(COMMODITIES.map((c) => {
     const needKg = round2((learners * schoolDayCount * ration[c]) / 1000);
     const carryKg = Math.max(0, carryOver[c] || 0);
     return [c, { needKg, carryKg: round2(carryKg), requestKg: round2(Math.max(0, needKg - carryKg)) }];
   }));
-  return { learners, verified: verified.length > 0, allVerified: verified.length === enrolment.length && enrolment.length > 0, schoolDayCount, perCommodity };
+  return {
+    learners,
+    verified: verified.length > 0,
+    allVerified: enrolment.length > 0 && enrolment.every((e) => e.verified),
+    awaitingCheck,
+    schoolDayCount,
+    perCommodity,
+  };
 }
 
 function toKg(value) {

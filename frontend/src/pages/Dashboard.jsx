@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarCheck, CheckCircle2, CloudAlert, CloudOff, Flag, GitCompareArrows, ListChecks, Users, Warehouse } from 'lucide-react';
-import { Alert, Button, Card, EmptyState, FormField, PageHeader, StatCard } from '../components/ui';
-import { getReviewWeeks, getSchools, getTermAnalytics } from '../services/api';
+import { Alert, Button, Card, EmptyState, PageHeader, StatCard } from '../components/ui';
+import { getReviewWeeks, getTermAnalytics } from '../services/api';
+import SystemDashboard from '../features/system/SystemDashboard';
 import { ATTENTION, attention, summary } from '../features/analytics/analyticsData';
 import { recentMondays } from '../features/weeklyReview/weeks';
 import { useSyncStatus } from '../hooks/useSyncStatus';
@@ -92,47 +93,38 @@ function ReviewListCard({ weeks, loading }) {
 }
 
 /**
- * The officer's and administrator's start page: the term so far across the sub-county's
+ * The programme officer's start page: the term so far across the sub-county's
  * schools, the weekly review list, and what needs a decision. Built from the feeding and
  * stock records schools sync; Analytics has each school's figures.
  */
 function Dashboard() {
-  const isOnline = useOnlineStatus();
   const { isAdmin } = useSession();
+  // System administrators see no school records; theirs shows accounts and devices
+  return isAdmin ? <SystemDashboard /> : <ProgrammeDashboard />;
+}
+
+function ProgrammeDashboard() {
+  const isOnline = useOnlineStatus();
   const { failedCount, failure, unresolvedConflicts } = useSyncStatus();
   const openFlags = useOpenFlagCount();
   const resolves = useResolvesConflicts();
   const serverConflicts = useServerConflictCount();
-  const [subCounties, setSubCounties] = useState([]);
-  const [subCounty, setSubCounty] = useState('');
   const [term, setTerm] = useState(null);
   const [weeks, setWeeks] = useState(null);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    if (!isAdmin || !isOnline) return;
-    getSchools()
-      .then((res) => {
-        const names = [...new Set((res.schools || []).map((s) => s.sub_county).filter(Boolean))].sort();
-        setSubCounties(names);
-        setSubCounty((current) => current || names[0] || '');
-      })
-      .catch((err) => setError(err.message));
-  }, [isAdmin, isOnline]);
-
-  const ready = resolves && isOnline && (!isAdmin || subCounty);
+  const ready = resolves && isOnline;
 
   useEffect(() => {
     if (!ready) return undefined;
     let active = true;
-    const scope = isAdmin ? { subCounty } : {};
     setTerm(null);
     setWeeks(null);
     setError(null);
-    getTermAnalytics(scope).then((res) => { if (active) setTerm(res); }).catch((err) => { if (active) setError(err.message); });
-    getReviewWeeks(scope.subCounty).then((res) => { if (active) setWeeks(res.weeks || []); }).catch(() => { if (active) setWeeks([]); });
+    getTermAnalytics().then((res) => { if (active) setTerm(res); }).catch((err) => { if (active) setError(err.message); });
+    getReviewWeeks().then((res) => { if (active) setWeeks(res.weeks || []); }).catch(() => { if (active) setWeeks([]); });
     return () => { active = false; };
-  }, [ready, isAdmin, subCounty]);
+  }, [ready]);
 
   const schools = term?.schools || [];
   const totals = summary(schools);
@@ -147,13 +139,6 @@ function Dashboard() {
       />
 
       <div className="ui-stack">
-        {isAdmin && subCounties.length > 1 && (
-          <Card>
-            <FormField id="dashboard-sub-county" label="Sub-county" as="select" value={subCounty}
-              onChange={(e) => setSubCounty(e.target.value)} options={subCounties.map((n) => ({ value: n, label: n }))} />
-          </Card>
-        )}
-
         {!isOnline && <Alert tone="neutral" title="You are offline">The term's figures and the review list need a connection.</Alert>}
         {error && <Alert tone="danger" title="Could not load the term's figures">{error}</Alert>}
 

@@ -1,8 +1,9 @@
 const app = require('../src/app');
-const { api } = require('./helpers/auth');
+const { api, asSchool } = require('./helpers/auth');
 const { pool, resetDatabase, SCHOOL_ID, syncOperation } = require('./helpers/fixtures');
 
 const asAdmin = api(app);
+const schoolDevice = asSchool(app);
 const asStaff = api(app, 'staff');
 const asOfficer = api(app, 'officer');
 
@@ -18,7 +19,7 @@ beforeEach(async () => {
 });
 afterAll(() => pool.end());
 
-function sync(operations, { as = asAdmin, clientId = 'device-a', syncBatchId } = {}) {
+function sync(operations, { as = schoolDevice, clientId = 'device-a', syncBatchId } = {}) {
   return as.post('/api/sync').send({ clientId, operations, ...(syncBatchId && { syncBatchId }) });
 }
 
@@ -68,7 +69,7 @@ describe('daily feeding records', () => {
 
     expect(res.body).toMatchObject({ syncBatchId: BATCH_ID, results: [{ status: 'synced', version: 1 }] });
     const row = (await pool.query('SELECT * FROM daily_feeding')).rows[0];
-    expect(row).toMatchObject({ learners_fed: 400, sync_batch_id: BATCH_ID, captured_by: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1' });
+    expect(row).toMatchObject({ learners_fed: 400, sync_batch_id: BATCH_ID, captured_by: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2' });
     expect(row.change_xid).not.toBeNull();
     expect(row.received_at).not.toBeNull();
     const batch = (await pool.query('SELECT operation_count FROM sync_batches WHERE id = $1', [BATCH_ID])).rows[0];
@@ -364,7 +365,7 @@ describe('the same delivery note entered twice', () => {
 
     expect(second.body.results[0]).toMatchObject({ status: 'held', reason: 'duplicate_delivery' });
     expect(await ledgerCereals()).toBe(500);
-    const held = (await asAdmin.get('/api/sync/held')).body.held;
+    const held = (await asOfficer.get('/api/sync/held')).body.held;
     expect(held).toEqual([expect.objectContaining({ reason: 'duplicate_delivery', reasonText: expect.stringMatching(/same delivery note/) })]);
   });
 
@@ -385,7 +386,7 @@ describe('the same delivery note entered twice', () => {
   it('counts a held delivery once the programme officer applies it', async () => {
     await sync([syncOperation('op-1', 'stockMovement', 'create', delivery(), 0)]);
     await sync([syncOperation('op-2', 'stockMovement', 'create', delivery({ quantityKg: 300 }), 0)], { clientId: 'device-b' });
-    const [held] = (await asAdmin.get('/api/sync/held')).body.held;
+    const [held] = (await asOfficer.get('/api/sync/held')).body.held;
 
     const res = await asOfficer.post(`/api/sync/held/${held.id}/apply`);
 
@@ -422,7 +423,7 @@ describe('held records and programme officers', () => {
 
   it("keeps officers to their own sub-county's held records", async () => {
     await heldDuplicate();
-    const [held] = (await asAdmin.get('/api/sync/held')).body.held;
+    const [held] = (await asOfficer.get('/api/sync/held')).body.held;
     await pool.query("UPDATE schools SET sub_county = 'Another Sub-County' WHERE id = $1", [SCHOOL_ID]);
 
     expect((await asOfficer.get('/api/sync/held')).body.held).toEqual([]);
@@ -468,19 +469,20 @@ describe('record review for the new records', () => {
 
   it("keeps officers to their own sub-county's flags", async () => {
     await flaggedDay();
-    const [flag] = (await asAdmin.get('/api/review/flags')).body.flags;
+    const [flag] = (await asOfficer.get('/api/review/flags')).body.flags;
     await pool.query("UPDATE schools SET sub_county = 'Another Sub-County' WHERE id = $1", [SCHOOL_ID]);
 
     expect((await asOfficer.get('/api/review/flags')).body).toMatchObject({ flags: [], openCount: 0 });
     expect((await asOfficer.post(`/api/review/flags/${flag.id}/check`).send({})).status).toBe(404);
     expect((await asOfficer.get(`/api/review/records/daily_feeding/${flag.recordId}/history`)).status).toBe(404);
-    expect((await asAdmin.get('/api/review/flags')).body.openCount).toBe(2);
+    // Still open, for the officer of the school's sub-county
+    expect((await pool.query("SELECT count(*)::int AS n FROM record_flags WHERE status = 'open'")).rows[0].n).toBe(2);
   });
 
   it('shows a short delivery as a stock flag', async () => {
     await sync([syncOperation('op-0', 'stockMovement', 'create', delivery({ quantityKg: 450, noteQuantityKg: 500 }), 0)]);
 
-    const flags = (await asAdmin.get('/api/review/flags')).body.flags;
+    const flags = (await asOfficer.get('/api/review/flags')).body.flags;
 
     expect(flags).toContainEqual(expect.objectContaining({
       entityType: 'stock_movement', flag: 'delivery_short', values: expect.objectContaining({ kind: 'delivery', quantityKg: 450, noteQuantityKg: 500 }),

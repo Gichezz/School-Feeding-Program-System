@@ -24,11 +24,19 @@ Three roles, each with its own job: one records, one checks and decides, one run
 |---|---|---|---|---|
 | `school_staff` (**Feeding teacher**) | The teacher in charge of school feeding; a head teacher who records uses the same role | A school device, signed in with the device and a PIN | Record and sync for their own school, offline included: daily feeding, deliveries (with who witnessed them), losses, store counts, termly enrolment | See other schools; verify their own enrolment; decide conflicts |
 | `programme_officer` (**Programme officer**) | Sub-county education office staff responsible for school meals | A laptop, online | For every school in their sub-county: verify termly enrolment, read analytics, mark weekly review listings explained or follow-up, check flagged records, resolve conflicts and held records | Record school data; manage accounts or devices |
-| `admin` (**System administrator**) | County or ministry staff who run the system | A laptop, online | Create and deactivate accounts (feeding teachers with their school, programme officers with their sub-county), approve and remove devices, reset passwords and passkeys; **read** every sub-county's analytics, lists, flags, conflicts and enrolment | Make any programme decision: these are the programme officer's |
+| `admin` (**System administrator**) | County or ministry staff who run the system | A laptop, online | Create and deactivate accounts (feeding teachers with their school, programme officers with their sub-county), approve and remove devices, unlock PIN sign-ins, reset passwords and passkeys | See or send any school's records: feeding, stock, enrolment, analytics, review lists, flags, conflicts or held records; make any programme decision |
+
+**Least privilege for the system administrator.** The administrator's job is accounts, devices and configuration, so the API refuses them every school record: `/api/analytics`, `/api/review-lists`, `/api/review`, `/api/enrolment`, the sync record endpoints (`POST /api/sync`, `/changes`, `/conflicts`, `/held`) and the older `/api/attendance`, `/api/meals` and `/api/reports` endpoints (403). The app shows them a dashboard of devices waiting for approval, locked sign-ins and accounts, and only the Dashboard and Settings pages. Approving a device shows its school and who set it up, but none of the school's records. A ministry auditor or county coordinator who needs to read programme records across sub-counties would be a separate read-only role, not the administrator.
 
 Class teachers keep attendance in the class registers; the feeding teacher copies the day's total if counted. Cooks and the school meals committee do not sign in: the committee member who witnesses a delivery is recorded by name with it (migration 018).
 
 **Enrolment verification.** A school's termly enrolment sets the food it can request, so the programme officer checks it against the admission register and verifies it (**Enrolment checks**, `GET /api/enrolment`, `POST /api/enrolment/:schoolId/:termId/verify`). Verifying records who and when, as a new version in each class's history, so the school's devices download it. A later change on the device clears the verification of the classes it changes, so only numbers as they were checked count as verified.
+
+Each school's term has one of five states: **Not entered**, **To check** (entered, never verified), **Changed since checked**, **Verified**, and **Discrepancy**. The changes are auditable (migration 020):
+
+- **Discrepancy.** When the numbers do not match the register, the officer records a discrepancy with a note (`POST /api/enrolment/:schoolId/:termId/discrepancy`), for example "Grade 4 girls are 47 in the admission register". Every class for the term becomes a new version, no longer verified, with the note. The school's devices download it and show it on the Enrolment page. The school's next change answers it: the note is cleared and the term goes back to the officer as changed.
+- **A reason for changing a verified class.** Changing a class that the officer has verified needs a reason: new admissions, transfers in or out, or a correction. The device asks for it; the server refuses the change without one. The reason is kept with the record and in its history. A class never verified can be corrected without one.
+- **The last verified number stays in use.** `verified_learners` keeps the number as last verified. Until the officer checks a change, the term plan counts the class at that number and says so, so a raised enrolment cannot raise the food request before it is checked.
 
 ## Data
 
@@ -105,7 +113,7 @@ A delivery held as a possible duplicate is left out of the device's stock balanc
 
 ## Conflicts and held records
 
-A conflict happens on a school's device; the programme officer for that school's sub-county (or an administrator) resolves it from the server's list, on their own laptop. They see the device's values beside the server's and choose:
+A conflict happens on a school's device; the programme officer for that school's sub-county resolves it from the server's list, on their own laptop. They see the device's values beside the server's and choose:
 
 - **Keep the server's version:** the device's change is dropped.
 - **Keep the device's version:** applied as a new version.

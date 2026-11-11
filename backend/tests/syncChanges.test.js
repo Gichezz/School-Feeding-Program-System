@@ -1,8 +1,9 @@
 const app = require('../src/app');
-const { api } = require('./helpers/auth');
+const { api, asSchool } = require('./helpers/auth');
 const { pool, resetDatabase, SCHOOL_ID, syncOperation } = require('./helpers/fixtures');
 
 const asAdmin = api(app);
+const schoolDevice = asSchool(app);
 const asStaff = api(app, 'staff');
 const asOfficer = api(app, 'officer');
 
@@ -27,7 +28,7 @@ function feeding(date, overrides = {}) {
 }
 
 function sync(operations) {
-  return asAdmin.post('/api/sync').send({ clientId: 'device-a', operations });
+  return schoolDevice.post('/api/sync').send({ clientId: 'device-a', operations });
 }
 
 function changes(since, { as = asStaff, schoolId = SCHOOL_ID } = {}) {
@@ -200,9 +201,9 @@ describe('decisions on held records in downloads', () => {
   const SECOND = 'eeeeeeee-0000-4000-8000-000000000002';
 
   async function heldDuplicate() {
-    await asAdmin.post('/api/sync').send({ clientId: 'device-a', operations: [syncOperation('op-1', 'stockMovement', 'create', delivery(FIRST), 0)] });
-    await asAdmin.post('/api/sync').send({ clientId: 'device-b', operations: [syncOperation('op-2', 'stockMovement', 'create', delivery(SECOND, 300), 0)] });
-    return (await asAdmin.get('/api/sync/held')).body.held[0].id;
+    await schoolDevice.post('/api/sync').send({ clientId: 'device-a', operations: [syncOperation('op-1', 'stockMovement', 'create', delivery(FIRST), 0)] });
+    await schoolDevice.post('/api/sync').send({ clientId: 'device-b', operations: [syncOperation('op-2', 'stockMovement', 'create', delivery(SECOND, 300), 0)] });
+    return (await asOfficer.get('/api/sync/held')).body.held[0].id;
   }
 
   it('tells the school\'s devices a duplicate was discarded, once', async () => {

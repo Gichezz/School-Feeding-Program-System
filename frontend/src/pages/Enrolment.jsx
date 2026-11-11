@@ -13,6 +13,12 @@ import { carriedForward } from '../features/feeding/enrolmentCarry';
 
 const CLASSES = ['PP1', 'PP2', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8', 'Grade 9'];
 const SEXES = [['F', 'Girls'], ['M', 'Boys']];
+// Why a class the officer verified has a different number now
+const REASONS = [
+  { value: 'admission', label: 'New admissions' },
+  { value: 'transfer', label: 'Transfers in or out' },
+  { value: 'correction', label: 'A correction to a mistake' },
+];
 const SYNC_DELAY_MS = 2000;
 
 const cellKey = (schoolClass, sex) => `${schoolClass}|${sex}`;
@@ -28,6 +34,7 @@ function EnrolmentForm({ data }) {
   const rows = useMemo(() => data.enrolment.filter((e) => e.termId === termId), [data.enrolment, termId]);
   const saved = useMemo(() => Object.fromEntries(rows.map((e) => [cellKey(e.class, e.sex), e])), [rows]);
   const [values, setValues] = useState({});
+  const [reason, setReason] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -43,6 +50,7 @@ function EnrolmentForm({ data }) {
       return carried?.values[key] !== undefined ? String(carried.values[key]) : '';
     };
     setValues(Object.fromEntries(CLASSES.flatMap((c) => SEXES.map(([s]) => [cellKey(c, s), start(cellKey(c, s))]))));
+    setReason('');
     setSubmitted(false);
   }, [saved, carried]);
 
@@ -53,16 +61,24 @@ function EnrolmentForm({ data }) {
   const total = Object.values(values).reduce((s, v) => s + (toCount(v) || 0), 0);
   const totalBy = (sex) => CLASSES.reduce((s, c) => s + (toCount(values[cellKey(c, sex)]) || 0), 0);
   const verifiedCount = rows.filter((e) => e.verified).length;
+  // Changing a class the officer verified needs a reason
+  const needsReason = changed.some(([k]) => saved[k] && (saved[k].verified || saved[k].verifiedLearners != null));
+  const reasonError = needsReason && !reason ? 'Choose why the numbers changed' : undefined;
+  const discrepancy = rows.find((e) => e.discrepancy)?.discrepancy;
 
   const save = async (event) => {
     event.preventDefault();
     setSubmitted(true);
-    if (Object.keys(errors).length > 0 || changed.length === 0) return;
+    if (Object.keys(errors).length > 0 || changed.length === 0 || reasonError) return;
     setSaving(true);
     try {
       for (const [key, value] of changed) {
         const [schoolClass, sex] = key.split('|');
-        await saveEnrolment({ schoolId: data.schoolId, termId, class: schoolClass, sex, learners: toCount(value) });
+        const wasVerified = saved[key] && (saved[key].verified || saved[key].verifiedLearners != null);
+        await saveEnrolment({
+          schoolId: data.schoolId, termId, class: schoolClass, sex, learners: toCount(value),
+          ...(wasVerified && { changeReason: reason }),
+        });
       }
       if (isOnline) setTimeout(() => { manualSync().catch(() => {}); }, SYNC_DELAY_MS);
       toast.show({ title: 'Enrolment saved', description: 'It counts towards the food request once it is verified.' });
@@ -76,11 +92,16 @@ function EnrolmentForm({ data }) {
       <form className="recording__form" onSubmit={save} noValidate>
         <FormField id="enrolment-term" label="Term" as="select" value={termId} onChange={(e) => setTermId(e.target.value)}
           options={[...data.terms].sort((a, b) => b.year - a.year || b.term - a.term).map((t) => ({ value: t.id, label: termLabel(t) }))} />
-        {rows.length > 0 && (
+        {discrepancy && (
+          <Alert tone="warning" title="The programme officer found a difference">
+            {discrepancy.note} Check the admission register, correct the numbers and save.
+          </Alert>
+        )}
+        {rows.length > 0 && !discrepancy && (
           <Alert tone={verifiedCount === rows.length ? 'success' : 'info'}>
             {verifiedCount === rows.length
               ? 'A programme officer has verified this enrolment.'
-              : `${verifiedCount} of ${rows.length} entries verified. Changing a number means it is verified again.`}
+              : `${verifiedCount} of ${rows.length} entries verified. A changed number is checked again; until then the food request uses the last verified one.`}
           </Alert>
         )}
         {carried && (
@@ -113,6 +134,11 @@ function EnrolmentForm({ data }) {
         <p className="recording__note">
           {formatNumber(total)} learners: {formatNumber(totalBy('F'))} girls and {formatNumber(totalBy('M'))} boys.
         </p>
+        {needsReason && (
+          <FormField id="enrolment-reason" label="Why did the numbers change?" as="select" value={reason}
+            onChange={(e) => setReason(e.target.value)} error={submitted ? reasonError : undefined}
+            options={[{ value: '', label: 'Choose a reason' }, ...REASONS]} />
+        )}
         <div className="recording__actions">
           <Button type="submit" size="lg" icon={Save} loading={saving}>Save enrolment</Button>
         </div>

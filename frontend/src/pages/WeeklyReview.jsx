@@ -12,7 +12,7 @@ import {
   SkeletonText,
   useToast,
 } from '../components/ui';
-import { decideReviewItem, getReviewList, getReviewWeeks, getSchools, scoreReviewWeek } from '../services/api';
+import { decideReviewItem, getReviewList, getReviewWeeks, scoreReviewWeek } from '../services/api';
 import { DECISIONS, MODES, recentMondays, scoredText, weekLabel } from '../features/weeklyReview/weeks';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useSession } from '../hooks/useSession';
@@ -134,13 +134,11 @@ function ListedSchool({ item, week, canDecide, onSaved }) {
  */
 function WeeklyReview() {
   const isOnline = useOnlineStatus();
-  const { user, isAdmin } = useSession();
+  const { user } = useSession();
   const toast = useToast();
   const isOfficer = user?.role === 'programme_officer';
-  const allowed = isAdmin || isOfficer;
+  const allowed = isOfficer;
 
-  const [subCounties, setSubCounties] = useState([]);
-  const [subCounty, setSubCounty] = useState('');
   const [scoredWeeks, setScoredWeeks] = useState({});
   const mondays = useMemo(() => recentMondays(new Date(), 8), []);
   // Last week first: finished weeks are scored automatically, the week in progress is not
@@ -149,32 +147,19 @@ function WeeklyReview() {
   const [error, setError] = useState(null);
   const [scoring, setScoring] = useState(false);
 
-  // Administrators choose a sub-county from the schools they can see
-  useEffect(() => {
-    if (!isAdmin || !isOnline) return;
-    getSchools()
-      .then((res) => {
-        const names = [...new Set((res.schools || []).map((s) => s.sub_county).filter(Boolean))].sort();
-        setSubCounties(names);
-        setSubCounty((current) => current || names[0] || '');
-      })
-      .catch((err) => setError(err.message));
-  }, [isAdmin, isOnline]);
-
-  const scope = isAdmin ? subCounty : undefined;
-  const ready = allowed && isOnline && (!isAdmin || subCounty);
+  const ready = allowed && isOnline;
 
   const load = useCallback(async () => {
     setError(null);
     try {
-      const weeks = await getReviewWeeks(scope);
+      const weeks = await getReviewWeeks();
       setScoredWeeks(Object.fromEntries((weeks.weeks || []).map((w) => [w.week, w])));
-      setList(await getReviewList(week, scope));
+      setList(await getReviewList(week));
     } catch (err) {
       if (err.status === 404) setList(null);
       else { setList(null); setError(err.message); }
     }
-  }, [week, scope]);
+  }, [week]);
 
   useEffect(() => {
     setList(undefined);
@@ -185,7 +170,7 @@ function WeeklyReview() {
     setScoring(true);
     setError(null);
     try {
-      const result = await scoreReviewWeek(week, { subCounty: scope });
+      const result = await scoreReviewWeek(week);
       setList(result);
       toast.show({ tone: 'success', title: 'Week scored', description: `${result.items.filter((i) => i.listed).length} schools listed for the week of ${week}.` });
       load();
@@ -200,7 +185,7 @@ function WeeklyReview() {
     return (
       <>
         <PageHeader title="Weekly review" />
-        <Alert tone="neutral" title="For programme officers">Weekly review lists are for programme officers and system administrators.</Alert>
+        <Alert tone="neutral" title="For programme officers">Weekly review lists are for programme officers.</Alert>
       </>
     );
   }
@@ -212,22 +197,12 @@ function WeeklyReview() {
     <>
       <PageHeader
         title="Weekly review"
-        description={`Each week the schools in ${isOfficer ? 'your sub-county' : 'a sub-county'} are ranked by how unusual their feeding records look. Look into the top few and record what you found.`}
+        description={`Each week the schools in your sub-county are ranked by how unusual their feeding records look. Look into the top few and record what you found.`}
       />
 
       <div className="ui-stack">
         <Card>
           <div className="weekly-review__controls">
-            {isAdmin && (
-              <FormField
-                id="review-sub-county"
-                label="Sub-county"
-                as="select"
-                value={subCounty}
-                onChange={(e) => setSubCounty(e.target.value)}
-                options={subCounties.map((name) => ({ value: name, label: name }))}
-              />
-            )}
             <FormField
               id="review-week"
               label="Week"

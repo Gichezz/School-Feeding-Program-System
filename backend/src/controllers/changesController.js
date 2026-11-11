@@ -37,6 +37,9 @@ const SHAPES = {
   enrolment: (r) => ({
     serverId: r.id, schoolId: r.school_id, termId: r.term_id, class: r.class, sex: r.sex,
     learners: r.learners, verified: r.verified_at !== null, version: r.version,
+    // The last verified number, used for planning until a change is checked (020)
+    verifiedLearners: r.verified_learners,
+    discrepancy: r.discrepancy_note ? { note: r.discrepancy_note, at: r.discrepancy_at } : null,
   }),
   dailyFeeding: (r) => ({
     serverId: r.id, schoolId: r.school_id, feedingDate: displayDate(r.feeding_date),
