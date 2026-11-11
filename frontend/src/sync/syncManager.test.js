@@ -114,6 +114,18 @@ describe('processSyncQueue', () => {
       expect((await db.syncQueue.toArray())[0]).toMatchObject({ status: 'pending', retryCount: 0 });
     });
 
+    it.each(['admin', 'programme_officer'])('leaves records for the feeding teacher while a %s is signed in on the device', async (role) => {
+      saveSession({ token: 'other-token', expiresAt: new Date(Date.now() + 60_000).toISOString(), user: { id: 'u-2', role } });
+      await saveLocalAttendance(attendance);
+
+      const result = await processSyncQueue();
+
+      expect(result).toMatchObject({ success: false, notTeacher: true });
+      expect(syncOperations).not.toHaveBeenCalled();
+      expect(getChanges).not.toHaveBeenCalled();
+      expect((await db.syncQueue.toArray())[0]).toMatchObject({ status: 'pending', retryCount: 0 });
+    });
+
     it('stops when the server rejects the session, without counting a retry', async () => {
       await saveLocalAttendance(attendance);
       await saveLocalAttendance({ ...attendance, attendanceDate: '07-10-2026' });

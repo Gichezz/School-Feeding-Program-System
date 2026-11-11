@@ -13,7 +13,7 @@ import {
 import { updateLocalAttendance, updateLocalMeal, setLocalSyncStatus } from '../services/localDb';
 import { saveConflict } from './conflictService';
 import { forgetOfflineUser } from '../features/devices/offlineSignIn';
-import { isSessionValid } from '../services/session';
+import { hasRole, isSessionValid } from '../services/session';
 import db from '../db/database';
 import { getDeviceIdentity } from '../features/devices/deviceIdentity';
 import { pullChanges } from './pullChanges';
@@ -33,6 +33,7 @@ const MAX_CONNECTION_PROBLEMS_PER_PASS = 3;
 // Gateway errors while the server restarts are connection problems, not answers about the record
 const GATEWAY_ERRORS = new Set([502, 503, 504]);
 const SIGN_IN_TO_SYNC = 'Sign in again to sync. Your records are saved on this device.';
+const TEACHER_SYNCS = 'Records on this device sync when a feeding teacher signs in.';
 
 let isSyncing = false;
 let syncProgress = {
@@ -128,6 +129,13 @@ export async function processSyncQueue() {
       authRequired: true,
       message: SIGN_IN_TO_SYNC
     };
+  }
+
+  // Only a school's feeding teachers send and download its records; an officer or
+  // administrator signed in on a school device leaves them for the teacher (the server
+  // refuses them too)
+  if (!hasRole('school_staff')) {
+    return { success: false, notTeacher: true, message: TEACHER_SYNCS };
   }
 
   try {
