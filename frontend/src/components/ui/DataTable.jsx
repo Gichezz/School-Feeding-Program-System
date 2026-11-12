@@ -24,6 +24,8 @@ import { filterRows, resultText, searchRows, sortRows } from './tableData';
  * noun: what the rows are, for the result count ("12 of 40 schools")
  * stickyFirstColumn: keep the first column in view when the table scrolls sideways
  * pageSize: show this many rows, then "Show more"
+ * getRowId(row): an id for each row, so a link elsewhere can jump to it (the phone card
+ *   gets the same id with "-card" added, since only one of the two is shown)
  */
 function DataTable({
   columns,
@@ -40,6 +42,7 @@ function DataTable({
   stickyFirstColumn = false,
   pageSize,
   initialSort,
+  getRowId,
 }) {
   const searchId = useId();
   const [query, setQuery] = useState('');
@@ -147,7 +150,7 @@ function DataTable({
               </thead>
               <tbody>
                 {visibleRows.map((row) => (
-                  <tr key={getRowKey(row)}>
+                  <tr key={getRowKey(row)} id={getRowId?.(row)} tabIndex={getRowId ? -1 : undefined}>
                     {columns.map((column, index) => {
                       const className = [
                         column.align === 'end' && 'ui-table__cell--end',
@@ -165,7 +168,7 @@ function DataTable({
 
           <ul className="ui-table__list" aria-label={caption}>
             {visibleRows.map((row) => (
-              <li key={getRowKey(row)} className="ui-table__item">
+              <li key={getRowKey(row)} className="ui-table__item" id={getRowId ? `${getRowId(row)}-card` : undefined} tabIndex={getRowId ? -1 : undefined}>
                 <div className="ui-table__item-head">
                   <span className="ui-table__item-title">{cell(primary, row)}</span>
                   {isUnsynced?.(row) && unsyncedBadge}

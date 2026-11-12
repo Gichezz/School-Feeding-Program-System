@@ -114,13 +114,24 @@ function columns() {
   ];
 }
 
-/** The schools under one reason, each with the figure that put it there. */
+const rowId = (s) => `school-${s.schoolId}`;
+
+/** Jump to a school's row in All schools (its card on a phone) and put focus there. */
+function showRow(event, school) {
+  event.preventDefault();
+  const row = document.getElementById(rowId(school));
+  const target = row && row.offsetParent !== null ? row : document.getElementById(`${rowId(school)}-card`);
+  target?.scrollIntoView({ block: 'center', behavior: 'instant' });
+  target?.focus({ preventScroll: true });
+}
+
+/** The schools under one reason, each with the figure that put it there and a link to its row. */
 function SchoolList({ schools, figure }) {
   return (
     <ul className="analytics__schools">
       {schools.map((s) => (
         <li key={s.schoolId} className="analytics__school">
-          <span className="analytics__school-name">{s.name}</span>
+          <a href={`#${rowId(s)}`} className="analytics__school-name" onClick={(e) => showRow(e, s)}>{s.name}</a>
           <span className="analytics__school-figure">{figure(s)}</span>
         </li>
       ))}
@@ -154,6 +165,7 @@ function Triage({ groups }) {
             series={[{ dataKey: 'days', metric: 'figure', label: 'School days of cereals' }]}
             referenceLine={{ value: ATTENTION.daysOfFood, label: `Rule: ${ATTENTION.daysOfFood} days` }}
             height={daysOfFood.length > 6 ? 'md' : 'sm'} />
+          <SchoolList schools={daysOfFood} figure={(s) => s.notes.daysOfFood} />
         </TriageSection>
       )}
       {groups.delivery.length > 0 && (
@@ -166,9 +178,7 @@ function Triage({ groups }) {
               referenceLine={{ value: ATTENTION.deliveryDays, label: `Rule: ${ATTENTION.deliveryDays} days` }}
               height="sm" />
           )}
-          {groups.delivery.some((s) => !s.firstDelivery) && (
-            <SchoolList schools={groups.delivery.filter((s) => !s.firstDelivery)} figure={() => 'No delivery this term'} />
-          )}
+          <SchoolList schools={[...lateDelivered, ...groups.delivery.filter((s) => !s.firstDelivery)]} figure={(s) => s.notes.delivery} />
         </TriageSection>
       )}
       {records.length > 0 && (
@@ -228,12 +238,12 @@ function Analytics() {
 
   return (
     <div data-density="compact">
+      {data && <PrintHeader title="Schools to look at" scope={`${data.subCounty} · ${data.term.label} · figures up to ${data.asOf}`} />}
       <PageHeader
         title="Analytics"
         description={data ? `${data.subCounty} · ${data.term.label} · from the records that have reached the server, up to ${data.asOf}.` : 'How each school’s term is going, from the records that have reached the server.'}
         actions={data && <PrintButton />}
       />
-      {data && <PrintHeader title="Schools to look at" scope={`${data.subCounty} · ${data.term.label} · figures up to ${data.asOf}`} />}
       <div className="ui-stack">
         <div className="analytics__controls no-print">
           <FormField id="analytics-term" label="Term" as="select" value={termId || data?.term.id || ''}
@@ -258,6 +268,7 @@ function Analytics() {
             columns={columns()}
             rows={schools}
             getRowKey={(s) => s.schoolId}
+            getRowId={rowId}
             caption="Each school's term so far"
             loading={loading}
             noun="schools"

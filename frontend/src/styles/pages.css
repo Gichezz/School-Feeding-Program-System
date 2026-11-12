@@ -959,6 +959,13 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/* The row a triage link jumped to is outlined, so the eye lands on it */
+.ui-table__table tr:focus,
+.ui-table__item:focus {
+  outline: var(--border-width-strong) solid var(--focus-ring-color);
+  outline-offset: calc(-1 * var(--border-width-strong));
+}
+
 .analytics__school-figure {
   color: var(--color-ink-muted);
   font-variant-numeric: tabular-nums;
@@ -1253,5 +1260,32 @@
   .ui-table__controls,
   .ui-table__more {
     display: none !important;
+  }
+
+  /* On A4 a wide table wraps its headings and figures instead of being cut off */
+  .ui-table__table {
+    table-layout: auto;
+    font-size: var(--font-size-xs);
+  }
+
+  .ui-table--sticky th,
+  .analytics__flag .ui-badge {
+    white-space: normal !important;
+  }
+
+  .ui-table__table th,
+  .ui-table__table td {
+    padding: var(--space-1) var(--space-2);
+    height: auto;
+  }
+
+  .ui-table--sticky .ui-table__cell--sticky {
+    position: static;
+    box-shadow: none;
+  }
+
+  /* Reasons one under another on paper */
+  .analytics__triage {
+    grid-template-columns: 1fr !important;
   }
 }

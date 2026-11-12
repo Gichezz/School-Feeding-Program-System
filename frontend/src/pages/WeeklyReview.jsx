@@ -201,12 +201,12 @@ function WeeklyReview() {
 
   return (
     <div data-density="compact">
+      {list && <PrintHeader title={`Weekly review, week of ${week}`} scope={`${decided} of ${listed.length} listed schools reviewed`} />}
       <PageHeader
         title="Weekly review"
         description="Each week the schools in your sub-county are ranked by how unusual their feeding records look. Look into the top few and record what you found."
         actions={list && <PrintButton />}
       />
-      {list && <PrintHeader title={`Weekly review, week of ${week}`} scope={`${decided} of ${listed.length} listed schools reviewed`} />}
 
       <div className="ui-stack">
         <Card className="no-print">
