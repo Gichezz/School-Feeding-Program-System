@@ -35,8 +35,8 @@ export async function setUpDevice(credentials, deviceName) {
       ...(existing ? { deviceId: existing.deviceId } : { publicKey: keys.publicJwk, deviceName }),
     });
   } catch (error) {
-    // The server no longer knows this device; set it up again as a new one
-    if (error.data?.deviceRevoked) await clearDeviceIdentity();
+    // The server no longer knows this device, or its set-up expired; set it up again as a new one
+    if (error.data?.deviceRevoked || error.data?.deviceExpired) await clearDeviceIdentity();
     throw error;
   }
 
@@ -71,15 +71,16 @@ export async function signInWithPin(email, pin) {
     await rememberForOffline(sessionOnly, pin, identity.deviceId).catch(() => {});
     return session;
   } catch (error) {
-    if (error.data?.deviceRevoked) await clearDeviceIdentity();
+    if (error.data?.deviceRevoked || error.data?.deviceExpired) await clearDeviceIdentity();
     throw error;
   }
 }
 
 /**
  * Ask the server whether this device has been approved yet, and keep the answer.
- * A device the server has removed (or no longer knows) forgets its identity, so it can
- * be set up again. Returns the status, or null when this is not a school device.
+ * A device the server has removed (or no longer knows), or whose set-up expired before
+ * it was approved, forgets its identity, so it can be set up again as a new device.
+ * Returns the status ('expired' too), or null when this is not a school device.
  */
 export async function checkDeviceApproval() {
   const identity = await getDeviceIdentity();
@@ -91,6 +92,11 @@ export async function checkDeviceApproval() {
     if (error.status === 404) {
       await clearDeviceIdentity();
       return 'revoked';
+    }
+    // The server no longer answers for an expired set-up (410)
+    if (error.status === 410) {
+      await clearDeviceIdentity();
+      return 'expired';
     }
     throw error;
   }

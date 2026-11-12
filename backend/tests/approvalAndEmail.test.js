@@ -190,3 +190,61 @@ describe('activation codes by email', () => {
     expect(history.events[0].kind).toBe('activation_code_locked');
   });
 });
+
+describe('a device not approved within 14 days', () => {
+  const age = (deviceId, days) => pool.query(`UPDATE devices SET created_at = NOW() - make_interval(days => $2) WHERE id = $1`, [deviceId, days]);
+  const statusIn = async (deviceId) => (await pool.query('SELECT status, expired_at FROM devices WHERE id = $1', [deviceId])).rows[0];
+  afterEach(() => { delete process.env.DEVICE_PENDING_DAYS; });
+
+  it('expires: it stops being asked about, cannot be approved or signed in on, and stays on record', async () => {
+    const key = makeDevice();
+    const device = (await enrol(key, { email: USERS.staff.email, password: USERS.staff.password, pin: '482915' })).body.device;
+    await age(device.id, 15);
+
+    const polled = await statusOf(device.id);
+    expect(polled.status).toBe(410);
+    expect(polled.body).toMatchObject({ status: 'expired' });
+    expect((await asAdmin.post(`/api/devices/${device.id}/approve`)).status).toBe(400);
+    const { challenge } = (await request(app).post('/api/devices/challenge')).body;
+    const signIn = await request(app).post('/api/devices/sign-in')
+      .send({ email: USERS.staff.email, pin: '482915', deviceId: device.id, challenge, signature: key.sign(challenge) });
+    expect(signIn.status).toBe(403);
+    expect(signIn.body.deviceExpired).toBe(true);
+    const again = await enrol(key, { email: USERS.staff.email, password: USERS.staff.password, pin: '482915', deviceId: device.id });
+    expect(again.status).toBe(409);
+    expect(again.body.deviceExpired).toBe(true);
+
+    const listed = (await asAdmin.get('/api/devices')).body.devices.find((d) => d.id === device.id);
+    expect(listed).toMatchObject({ status: 'expired', expiredAt: expect.any(String) });
+  });
+
+  it('can be set up again as a new registration, while the expired one stays on record', async () => {
+    const old = (await enrol(makeDevice(), { email: USERS.staff.email, password: USERS.staff.password, pin: '482915' })).body.device;
+    await age(old.id, 15);
+    await statusOf(old.id);
+
+    const fresh = await enrol(makeDevice(), { email: USERS.staff.email, password: USERS.staff.password, pin: '482915' });
+
+    expect(fresh.status).toBe(201);
+    expect(fresh.body.device).toMatchObject({ status: 'pending' });
+    expect(fresh.body.device.id).not.toBe(old.id);
+    expect(await statusIn(old.id)).toMatchObject({ status: 'expired', expired_at: expect.any(Date) });
+  });
+
+  it('never expires an approved device, and waits 14 days by default or DEVICE_PENDING_DAYS', async () => {
+    const approved = (await enrol(makeDevice(), { email: USERS.staff.email, password: USERS.staff.password, pin: '482915' })).body.device;
+    await asAdmin.post(`/api/devices/${approved.id}/approve`);
+    await age(approved.id, 400);
+    const waiting = (await enrol(makeDevice(), { email: USERS.staff.email, password: USERS.staff.password, pin: '482915' })).body.device;
+    await age(waiting.id, 13);
+
+    await asAdmin.get('/api/devices');
+    expect((await statusIn(approved.id)).status).toBe('approved');
+    expect((await statusIn(waiting.id)).status).toBe('pending');
+
+    await age(waiting.id, 20);
+    process.env.DEVICE_PENDING_DAYS = '30';
+    await asAdmin.get('/api/devices');
+    expect((await statusIn(waiting.id)).status).toBe('pending');
+  });
+});

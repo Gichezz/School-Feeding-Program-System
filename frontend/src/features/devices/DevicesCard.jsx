@@ -9,6 +9,7 @@ const STATUS = {
   pending: { tone: 'warning', label: 'Waiting for approval' },
   approved: { tone: 'success', label: 'Approved' },
   revoked: { tone: 'neutral', label: 'Removed' },
+  expired: { tone: 'neutral', label: 'Expired, not approved' },
 };
 
 /**
@@ -95,6 +96,7 @@ function DevicesCard() {
                     <p className="devices__meta">
                       {device.schoolName} · set up {formatDate(device.createdAt)}{device.enrolledBy && ` by ${device.enrolledBy}`}
                       {device.lastSeenAt && ` · last sign-in ${formatRelativeTime(device.lastSeenAt)}`}
+                      {device.expiredAt && ` · expired ${formatDate(device.expiredAt)}`}
                     </p>
                   </div>
                 </div>
@@ -136,7 +138,7 @@ function DevicesCard() {
                   </ul>
                 )}
 
-                {device.status !== 'revoked' && (
+                {(device.status === 'pending' || device.status === 'approved') && (
                   confirmRevoke === device.id ? (
                     <Alert
                       tone="warning"

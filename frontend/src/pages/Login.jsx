@@ -54,14 +54,16 @@ function Login() {
   // as it is approved; one that was removed goes back to being set up
   const approval = useDeviceApproval(identity || null);
   const [justApproved, setJustApproved] = useState(false);
+  const [expired, setExpired] = useState(false);
   useEffect(() => {
     if (!identity || approval === identity.status) return;
     if (approval === 'approved') {
       setIdentity((current) => (current ? { ...current, status: 'approved' } : current));
       setJustApproved(true);
-    } else if (approval === 'revoked') {
+    } else if (approval === 'revoked' || approval === 'expired') {
       setIdentity(null);
       setMode('password');
+      if (approval === 'expired') setExpired(true);
     }
   }, [approval, identity]);
 
@@ -132,7 +134,7 @@ function Login() {
         }
       } catch (err) {
         setPin('');
-        if (err.data?.deviceRevoked) setIdentity(null);
+        if (err.data?.deviceRevoked || err.data?.deviceExpired) setIdentity(null);
         setError(err.message || OFFLINE_MESSAGE);
       }
     });
@@ -275,6 +277,15 @@ function Login() {
 
             {!isOnline && <Alert tone="neutral" title="You are offline">Signing in needs a connection.</Alert>}
             {error && <Alert tone="danger" title="Could not sign in">{error}</Alert>}
+            {expired && (
+              <Alert
+                tone="warning"
+                title="This device's set-up has expired"
+                action={<Button as={Link} to="/activate" size="sm" variant="secondary">Set up this device</Button>}
+              >
+                It was not approved in time. Set it up again; it then waits for approval as a new device.
+              </Alert>
+            )}
             {deviceRequired && (
               <Alert
                 tone="info"

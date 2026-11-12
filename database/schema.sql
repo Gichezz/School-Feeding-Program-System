@@ -340,8 +340,10 @@ CREATE TABLE IF NOT EXISTS devices (
     approved_at     TIMESTAMPTZ,
     revoked_by      UUID,
     revoked_at      TIMESTAMPTZ,
+    -- not approved within DEVICE_PENDING_DAYS of being set up (migration 022)
+    expired_at      TIMESTAMPTZ,
     last_seen_at    TIMESTAMPTZ,
-    CONSTRAINT devices_status_check CHECK (status IN ('pending', 'approved', 'revoked')),
+    CONSTRAINT devices_status_check CHECK (status IN ('pending', 'approved', 'revoked', 'expired')),
     CONSTRAINT devices_school_fk
         FOREIGN KEY (school_id) REFERENCES schools (id)
         ON UPDATE CASCADE
@@ -1068,5 +1070,6 @@ INSERT INTO schema_migrations (name) VALUES
     ('018_delivery_witness.sql'),
     ('019_email_delivery.sql'),
     ('020_enrolment_discrepancy.sql'),
-    ('021_email_deliveries_and_account_events.sql')
+    ('021_email_deliveries_and_account_events.sql'),
+    ('022_pending_device_expiry.sql')
 ON CONFLICT (name) DO NOTHING;
