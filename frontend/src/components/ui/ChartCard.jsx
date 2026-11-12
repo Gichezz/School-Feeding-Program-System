@@ -1,15 +1,19 @@
+import { useId, useState } from 'react';
 import {
-  Area,
   Bar,
+  BarChart,
   CartesianGrid,
-  ComposedChart,
+  LabelList,
   Line,
   LineChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts';
+import { Table2 } from 'lucide-react';
+import Button from './Button';
 import Card from './Card';
 import EmptyState from './EmptyState';
 import Skeleton, { LoadingRegion } from './Skeleton';
@@ -35,23 +39,58 @@ function ChartTooltip({ active, payload, label, series, valueFormatter, labelFor
   );
 }
 
+/** The same figures as the chart, as a table (for screen readers, print and anyone who prefers it). */
+function ChartTable({ data, xKey, xLabel, series, valueFormatter, labelFormatter, caption }) {
+  return (
+    <div className="ui-table__scroll">
+      <table className="ui-table__table">
+        <caption className="visually-hidden">{caption}</caption>
+        <thead>
+          <tr>
+            <th scope="col">{xLabel}</th>
+            {series.map((s) => (
+              <th key={s.dataKey} scope="col" className="ui-table__cell--end">{s.label || METRICS[s.metric].label}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((row) => (
+            <tr key={row[xKey]}>
+              <th scope="row">{labelFormatter ? labelFormatter(row[xKey]) : row[xKey]}</th>
+              {series.map((s) => (
+                <td key={s.dataKey} className="ui-table__cell--end tabular-nums">{valueFormatter(row[s.dataKey])}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 /**
  * The single wrapper for every chart in Lishe. It applies the design tokens: one
  * colour per metric (see metrics.js), axis and grid styling, tooltip and legend.
+ * Every chart says in words what it shows (`summary`) and can be shown as a table,
+ * so nothing depends on reading the colours or shapes.
  *
- * type: 'line' | 'bar' | 'band'
- *   band: series[0] as a line plus a shaded range between band.lowerKey and band.upperKey
- * series: [{ dataKey, metric: 'attendance' | 'served' | 'prepared' | 'forecast', label? }]
+ * type: 'line' | 'bar' | 'ranked'
+ *   ranked: horizontal bars, one per category, with each value written at the bar's end
+ * series: [{ dataKey, metric, label? }]
+ * referenceLine: { value, label } — a rule's threshold, drawn as a labelled dashed line
+ * xLabel: the heading of the first column when shown as a table
  */
 function ChartCard({
   title,
   description,
+  summary,
   actions,
   type = 'line',
   data,
   xKey,
+  xLabel = 'Date',
   series,
-  band,
+  referenceLine,
   height = 'md',
   loading = false,
   emptyMessage = 'No data for this period yet',
@@ -59,7 +98,9 @@ function ChartCard({
   xTickFormatter,
   labelFormatter,
 }) {
-  const { colors, bandOpacity } = useChartTheme();
+  const { colors, rule } = useChartTheme();
+  const [asTable, setAsTable] = useState(false);
+  const tableId = useId();
   const hasData = data && data.length > 0;
 
   let body;
@@ -72,43 +113,84 @@ function ChartCard({
   } else if (!hasData) {
     body = <EmptyState compact title={emptyMessage} />;
   } else {
-    const axes = [
-      <CartesianGrid key="grid" vertical={false} className="ui-chart__grid" />,
-      <XAxis key="x" dataKey={xKey} tickFormatter={xTickFormatter} tickLine={false} axisLine={false} minTickGap={16} />,
-      // Bars start at zero so their lengths stay honest; lines and ranges zoom to the data
-      <YAxis key="y" tickFormatter={valueFormatter} tickLine={false} axisLine={false} width={48} allowDecimals={false} domain={type === 'bar' ? [0, 'auto'] : ['auto', 'auto']} />,
+    const tooltip = (
       <Tooltip
-        key="tooltip"
         content={<ChartTooltip series={series} valueFormatter={valueFormatter} labelFormatter={labelFormatter} />}
         cursor={{ className: 'ui-chart__cursor' }}
-      />,
-    ];
-    const marks = series.map((s) => (
-      type === 'bar'
-        ? <Bar key={s.dataKey} dataKey={s.dataKey} name={s.label || METRICS[s.metric].label} fill={colors[s.metric]} radius={[4, 4, 0, 0]} maxBarSize={32} isAnimationActive={false} />
-        : <Line key={s.dataKey} type="monotone" dataKey={s.dataKey} name={s.label || METRICS[s.metric].label} stroke={colors[s.metric]} strokeWidth={2} dot={false} activeDot={{ r: 4 }} isAnimationActive={false} />
-    ));
-    const bandArea = type === 'band' && band && (
-      <Area
-        key="band"
-        dataKey={(row) => [row[band.lowerKey], row[band.upperKey]]}
-        stroke="none"
-        fill={colors[band.metric || series[0].metric]}
-        fillOpacity={bandOpacity}
-        isAnimationActive={false}
-        activeDot={false}
+      />
+    );
+    const ruleLine = referenceLine && (
+      <ReferenceLine
+        {...(type === 'ranked' ? { x: referenceLine.value } : { y: referenceLine.value })}
+        stroke={rule}
+        strokeDasharray="6 4"
+        strokeWidth={2}
+        ifOverflow="extendDomain"
+        label={{ value: referenceLine.label, position: type === 'ranked' ? 'top' : 'insideTopRight', className: 'ui-chart__rule-label' }}
       />
     );
 
+    let chart;
+    if (type === 'ranked') {
+      // One bar per category, longest first is the caller's job (sort the data)
+      chart = (
+        <BarChart data={data} layout="vertical" margin={{ top: 20, right: 48, bottom: 0, left: 0 }}>
+          <CartesianGrid horizontal={false} className="ui-chart__grid" />
+          <XAxis type="number" tickFormatter={valueFormatter} tickLine={false} axisLine={false} domain={[0, 'auto']} />
+          <YAxis type="category" dataKey={xKey} tickFormatter={xTickFormatter} tickLine={false} axisLine={false} width={128} />
+          {tooltip}
+          {ruleLine}
+          {series.map((s) => (
+            <Bar key={s.dataKey} dataKey={s.dataKey} name={s.label || METRICS[s.metric].label} fill={colors[s.metric]} radius={[0, 4, 4, 0]} maxBarSize={24} isAnimationActive={false}>
+              <LabelList dataKey={s.dataKey} position="right" formatter={valueFormatter} className="ui-chart__value-label" />
+            </Bar>
+          ))}
+        </BarChart>
+      );
+    } else {
+      const axes = [
+        <CartesianGrid key="grid" vertical={false} className="ui-chart__grid" />,
+        <XAxis key="x" dataKey={xKey} tickFormatter={xTickFormatter} tickLine={false} axisLine={false} minTickGap={16} />,
+        // Bars start at zero so their lengths stay honest; lines zoom to the data
+        <YAxis key="y" tickFormatter={valueFormatter} tickLine={false} axisLine={false} width={48} allowDecimals={false} domain={type === 'bar' ? [0, 'auto'] : ['auto', 'auto']} />,
+      ];
+      const marks = series.map((s) => (
+        type === 'bar'
+          ? <Bar key={s.dataKey} dataKey={s.dataKey} name={s.label || METRICS[s.metric].label} fill={colors[s.metric]} radius={[4, 4, 0, 0]} maxBarSize={32} isAnimationActive={false} />
+          : <Line key={s.dataKey} type="monotone" dataKey={s.dataKey} name={s.label || METRICS[s.metric].label} stroke={colors[s.metric]} strokeWidth={2} dot={false} activeDot={{ r: 4 }} isAnimationActive={false} />
+      ));
+      chart = type === 'line'
+        ? <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>{axes}{tooltip}{ruleLine}{marks}</LineChart>
+        : <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>{axes}{tooltip}{ruleLine}{marks}</BarChart>;
+    }
+
     body = (
-      <figure className={`ui-chart ui-chart--${height}`}>
-        <ResponsiveContainer width="100%" height="100%">
-          {type === 'line'
-            ? <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>{axes}{marks}</LineChart>
-            : <ComposedChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>{axes}{bandArea}{marks}</ComposedChart>}
-        </ResponsiveContainer>
-        <figcaption className="visually-hidden">{description || title}</figcaption>
-      </figure>
+      <>
+        {summary && <p className="ui-chart__summary">{summary}</p>}
+        {asTable ? (
+          <div id={tableId}>
+            <ChartTable data={data} xKey={xKey} xLabel={xLabel} series={series} valueFormatter={valueFormatter}
+              labelFormatter={labelFormatter} caption={title} />
+          </div>
+        ) : (
+          <figure className={`ui-chart ui-chart--${height}`} aria-hidden="true">
+            <ResponsiveContainer width="100%" height="100%">{chart}</ResponsiveContainer>
+          </figure>
+        )}
+        {/* Screen readers always get the table; the drawing is hidden from them */}
+        {!asTable && (
+          <div className="visually-hidden">
+            <ChartTable data={data} xKey={xKey} xLabel={xLabel} series={series} valueFormatter={valueFormatter}
+              labelFormatter={labelFormatter} caption={title} />
+          </div>
+        )}
+        <div className="ui-chart__table-toggle no-print">
+          <Button variant="ghost" size="sm" icon={Table2} aria-expanded={asTable} aria-controls={asTable ? tableId : undefined}
+            onClick={() => setAsTable((v) => !v)}>
+            {asTable ? 'Show as chart' : 'Show as table'}
+          </Button>
+        </div>
+      </>
     );
   }
 
@@ -117,18 +199,18 @@ function ChartCard({
       title={title}
       description={description}
       actions={actions}
-      footer={hasData && !loading && (
+      footer={hasData && !loading && !asTable && (series.length > 1 || referenceLine) && (
         <ul className="ui-chart__legend">
-          {series.map((s) => (
+          {series.length > 1 && series.map((s) => (
             <li key={s.dataKey} className="ui-chart__legend-item">
               <span className={`ui-swatch ui-swatch--${s.metric}`} aria-hidden="true" />
               {s.label || METRICS[s.metric].label}
             </li>
           ))}
-          {type === 'band' && band && (
+          {referenceLine && (
             <li className="ui-chart__legend-item">
-              <span className={`ui-swatch ui-swatch--${band.metric || series[0].metric} ui-swatch--band`} aria-hidden="true" />
-              {band.label || 'Likely range'}
+              <span className="ui-swatch ui-swatch--rule" aria-hidden="true" />
+              {referenceLine.label}
             </li>
           )}
         </ul>

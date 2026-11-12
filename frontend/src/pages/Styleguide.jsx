@@ -1,22 +1,29 @@
 import { useState } from 'react';
-import { CalendarCheck, Utensils, Trash2, CloudUpload, Save, RefreshCw, Plus } from 'lucide-react';
+import { CalendarCheck, Utensils, Trash2, CloudUpload, Save, RefreshCw, Plus, Wheat, GitCompareArrows, Flag, ListChecks, Truck } from 'lucide-react';
 import {
   Alert,
   Badge,
   Button,
   Card,
   ChartCard,
+  ChoiceGroup,
   DataTable,
   DateField,
   DateRangeFilter,
   EmptyState,
   FormField,
   PageHeader,
+  PrintButton,
+  RecordStatus,
   Skeleton,
   SkeletonText,
   StatCard,
+  StatusLine,
+  StepTrack,
   SummaryList,
   SyncStatusBar,
+  TriageSection,
+  WorkQueue,
   rangeForPreset,
   useToast,
 } from '../components/ui';
@@ -32,10 +39,11 @@ const COLOR_GROUPS = [
   { title: 'Brand', tokens: ['--color-brand-50', '--color-brand-100', '--color-brand-200', '--color-brand-600', '--color-brand-700', '--color-brand-800', '--color-brand-900'] },
   { title: 'Surfaces and text', tokens: ['--color-bg', '--color-surface', '--color-surface-sunken', '--color-border', '--color-border-strong', '--color-ink-subtle', '--color-ink-muted', '--color-ink'] },
   { title: 'Semantic', tokens: ['--color-success', '--color-success-bg', '--color-warning', '--color-warning-bg', '--color-danger', '--color-danger-bg', '--color-info', '--color-info-bg', '--color-neutral', '--color-neutral-bg'] },
-  { title: 'Sync states', tokens: ['--color-sync-offline', '--color-sync-syncing', '--color-sync-synced', '--color-sync-failed'] },
-  { title: 'Chart series (one per metric)', tokens: ['--chart-1', '--chart-2', '--chart-3', '--chart-4'] },
+  { title: 'Sync states', tokens: ['--color-sync-offline', '--color-sync-syncing', '--color-sync-synced', '--color-sync-failed', '--color-sync-paused'] },
+  { title: 'Record status', tokens: ['--status-local', '--status-sent', '--status-waiting', '--status-hold', '--status-retry'] },
+  { title: 'Chart series (one per metric)', tokens: ['--chart-1', '--chart-2', '--chart-3', '--chart-rule'] },
 ];
-const CHART_LABELS = { '--chart-1': 'Attendance / present', '--chart-2': 'Meals served', '--chart-3': 'Meals prepared', '--chart-4': 'Forecast' };
+const CHART_LABELS = { '--chart-1': 'Learners fed / present', '--chart-2': 'Pulses / meals served', '--chart-3': 'Cereals / meals prepared', '--chart-rule': "A rule's threshold (dashed)" };
 const TYPE_SCALE = ['4xl', '3xl', '2xl', 'xl', 'lg', 'base', 'sm', 'xs'];
 const SPACING = ['1', '2', '3', '4', '5', '6', '8', '10', '12', '16'];
 const RADII = ['sm', 'md', 'lg', 'xl', 'pill'];
@@ -49,10 +57,12 @@ const TREND = DAYS.map((date, i) => ({
   prepared: [600, 600, 590, 600, 600, 590, 600][i],
   served: [568, 579, 560, 589, 582, 555, 586][i],
 }));
-const FORECAST = ['14-10-2026', '15-10-2026', '16-10-2026', '19-10-2026', '21-10-2026', '22-10-2026', '23-10-2026'].map((date, i) => {
-  const predicted = [530, 533, 526, 532, 536, 535, 529][i];
-  return { date, predicted, lower: predicted - 16, upper: predicted + 16 };
-});
+const RANKED = [
+  { school: 'Jamhuri Primary', days: 3 },
+  { school: 'Baraka Primary', days: 6 },
+  { school: 'Amani Primary', days: 8 },
+  { school: 'Kilele Primary', days: 9 },
+];
 const RECORDS = [
   { id: 1, date: '13-10-2026', registered: 600, present: 588, absent: 12, synced: false },
   { id: 2, date: '12-10-2026', registered: 600, present: 560, absent: 40, synced: true },
@@ -76,6 +86,14 @@ function Swatch({ token }) {
       <code className="sg-swatch__name">{token}</code>
       {CHART_LABELS[token] && <span className="sg-swatch__note">{CHART_LABELS[token]}</span>}
     </div>
+  );
+}
+
+function ChoiceSample() {
+  const [fed, setFed] = useState('');
+  return (
+    <ChoiceGroup label="Were learners fed?" required value={fed} onChange={setFed}
+      options={[{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No, not today' }]} />
   );
 }
 
@@ -166,7 +184,6 @@ function Styleguide() {
             <Badge tone="info">Syncing</Badge>
           </div>
           <div className="ui-stack sg-tight">
-            <Alert tone="info" title="Forecasts use synthetic training data">Treat them as a planning aid.</Alert>
             <Alert tone="success" title="Saved on this device">Lishe will sync it when you are online.</Alert>
             <Alert tone="warning" title="Your sign-in has expired" action={<Button size="sm" variant="secondary">Sign in</Button>}>
               You can keep recording on this device; sign in again to sync.
@@ -207,7 +224,7 @@ function Styleguide() {
           <p className="sg-sample">Selected: {range.start} to {range.end}</p>
         </Section>
 
-        <Section title="Stat cards" description="2 × 2 on phones; the accent bar uses the metric colour.">
+        <Section title="Stat cards" description="2 × 2 on phones; values line up across a row even when a label wraps.">
           <div className="ui-grid ui-grid--4">
             <StatCard label="Attendance rate" value={formatPercent(0.979)} metric="attendance" icon={CalendarCheck}
               delta={{ value: '+1.2 pts', direction: 'up', good: true, label: 'vs last week' }}
@@ -228,14 +245,22 @@ function Styleguide() {
             xTickFormatter={(d) => d.slice(0, 5)} series={[{ dataKey: 'present', metric: 'attendance' }]} />
           <ChartCard title="Prepared vs served" description="Meals per school day" type="bar" data={TREND} xKey="date"
             xTickFormatter={(d) => d.slice(0, 5)} series={[{ dataKey: 'prepared', metric: 'prepared' }, { dataKey: 'served', metric: 'served' }]} />
-          <ChartCard title="Meal demand forecast" description="Expected meals with the likely range" type="band" data={FORECAST} xKey="date"
-            xTickFormatter={(d) => d.slice(0, 5)} series={[{ dataKey: 'predicted', metric: 'forecast' }]}
-            band={{ lowerKey: 'lower', upperKey: 'upper', metric: 'forecast', label: 'Likely range (80%)' }} />
+          <ChartCard title="Days of food left" description="Schools under the rule, fewest days first" type="ranked" data={RANKED}
+            xKey="school" xLabel="School" summary="4 schools have under 10 school days of cereals; Jamhuri Primary has 3."
+            series={[{ dataKey: 'days', metric: 'figure', label: 'School days of cereals' }]}
+            referenceLine={{ value: 10, label: 'Rule: 10 days' }} />
           <ChartCard title="Empty and loading" type="line" data={[]} xKey="date" series={[{ dataKey: 'present', metric: 'attendance' }]} />
         </div>
 
         <Section title="Data table" description="A table on tablet and desktop, a card list on phones.">
           <DataTable caption="Attendance history" columns={columns} rows={RECORDS} isUnsynced={(r) => !r.synced} />
+          <div data-density="compact">
+            <DataTable caption="Compact, with search, sort and filters" noun="days" stickyFirstColumn
+              columns={columns.map((c) => (c.key === 'present' ? { ...c, sortValue: (r) => r.present } : c))}
+              rows={RECORDS}
+              search={{ label: 'Search by date', textOf: (r) => [r.date] }}
+              filters={[{ key: 'synced', label: 'Sent', options: [{ value: 'yes', label: 'Sent' }, { value: 'no', label: 'Not sent' }], matches: (r, v) => r.synced === (v === 'yes') }]} />
+          </div>
           <DataTable caption="Empty example" columns={columns} rows={[]}
             emptyState={{ title: 'No attendance recorded yet', description: 'Records you save appear here.' }} />
           <DataTable caption="Loading example" columns={columns} rows={[]} loading />
@@ -261,6 +286,48 @@ function Styleguide() {
               onSyncNow={() => {}}
             />
           </div>
+        </Section>
+
+        <Section title="Record status" description="The one set of words for where a record is. Always an icon and words.">
+          <div className="sg-row">
+            <RecordStatus state="local" />
+            <RecordStatus state="sent" />
+            <RecordStatus state="waiting" />
+            <RecordStatus state="hold" reason="Delivery note already recorded" />
+            <RecordStatus state="retry" />
+          </div>
+        </Section>
+
+        <Section title="Choice buttons" description="Short lists as large radio buttons; arrow keys move between them.">
+          <ChoiceSample />
+        </Section>
+
+        <Section title="Status line and step track">
+          <div className="ui-stack sg-tight">
+            <StatusLine icon={Wheat}>Food for <strong>14 more school days</strong> · 34 school days left this term</StatusLine>
+            <StatusLine icon={Wheat} tone="warning">Food for <strong>6 more school days</strong>, but 34 are left this term. Let the head teacher know.</StatusLine>
+            <StepTrack label="Setting up this device" current="approved"
+              steps={[{ key: 'setup', label: 'Set up' }, { key: 'approved', label: 'Approved' }, { key: 'ready', label: 'Ready to sign in' }]} />
+          </div>
+        </Section>
+
+        <Section title="Work queue" description="Officer and administrator dashboards: what is waiting, and where to do it.">
+          <WorkQueue items={[
+            { key: 'conflicts', icon: GitCompareArrows, title: '2 records to decide', description: 'Changed on two devices', to: '/styleguide' },
+            { key: 'weekly', icon: ListChecks, title: 'Weekly review: 4 of 9 schools reviewed', progress: { done: 4, total: 9 }, to: '/styleguide' },
+            { key: 'flags', icon: Flag, title: 'No flagged records to check', done: true, to: '/styleguide' },
+          ]} />
+        </Section>
+
+        <Section title="Triage section" description="One reason to look at some schools, with its rule right under the heading.">
+          <TriageSection icon={Truck} tone="warning" title="Late first delivery" count={3}
+            rule="The first delivery of the term came more than 10 days after the school opened, or has not come.">
+            <p className="sg-sample">Each school links to its row in All schools.</p>
+          </TriageSection>
+        </Section>
+
+        <Section title="Printing">
+          <PrintButton />
         </Section>
 
         <Section title="Empty states and skeletons">
