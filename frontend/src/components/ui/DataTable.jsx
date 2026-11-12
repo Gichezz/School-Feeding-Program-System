@@ -52,7 +52,7 @@ function DataTable({
   const secondary = columns.filter((column) => column !== primary && !column.action);
   const cell = (column, row) => (column.render ? column.render(row) : row[column.key]);
   const unsyncedBadge = (
-    <Badge tone="warning" icon={CloudOff} className="ui-table__unsynced">Not yet synced</Badge>
+    <Badge tone="warning" icon={CloudOff} className="ui-table__unsynced">Not sent yet</Badge>
   );
 
   const shownRows = useMemo(() => {

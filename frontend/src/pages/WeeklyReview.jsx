@@ -239,7 +239,7 @@ function WeeklyReview() {
             <EmptyState
               icon={ListChecks}
               title="This week has not been scored"
-              description="Each week is scored automatically once it is over and its records have synced. To see the week in progress now, score it here."
+              description="Each week is scored automatically once it is over and its records have reached the server. To see the week in progress now, score it here."
             />
           </Card>
         )}

@@ -76,7 +76,7 @@ function Settings() {
               { key: 'name', label: 'Name', value: user?.name || '–' },
               { key: 'email', label: 'Email', value: user?.email || '–' },
               { key: 'role', label: 'Role', value: ROLE_LABELS[user?.role] || user?.role || '–' },
-              { key: 'expires', label: 'Signed in until', value: isValid ? formatDateTime(session.expiresAt) : 'Expired. Sign in again to sync' },
+              { key: 'expires', label: 'Signed in until', value: isValid ? formatDateTime(session.expiresAt) : 'Expired. Sign in again to send records' },
             ]}
           />
         </Card>
@@ -100,7 +100,7 @@ function Settings() {
               },
               { key: 'feeding', label: 'Feeding days', value: count(device?.feeding) },
               { key: 'stock', label: 'Stock entries and counts', value: count(device?.stock) },
-              { key: 'waiting', label: 'Changes waiting to sync', value: count(device?.waiting) },
+              { key: 'waiting', label: 'Changes waiting to send', value: count(device?.waiting) },
               { key: 'device', label: 'Device ID', value: <code className="settings__code">{clientId || '–'}</code> },
             ]}
           />

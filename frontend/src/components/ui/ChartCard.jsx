@@ -40,9 +40,8 @@ function ChartTooltip({ active, payload, label, series, valueFormatter, labelFor
 }
 
 /** The same figures as the chart, as a table (for screen readers, print and anyone who prefers it). */
-function ChartTable({ data, xKey, xLabel, series, valueFormatter, labelFormatter, caption }) {
-  return (
-    <div className="ui-table__scroll">
+function ChartTable({ data, xKey, xLabel, series, valueFormatter, labelFormatter, caption, scroll = true }) {
+  const table = (
       <table className="ui-table__table">
         <caption className="visually-hidden">{caption}</caption>
         <thead>
@@ -64,8 +63,9 @@ function ChartTable({ data, xKey, xLabel, series, valueFormatter, labelFormatter
           ))}
         </tbody>
       </table>
-    </div>
   );
+  // A scrolling box takes a Tab stop, so only the visible table gets one
+  return scroll ? <div className="ui-table__scroll">{table}</div> : table;
 }
 
 /**
@@ -181,7 +181,7 @@ function ChartCard({
         {!asTable && (
           <div className="visually-hidden ui-chart__sr-table">
             <ChartTable data={data} xKey={xKey} xLabel={xLabel} series={series} valueFormatter={valueFormatter}
-              labelFormatter={labelFormatter} caption={title} />
+              labelFormatter={labelFormatter} caption={title} scroll={false} />
           </div>
         )}
         <div className="ui-chart__table-toggle no-print">

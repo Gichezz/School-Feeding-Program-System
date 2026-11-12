@@ -114,7 +114,7 @@ function Login() {
   // Without a connection, the PIN is checked on this device instead (#61)
   const signInHereOffline = async () => {
     const session = await signInOffline(email.trim(), pin, identity.deviceId);
-    toast.show({ tone: 'info', title: 'Signed in offline', description: 'Records you save sync when you are back online.' });
+    toast.show({ tone: 'info', title: 'Signed in offline', description: 'Records you save are sent when you are back online.' });
     finish(session);
   };
 
@@ -271,7 +271,7 @@ function Login() {
             <div>
               <h1 className="login__title">Sign in</h1>
               <p className="login__intro">
-                {user ? 'Sign in again to keep syncing. Records saved on this device are kept.' : 'Use the account you were given.'}
+                {user ? 'Sign in again to keep sending records. Records saved on this device are kept.' : 'Use the account you were given.'}
               </p>
             </div>
 
