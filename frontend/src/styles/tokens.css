@@ -181,7 +181,7 @@
   /* Layout */
   --content-max-width: 80rem;
   --sidebar-width: 15rem;
-  --sidebar-collapsed-width: 4.5rem;
+  --sidebar-collapsed-width: 5.5rem; /* the labelled rail on tablets */
   --topbar-height: 3.5rem;
   --bottom-nav-height: 4rem;
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);

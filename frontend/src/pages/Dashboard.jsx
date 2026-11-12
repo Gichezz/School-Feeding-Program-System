@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { CalendarCheck, CheckCircle2, CloudAlert, CloudOff, Flag, GitCompareArrows, ListChecks, Users, Warehouse } from 'lucide-react';
 import { Alert, Button, Card, EmptyState, PageHeader, StatCard } from '../components/ui';
 import { getReviewWeeks, getTermAnalytics } from '../services/api';
+import { useDataFreshness } from '../hooks/useDataFreshness';
 import SystemDashboard from '../features/system/SystemDashboard';
 import { ATTENTION, attention, summary } from '../features/analytics/analyticsData';
 import { recentMondays } from '../features/weeklyReview/weeks';
@@ -113,6 +114,7 @@ function ProgrammeDashboard() {
   const [weeks, setWeeks] = useState(null);
   const [error, setError] = useState(null);
 
+  const { refreshKey, markLoaded } = useDataFreshness();
   const ready = resolves && isOnline;
 
   useEffect(() => {
@@ -121,10 +123,10 @@ function ProgrammeDashboard() {
     setTerm(null);
     setWeeks(null);
     setError(null);
-    getTermAnalytics().then((res) => { if (active) setTerm(res); }).catch((err) => { if (active) setError(err.message); });
+    getTermAnalytics().then((res) => { if (active) { setTerm(res); markLoaded(res.subCounty); } }).catch((err) => { if (active) setError(err.message); });
     getReviewWeeks().then((res) => { if (active) setWeeks(res.weeks || []); }).catch(() => { if (active) setWeeks([]); });
     return () => { active = false; };
-  }, [ready]);
+  }, [ready, refreshKey, markLoaded]);
 
   const schools = term?.schools || [];
   const totals = summary(schools);

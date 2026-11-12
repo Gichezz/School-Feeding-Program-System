@@ -2,8 +2,8 @@ import { NavLink } from 'react-router-dom';
 import { formatNumber } from '../../utils/format';
 
 /**
- * One navigation link, shared by the sidebar, the icon strip and the More sheet.
- * The label stays in the DOM (visually hidden in the icon strip) so it is always announced.
+ * One navigation link, shared by the sidebar, the tablet rail and the More sheet.
+ * The full label is always announced; the rail shows the short label under the icon.
  */
 function NavItemLink({ item, count, onNavigate, className = 'app-nav__link' }) {
   const Icon = item.icon;
@@ -17,6 +17,7 @@ function NavItemLink({ item, count, onNavigate, className = 'app-nav__link' }) {
     >
       <Icon className="app-nav__icon" aria-hidden="true" />
       <span className="app-nav__label">{item.label}</span>
+      <span className="app-nav__short" aria-hidden="true">{item.shortLabel || item.label}</span>
       {count > 0 && (
         <span className="app-nav__count">
           {formatNumber(count)}

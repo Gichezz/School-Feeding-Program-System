@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { AlertTriangle, CalendarCheck, CloudOff, Users, Warehouse } from 'lucide-react';
 import { Alert, Badge, Card, DataTable, FormField, PageHeader, StatCard } from '../components/ui';
 import { getTermAnalytics } from '../services/api';
+import { useDataFreshness } from '../hooks/useDataFreshness';
 import { ATTENTION, attention, summary } from '../features/analytics/analyticsData';
 import { NOT_FED_REASONS } from '../features/feeding/planning';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
@@ -81,6 +82,7 @@ function Analytics() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
 
+  const { refreshKey, markLoaded } = useDataFreshness();
   const ready = allowed && isOnline;
 
   useEffect(() => {
@@ -89,10 +91,10 @@ function Analytics() {
     setData(null);
     setError(null);
     getTermAnalytics({ ...(termId && { termId }) })
-      .then((res) => { if (active) setData(res); })
+      .then((res) => { if (active) { setData(res); markLoaded(res.subCounty); } })
       .catch((err) => { if (active) setError(err.message); });
     return () => { active = false; };
-  }, [ready, termId]);
+  }, [ready, termId, refreshKey, markLoaded]);
 
   if (!allowed) {
     return (
