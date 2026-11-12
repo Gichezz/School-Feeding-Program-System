@@ -7,9 +7,7 @@ import LisheLogo from '../components/shell/LisheLogo';
 import ChangePasswordCard from '../features/users/ChangePasswordCard';
 import PasskeysCard from '../features/passkeys/PasskeysCard';
 import AuthenticatorCard from '../features/totp/AuthenticatorCard';
-import DevicesCard from '../features/devices/DevicesCard';
 import { getDeviceIdentity } from '../features/devices/deviceIdentity';
-import UsersSection from '../features/users/UsersSection';
 import { ROLE_LABELS, useSignOut } from '../components/shell/UserMenu';
 import db, { getOrCreateClientId } from '../db/database';
 import { useSession } from '../hooks/useSession';
@@ -66,7 +64,7 @@ function Settings() {
 
   return (
     <>
-      <PageHeader title="Settings" description={isAdmin ? 'Your account, user accounts and what is stored on this device.' : 'Your account and what is stored on this device.'} />
+      <PageHeader title="Settings" description="Your account and what is stored on this device." />
 
       <div className="ui-stack">
         <Card
@@ -88,10 +86,6 @@ function Settings() {
         {isAdmin && <AuthenticatorCard />}
 
         <ChangePasswordCard />
-
-        {isAdmin && <UsersSection />}
-
-        {isAdmin && <DevicesCard />}
 
         <Card title="This device" description="Records are saved here first, so they are safe without a connection.">
           <SummaryList

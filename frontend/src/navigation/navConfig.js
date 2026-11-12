@@ -11,11 +11,13 @@ import {
   ClipboardCheck,
   PieChart,
   Settings,
+  Tablet,
+  UserCog,
 } from 'lucide-react';
 
 /**
- * The one navigation config. It is rendered three ways: a sidebar (desktop), an
- * icon strip (tablet) and a bottom tab bar plus "More" sheet (mobile).
+ * The one navigation config. It is rendered three ways: a sidebar (desktop), a
+ * labelled rail (tablet) and a bottom tab bar plus "More" sheet (mobile).
  *
  * mobileTab: shown in the bottom tab bar (the rest go in "More")
  * adminOnly: only shown to administrators
@@ -53,6 +55,14 @@ export const NAV_GROUPS = [
     label: 'Insights',
     items: [
       { to: '/analytics', label: 'Analytics', icon: PieChart, oversight: true, mobileTab: true },
+    ],
+  },
+  {
+    // The system administrator's work: accounts and school devices (no school records)
+    label: 'Manage',
+    items: [
+      { to: '/users', label: 'Users', icon: UserCog, adminOnly: true, mobileTab: true },
+      { to: '/devices', label: 'Devices', icon: Tablet, adminOnly: true, mobileTab: true },
     ],
   },
   {

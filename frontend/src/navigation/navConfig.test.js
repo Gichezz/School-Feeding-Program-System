@@ -7,7 +7,7 @@ describe('who sees which pages', () => {
   it('shows the system administrator accounts, devices and settings, and no school records', () => {
     const admin = paths({ isAdmin: true, role: 'admin' });
 
-    expect(admin).toEqual(['/', '/settings']);
+    expect(admin).toEqual(['/', '/users', '/devices', '/settings']);
   });
 
   it('shows the programme officer the oversight pages', () => {

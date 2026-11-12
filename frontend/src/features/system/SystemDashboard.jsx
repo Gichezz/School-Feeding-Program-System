@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { KeyRound, Lock, Tablet, Users } from 'lucide-react';
-import { Alert, Button, Card, PageHeader, StatCard } from '../../components/ui';
+import { CloudOff, KeyRound, Lock, Tablet } from 'lucide-react';
+import { Alert, Card, PageHeader, StatusLine, WorkQueue } from '../../components/ui';
 import { getDevices, getUsers } from '../../services/api';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { formatNumber } from '../../utils/format';
@@ -38,43 +37,56 @@ function SystemDashboard() {
   }, [isOnline]);
 
   const loading = isOnline && !data && !error;
-  const needsYou = data && (data.pendingDevices > 0 || data.lockedSignIns > 0);
+  const n = (count, one, many) => `${formatNumber(count)} ${count === 1 ? one : many}`;
+
+  const items = data ? [
+    {
+      key: 'devices', icon: Tablet, to: '/devices',
+      ...(data.pendingDevices > 0
+        ? { title: n(data.pendingDevices, 'device waiting for approval', 'devices waiting for approval'), description: 'Approve only a school’s own device.' }
+        : { title: 'No devices waiting for approval', done: true }),
+    },
+    {
+      key: 'locked', icon: Lock, to: '/devices',
+      ...(data.lockedSignIns > 0
+        ? { title: n(data.lockedSignIns, 'teacher locked out', 'teachers locked out'), description: 'Too many wrong PINs on a school device.' }
+        : { title: 'No locked sign-ins', done: true }),
+    },
+    {
+      key: 'secondFactor', icon: KeyRound, to: '/users',
+      ...(data.withoutSecondFactor > 0
+        ? { title: n(data.withoutSecondFactor, 'administrator without a passkey or authenticator app', 'administrators without a passkey or authenticator app'), description: 'Anyone with their password can sign in as them.' }
+        : { title: 'Every administrator has a passkey or authenticator app', done: true }),
+    },
+  ] : [];
 
   return (
-    <>
+    <div data-density="compact">
       <PageHeader title="Dashboard" description="Accounts and school devices." />
       <div className="ui-stack">
-        {!isOnline && <Alert tone="neutral" title="You are offline">Accounts and devices need a connection.</Alert>}
+        {!isOnline && <StatusLine icon={CloudOff}>Offline. Accounts and devices need a connection.</StatusLine>}
         {error && <Alert tone="danger" title="Could not load accounts and devices">{error}</Alert>}
 
-        <div className="ui-grid ui-grid--4">
-          <StatCard label="Devices waiting for approval" icon={Tablet} loading={loading}
-            value={formatNumber(data?.pendingDevices)} hint="School devices set up but not yet approved" />
-          <StatCard label="Approved devices" icon={Tablet} loading={loading}
-            value={formatNumber(data?.approvedDevices)} hint="Can sign in and sync" />
-          <StatCard label="Locked sign-ins" icon={Lock} loading={loading}
-            value={formatNumber(data?.lockedSignIns)} hint="Teachers locked out after wrong PINs" />
-          <StatCard label="Active accounts" icon={Users} loading={loading}
-            value={formatNumber(data?.activeUsers)} hint="People who can sign in" />
-        </div>
+        <Card title="To do">
+          <WorkQueue items={items} loading={loading} label="Work waiting for you" />
+        </Card>
 
         {data && (
-          <Card>
-            <div className="dashboard__review">
-              <KeyRound className="dashboard__attention-icon" aria-hidden="true" />
-              <p className="dashboard__attention-description">
-                {needsYou
-                  ? 'Some school devices or sign-ins are waiting for you.'
-                  : 'No device or sign-in is waiting for you.'}
-                {data.withoutSecondFactor > 0 && ` ${data.withoutSecondFactor} administrator account${data.withoutSecondFactor === 1 ? ' has' : 's have'} no passkey or authenticator app yet.`}
-              </p>
-              <Button as={Link} to="/settings#devices" variant="secondary" size="sm">School devices</Button>
-              <Button as={Link} to="/settings" variant="secondary" size="sm">Accounts</Button>
-            </div>
+          <Card title="Accounts and devices">
+            <dl className="dashboard__snapshot">
+              <div className="dashboard__figure">
+                <dt>Active accounts</dt>
+                <dd className="tabular-nums">{formatNumber(data.activeUsers)}</dd>
+              </div>
+              <div className="dashboard__figure">
+                <dt>Approved school devices</dt>
+                <dd className="tabular-nums">{formatNumber(data.approvedDevices)}</dd>
+              </div>
+            </dl>
           </Card>
         )}
       </div>
-    </>
+    </div>
   );
 }
 

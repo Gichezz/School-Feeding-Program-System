@@ -17,6 +17,8 @@ import Login from './pages/Login';
 import ActivateDevice from './pages/ActivateDevice';
 import { useSession } from './hooks/useSession';
 import Settings from './pages/Settings';
+import Users from './pages/Users';
+import Devices from './pages/Devices';
 import { setupAutoSync } from './sync/syncManager';
 
 // Design system reference; only included in development builds
@@ -80,6 +82,9 @@ function App() {
         {/* The older attendance and meal pages; the day's feeding record on Today replaces both */}
         <Route path="/attendance" element={<Navigate to="/today" replace />} />
         <Route path="/meals" element={<Navigate to="/today" replace />} />
+        {/* Accounts and devices are the administrator's; anyone else goes to their start page */}
+        <Route path="/users" element={session.user?.role === 'admin' ? <Users /> : <Navigate to="/" replace />} />
+        <Route path="/devices" element={session.user?.role === 'admin' ? <Devices /> : <Navigate to="/" replace />} />
         <Route path="/settings" element={<Settings />} />
       </Route>
     </Routes>
