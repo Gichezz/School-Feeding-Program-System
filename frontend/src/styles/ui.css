@@ -589,6 +589,21 @@
   }
 }
 
+/* A table placed in a narrow column (e.g. beside a form) also becomes a card list */
+.ui-table {
+  container-type: inline-size;
+}
+
+@container (max-width: 30rem) {
+  .ui-table__scroll {
+    display: none;
+  }
+
+  .ui-table__list {
+    display: block;
+  }
+}
+
 /* ---------- Segmented control and date range ---------- */
 .ui-date-range {
   display: flex;
@@ -1066,6 +1081,9 @@
 .ui-date-field .ui-field__control {
   font-variant-numeric: tabular-nums;
   letter-spacing: var(--letter-spacing-caps);
+  /* Always wide enough for the whole DD-MM-YYYY date */
+  min-width: 9.5rem;
+  max-width: 16rem;
 }
 
 .ui-date-field__picker {

@@ -1,16 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { liveQuery } from 'dexie';
-import { CheckCircle2, CloudOff, CloudUpload, GitCompareArrows } from 'lucide-react';
 import {
-  Alert,
-  Badge,
-  Button,
   Card,
   DataTable,
   PageHeader,
-  StatCard,
+  RecordStatus,
+  RECORD_STATES,
   SyncStatusBar,
+  recordStateFor,
   useToast,
 } from '../components/ui';
 import db from '../db/database';
@@ -19,17 +16,6 @@ import { formatDate, formatDateTime, formatNumber } from '../utils/format';
 
 const RECENT_LIMIT = 20;
 
-const STATUS = {
-  pending: { tone: 'neutral', label: 'Waiting' },
-  synced: { tone: 'success', label: 'Synced' },
-  failed: { tone: 'warning', label: 'Did not sync' },
-  conflict: { tone: 'warning', label: 'Being checked' },
-  held: { tone: 'warning', label: 'Being checked' },
-};
-
-/**
- * One queued change in display form.
- */
 // What each kind of queued change is called, and the date it is for
 const RECORD_KINDS = {
   attendance: ['Attendance', 'attendanceDate'],
@@ -40,16 +26,24 @@ const RECORD_KINDS = {
   stockCount: ['Stock count', 'countDate'],
 };
 
+// Why the server did not count a record, in plain words
+const HELD_REASONS = {
+  duplicate_delivery: 'delivery note already recorded',
+  user_deactivated: 'the account that saved it was closed',
+  password_reset: 'saved before a password reset',
+  device_revoked: 'this device was removed',
+};
+
+/** One queued change in display form. */
 function toRow(op) {
   const [kind, dateField] = RECORD_KINDS[op.entityType] || ['Record', null];
   const date = dateField ? op.payload?.[dateField] : op.payload?.class;
-  // A pending change that already failed once is shown as "did not sync" (it will be retried)
-  const status = op.status === 'pending' && op.errorMessage ? 'failed' : op.status;
   return {
     id: op.id,
     record: `${kind}${date ? ` · ${dateField ? formatDate(date) : date}` : ''}`,
     change: op.operation === 'update' ? 'Edited' : 'New record',
-    status,
+    state: recordStateFor(op.status, { errorMessage: op.errorMessage }),
+    heldReason: op.status === 'held' ? HELD_REASONS[op.heldReason] : undefined,
     savedAt: formatDateTime(op.createdAt),
     capturedBy: op.capturedByName || '–',
   };
@@ -57,19 +51,25 @@ function toRow(op) {
 
 const COLUMNS = [
   { key: 'record', header: 'Record', primary: true },
+  { key: 'state', header: 'Status', render: (row) => <RecordStatus state={row.state} reason={row.heldReason} /> },
   { key: 'change', header: 'Change' },
-  { key: 'capturedBy', header: 'Captured by' },
-  {
-    key: 'status',
-    header: 'Status',
-    render: (row) => <Badge tone={(STATUS[row.status] || STATUS.pending).tone}>{(STATUS[row.status] || STATUS.pending).label}</Badge>,
-  },
+  { key: 'capturedBy', header: 'Saved by' },
   { key: 'savedAt', header: 'Saved on device' },
 ];
 
+// The order the counts are listed in: what needs attention first
+const COUNT_ORDER = ['waiting', 'hold', 'retry', 'local', 'sent'];
+const COUNT_MEANING = {
+  local: 'not sent yet',
+  sent: 'on the server',
+  waiting: 'changed on another device too; your officer chooses which to keep',
+  hold: 'not counted until your officer clears them',
+  retry: 'Lishe tries again by itself',
+};
+
 /**
- * What is waiting on this device, what has reached the server, and a manual sync.
- * Reads the local sync queue only; syncing itself is unchanged.
+ * What is saved on this device and what has been sent, in the same five words used
+ * on every list, and Sync now. Reads the local sync queue only; syncing is unchanged.
  */
 function SyncStatus() {
   const sync = useSyncStatus();
@@ -89,16 +89,13 @@ function SyncStatus() {
     const result = await sync.syncNow();
     if (!result) return;
     toast.show(result.success
-      ? { tone: 'success', title: 'Sync finished', description: result.message }
-      : { tone: 'warning', title: 'Sync did not finish', description: result.message || 'Lishe will try again automatically.' });
+      ? { tone: 'success', title: 'Sending finished', description: result.message }
+      : { tone: 'warning', title: 'Sending did not finish', description: result.message || 'Lishe will try again by itself.' });
   };
 
   const loading = operations === null;
-  const counts = (operations || []).reduce((total, op) => {
-    const status = op.status === 'pending' && op.errorMessage ? 'failed' : op.status;
-    total[status] = (total[status] || 0) + 1;
-    return total;
-  }, {});
+  const rows = (operations || []).map(toRow);
+  const counts = rows.reduce((total, row) => ({ ...total, [row.state]: (total[row.state] || 0) + 1 }), {});
   const recent = (operations || [])
     .slice()
     .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
@@ -107,37 +104,38 @@ function SyncStatus() {
 
   return (
     <>
-      <PageHeader title="Sync status" description="What is saved on this device and what has been sent." />
+      <PageHeader title="Sync" description="What is saved on this device and what has been sent." />
 
       <div className="ui-stack">
         <SyncStatusBar
           variant="expanded"
           state={sync.state}
+          pausedReason={sync.pausedReason}
           pendingCount={sync.pendingCount}
           progress={sync.progress}
           lastSyncedAt={sync.lastSyncedAt}
           failure={sync.failure}
           conflictCount={sync.unresolvedConflicts}
+          signedInOffline={sync.signedInOffline}
           canSync={sync.canSync}
           onSyncNow={syncNow}
         />
 
-        {sync.unresolvedConflicts > 0 && (
-          <Alert
-            tone="warning"
-            title={sync.unresolvedConflicts === 1 ? '1 record is being checked' : `${formatNumber(sync.unresolvedConflicts)} records are being checked`}
-            action={<Button as={Link} to="/conflicts" variant="secondary" size="sm">View</Button>}
-          >
-            It was changed on another device too. Any changes you make to it wait here until it has been checked.
-          </Alert>
-        )}
-
-        <div className="ui-grid ui-grid--4">
-          <StatCard label="Waiting" icon={CloudUpload} loading={loading} value={formatNumber(counts.pending || 0)} hint="Saved here, not sent yet" />
-          <StatCard label="Synced" icon={CheckCircle2} loading={loading} value={formatNumber(counts.synced || 0)} hint="Sent" />
-          <StatCard label="Did not sync" icon={CloudOff} loading={loading} value={formatNumber(counts.failed || 0)} hint="Tried again automatically" />
-          <StatCard label="Being checked" icon={GitCompareArrows} loading={loading} value={formatNumber(sync.unresolvedConflicts)} hint="Changed on another device too" />
-        </div>
+        <Card title="Records on this device" description="Every change saved here, by where it is now.">
+          {loading ? null : (
+            <ul className="sync-status__counts">
+              {COUNT_ORDER.filter((state) => counts[state]).map((state) => (
+                <li key={state} className="sync-status__count">
+                  <RecordStatus state={state} />
+                  <span className="sync-status__count-text">
+                    <strong className="tabular-nums">{formatNumber(counts[state])}</strong> {COUNT_MEANING[state]}
+                  </span>
+                </li>
+              ))}
+              {rows.length === 0 && <li className="sync-status__count">Nothing saved on this device yet.</li>}
+            </ul>
+          )}
+        </Card>
 
         <Card title="Recent changes" description={`The latest ${RECENT_LIMIT} changes saved on this device, newest first.`}>
           <DataTable
@@ -145,15 +143,16 @@ function SyncStatus() {
             columns={COLUMNS}
             rows={recent}
             loading={loading}
-            emptyState={{ title: 'No changes yet', description: 'Records you save on this device appear here until they sync.' }}
+            emptyState={{ title: 'No changes yet', description: 'Records you save on this device appear here.' }}
           />
         </Card>
 
-        <Card title="How syncing works">
+        <Card title="How sending works">
           <ul className="sync-status__notes">
             <li>Everything you save is kept on this device first, so nothing is lost without a connection.</li>
             <li>Lishe sends your changes by itself when you are online. Sync now sends them straight away.</li>
             <li>If something does not send, it stays here and is tried again.</li>
+            <li>{RECORD_STATES.waiting.label}: a record changed on another device too. You don’t need to do anything.</li>
           </ul>
         </Card>
       </div>

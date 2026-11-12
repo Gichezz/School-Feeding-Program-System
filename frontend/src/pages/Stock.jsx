@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { PackagePlus, Scale, Undo2, Warehouse } from 'lucide-react';
+import { AlertTriangle, PackagePlus, Scale, Undo2, Warehouse } from 'lucide-react';
 import {
-  Alert, Badge, Button, Card, DataTable, DateField, EmptyState, FormField, PageHeader, StatCard, useToast,
+  Alert, Badge, Button, Card, ChartCard, ChoiceGroup, DataTable, DateField, EmptyState, FormField, PageHeader, RecordStatus,
+  StatCard, StatusLine, recordStateFor, useToast,
 } from '../components/ui';
 import SchoolGate from '../features/feeding/SchoolGate';
 import { useSchoolData } from '../features/feeding/useSchoolData';
 import {
   COMMODITIES, COMMODITY_LABELS, averageFed, dayKey, foodRemaining, schoolDays, stockBalances, todayKey,
 } from '../features/feeding/planning';
+import { displayBalance } from '../features/feeding/foodStatus';
 import { checkEntryWindow, lateReasonError } from '../features/recording/entryWindow';
 import { addStockCount, addStockMovement } from '../services/feedingDb';
 import { manualSync } from '../sync/syncManager';
@@ -34,37 +36,66 @@ function syncSoon(isOnline) {
   if (isOnline) setTimeout(() => { manualSync().catch(() => {}); }, SYNC_DELAY_MS);
 }
 
+// The two foods issued every day; oil and salt are shown in the cards only
+const PLANNED = ['cereals', 'pulses'];
+
 function Balances({ data }) {
   const balances = stockBalances({ movements: data.movements, feedingDays: data.feedingDays, ration: data.ration });
   const remaining = data.term ? schoolDays(data.terms, data.events, todayKey(), dayKey(data.term.closesOn)) : [];
   const food = foodRemaining({ balances, fedPerDay: averageFed(data.feedingDays), ration: data.ration, remainingDays: remaining });
-  const short = food ? COMMODITIES.filter((c) => food.perCommodity[c].runsOut) : [];
+  const shown = Object.fromEntries(COMMODITIES.map((c) => [c, displayBalance(balances[c])]));
+  const incomplete = COMMODITIES.filter((c) => shown[c].shortfallKg > 0);
+  const short = food ? COMMODITIES.filter((c) => food.perCommodity[c].runsOut && shown[c].shortfallKg === 0) : [];
+  const chartData = food && remaining.length > 0
+    ? PLANNED.filter((c) => food.perCommodity[c].days !== null && shown[c].shortfallKg === 0)
+      .map((c) => ({ food: COMMODITY_LABELS[c], days: food.perCommodity[c].days }))
+    : [];
+
   return (
     <>
+      {incomplete.length > 0 && (
+        <StatusLine icon={AlertTriangle} tone="warning" action={(
+          <span className="stock__fix">
+            <Button as="a" href="#stock-form" variant="secondary" size="sm" icon={PackagePlus}>Record delivery</Button>
+            <Button as="a" href="#count-form" variant="secondary" size="sm" icon={Scale}>Count the store</Button>
+          </span>
+        )}>
+          <strong>Stock records look incomplete.</strong> More was used than received:{' '}
+          {incomplete.map((c) => `${formatNumber(shown[c].shortfallKg)} kg of ${COMMODITY_LABELS[c].toLowerCase()}`).join(' and ')}.
+          A delivery may be missing, or was recorded on another device that has not sent it yet.
+        </StatusLine>
+      )}
       {short.length > 0 && (
-        <Alert tone="warning" title="Food runs out before the term ends">
-          <ul className="recording__error-list">
-            {short.map((c) => {
-              const p = food.perCommodity[c];
-              return (
-                <li key={c}>
-                  {COMMODITY_LABELS[c]}: enough for {formatNumber(p.days)} more school days
-                  {p.lastsUntil ? ` (until ${p.lastsUntil})` : ''}, {formatNumber(remaining.length)} remain. Request about {formatNumber(Math.ceil(p.shortKg))} kg.
-                </li>
-              );
-            })}
-          </ul>
-        </Alert>
+        <StatusLine icon={AlertTriangle} tone="warning">
+          <strong>Food runs out before the term ends.</strong>{' '}
+          {short.map((c) => {
+            const p = food.perCommodity[c];
+            return `${COMMODITY_LABELS[c]}: enough for ${formatNumber(p.days)} of ${formatNumber(remaining.length)} school days${p.lastsUntil ? ` (until ${p.lastsUntil})` : ''}; request about ${formatNumber(Math.ceil(p.shortKg))} kg.`;
+          }).join(' ')}{' '}
+          Let the head teacher know.
+        </StatusLine>
       )}
       <div className="ui-grid ui-grid--4">
         {COMMODITIES.map((c) => {
           const p = food?.perCommodity[c];
+          const { shownKg, shortfallKg } = shown[c];
+          let hint = 'Record feeding to work out days left';
+          if (shortfallKg > 0) hint = `${formatNumber(shortfallKg)} kg more used than received. Count the store to know.`;
+          else if (p && p.days !== null) hint = `About ${formatNumber(p.days)} school days at ${formatNumber(p.kgPerDay)} kg a day`;
           return (
-            <StatCard key={c} label={COMMODITY_LABELS[c]} value={`${formatNumber(balances[c])} kg`}
-              hint={p && p.days !== null ? `About ${formatNumber(p.days)} school days at ${formatNumber(p.kgPerDay)} kg a day` : 'Record feeding to work out days left'} />
+            <StatCard key={c} label={COMMODITY_LABELS[c]} icon={shortfallKg > 0 ? AlertTriangle : undefined}
+              value={`${formatNumber(shownKg)} kg`} hint={hint} />
           );
         })}
       </div>
+      {chartData.length > 0 && (
+        <ChartCard title="Will the food last the term?" type="ranked" data={chartData} xKey="food" xLabel="Food"
+          description="School days of food in the store, at the 10-day average of learners fed"
+          summary={chartData.map((d) => `${d.food}: ${formatNumber(d.days)} school days`).join('; ') + `. ${formatNumber(remaining.length)} school days are left this term.`}
+          series={[{ dataKey: 'days', metric: 'figure', label: 'School days of food' }]}
+          referenceLine={{ value: remaining.length, label: `School days left: ${formatNumber(remaining.length)}` }}
+          height="sm" />
+      )}
     </>
   );
 }
@@ -79,6 +110,7 @@ function MovementForm({ data }) {
   const [saving, setSaving] = useState(false);
   const [confirming, setConfirming] = useState(null);
   const set = (name) => (event) => setForm((f) => ({ ...f, [name]: event.target.value }));
+  const choose = (name) => (value) => setForm((f) => ({ ...f, [name]: value }));
   const kind = KINDS[form.kind];
   const entry = toDate(form.date) ? checkEntryWindow(form.date) : { late: false, future: false };
 
@@ -96,7 +128,7 @@ function MovementForm({ data }) {
   let warning = null;
   if (kind.sign < 0 && toKg(form.quantityKg) !== null) {
     const balance = stockBalances({ movements: data.movements, feedingDays: data.feedingDays, ration: data.ration })[form.commodity];
-    if (toKg(form.quantityKg) > balance) warning = `This device shows only ${formatNumber(balance)} kg of ${COMMODITY_LABELS[form.commodity].toLowerCase()} in the store`;
+    if (toKg(form.quantityKg) > balance) warning = `This device shows only ${formatNumber(displayBalance(balance).shownKg)} kg of ${COMMODITY_LABELS[form.commodity].toLowerCase()} in the store`;
   }
   const showWarning = warning !== null && confirming === warning;
   const shown = submitted ? errors : {};
@@ -124,7 +156,10 @@ function MovementForm({ data }) {
         ...(entry.late && { lateReason: form.lateReason.trim() }),
       });
       syncSoon(isOnline);
-      toast.show({ title: `${kind.label} recorded`, description: isOnline ? 'Lishe is syncing it now.' : 'It will sync when you are back online.' });
+      toast.show({
+        title: `${kind.label}: ${formatNumber(toKg(form.quantityKg))} kg of ${COMMODITY_LABELS[form.commodity].toLowerCase()} saved`,
+        description: isOnline ? 'Saved on this device. Lishe is sending it now.' : 'Saved on this device. Lishe sends it when you are back online.',
+      });
       setForm({ ...empty, kind: form.kind });
       setSubmitted(false);
       setConfirming(null);
@@ -134,14 +169,12 @@ function MovementForm({ data }) {
   };
 
   return (
-    <Card title="Record food in or out" description="To fix a mistake, reverse the entry and record it again.">
+    <Card id="stock-form" className="recording__form-anchor" title="Record food in or out" description="To fix a mistake, reverse the entry and record it again.">
       <form className="recording__form" onSubmit={save} noValidate>
-        <div className="ui-grid ui-grid--3">
-          <FormField id="stock-kind" label="What happened" as="select" value={form.kind} onChange={set('kind')}
-            options={Object.entries(KINDS).map(([value, k]) => ({ value, label: k.label }))} />
-          <FormField id="stock-commodity" label="Food" as="select" value={form.commodity} onChange={set('commodity')} options={commodityOptions} />
-          <DateField id="stock-date" label="Date" required value={form.date} onChange={(date) => setForm((f) => ({ ...f, date }))} error={shown.date} />
-        </div>
+        <ChoiceGroup id="stock-kind" label="What happened" value={form.kind} onChange={choose('kind')}
+          options={Object.entries(KINDS).map(([value, k]) => ({ value, label: k.label }))} />
+        <ChoiceGroup id="stock-commodity" label="Food" value={form.commodity} onChange={choose('commodity')} options={commodityOptions} />
+        <DateField id="stock-date" label="Date" required value={form.date} onChange={(date) => setForm((f) => ({ ...f, date }))} error={shown.date} />
         {entry.late && (
           <FormField id="stock-lateReason" label="Reason for entering this date late" as="textarea" rows={2} maxLength={300} required
             value={form.lateReason} onChange={set('lateReason')} error={shown.lateReason} />
@@ -197,24 +230,26 @@ function CountForm({ data }) {
     await addStockCount({ schoolId: data.schoolId, countDate: form.date, commodity: form.commodity, countedKg: counted });
     syncSoon(isOnline);
     setResult({ commodity: form.commodity, counted, ledger, difference: Math.round((counted - ledger) * 100) / 100 });
-    toast.show({ title: 'Count recorded' });
+    toast.show({ title: `Count saved: ${formatNumber(counted)} kg of ${COMMODITY_LABELS[form.commodity].toLowerCase()}` });
     setForm((f) => ({ ...f, countedKg: '' }));
     setSubmitted(false);
   };
 
   return (
-    <Card title="Count the store" description="Weigh the food in the store and enter what you count.">
+    <Card id="count-form" className="recording__form-anchor" title="Count the store" description="Weigh the food in the store and enter what you count.">
       <form className="recording__form" onSubmit={save} noValidate>
-        <div className="ui-grid ui-grid--3">
-          <FormField id="count-commodity" label="Food" as="select" value={form.commodity} onChange={(e) => setForm((f) => ({ ...f, commodity: e.target.value }))} options={commodityOptions} />
+        <ChoiceGroup id="count-commodity" label="Food" value={form.commodity} onChange={(value) => setForm((f) => ({ ...f, commodity: value }))} options={commodityOptions} />
+        <div className="ui-grid ui-grid--2">
           <DateField id="count-date" label="Date" required value={form.date} onChange={(date) => setForm((f) => ({ ...f, date }))} error={shown.date} />
           <FormField id="count-countedKg" label="Counted" size="lg" type="number" inputMode="decimal" min="0" step="0.01" required suffix="kg"
             value={form.countedKg} onChange={(e) => setForm((f) => ({ ...f, countedKg: e.target.value }))} error={shown.countedKg} />
         </div>
         {result && (
           <Alert tone={Math.abs(result.difference) < 0.5 ? 'success' : 'warning'} title={`${COMMODITY_LABELS[result.commodity]}: ${formatNumber(result.counted)} kg counted`}>
-            The records say {formatNumber(result.ledger)} kg
-            {Math.abs(result.difference) < 0.5 ? ', so the store matches.' : `: ${formatNumber(Math.abs(result.difference))} kg ${result.difference < 0 ? 'less' : 'more'} than recorded.`}
+            {result.ledger < -0.25
+              ? `The records showed more used than received, so this count sets what is really in the store.`
+              : <>The records say {formatNumber(displayBalance(result.ledger).shownKg)} kg
+                {Math.abs(result.difference) < 0.5 ? ', so the store matches.' : `: ${formatNumber(Math.abs(result.difference))} kg ${result.difference < 0 ? 'less' : 'more'} than recorded.`}</>}
           </Alert>
         )}
         <div className="recording__actions">
@@ -257,8 +292,9 @@ function Ledger({ data }) {
     { key: 'quantityKg', header: 'Kg', align: 'end', render: (m) => `${signed(m) > 0 ? '+' : '−'}${formatNumber(Math.abs(signed(m)))}` },
     { key: 'reference', header: 'Reference', render: (m) => m.reference || m.note || '–' },
     { key: 'witness', header: 'Witnessed by', render: (m) => m.witness || '–' },
+    { key: 'status', header: 'Status', render: (m) => <RecordStatus state={recordStateFor(m.syncStatus)} /> },
     {
-      key: 'actions', header: <span className="visually-hidden">Actions</span>, align: 'end',
+      key: 'actions', header: <span className="visually-hidden">Actions</span>, align: 'end', action: true,
       render: (m) => (m.kind === 'reversal' || reversed.has(m.id) ? null : confirming === m.id ? (
         <span className="stock__confirm">
           <Button size="sm" variant="danger" onClick={() => reverse(m)}>Reverse it</Button>
@@ -274,7 +310,7 @@ function Ledger({ data }) {
     <Card title="Store ledger" description="Food received and removed, newest first. Daily issues come from the feeding records.">
       {rows.length === 0
         ? <EmptyState icon={Warehouse} title="No entries yet" description="Record the first delivery or purchase above." compact />
-        : <DataTable caption="Store ledger" columns={columns} rows={rows} getRowKey={(r) => r.key} isUnsynced={(r) => r.syncStatus === 'pending'} />}
+        : <DataTable caption="Store ledger" columns={columns} rows={rows} getRowKey={(r) => r.key} pageSize={50} />}
     </Card>
   );
 }
@@ -287,10 +323,11 @@ function Stock() {
       <SchoolGate data={data}>
         <div className="ui-stack">
           {data.heldDeliveries?.length > 0 && (
-            <Alert tone="info" title={data.heldDeliveries.length === 1 ? '1 delivery is being checked' : `${data.heldDeliveries.length} deliveries are being checked`}>
+            <StatusLine icon={undefined}>
+              <RecordStatus state="hold" reason={data.heldDeliveries.length === 1 ? '1 delivery' : `${data.heldDeliveries.length} deliveries`} />{' '}
               {data.heldDeliveries.map((m) => m.reference).join(', ')}: this delivery note was already recorded, so it is not in
-              the store yet. If it was a second delivery, it will be added once it is confirmed.
-            </Alert>
+              the store yet. If it was a second delivery, it is added once your officer confirms it.
+            </StatusLine>
           )}
           <Balances data={data} />
           <MovementForm data={data} />
