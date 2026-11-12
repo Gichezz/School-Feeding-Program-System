@@ -1577,6 +1577,11 @@
   box-shadow: inset calc(-1 * var(--border-width)) 0 0 var(--color-border);
 }
 
+/* Wide tables scroll sideways with the first column fixed, so headings stay on one line */
+.ui-table--sticky th {
+  white-space: nowrap;
+}
+
 .ui-table--sticky thead .ui-table__cell--sticky {
   background: var(--color-surface-sunken);
 }

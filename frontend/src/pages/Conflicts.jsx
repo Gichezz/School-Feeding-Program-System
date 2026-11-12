@@ -140,9 +140,9 @@ function Conflicts() {
   const resolves = useResolvesConflicts();
 
   return (
-    <>
+    <div data-density={resolves ? 'compact' : undefined}>
       <PageHeader
-        title={resolves ? 'Conflicts' : 'Records being checked'}
+        title={resolves ? 'Conflicts' : 'Waiting for your officer'}
         description={resolves
           ? 'Records changed on two devices with different numbers. Decide which numbers to keep.'
           : 'Records changed on this device and on another one.'}
@@ -151,7 +151,7 @@ function Conflicts() {
         {resolves ? <ServerConflicts /> : <DeviceConflicts />}
         {resolves && <HeldRecordsCard />}
       </div>
-    </>
+    </div>
   );
 }
 

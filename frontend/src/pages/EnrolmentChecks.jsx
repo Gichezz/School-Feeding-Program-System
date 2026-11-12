@@ -1,21 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
-import { Alert, Badge, Button, Card, DataTable, FormField, PageHeader, useToast } from '../components/ui';
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Circle, CloudOff, XCircle } from 'lucide-react';
+import { Alert, Badge, Button, Card, DataTable, FormField, PageHeader, StatusLine, useToast } from '../components/ui';
+import { useDataFreshness } from '../hooks/useDataFreshness';
 import { getEnrolmentChecks, recordEnrolmentDiscrepancy, verifyEnrolment } from '../services/api';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useSession } from '../hooks/useSession';
+import { ENROLMENT_STATUS, TO_CHECK } from '../features/enrolment/checkStatus';
 import { formatDateTime, formatNumber } from '../utils/format';
 
-const STATUS = {
-  verified: { tone: 'success', label: 'Verified' },
-  not_verified: { tone: 'warning', label: 'To check' },
-  changed: { tone: 'warning', label: 'Changed since checked' },
-  discrepancy: { tone: 'danger', label: 'Discrepancy' },
-  not_entered: { tone: 'neutral', label: 'Not entered' },
-};
+const STATUS = ENROLMENT_STATUS;
+// Each status has an icon as well as a colour
+const STATUS_ICONS = { success: CheckCircle2, warning: AlertTriangle, danger: XCircle, neutral: Circle };
 
 const REASONS = { admission: 'new admission', transfer: 'transfer', correction: 'correction' };
-const TO_CHECK = ['not_verified', 'changed', 'discrepancy'];
 
 /** A class's number, with the last verified one when it has changed since. */
 function count(c) {
@@ -147,21 +144,24 @@ function EnrolmentChecks() {
   const [open, setOpen] = useState(null);
   const [busy, setBusy] = useState(null);
 
+  const { refreshKey, markLoaded } = useDataFreshness();
   const ready = allowed && isOnline;
 
   const load = useCallback(async () => {
     setError(null);
     try {
-      setData(await getEnrolmentChecks({ ...(termId && { termId }) }));
+      const res = await getEnrolmentChecks({ ...(termId && { termId }) });
+      setData(res);
+      markLoaded(res.subCounty);
     } catch (err) {
       setError(err.message);
     }
-  }, [termId]);
+  }, [termId, markLoaded]);
 
   useEffect(() => {
     setData(null);
     if (ready) load();
-  }, [ready, load]);
+  }, [ready, load, refreshKey]);
 
   const verify = async (school) => {
     setBusy(school.schoolId);
@@ -189,21 +189,19 @@ function EnrolmentChecks() {
   const toCheck = schools.filter((s) => TO_CHECK.includes(s.status)).length;
 
   return (
-    <>
+    <div data-density="compact">
       <PageHeader
         title="Enrolment checks"
         description="Each school's enrolment sets the food it can request. Check it against the admission register, then verify it."
       />
       <div className="ui-stack">
-        <Card>
-          <div className="weekly-review__controls">
-            <FormField id="enrolment-term" label="Term" as="select" value={termId || data?.term.id || ''}
-              onChange={(e) => setTermId(e.target.value)}
-              options={(data?.terms || []).map((t) => ({ value: t.id, label: t.label }))} />
-          </div>
-        </Card>
+        <div className="analytics__controls">
+          <FormField id="enrolment-term" label="Term" as="select" value={termId || data?.term.id || ''}
+            onChange={(e) => setTermId(e.target.value)}
+            options={(data?.terms || []).map((t) => ({ value: t.id, label: t.label }))} />
+        </div>
 
-        {!isOnline && <Alert tone="neutral" title="You are offline">Enrolment checks need a connection.</Alert>}
+        {!isOnline && <StatusLine icon={CloudOff}>Offline. Enrolment checks need a connection.</StatusLine>}
         {error && <Alert tone="danger" title="Could not load enrolment">{error}</Alert>}
 
         <Card
@@ -216,10 +214,22 @@ function EnrolmentChecks() {
             rows={schools}
             loading={ready && !data && !error}
             emptyState={{ title: 'No schools', description: 'No schools are registered in this sub-county.' }}
+            noun="schools"
+            search={{ label: 'Find a school', textOf: (s) => [s.schoolName] }}
+            filters={[{
+              key: 'status',
+              label: 'Show',
+              options: [
+                { value: 'toCheck', label: 'To check' },
+                { value: 'verified', label: 'Verified' },
+                { value: 'not_entered', label: 'Not entered' },
+              ],
+              matches: (s, value) => (value === 'toCheck' ? TO_CHECK.includes(s.status) : s.status === value),
+            }]}
             columns={[
-              { key: 'schoolName', header: 'School', primary: true },
-              { key: 'learners', header: 'Learners', align: 'end', render: (s) => (s.status === 'not_entered' ? '–' : formatNumber(s.learners)) },
-              { key: 'status', header: 'Status', render: (s) => <Badge tone={STATUS[s.status].tone}>{STATUS[s.status].label}</Badge> },
+              { key: 'schoolName', header: 'School', primary: true, sortValue: (s) => s.schoolName },
+              { key: 'learners', header: 'Learners', align: 'end', sortValue: (s) => (s.status === 'not_entered' ? null : s.learners), render: (s) => (s.status === 'not_entered' ? '–' : formatNumber(s.learners)) },
+              { key: 'status', header: 'Status', render: (s) => <Badge tone={STATUS[s.status].tone} icon={STATUS_ICONS[STATUS[s.status].tone]}>{STATUS[s.status].label}</Badge> },
               {
                 key: 'checked',
                 header: 'Last checked',
@@ -228,6 +238,7 @@ function EnrolmentChecks() {
               {
                 key: 'actions',
                 header: <span className="visually-hidden">Actions</span>,
+                action: true,
                 render: (s) => (
                   <div className="users__actions users__actions--tight">
                     {s.status !== 'not_entered' && (
@@ -251,7 +262,7 @@ function EnrolmentChecks() {
           ))}
         </Card>
       </div>
-    </>
+    </div>
   );
 }
 

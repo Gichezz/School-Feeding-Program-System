@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
-import { CheckCircle2, Flag, History } from 'lucide-react';
+import { CheckCircle2, CloudOff, Flag, History } from 'lucide-react';
 import {
   Alert,
   Badge,
   Button,
   Card,
   EmptyState,
+  FilterChips,
   FormField,
   LoadingRegion,
   PageHeader,
   SkeletonText,
+  StatusLine,
   SummaryList,
   useToast,
 } from '../components/ui';
@@ -18,6 +20,7 @@ import { flagSummaryRows, historyChanges, recordHeading } from '../features/revi
 import { useResolvesConflicts } from '../features/conflicts/useServerConflictCount';
 import { FLAGS_CHANGED_EVENT } from '../features/review/useOpenFlagCount';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
+import { useDataFreshness } from '../hooks/useDataFreshness';
 import { formatDateTime } from '../utils/format';
 
 const MAX_NOTE_LENGTH = 500;
@@ -66,6 +69,8 @@ function Review() {
   const reviews = useResolvesConflicts();
   const toast = useToast();
   const [status, setStatus] = useState('open');
+  const [school, setSchool] = useState('');
+  const { refreshKey, markLoaded } = useDataFreshness();
   const [flags, setFlags] = useState(null);
   const [error, setError] = useState(null);
   const [historyFor, setHistoryFor] = useState(null);
@@ -77,16 +82,17 @@ function Review() {
     try {
       setError(null);
       setFlags((await getReviewFlags(status)).flags || []);
+      markLoaded();
     } catch (err) {
       setFlags([]);
       setError(err.message);
     }
-  }, [status]);
+  }, [status, markLoaded]);
 
   useEffect(() => {
     setFlags(null);
     if (isOnline && reviews) load();
-  }, [isOnline, reviews, load]);
+  }, [isOnline, reviews, load, refreshKey]);
 
   const startCheck = (flag) => {
     setChecking(flag.id);
@@ -118,8 +124,11 @@ function Review() {
     );
   }
 
+  const schools = [...new Set((flags || []).map((f) => f.school))].sort();
+  const shown = (flags || []).filter((f) => !school || f.school === school);
+
   return (
-    <>
+    <div data-density="compact">
       <PageHeader
         title="Record review"
         description="Records that look unusual are saved as normal and flagged here. Check each one against the school's register."
@@ -127,22 +136,23 @@ function Review() {
 
       <div className="ui-stack">
         <Card>
-          <div className="ui-segmented" role="group" aria-label="Which flags to show">
-            {[['open', 'To check'], ['checked', 'Checked']].map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                className="ui-segmented__option"
-                aria-pressed={status === value}
-                onClick={() => { setStatus(value); setHistoryFor(null); setChecking(null); }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <FilterChips
+            groups={[
+              { key: 'status', label: 'Show', options: [{ value: 'open', label: 'To check' }, { value: 'checked', label: 'Checked' }] },
+              ...(schools.length > 1 ? [{ key: 'school', label: 'School', options: schools.map((name) => ({ value: name, label: name })) }] : []),
+            ]}
+            value={{ status, school }}
+            onChange={(next) => {
+              // There is always a list to show: clearing goes back to the records to check
+              const nextStatus = next.status || 'open';
+              if (nextStatus !== status) { setStatus(nextStatus); setSchool(''); setHistoryFor(null); setChecking(null); }
+              else setSchool(next.school || '');
+            }}
+            resultText={flags ? `${shown.length} ${shown.length === 1 ? 'record' : 'records'}` : undefined}
+          />
         </Card>
 
-        {!isOnline && <Alert tone="neutral" title="You are offline">Reviewing records needs a connection.</Alert>}
+        {!isOnline && <StatusLine icon={CloudOff}>Offline. Reviewing records needs a connection.</StatusLine>}
         {error && <Alert tone="danger" title="Not done">{error}</Alert>}
         {isOnline && flags === null && <Card><LoadingRegion label="Loading flagged records"><SkeletonText lines={4} /></LoadingRegion></Card>}
         {flags?.length === 0 && !error && (
@@ -157,7 +167,7 @@ function Review() {
           </Card>
         )}
 
-        {flags?.map((flag) => (
+        {shown.map((flag) => (
           <Card key={flag.id}>
             <article className="review__item" aria-labelledby={`flag-${flag.id}`}>
               <div className="review__head">
@@ -165,7 +175,9 @@ function Review() {
                 <div className="review__text">
                   <h2 id={`flag-${flag.id}`} className="review__title">
                     {flag.title}
-                    <Badge tone={flag.status === 'open' ? 'warning' : 'success'}>{flag.status === 'open' ? 'To check' : 'Checked'}</Badge>
+                    <Badge tone={flag.status === 'open' ? 'warning' : 'success'} icon={flag.status === 'open' ? Flag : CheckCircle2}>
+                      {flag.status === 'open' ? 'To check' : 'Checked'}
+                    </Badge>
                   </h2>
                   <p className="review__detail">{flag.detail}</p>
                   <p className="review__record">
@@ -227,7 +239,7 @@ function Review() {
           </Card>
         ))}
       </div>
-    </>
+    </div>
   );
 }
 

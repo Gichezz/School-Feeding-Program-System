@@ -870,16 +870,98 @@
   flex: 1 1 16rem;
 }
 
+/* ---------- Dashboard: the term snapshot ---------- */
+.dashboard__snapshot {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--space-4);
+  margin: 0;
+}
+
+.dashboard__figure dt {
+  font-size: var(--font-size-sm);
+  color: var(--color-ink-muted);
+}
+
+.dashboard__figure dd {
+  margin: 0;
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+}
+
 /* ---------- Analytics ---------- */
 .analytics__flag .ui-badge {
   white-space: nowrap;
 }
 
-.analytics__rules {
-  margin-top: var(--space-4);
-  max-width: var(--measure-wide);
-  font-size: var(--font-size-sm);
+/* In the phone card list a long figure wraps instead of widening the page */
+.ui-table__list .analytics__flag .ui-badge {
+  max-width: 100%;
+  white-space: normal;
+  text-align: start;
+}
+
+.analytics__controls {
+  max-width: 20rem;
+}
+
+.analytics__triage {
+  display: grid;
+  gap: var(--density-gap);
+}
+
+@media (min-width: 1024px) {
+  .analytics__triage {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* The first reason (Can't judge yet, when there is one) spans the full width */
+  .analytics__triage > .ui-triage:first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+/* A chart inside a triage section needs no second card frame */
+.ui-triage .ui-card {
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+.ui-triage .ui-card--pad-md > .ui-card__header,
+.ui-triage .ui-card--pad-md > .ui-card__body,
+.ui-triage .ui-card--pad-md > .ui-card__footer {
+  padding-inline: 0;
+}
+
+.analytics__schools {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.analytics__school {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-4);
+  padding-block: var(--space-2);
+  border-bottom: var(--border-default);
+}
+
+.analytics__school:last-child {
+  border-bottom: 0;
+}
+
+.analytics__school-name {
+  font-weight: var(--font-weight-semibold);
+}
+
+.analytics__school-figure {
   color: var(--color-ink-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ---------- Weekly review ---------- */
@@ -1151,5 +1233,25 @@
 
   .ui-sparkline {
     display: none;
+  }
+
+  /* Charts print as their data table, which reads well in black and white */
+  .ui-chart {
+    display: none !important;
+  }
+
+  .ui-chart__sr-table {
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    clip: auto !important;
+    white-space: normal !important;
+  }
+
+  /* Search and filter controls are for the screen only */
+  .ui-table__controls,
+  .ui-table__more {
+    display: none !important;
   }
 }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, CheckCircle2, GitCompareArrows } from 'lucide-react';
-import { Alert, Badge, Button, Card, EmptyState, FormField, LoadingRegion, SkeletonText, SummaryList, useToast } from '../../components/ui';
+import { ArrowLeft, ArrowRight, CheckCircle2, CloudOff, GitCompareArrows } from 'lucide-react';
+import { Alert, Badge, Button, Card, EmptyState, FilterChips, FormField, LoadingRegion, SkeletonText, StatusLine, SummaryList, useToast } from '../../components/ui';
+import { useDataFreshness } from '../../hooks/useDataFreshness';
 import { getConflicts, resolveConflict } from '../../services/api';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { formatDateTime } from '../../utils/format';
@@ -47,21 +48,24 @@ function ServerConflicts() {
   const [error, setError] = useState(null);
   const headingRef = useRef(null);
 
+  const { refreshKey, markLoaded } = useDataFreshness();
+  const [school, setSchool] = useState('');
   const load = useCallback(async () => {
     try {
       setLoadError(null);
       const res = await getConflicts({ status: 'unresolved' });
       setConflicts((res.conflicts || []).map(fromServer).filter((c) => conflictType(c.entityType)));
+      markLoaded();
     } catch (err) {
       setConflicts([]);
       setLoadError(err.message);
     }
-  }, []);
+  }, [markLoaded]);
 
   useEffect(() => {
     setConflicts(null);
     if (isOnline) load();
-  }, [isOnline, load]);
+  }, [isOnline, load, refreshKey]);
 
   useEffect(() => {
     headingRef.current?.focus();
@@ -111,12 +115,19 @@ function ServerConflicts() {
   };
 
   if (!isOnline) {
-    return <Alert tone="neutral" title="You are offline">Reviewing conflicts needs a connection.</Alert>;
+    return <StatusLine icon={CloudOff}>Offline. Deciding conflicts needs a connection.</StatusLine>;
   }
 
   if (!selected) {
+    const schools = [...new Set((conflicts || []).map((c) => c.schoolName || 'School'))].sort();
+    const shown = (conflicts || []).filter((c) => !school || (c.schoolName || 'School') === school);
     return (
-      <Card title="Waiting for a decision">
+      <Card title="Records to decide" description="Each was changed on two devices with different numbers. Choose which to keep, or combine them.">
+        {schools.length > 1 && (
+          <FilterChips groups={[{ key: 'school', label: 'School', options: schools.map((name) => ({ value: name, label: name })) }]}
+            value={{ school }} onChange={(next) => setSchool(next.school || '')}
+            resultText={`${shown.length} of ${conflicts.length} records`} />
+        )}
         {loadError && <Alert tone="danger" title="Could not load conflicts">{loadError}</Alert>}
         {conflicts === null ? (
           <LoadingRegion label="Loading conflicts"><SkeletonText lines={3} /></LoadingRegion>
@@ -129,7 +140,7 @@ function ServerConflicts() {
           />
         ) : (
           <ul className="conflicts__list">
-            {conflicts.map((conflict) => {
+            {shown.map((conflict) => {
               const t = conflictType(conflict.entityType);
               return (
                 <li key={conflict.id} className="conflicts__item">

@@ -1,185 +1,151 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CalendarCheck, CheckCircle2, CloudAlert, CloudOff, Flag, GitCompareArrows, ListChecks, Users, Warehouse } from 'lucide-react';
-import { Alert, Button, Card, EmptyState, PageHeader, StatCard } from '../components/ui';
-import { getReviewWeeks, getTermAnalytics } from '../services/api';
+import { ClipboardCheck, CloudOff, Flag, GitCompareArrows, ListChecks, PieChart } from 'lucide-react';
+import { Alert, Card, PageHeader, StatusLine, WorkQueue } from '../components/ui';
+import { getEnrolmentChecks, getReviewWeeks, getTermAnalytics } from '../services/api';
 import { useDataFreshness } from '../hooks/useDataFreshness';
 import SystemDashboard from '../features/system/SystemDashboard';
-import { ATTENTION, attention, summary } from '../features/analytics/analyticsData';
+import { ATTENTION, attention, summary, triage } from '../features/analytics/analyticsData';
+import { TO_CHECK } from '../features/enrolment/checkStatus';
 import { recentMondays } from '../features/weeklyReview/weeks';
-import { useSyncStatus } from '../hooks/useSyncStatus';
 import { useSession } from '../hooks/useSession';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useOpenFlagCount } from '../features/review/useOpenFlagCount';
 import { useResolvesConflicts, useServerConflictCount } from '../features/conflicts/useServerConflictCount';
-import { formatDateTime, formatNumber, formatPercent } from '../utils/format';
+import { formatNumber, formatPercent } from '../utils/format';
 
-/**
- * Conflicts, held records, flagged records and failed syncs that someone needs to act on.
- */
-function NeedsAttention({ decisions, failedCount, failure, openFlags }) {
-  const items = [];
-  if (decisions > 0) {
-    items.push({
-      key: 'conflicts',
-      icon: GitCompareArrows,
-      title: decisions === 1 ? '1 record needs a decision' : `${formatNumber(decisions)} records need a decision`,
-      description: 'Records changed on two devices, and records waiting for a check.',
-      action: <Button as={Link} to="/conflicts" variant="secondary" size="sm">Decide</Button>,
-    });
-  }
-  if (openFlags > 0) {
-    items.push({
-      key: 'review',
-      icon: Flag,
-      title: openFlags === 1 ? '1 flagged record to check' : `${formatNumber(openFlags)} flagged records to check`,
-      description: 'Records that look unusual.',
-      action: <Button as={Link} to="/review" variant="secondary" size="sm">Review</Button>,
-    });
-  }
-  if (failedCount > 0 && failure) {
-    items.push({
-      key: 'failed',
-      icon: CloudAlert,
-      title: failure.what,
-      description: failure.why,
-      action: <Button as={Link} to="/sync" variant="secondary" size="sm">Open sync status</Button>,
-    });
-  }
+const count = (n, one, many) => `${formatNumber(n)} ${n === 1 ? one : many}`;
 
-  return (
-    <Card title="Needs attention" description="Decisions waiting for you, and changes that did not sync.">
-      {items.length === 0 ? (
-        <EmptyState compact icon={CheckCircle2} title="Nothing needs attention" description="Conflicts, held records, flagged records and failed syncs appear here." />
-      ) : (
-        <ul className="dashboard__attention">
-          {items.map(({ key, icon: Icon, title, description, action }) => (
-            <li key={key} className="dashboard__attention-item">
-              <Icon className="dashboard__attention-icon" aria-hidden="true" />
-              <div className="dashboard__attention-text">
-                <p className="dashboard__attention-title">{title}</p>
-                <p className="dashboard__attention-description">{description}</p>
-              </div>
-              <div className="dashboard__attention-action">{action}</div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </Card>
-  );
-}
-
-/** This week's review list: scored or not, and how far the officer has got with it. */
-function ReviewListCard({ weeks, loading }) {
-  const [thisWeek, lastWeek] = useMemo(() => recentMondays(new Date(), 2), []);
+/** This week's review list (or last week's if this week is not scored yet). */
+function latestWeek(weeks) {
+  const [thisWeek, lastWeek] = recentMondays(new Date(), 2);
   const latest = weeks?.find((w) => w.week === thisWeek) || weeks?.find((w) => w.week === lastWeek) || null;
-  const text = (() => {
-    if (loading) return 'Loading…';
-    if (!latest) return 'This week and last week have not been scored yet.';
-    const which = latest.week === thisWeek ? 'This week' : 'Last week';
-    if (latest.listed === 0) return `${which}'s list (week of ${latest.week}) has no schools on it.`;
-    return `${which}'s list (week of ${latest.week}): ${latest.decided} of ${latest.listed} schools reviewed. Scored ${formatDateTime(latest.scoredAt)}.`;
-  })();
-  return (
-    <Card title="Weekly review list" description="The schools whose records look most unusual this week, to look into first.">
-      <div className="dashboard__review">
-        <ListChecks className="dashboard__attention-icon" aria-hidden="true" />
-        <p className="dashboard__attention-description">{text}</p>
-        <Button as={Link} to="/weekly-review" variant="secondary" size="sm">
-          {latest && latest.decided < latest.listed ? 'Continue' : 'Open'}
-        </Button>
-      </div>
-    </Card>
-  );
+  return latest && { ...latest, which: latest.week === thisWeek ? 'This week' : 'Last week' };
 }
 
 /**
- * The programme officer's start page: the term so far across the sub-county's
- * schools, the weekly review list, and what needs a decision. Built from the feeding and
- * stock records schools sync; Analytics has each school's figures.
+ * The programme officer's start page: the work waiting for them, one row per kind,
+ * with where to do it, and a few figures for the term. Every count comes from data
+ * the server already gives; a row whose count is not known yet just links to the page.
  */
-function Dashboard() {
-  const { isAdmin } = useSession();
-  // System administrators see no school records; theirs shows accounts and devices
-  return isAdmin ? <SystemDashboard /> : <ProgrammeDashboard />;
-}
-
 function ProgrammeDashboard() {
   const isOnline = useOnlineStatus();
-  const { failedCount, failure, unresolvedConflicts } = useSyncStatus();
   const openFlags = useOpenFlagCount();
   const resolves = useResolvesConflicts();
   const serverConflicts = useServerConflictCount();
   const [term, setTerm] = useState(null);
   const [weeks, setWeeks] = useState(null);
+  const [enrolment, setEnrolment] = useState(null);
   const [error, setError] = useState(null);
-
   const { refreshKey, markLoaded } = useDataFreshness();
   const ready = resolves && isOnline;
 
   useEffect(() => {
     if (!ready) return undefined;
     let active = true;
-    setTerm(null);
-    setWeeks(null);
     setError(null);
     getTermAnalytics().then((res) => { if (active) { setTerm(res); markLoaded(res.subCounty); } }).catch((err) => { if (active) setError(err.message); });
     getReviewWeeks().then((res) => { if (active) setWeeks(res.weeks || []); }).catch(() => { if (active) setWeeks([]); });
+    getEnrolmentChecks().then((res) => { if (active) setEnrolment(res.schools || []); }).catch(() => { if (active) setEnrolment(null); });
     return () => { active = false; };
   }, [ready, refreshKey, markLoaded]);
 
-  const schools = term?.schools || [];
+  const schools = useMemo(() => (term?.schools || []).map((s) => ({ ...s, notes: attention(s) })), [term]);
   const totals = summary(schools);
-  const toLookAt = schools.filter((s) => Object.keys(attention(s)).length > 0).length;
+  const groups = triage(schools);
+  const week = latestWeek(weeks);
+  const enrolmentToCheck = enrolment ? enrolment.filter((s) => TO_CHECK.includes(s.status)).length : null;
   const loading = ready && !term && !error;
 
+  const items = [
+    {
+      key: 'conflicts', icon: GitCompareArrows, to: '/conflicts',
+      ...(serverConflicts == null
+        ? { title: 'Conflicts', description: 'Records changed on two devices.', actionLabel: 'Open' }
+        : serverConflicts > 0
+          ? { title: count(serverConflicts, 'record to decide', 'records to decide'), description: 'Changed on two devices. Choose which to keep.' }
+          : { title: 'No records to decide', done: true }),
+    },
+    {
+      key: 'flags', icon: Flag, to: '/review',
+      ...(openFlags == null
+        ? { title: 'Record review', description: 'Records that look unusual.', actionLabel: 'Open' }
+        : openFlags > 0
+          ? { title: count(openFlags, 'flagged record to check', 'flagged records to check'), description: 'Check each against the register or store book.' }
+          : { title: 'No flagged records to check', done: true }),
+    },
+    {
+      key: 'weekly', icon: ListChecks, to: '/weekly-review',
+      ...(!week
+        ? { title: 'Weekly review', description: 'This week and last week have not been scored yet.', actionLabel: 'Open' }
+        : week.listed === 0
+          ? { title: `${week.which}'s list has no schools on it`, done: true }
+          : week.decided < week.listed
+            ? { title: `${week.which}'s list: ${week.decided} of ${week.listed} schools reviewed`, progress: { done: week.decided, total: week.listed } }
+            : { title: `${week.which}'s list: all ${week.listed} schools reviewed`, done: true }),
+    },
+    {
+      key: 'enrolment', icon: ClipboardCheck, to: '/enrolment-checks',
+      ...(enrolmentToCheck === null
+        ? { title: 'Enrolment checks', description: 'Each school’s termly enrolment, to verify against the register.', actionLabel: 'Open' }
+        : enrolmentToCheck > 0
+          ? { title: count(enrolmentToCheck, 'school’s enrolment to check', 'schools’ enrolment to check'), description: 'It sets the food a school can request.' }
+          : { title: 'No enrolment to check', done: true }),
+    },
+    ...(term ? [{
+      key: 'cantJudge', icon: CloudOff, to: '/analytics',
+      ...(groups.cantJudge.length > 0
+        ? { title: count(groups.cantJudge.length, 'school can’t be judged yet', 'schools can’t be judged yet'), description: 'Records behind, or stock records incomplete.', actionLabel: 'See which' }
+        : { title: 'Every school’s records are up to date', done: true }),
+    }] : []),
+  ];
+
   return (
-    <>
+    <div data-density="compact">
       <PageHeader
         title="Dashboard"
-        description={term ? `${term.subCounty}: ${term.term.label}, up to ${term.asOf}.` : 'The term so far, the weekly review list, and what needs a decision.'}
+        description={term ? `${term.subCounty} · ${term.term.label} · figures up to ${term.asOf}` : 'The work waiting for you, and the term so far.'}
       />
 
       <div className="ui-stack">
-        {!isOnline && <Alert tone="neutral" title="You are offline">The term's figures and the review list need a connection.</Alert>}
+        {!isOnline && <StatusLine icon={CloudOff}>Offline. Your work list needs a connection.</StatusLine>}
         {error && <Alert tone="danger" title="Could not load the term's figures">{error}</Alert>}
 
-        <div className="ui-grid ui-grid--4">
-          <StatCard label="School days recorded" icon={CalendarCheck} loading={loading}
-            value={formatPercent(totals.recordedShare)} hint={`Across ${formatNumber(totals.schools)} schools`} />
-          <StatCard label="Learners fed" icon={Users} loading={loading}
-            value={formatPercent(totals.meanCoverage)} hint="Of enrolment, on days with feeding" />
-          <StatCard label="Low on food" icon={Warehouse} loading={loading}
-            value={formatNumber(totals.lowStock)} hint={`Under ${ATTENTION.daysOfFood} days of cereals`} />
-          <StatCard label="Not synced" icon={CloudOff} loading={loading}
-            value={formatNumber(totals.notSynced)} hint={`No records for over ${ATTENTION.syncDays} days`} />
-        </div>
+        <Card title="To do">
+          <WorkQueue items={items} loading={ready && weeks === null && !error} label="Work waiting for you" />
+        </Card>
 
-        {term && (
-          <Card>
-            <div className="dashboard__review">
-              <Flag className="dashboard__attention-icon" aria-hidden="true" />
-              <p className="dashboard__attention-description">
-                {toLookAt === 0
-                  ? 'No school has a figure outside the stated rules this term.'
-                  : `${toLookAt} of ${schools.length} schools have a figure to look at this term (days not recorded, food against the ration, stock, deliveries or syncing).`}
-              </p>
-              <Button as={Link} to="/analytics" variant="secondary" size="sm">Open analytics</Button>
-            </div>
-          </Card>
-        )}
-
-        <ReviewListCard weeks={weeks} loading={ready && weeks === null} />
-
-        <NeedsAttention
-          decisions={serverConflicts ?? unresolvedConflicts}
-          failedCount={failedCount}
-          failure={failure}
-          openFlags={openFlags}
-        />
+        <Card title="The term so far" description={term ? `${term.term.label}, across ${count(totals.schools, 'school', 'schools')}` : undefined}
+          actions={<Link to="/analytics" className="ui-button ui-button--secondary ui-button--sm"><PieChart className="ui-button__icon" aria-hidden="true" />Open analytics</Link>}>
+          {loading ? null : term && (
+            <dl className="dashboard__snapshot">
+              <div className="dashboard__figure">
+                <dt>School days recorded</dt>
+                <dd className="tabular-nums">{formatPercent(totals.recordedShare)}</dd>
+              </div>
+              <div className="dashboard__figure">
+                <dt>Learners fed, of enrolment</dt>
+                <dd className="tabular-nums">{formatPercent(totals.meanCoverage)}</dd>
+              </div>
+              <div className="dashboard__figure">
+                <dt>Low on food (under {ATTENTION.daysOfFood} days)</dt>
+                <dd className="tabular-nums">{count(totals.lowStock, 'school', 'schools')}</dd>
+              </div>
+            </dl>
+          )}
+        </Card>
       </div>
-    </>
+    </div>
   );
+}
+
+/**
+ * Start page. System administrators see accounts and devices (no school records);
+ * programme officers see the work waiting for them.
+ */
+function Dashboard() {
+  const { isAdmin } = useSession();
+  return isAdmin ? <SystemDashboard /> : <ProgrammeDashboard />;
 }
 
 export default Dashboard;

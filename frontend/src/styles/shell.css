@@ -217,7 +217,7 @@
   gap: var(--space-3);
 }
 
-.app-topbar__freshness-word--short {
+.app-topbar .app-topbar__freshness-word--short {
   display: none;
 }
 
@@ -701,11 +701,11 @@
     padding-inline: var(--space-2);
   }
 
-  .app-topbar__freshness-word {
+  .app-topbar .app-topbar__freshness-word {
     display: none;
   }
 
-  .app-topbar__freshness-word--short {
+  .app-topbar .app-topbar__freshness-word--short {
     display: inline-flex;
   }
 

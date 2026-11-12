@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { attention, summary } from './analyticsData';
+import { attention, summary, triage } from './analyticsData';
 
 const steady = {
   schoolDays: 34, recorded: 34, missing: 0, coverage: 0.9, cerealsVsRation: 1.02, pulsesVsRation: 0.97,
@@ -28,6 +28,33 @@ describe('attention', () => {
 
   it('does not expect deliveries at schools that buy their own food', () => {
     expect(attention({ ...steady, programmeType: 'cash_transfer', firstDelivery: null })).toEqual({});
+  });
+});
+
+describe('attention: stock records', () => {
+  it('says the stock records are incomplete, not low, when more was used than received', () => {
+    expect(attention({ ...steady, cerealsInStoreKg: -30, daysOfFood: 0 })).toEqual({ stock: 'Stock records incomplete' });
+  });
+
+  it('counts a store at zero as low on food', () => {
+    expect(attention({ ...steady, cerealsInStoreKg: 0, daysOfFood: 0 })).toEqual({ daysOfFood: '0 days of food left' });
+  });
+});
+
+describe('triage', () => {
+  const withNotes = (school) => ({ ...school, notes: attention(school) });
+
+  it('puts schools whose figures cannot be trusted first, and only there', () => {
+    const behind = withNotes({ ...steady, name: 'Behind', daysSinceSync: 12, daysOfFood: 2 });
+    const incomplete = withNotes({ ...steady, name: 'Incomplete', cerealsInStoreKg: -5, daysOfFood: 0 });
+    const low = withNotes({ ...steady, name: 'Low', daysOfFood: 3, deliveryDaysAfterOpening: 20 });
+    const groups = triage([behind, incomplete, low, withNotes(steady)]);
+
+    expect(groups.cantJudge.map((s) => s.name)).toEqual(['Behind', 'Incomplete']);
+    expect(groups.daysOfFood.map((s) => s.name)).toEqual(['Low']);
+    expect(groups.delivery.map((s) => s.name)).toEqual(['Low']);
+    expect(groups.records).toEqual([]);
+    expect(groups.ration).toEqual([]);
   });
 });
 

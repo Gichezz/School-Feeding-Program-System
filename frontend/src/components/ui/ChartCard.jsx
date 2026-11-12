@@ -179,7 +179,7 @@ function ChartCard({
         )}
         {/* Screen readers always get the table; the drawing is hidden from them */}
         {!asTable && (
-          <div className="visually-hidden">
+          <div className="visually-hidden ui-chart__sr-table">
             <ChartTable data={data} xKey={xKey} xLabel={xLabel} series={series} valueFormatter={valueFormatter}
               labelFormatter={labelFormatter} caption={title} />
           </div>
