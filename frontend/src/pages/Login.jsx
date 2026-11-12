@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Fingerprint, KeyRound, LifeBuoy, LogIn, Tablet } from 'lucide-react';
 import { Alert, APP_NAME, Button, Card, FormField, useToast } from '../components/ui';
+import DeviceSteps from '../features/devices/DeviceSteps';
 import LisheLogo from '../components/shell/LisheLogo';
 import { login, signInWithRecoveryCode, signInWithTotp } from '../services/api';
 import { saveSession } from '../services/session';
@@ -113,7 +114,7 @@ function Login() {
   // Without a connection, the PIN is checked on this device instead (#61)
   const signInHereOffline = async () => {
     const session = await signInOffline(email.trim(), pin, identity.deviceId);
-    toast.show({ tone: 'info', title: 'Signed in offline', description: 'Records you save sync when you are back online.' });
+    toast.show({ tone: 'info', title: 'Signed in offline', description: 'Records you save are sent when you are back online.' });
     finish(session);
   };
 
@@ -234,10 +235,9 @@ function Login() {
                 You can still sign in if you have signed in here online in the last 7 days.
               </Alert>
             )}
+            {(identity.status !== 'approved' || justApproved) && <DeviceSteps status={identity.status} />}
             {identity.status !== 'approved' && !error && (
-              <Alert tone="info" title="Waiting for approval">
-                You can sign in once this device is approved. This page will tell you.
-              </Alert>
+              <p className="login__intro">Waiting for approval. You can sign in once it is approved; this page will tell you.</p>
             )}
             {justApproved && !error && (
               <Alert tone="success" title="This device is approved">You can sign in now.</Alert>
@@ -271,7 +271,7 @@ function Login() {
             <div>
               <h1 className="login__title">Sign in</h1>
               <p className="login__intro">
-                {user ? 'Sign in again to keep syncing. Records saved on this device are kept.' : 'Use the account you were given.'}
+                {user ? 'Sign in again to keep sending records. Records saved on this device are kept.' : 'Use the account you were given.'}
               </p>
             </div>
 

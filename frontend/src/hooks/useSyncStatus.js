@@ -11,17 +11,32 @@ const SyncStatusContext = createContext(null);
 
 /**
  * The one state the sync status bar shows, most important first. Offline and
- * syncing describe what is happening now; a conflict needs a person to decide,
- * so it comes before failed changes, which Lishe retries by itself.
+ * syncing describe what is happening now. Paused means the device is online but
+ * nothing can be sent until someone acts (sign in again, set the device up again),
+ * so it comes before everything that depends on sending. A conflict needs a person
+ * to decide, so it comes before failed changes, which Lishe retries by itself.
  *
- * @returns {'offline' | 'syncing' | 'conflict' | 'failed' | 'synced'}
+ * pausedReason: null, or why sending cannot happen (see pausedReasonFor)
+ * @returns {'offline' | 'paused' | 'syncing' | 'conflict' | 'failed' | 'synced'}
  */
-export function syncStateFor({ isOnline, syncing, failedCount, conflictCount }) {
+export function syncStateFor({ isOnline, syncing, failedCount, conflictCount, pausedReason = null }) {
   if (!isOnline) return 'offline';
+  if (pausedReason) return 'paused';
   if (syncing) return 'syncing';
   if (conflictCount > 0) return 'conflict';
   if (failedCount > 0) return 'failed';
   return 'synced';
+}
+
+/**
+ * Why records cannot be sent although the device may be online, or null.
+ * Read from the session only; it does not change how or when syncing runs.
+ *
+ * @returns {null | 'signIn' | 'deviceRemoved'}
+ */
+export function pausedReasonFor(session, isValid) {
+  if (!session || isValid) return null;
+  return session.endedReason === 'deviceRevoked' ? 'deviceRemoved' : 'signIn';
 }
 
 /**
@@ -33,7 +48,8 @@ export function syncStateFor({ isOnline, syncing, failedCount, conflictCount }) 
  */
 function useSyncStatusSource() {
   const isOnline = useOnlineStatus();
-  const { isValid: signedIn } = useSession();
+  const { session, isValid: signedIn } = useSession();
+  const pausedReason = pausedReasonFor(session, signedIn);
   const [queue, setQueue] = useState(EMPTY);
   const [syncing, setSyncing] = useState(() => isSyncInProgress());
   const [progress, setProgress] = useState(0);
@@ -95,12 +111,13 @@ function useSyncStatusSource() {
     syncing,
     failedCount: queue.failed,
     conflictCount: queue.unresolvedConflicts,
+    pausedReason,
   });
 
   // Described whenever something failed, even while a conflict takes the bar
   const failure = queue.failed > 0
     ? {
-      what: queue.failed === 1 ? '1 change did not sync' : `${queue.failed} changes did not sync`,
+      what: queue.failed === 1 ? '1 change not sent – will retry' : `${queue.failed} changes not sent – will retry`,
       // The server's own message is for the logs, not for the person recording
       why: 'Lishe could not send it.',
       fix: 'Your records are safe on this device. Check the connection and press Sync now.',
@@ -115,6 +132,8 @@ function useSyncStatusSource() {
     lastSyncedAt: queue.lastSyncedAt,
     failure,
     unresolvedConflicts: queue.unresolvedConflicts,
+    pausedReason,
+    signedInOffline: Boolean(session?.offline),
     canSync: isOnline && signedIn,
     syncNow,
   };

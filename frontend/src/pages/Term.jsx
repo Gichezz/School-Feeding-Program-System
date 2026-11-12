@@ -1,16 +1,25 @@
 import { useState } from 'react';
-import { Printer } from 'lucide-react';
-import { Alert, Button, Card, DataTable, FormField, PageHeader, StatCard, SummaryList } from '../components/ui';
+import { Users } from 'lucide-react';
+import {
+  Alert, Card, ChartCard, DataTable, FormField, PageHeader, PrintButton, PrintHeader, StatCard, StatusLine, SummaryList,
+} from '../components/ui';
 import SchoolGate from '../features/feeding/SchoolGate';
 import { useSchoolData } from '../features/feeding/useSchoolData';
 import {
-  COMMODITIES, COMMODITY_LABELS, NOT_FED_REASONS, dayKey, schoolDays, stockBalances, termReport, termRequirement, todayKey,
+  COMMODITIES, COMMODITY_LABELS, NOT_FED_REASONS, averageFed, dayKey, schoolDays, stockBalances, termReport, termRequirement, todayKey,
   termName,
 } from '../features/feeding/planning';
+import { displayBalance } from '../features/feeding/foodStatus';
 import { formatNumber, formatPercent } from '../utils/format';
 
 function termLabel(t) {
   return termName(t);
+}
+
+/** A stock figure for a table: never below 0 kg; a gap is written out ("0 (10 kg short)"). */
+function kgFigure(kg) {
+  const { shownKg, shortfallKg } = displayBalance(kg);
+  return shortfallKg > 0 ? `0 (${formatNumber(shortfallKg)} kg short)` : formatNumber(shownKg);
 }
 
 /**
@@ -34,7 +43,7 @@ function Requirement({ data, term }) {
     { key: 'grams', header: 'Ration (g a day)', align: 'end', render: (r) => formatNumber(r.grams) },
     // Whole kilograms, rounded up like the request, so the columns add up
     { key: 'needKg', header: 'Needed (kg)', align: 'end', render: (r) => formatNumber(Math.ceil(r.needKg)) },
-    { key: 'carryKg', header: 'In store (kg)', align: 'end', render: (r) => formatNumber(r.carryKg) },
+    { key: 'carryKg', header: 'In store (kg)', align: 'end', render: (r) => kgFigure(r.carryKg) },
     { key: 'requestKg', header: 'To request (kg)', align: 'end', render: (r) => <strong>{formatNumber(Math.ceil(r.requestKg))}</strong> },
   ];
 
@@ -65,12 +74,12 @@ function Report({ data, term }) {
   }));
   const columns = [
     { key: 'commodity', header: 'Food', primary: true },
-    { key: 'opening', header: 'Opening (kg)', align: 'end', render: (x) => formatNumber(x.opening) },
+    { key: 'opening', header: 'Opening (kg)', align: 'end', render: (x) => kgFigure(x.opening) },
     { key: 'received', header: 'Received (kg)', align: 'end', render: (x) => formatNumber(x.received) },
     { key: 'issuedKg', header: 'Issued (kg)', align: 'end', render: (x) => formatNumber(x.issuedKg) },
     { key: 'rationKg', header: 'Ration for learners fed (kg)', align: 'end', render: (x) => formatNumber(x.rationKg) },
     { key: 'ratio', header: 'Issued vs ration', align: 'end', render: (x) => (x.ratio === null ? '–' : formatPercent(x.ratio)) },
-    { key: 'closing', header: 'Closing (kg)', align: 'end', render: (x) => formatNumber(x.closing) },
+    { key: 'closing', header: 'Closing (kg)', align: 'end', render: (x) => kgFigure(x.closing) },
   ];
   const notFed = Object.entries(r.notFed).map(([code, n]) => `${NOT_FED_REASONS[code] || code}: ${n}`).join('; ');
   const counts = COMMODITIES.filter((c) => r.lastCount[c]).map((c) => ({
@@ -80,7 +89,7 @@ function Report({ data, term }) {
 
   return (
     <Card title={`Termly report: ${termLabel(term)}`} description={`${data.school?.name || ''} · ${term.opensOn} – ${term.closesOn} · figures up to ${r.upTo}`}
-      actions={<Button variant="secondary" icon={Printer} onClick={() => window.print()} className="no-print">Print or save as PDF</Button>}>
+      actions={<PrintButton />}>
       <div className="ui-stack">
         <div className="ui-grid ui-grid--4">
           <StatCard label="Feeding days" value={`${formatNumber(r.fedDays)} of ${formatNumber(r.expectedDays)}`} hint="School days so far in the term" />
@@ -100,17 +109,43 @@ function Report({ data, term }) {
   );
 }
 
+/** Learners fed on each school day of the term, from this device's records. */
+function FedChart({ data, term }) {
+  const from = dayKey(term.opensOn);
+  const to = dayKey(term.closesOn);
+  const days = data.feedingDays
+    .filter((d) => d.feedingHappened && dayKey(d.feedingDate) >= from && dayKey(d.feedingDate) <= to)
+    .sort((a, b) => dayKey(a.feedingDate).localeCompare(dayKey(b.feedingDate)))
+    .map((d) => ({ date: d.feedingDate, fed: Number(d.learnersFed) }));
+  const fed = days.map((d) => d.fed);
+  const summary = days.length
+    ? `${formatNumber(days.length)} days with feeding. Learners fed ranged from ${formatNumber(Math.min(...fed))} to ${formatNumber(Math.max(...fed))}.`
+    : undefined;
+  return (
+    <ChartCard title="Learners fed each school day" description={termLabel(term)} type="line" data={days} xKey="date"
+      xTickFormatter={(d) => d.slice(0, 5)} summary={summary} emptyMessage="No feeding recorded in this term yet"
+      series={[{ dataKey: 'fed', metric: 'fed', label: 'Learners fed' }]} />
+  );
+}
+
 function TermScreens({ data }) {
   const [termId, setTermId] = useState(data.term?.id || '');
   const term = data.terms.find((t) => t.id === termId) || data.term;
+  const avg = averageFed(data.feedingDays);
   return (
     <div className="ui-stack">
+      <PrintHeader title={`Termly report, ${termLabel(term)}`} scope={data.school?.name} />
       <div className="no-print">
         <FormField id="term-select" label="Term" as="select" value={term.id} onChange={(e) => setTermId(e.target.value)}
           options={[...data.terms].sort((a, b) => b.year - a.year || b.term - a.term).map((t) => ({ value: t.id, label: termLabel(t) }))} />
       </div>
+      <StatusLine icon={Users} className="no-print">
+        Food is planned from the last 10 school days with feeding: on average{' '}
+        <strong>{avg === null ? 'not known yet' : `${formatNumber(Math.round(avg))} learners fed`}</strong> a day.
+      </StatusLine>
       <Requirement data={data} term={term} />
       <Report data={data} term={term} />
+      <FedChart data={data} term={term} />
     </div>
   );
 }

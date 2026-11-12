@@ -11,11 +11,13 @@ import {
   ClipboardCheck,
   PieChart,
   Settings,
+  Tablet,
+  UserCog,
 } from 'lucide-react';
 
 /**
- * The one navigation config. It is rendered three ways: a sidebar (desktop), an
- * icon strip (tablet) and a bottom tab bar plus "More" sheet (mobile).
+ * The one navigation config. It is rendered three ways: a sidebar (desktop), a
+ * labelled rail (tablet) and a bottom tab bar plus "More" sheet (mobile).
  *
  * mobileTab: shown in the bottom tab bar (the rest go in "More")
  * adminOnly: only shown to administrators
@@ -28,31 +30,46 @@ import {
 export const NAV_GROUPS = [
   {
     label: 'Overview',
-    items: [{ to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true, mobileTab: true, notStaff: true }],
+    items: [{ to: '/', label: 'Dashboard', shortLabel: 'Home', icon: LayoutDashboard, end: true, mobileTab: true, notStaff: true }],
   },
   {
     label: 'School',
     items: [
       { to: '/today', label: 'Today', icon: CalendarCheck, mobileTab: true, staffOnly: true },
       { to: '/stock', label: 'Stock', icon: Warehouse, mobileTab: true, staffOnly: true },
-      { to: '/enrolment', label: 'Enrolment', icon: Users, staffOnly: true },
       { to: '/term', label: 'Term plan and report', shortLabel: 'Term', icon: FileText, mobileTab: true, staffOnly: true },
+      { to: '/enrolment', label: 'Enrolment', icon: Users, staffOnly: true },
+    ],
+  },
+  {
+    // The programme officer's work: decisions and checks waiting for them
+    label: 'To do',
+    items: [
+      { to: '/conflicts', label: 'Conflicts', icon: GitCompareArrows, oversight: true, badge: 'conflicts' },
+      { to: '/review', label: 'Record review', shortLabel: 'Review', icon: Flag, oversight: true, badge: 'review', mobileTab: true },
+      { to: '/weekly-review', label: 'Weekly review', shortLabel: 'Weekly', icon: ListChecks, oversight: true, mobileTab: true },
+      { to: '/enrolment-checks', label: 'Enrolment checks', shortLabel: 'Enrolment', icon: ClipboardCheck, oversight: true },
     ],
   },
   {
     label: 'Insights',
     items: [
-      { to: '/analytics', label: 'Analytics', icon: PieChart, oversight: true },
-      { to: '/weekly-review', label: 'Weekly review', shortLabel: 'Weekly', icon: ListChecks, oversight: true },
-      { to: '/enrolment-checks', label: 'Enrolment checks', shortLabel: 'Enrolment', icon: ClipboardCheck, oversight: true },
+      { to: '/analytics', label: 'Analytics', icon: PieChart, oversight: true, mobileTab: true },
     ],
   },
   {
+    // The system administrator's work: accounts and school devices (no school records)
+    label: 'Manage',
+    items: [
+      { to: '/users', label: 'Users', icon: UserCog, adminOnly: true, mobileTab: true },
+      { to: '/devices', label: 'Devices', icon: Tablet, adminOnly: true, mobileTab: true },
+    ],
+  },
+  {
+    // Only a school device sends records; officers and administrators record nothing here
     label: 'Data sync',
     items: [
-      { to: '/sync', label: 'Sync Status', shortLabel: 'Sync', icon: RefreshCw, mobileTab: true, notAdmin: true },
-      { to: '/conflicts', label: 'Conflicts', icon: GitCompareArrows, oversight: true, badge: 'conflicts' },
-      { to: '/review', label: 'Record review', shortLabel: 'Review', icon: Flag, oversight: true, badge: 'review' },
+      { to: '/sync', label: 'Sync Status', shortLabel: 'Sync', icon: RefreshCw, mobileTab: true, staffOnly: true },
     ],
   },
   {

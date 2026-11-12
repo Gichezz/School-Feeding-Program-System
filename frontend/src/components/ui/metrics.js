@@ -6,7 +6,10 @@ export const METRICS = {
   attendance: { label: 'Present', token: '--chart-1' },
   served: { label: 'Meals served', token: '--chart-2' },
   prepared: { label: 'Meals prepared', token: '--chart-3' },
-  forecast: { label: 'Forecast meals', token: '--chart-4' },
+  fed: { label: 'Learners fed', token: '--chart-1' },
+  cereals: { label: 'Cereals', token: '--chart-3' },
+  pulses: { label: 'Pulses', token: '--chart-2' },
+  figure: { label: 'Figure', token: '--chart-1' },
 };
 
 export const METRIC_KEYS = Object.keys(METRICS);

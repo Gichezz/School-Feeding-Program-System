@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CalendarCheck, Save } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { AlertTriangle, CalendarCheck, Save, Wheat } from 'lucide-react';
 import {
-  Alert, Badge, Button, Card, DataTable, DateField, EmptyState, FormField, PageHeader, StatCard, useToast,
+  Alert, Button, Card, ChoiceGroup, DataTable, DateField, EmptyState, FormField, PageHeader, RecordStatus, StatusLine,
+  recordStateFor, useToast,
 } from '../components/ui';
 import SchoolGate from '../features/feeding/SchoolGate';
 import { useSchoolData } from '../features/feeding/useSchoolData';
 import {
   NOT_FED_REASONS, UNUSUAL_REASONS, averageFed, dayKey, foodRemaining, schoolDays, stockBalances, todayKey,
   validateFeeding, COMMODITY_LABELS,
-  termName,
 } from '../features/feeding/planning';
+import { foodStatus } from '../features/feeding/foodStatus';
 import { saveDailyFeeding } from '../services/feedingDb';
 import { manualSync } from '../sync/syncManager';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
@@ -17,13 +19,6 @@ import { formatNumber, toDate, todayDate } from '../utils/format';
 
 const SYNC_DELAY_MS = 2000;
 const RECENT_DAYS = 10;
-
-const STATUS = {
-  pending: { tone: 'neutral', label: 'Not yet synced' },
-  synced: { tone: 'success', label: 'Synced' },
-  conflict: { tone: 'danger', label: 'Conflict' },
-  held: { tone: 'warning', label: 'Held for review' },
-};
 
 function emptyForm(schoolId, date = todayDate()) {
   return { schoolId, date, feedingHappened: '', learnersPresent: '', learnersFed: '', cerealsKg: '', pulsesKg: '', reasonCode: '', note: '', lateReason: '' };
@@ -59,10 +54,11 @@ function whyNotSchoolDay(date, terms, events) {
   return term ? 'It falls in the half-term break' : 'It is outside the school terms';
 }
 
+// Short lists are shown as large buttons, so every reason is visible at once
 function reasonOptions(happened) {
   const reasons = happened === 'no' ? NOT_FED_REASONS : UNUSUAL_REASONS;
   return [
-    { value: '', label: happened === 'no' ? 'Choose the reason' : 'Nothing unusual' },
+    ...(happened === 'no' ? [] : [{ value: '', label: 'Nothing unusual' }]),
     ...Object.entries(reasons).map(([value, label]) => ({ value, label })),
   ];
 }
@@ -109,6 +105,7 @@ function TodayForm({ data }) {
   const [confirming, setConfirming] = useState(null);
   const needsConfirm = warningKey !== '' && confirming !== warningKey;
   const set = (name) => (event) => setForm((f) => ({ ...f, [name]: event.target.value }));
+  const choose = (name) => (value) => setForm((f) => ({ ...f, [name]: value }));
 
   const fed = Number(form.learnersFed);
   const rationHint = (commodity) => (form.learnersFed && Number.isFinite(fed)
@@ -128,8 +125,8 @@ function TodayForm({ data }) {
       await saveDailyFeeding(check.values);
       if (isOnline) setTimeout(() => { manualSync().catch(() => {}); }, SYNC_DELAY_MS);
       toast.show({
-        title: existing ? 'Feeding record updated' : 'Feeding recorded',
-        description: isOnline ? 'Lishe is syncing it now.' : 'Saved on this device. It will sync when you are back online.',
+        title: `${existing ? 'Feeding updated' : 'Feeding saved'} for ${form.date}`,
+        description: isOnline ? 'Saved on this device. Lishe is sending it now.' : 'Saved on this device. Lishe sends it when you are back online.',
       });
       setSubmitted(false);
       setConfirming(null);
@@ -155,13 +152,11 @@ function TodayForm({ data }) {
             </ul>
           </Alert>
         )}
-        <div className="ui-grid ui-grid--2">
-          <DateField id="today-date" label="Date" required hint="DD-MM-YYYY" value={form.date}
-            onChange={(date) => setForm((f) => ({ ...f, date }))} error={errors.date} />
-          <FormField id="today-feedingHappened" label="Were learners fed?" as="select" required value={form.feedingHappened}
-            onChange={set('feedingHappened')} error={errors.feedingHappened}
-            options={[{ value: '', label: 'Choose' }, { value: 'yes', label: 'Yes' }, { value: 'no', label: 'No, not today' }]} />
-        </div>
+        <DateField id="today-date" label="Date" required hint="DD-MM-YYYY" value={form.date}
+          onChange={(date) => setForm((f) => ({ ...f, date }))} error={errors.date} />
+        <ChoiceGroup id="today-feedingHappened" label="Were learners fed?" required value={form.feedingHappened}
+          onChange={choose('feedingHappened')} error={errors.feedingHappened}
+          options={[{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No, not today' }]} />
         {check.late && (
           <FormField id="today-lateReason" label="Why is this being entered late?" as="textarea" rows={2} maxLength={300} required
             value={form.lateReason}
@@ -185,13 +180,13 @@ function TodayForm({ data }) {
           </>
         )}
         {form.feedingHappened && (
-          <div className="ui-grid ui-grid--2">
-            <FormField id="today-reasonCode" label={form.feedingHappened === 'no' ? 'Why not?' : 'Anything unusual today?'} as="select"
-              required={form.feedingHappened === 'no'} value={form.reasonCode} onChange={set('reasonCode')} error={errors.reasonCode}
+          <>
+            <ChoiceGroup id="today-reasonCode" layout="stack" label={form.feedingHappened === 'no' ? 'Why not?' : 'Anything unusual today?'}
+              required={form.feedingHappened === 'no'} value={form.reasonCode} onChange={choose('reasonCode')} error={errors.reasonCode}
               options={reasonOptions(form.feedingHappened)} />
             <FormField id="today-note" label="Note" hint={form.reasonCode === 'other' ? 'Required for “Other”' : 'Optional'} maxLength={300}
               value={form.note} onChange={set('note')} error={errors.note} />
-          </div>
+          </>
         )}
         {showWarnings && (
           <Alert tone="warning" title="Check before saving">
@@ -202,10 +197,12 @@ function TodayForm({ data }) {
           </Alert>
         )}
         <p className="recording__note">
-          {isOnline ? 'Saved on this device and synced straight away.' : 'You are offline. Saved on this device and synced when you are back online.'}
+          {isOnline ? 'Saved on this device first, then sent straight away.' : 'You are offline. It is saved on this device and sent when you are back online.'}
         </p>
         <div className="recording__actions">
-          <Button type="submit" size="lg" icon={Save} loading={saving}>{showWarnings ? 'Save anyway' : existing ? 'Save changes' : 'Save'}</Button>
+          <Button type="submit" size="lg" icon={Save} loading={saving}>
+            {showWarnings ? 'Save anyway' : `${existing ? 'Save changes for' : 'Save feeding for'} ${form.date || 'this day'}`}
+          </Button>
         </div>
       </form>
     </Card>
@@ -222,31 +219,54 @@ function Recent({ data }) {
     { key: 'learnersFed', header: 'Learners fed', align: 'end', render: (r) => (r.feedingHappened ? formatNumber(r.learnersFed) : 'Not fed') },
     { key: 'cerealsKg', header: 'Cereals (kg)', align: 'end', render: (r) => formatNumber(r.cerealsKg) },
     { key: 'pulsesKg', header: 'Pulses (kg)', align: 'end', render: (r) => formatNumber(r.pulsesKg) },
-    { key: 'status', header: 'Status', render: (r) => <Badge tone={(STATUS[r.syncStatus] || STATUS.pending).tone}>{(STATUS[r.syncStatus] || STATUS.pending).label}</Badge> },
+    { key: 'status', header: 'Status', render: (r) => <RecordStatus state={recordStateFor(r.syncStatus)} /> },
   ];
   return (
     <Card title="Recent days" description="Newest first, from every device at the school.">
       {rows.length === 0
         ? <EmptyState icon={CalendarCheck} title="No feeding recorded yet" description="Days you record appear here." compact />
-        : <DataTable caption="Recent feeding days" columns={columns} rows={rows} getRowKey={(r) => r.key} isUnsynced={(r) => r.syncStatus === 'pending'} />}
+        : <DataTable caption="Recent feeding days" columns={columns} rows={rows} getRowKey={(r) => r.key} />}
     </Card>
   );
 }
 
-function Summary({ data }) {
+/**
+ * One line on whether the food will last the term. Only this interrupts the day's
+ * task: when food runs short, the teacher tells the head teacher, who arranges more.
+ */
+function FoodLine({ data }) {
   const balances = stockBalances({ movements: data.movements, feedingDays: data.feedingDays, ration: data.ration });
   const avg = averageFed(data.feedingDays);
   const remaining = data.term ? schoolDays(data.terms, data.events, todayKey(), dayKey(data.term.closesOn)) : [];
   const food = foodRemaining({ balances, fedPerDay: avg, ration: data.ration, remainingDays: remaining });
-  const limiting = food?.limiting ? food.perCommodity[food.limiting] : null;
-  return (
-    <div className="ui-grid ui-grid--3">
-      <StatCard label="Learners fed (10-day average)" value={avg === null ? '–' : formatNumber(Math.round(avg))} hint="Used to plan food" />
-      <StatCard label="Days of food left" value={limiting ? formatNumber(limiting.days) : '–'}
-        hint={limiting ? `${COMMODITY_LABELS[food.limiting]} runs out first` : 'Record feeding to work this out'} />
-      <StatCard label="School days left this term" value={formatNumber(remaining.length)} hint={data.term ? `${termName(data.term)} closes ${data.term.closesOn}` : undefined} />
-    </div>
-  );
+  const status = foodStatus({ balances, food, remainingDays: remaining.length });
+  const days = (n) => (n === 1 ? '1 more school day' : `${formatNumber(n)} more school days`);
+  const left = (n) => (n === 1 ? '1 school day left this term' : `${formatNumber(n)} school days left this term`);
+
+  if (status.kind === 'incomplete') {
+    return (
+      <StatusLine icon={AlertTriangle} tone="warning"
+        action={<Button as={Link} to="/stock" variant="secondary" size="sm">Open Stock</Button>}>
+        <strong>Stock records look incomplete.</strong> More was used than received:{' '}
+        {status.short.map((s) => `${formatNumber(s.shortfallKg)} kg of ${COMMODITY_LABELS[s.commodity].toLowerCase()}`).join(' and ')}.
+        Record the missing delivery, or count the store.
+      </StatusLine>
+    );
+  }
+  if (status.kind === 'runsOut') {
+    return (
+      <StatusLine icon={AlertTriangle} tone="warning">
+        <strong>Low on food:</strong> {COMMODITY_LABELS[status.commodity].toLowerCase()} for {days(status.days)}, but {left(status.remainingDays)}. Let the head teacher know.
+      </StatusLine>
+    );
+  }
+  if (status.kind === 'enough') {
+    return <StatusLine icon={Wheat}>Food for <strong>{days(status.days)}</strong> · {left(status.remainingDays)}</StatusLine>;
+  }
+  if (status.kind === 'unknown') {
+    return <StatusLine icon={Wheat}>Record feeding for a few days to see how long the food will last · {left(status.remainingDays)}</StatusLine>;
+  }
+  return <StatusLine icon={Wheat}>No school days are left this term.</StatusLine>;
 }
 
 function Today() {
@@ -255,10 +275,14 @@ function Today() {
     <>
       <PageHeader title="Today" description="Record whether learners were fed and the food issued from the store." />
       <SchoolGate data={data}>
-        <div className="ui-stack">
-          <Summary data={data} />
-          <TodayForm data={data} />
-          <Recent data={data} />
+        <div className="today__layout">
+          <div className="today__main ui-stack">
+            <FoodLine data={data} />
+            <TodayForm data={data} />
+          </div>
+          <div className="today__side">
+            <Recent data={data} />
+          </div>
         </div>
       </SchoolGate>
     </>

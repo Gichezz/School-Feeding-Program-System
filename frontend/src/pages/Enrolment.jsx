@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Save } from 'lucide-react';
+import { CheckCircle2, Save } from 'lucide-react';
 import { Alert, Badge, Button, Card, FormField, PageHeader, useToast } from '../components/ui';
 import SchoolGate from '../features/feeding/SchoolGate';
 import { useSchoolData } from '../features/feeding/useSchoolData';
@@ -120,7 +120,7 @@ function EnrolmentForm({ data }) {
             <div key={c} className="enrolment__row">
               <span className="enrolment__class">
                 {c}
-                {SEXES.some(([s]) => saved[cellKey(c, s)]?.verified) && <Badge tone="success">Verified</Badge>}
+                {SEXES.some(([s]) => saved[cellKey(c, s)]?.verified) && <Badge tone="success" icon={CheckCircle2}>Verified</Badge>}
               </span>
               {SEXES.map(([s, label]) => (
                 <FormField key={s} id={`enrolment-${c}-${s}`} label={`${c} ${label.toLowerCase()}`} className="enrolment__cell"

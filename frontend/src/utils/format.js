@@ -81,6 +81,14 @@ export function formatDateTime(value) {
 }
 
 /**
+ * Timestamp → "HH:mm" (24-hour, local time).
+ */
+export function formatTime(value) {
+  const date = toDate(value);
+  return date ? `${pad(date.getHours())}:${pad(date.getMinutes())}` : PLACEHOLDER;
+}
+
+/**
  * Timestamp → "just now", "5 min ago", "2 h ago", "3 days ago"; older than a week → the date.
  */
 export function formatRelativeTime(value, now = Date.now()) {

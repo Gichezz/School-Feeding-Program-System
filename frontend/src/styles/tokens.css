@@ -18,6 +18,7 @@
   /* Surfaces and text: warm cream and near-black green */
   --color-bg: #f7f4ef;
   --color-surface: #fffdf9;
+  --color-surface-work: #ffffff; /* tables and work queues on officer and admin screens */
   --color-surface-sunken: #f0ece4;
   --color-surface-overlay: #fffdf9;
   --color-ink: #1c2b24;
@@ -65,15 +66,34 @@
   --color-sync-failed-bg: var(--color-warning-bg);
   --color-sync-conflict: var(--color-warning);
   --color-sync-conflict-bg: var(--color-warning-bg);
+  /* Paused: online, but something must be done before records can be sent */
+  --color-sync-paused: var(--color-warning);
+  --color-sync-paused-bg: var(--color-warning-bg);
+
+  /* Record status (one mapping for every list; always shown with an icon and words) */
+  --status-local: var(--color-neutral);
+  --status-local-bg: var(--color-neutral-bg);
+  --status-local-border: var(--color-neutral-border);
+  --status-sent: var(--color-success);
+  --status-sent-bg: var(--color-success-bg);
+  --status-sent-border: var(--color-success-border);
+  --status-waiting: var(--color-info);
+  --status-waiting-bg: var(--color-info-bg);
+  --status-waiting-border: var(--color-info-border);
+  --status-hold: var(--color-warning);
+  --status-hold-bg: var(--color-warning-bg);
+  --status-hold-border: var(--color-warning-border);
+  --status-retry: var(--color-warning);
+  --status-retry-bg: var(--color-warning-bg);
+  --status-retry-border: var(--color-warning-border);
 
   /* Chart series: one colour per metric, everywhere in the app */
   --chart-1: #1b5e4b; /* attendance / present */
   --chart-2: #b5532a; /* meals served */
   --chart-3: #a8851a; /* meals prepared */
-  --chart-4: #6b4fa0; /* forecast */
   --chart-grid: var(--color-border);
   --chart-axis: var(--color-ink-subtle);
-  --chart-band-opacity: 0.18;
+  --chart-rule: var(--color-ink-muted); /* a rule's threshold, drawn dashed */
 
   /* Typography: one display face (titles, wordmark), one body face */
   --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
@@ -116,6 +136,12 @@
   --auth-max-width: 28rem;
   --field-min-width: 12rem;
 
+  /* Density: teacher screens are comfortable; officer and admin screens on
+     tablet and desktop set data-density="compact" on the page root */
+  --density-row: 3.25rem;
+  --density-card-pad: var(--space-5);
+  --density-gap: var(--space-6);
+
   /* Spacing: 4px base */
   --space-0: 0;
   --space-1: 0.25rem;
@@ -153,9 +179,9 @@
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
 
   /* Layout */
-  --content-max-width: 75rem;
+  --content-max-width: 80rem;
   --sidebar-width: 15rem;
-  --sidebar-collapsed-width: 4.5rem;
+  --sidebar-collapsed-width: 5.5rem; /* the labelled rail on tablets */
   --topbar-height: 3.5rem;
   --bottom-nav-height: 4rem;
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
@@ -173,4 +199,13 @@
    *   tablet  768px – 1023px
    *   desktop >= 1024px
    */
+}
+
+/* Compact density for officer and admin work screens on tablet and desktop */
+@media (min-width: 768px) {
+  [data-density='compact'] {
+    --density-row: 2.5rem;
+    --density-card-pad: var(--space-4);
+    --density-gap: var(--space-4);
+  }
 }

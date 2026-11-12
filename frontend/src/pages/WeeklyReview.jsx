@@ -1,17 +1,22 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, ListChecks, RefreshCw, Search } from 'lucide-react';
+import { CheckCircle2, Circle, CloudOff, Eye, ListChecks, RefreshCw, Search } from 'lucide-react';
 import {
   Alert,
   Badge,
   Button,
   Card,
+  ChoiceGroup,
   EmptyState,
   FormField,
   LoadingRegion,
   PageHeader,
+  PrintButton,
+  PrintHeader,
   SkeletonText,
+  StatusLine,
   useToast,
 } from '../components/ui';
+import { useDataFreshness } from '../hooks/useDataFreshness';
 import { decideReviewItem, getReviewList, getReviewWeeks, scoreReviewWeek } from '../services/api';
 import { DECISIONS, MODES, recentMondays, scoredText, weekLabel } from '../features/weeklyReview/weeks';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
@@ -19,6 +24,8 @@ import { useSession } from '../hooks/useSession';
 import { formatDateTime } from '../utils/format';
 
 const MAX_NOTE_LENGTH = 500;
+// A decision's badge has an icon as well as a colour
+const DECISION_ICONS = { explained: CheckCircle2, follow_up: Eye };
 
 /**
  * The officer's decision on one listed school's week: explained (what explained it) or
@@ -50,13 +57,8 @@ function DecisionForm({ item, week, onSaved }) {
 
   return (
     <div className="weekly-review__decide">
-      <div className="ui-segmented" role="group" aria-label="Decision">
-        {Object.entries(DECISIONS).map(([value, { label }]) => (
-          <button key={value} type="button" className="ui-segmented__option" aria-pressed={status === value} onClick={() => setStatus(value)}>
-            {label}
-          </button>
-        ))}
-      </div>
+      <ChoiceGroup id={`decision-${item.schoolId}`} label="What did you find?" value={status} onChange={setStatus}
+        options={Object.entries(DECISIONS).map(([value, { label }]) => ({ value, label }))} />
       <FormField
         id={`note-${item.schoolId}`}
         label={status === 'explained' ? 'What explained it?' : 'What will you follow up?'}
@@ -90,7 +92,9 @@ function ListedSchool({ item, week, canDecide, onSaved }) {
           <div className="review__text">
             <h2 id={`school-${item.schoolId}`} className="review__title">
               {item.schoolName}
-              <Badge tone={decision ? decision.tone : 'neutral'}>{decision ? decision.label : 'To review'}</Badge>
+              <Badge tone={decision ? decision.tone : 'neutral'} icon={decision ? DECISION_ICONS[item.decision.status] || CheckCircle2 : Circle}>
+                {decision ? decision.label : 'To review'}
+              </Badge>
             </h2>
             <p className="review__detail">{item.explanation}</p>
             <p className="review__record">
@@ -147,6 +151,7 @@ function WeeklyReview() {
   const [error, setError] = useState(null);
   const [scoring, setScoring] = useState(false);
 
+  const { refreshKey, markLoaded } = useDataFreshness();
   const ready = allowed && isOnline;
 
   const load = useCallback(async () => {
@@ -155,16 +160,16 @@ function WeeklyReview() {
       const weeks = await getReviewWeeks();
       setScoredWeeks(Object.fromEntries((weeks.weeks || []).map((w) => [w.week, w])));
       setList(await getReviewList(week));
+      markLoaded();
     } catch (err) {
-      if (err.status === 404) setList(null);
-      else { setList(null); setError(err.message); }
+      if (err.status === 404) { setList(null); markLoaded(); } else { setList(null); setError(err.message); }
     }
-  }, [week]);
+  }, [week, markLoaded]);
 
   useEffect(() => {
     setList(undefined);
     if (ready) load();
-  }, [ready, load]);
+  }, [ready, load, refreshKey]);
 
   const score = async () => {
     setScoring(true);
@@ -192,16 +197,19 @@ function WeeklyReview() {
 
   const listed = list?.items?.filter((i) => i.listed) || [];
   const others = list?.items?.filter((i) => !i.listed) || [];
+  const decided = listed.filter((i) => i.decision).length;
 
   return (
-    <>
+    <div data-density="compact">
+      {list && <PrintHeader title={`Weekly review, week of ${week}`} scope={`${decided} of ${listed.length} listed schools reviewed`} />}
       <PageHeader
         title="Weekly review"
-        description={`Each week the schools in your sub-county are ranked by how unusual their feeding records look. Look into the top few and record what you found.`}
+        description="Each week the schools in your sub-county are ranked by how unusual their feeding records look. Look into the top few and record what you found."
+        actions={list && <PrintButton />}
       />
 
       <div className="ui-stack">
-        <Card>
+        <Card className="no-print">
           <div className="weekly-review__controls">
             <FormField
               id="review-week"
@@ -223,7 +231,7 @@ function WeeklyReview() {
           )}
         </Card>
 
-        {!isOnline && <Alert tone="neutral" title="You are offline">The weekly review list needs a connection.</Alert>}
+        {!isOnline && <StatusLine icon={CloudOff}>Offline. The weekly review list needs a connection.</StatusLine>}
         {error && <Alert tone="danger" title="Not done">{error}</Alert>}
         {ready && list === undefined && <Card><LoadingRegion label="Loading the week"><SkeletonText lines={4} /></LoadingRegion></Card>}
         {ready && list === null && !error && (
@@ -231,16 +239,17 @@ function WeeklyReview() {
             <EmptyState
               icon={ListChecks}
               title="This week has not been scored"
-              description="Each week is scored automatically once it is over and its records have synced. To see the week in progress now, score it here."
+              description="Each week is scored automatically once it is over and its records have reached the server. To see the week in progress now, score it here."
             />
           </Card>
         )}
 
-        {list && (
-          <Alert tone="info" title="A list of what to check first">
-            A school is listed because its records differ from what is usual for it and for similar schools nearby.
-            There is often an ordinary reason, such as a school event or a late sync.
-          </Alert>
+        {list && listed.length > 0 && (
+          <StatusLine icon={ListChecks} tone={decided === listed.length ? 'success' : 'neutral'}>
+            <strong>{decided} of {listed.length} listed schools reviewed.</strong>{' '}
+            A school is listed because its records differ from what is usual for it and for similar schools nearby;
+            there is often an ordinary reason, such as a school event or a late sync.
+          </StatusLine>
         )}
 
         {list && listed.length === 0 && list.mode !== 'no_records' && (
@@ -291,7 +300,7 @@ function WeeklyReview() {
           </Card>
         )}
       </div>
-    </>
+    </div>
   );
 }
 

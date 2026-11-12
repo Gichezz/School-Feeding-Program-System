@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
-import { CheckCircle2, LockOpen, Tablet, XCircle } from 'lucide-react';
-import { Alert, Badge, Button, Card, EmptyState, LoadingRegion, SkeletonText, useToast } from '../../components/ui';
+import { Ban, CheckCircle2, Hourglass, LockOpen, Tablet, XCircle } from 'lucide-react';
+import { Alert, Badge, Button, Card, EmptyState, FilterChips, LoadingRegion, SkeletonText, StatusLine, useToast } from '../../components/ui';
 import { approveDevice, getDevices, resendApprovalEmail, revokeDevice, unlockDeviceUser } from '../../services/api';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { formatDate, formatRelativeTime } from '../../utils/format';
 
 const STATUS = {
-  pending: { tone: 'warning', label: 'Waiting for approval' },
-  approved: { tone: 'success', label: 'Approved' },
-  revoked: { tone: 'neutral', label: 'Removed' },
-  expired: { tone: 'neutral', label: 'Expired, not approved' },
+  pending: { tone: 'warning', label: 'Waiting for approval', icon: Hourglass },
+  approved: { tone: 'success', label: 'Approved', icon: CheckCircle2 },
+  revoked: { tone: 'neutral', label: 'Removed', icon: Ban },
+  expired: { tone: 'neutral', label: 'Expired, not approved', icon: Ban },
 };
+// Waiting devices first: they are the administrator's work
+const ORDER = { pending: 0, approved: 1, expired: 2, revoked: 3 };
 
 /**
  * Settings → School devices, for administrators (#60). Staff can only sign in and sync
@@ -24,6 +26,7 @@ function DevicesCard() {
   const [busy, setBusy] = useState(null);
   const [confirmRevoke, setConfirmRevoke] = useState(null);
   const [error, setError] = useState(null);
+  const [filter, setFilter] = useState({});
 
   const load = useCallback(async () => {
     try {
@@ -55,6 +58,11 @@ function DevicesCard() {
   };
 
   const pending = (devices || []).filter((d) => d.status === 'pending').length;
+  const schools = [...new Set((devices || []).map((d) => d.schoolName).filter(Boolean))].sort();
+  const shown = (devices || [])
+    .filter((d) => (!filter.status || (filter.status === 'gone' ? ['revoked', 'expired'].includes(d.status) : d.status === filter.status))
+      && (!filter.school || d.schoolName === filter.school))
+    .sort((a, b) => ORDER[a.status] - ORDER[b.status] || (b.createdAt || '').localeCompare(a.createdAt || ''));
 
   return (
     <Card
@@ -67,9 +75,10 @@ function DevicesCard() {
         {loadError && <Alert tone="danger" title="Devices could not be loaded">{loadError}</Alert>}
         {error && <Alert tone="danger" title="Not done">{error}</Alert>}
         {pending > 0 && (
-          <Alert tone="warning" title={pending === 1 ? '1 device is waiting for approval' : `${pending} devices are waiting for approval`}>
+          <StatusLine icon={Hourglass} tone="warning">
+            <strong>{pending === 1 ? '1 device is waiting for approval.' : `${pending} devices are waiting for approval.`}</strong>{' '}
             Approve a device only if you know it is the school's own device.
-          </Alert>
+          </StatusLine>
         )}
 
         {isOnline && devices === null && <LoadingRegion label="Loading devices"><SkeletonText lines={3} /></LoadingRegion>}
@@ -83,15 +92,27 @@ function DevicesCard() {
         )}
 
         {devices?.length > 0 && (
+          <FilterChips
+            groups={[
+              { key: 'status', label: 'Show', options: [{ value: 'pending', label: 'Waiting for approval' }, { value: 'approved', label: 'Approved' }, { value: 'gone', label: 'Removed or expired' }] },
+              ...(schools.length > 1 ? [{ key: 'school', label: 'School', options: schools.map((name) => ({ value: name, label: name })) }] : []),
+            ]}
+            value={filter}
+            onChange={setFilter}
+            resultText={`${shown.length} of ${devices.length} devices`}
+          />
+        )}
+
+        {devices?.length > 0 && (
           <ul className="devices__list">
-            {devices.map((device) => (
+            {shown.map((device) => (
               <li key={device.id} className="devices__item">
                 <div className="devices__head">
                   <Tablet className="devices__icon" aria-hidden="true" />
                   <div className="devices__text">
                     <p className="devices__name">
                       {device.name}
-                      <Badge tone={STATUS[device.status].tone}>{STATUS[device.status].label}</Badge>
+                      <Badge tone={STATUS[device.status].tone} icon={STATUS[device.status].icon}>{STATUS[device.status].label}</Badge>
                     </p>
                     <p className="devices__meta">
                       {device.schoolName} · set up {formatDate(device.createdAt)}{device.enrolledBy && ` by ${device.enrolledBy}`}

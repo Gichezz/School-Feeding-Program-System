@@ -61,6 +61,48 @@
   }
 }
 
+/* ---------- Today: status line and form first; recent days beside them when there is room ---------- */
+.today__layout {
+  display: grid;
+  gap: var(--density-gap);
+  align-items: start;
+}
+
+/* Landscape tablets and desktops: form 7 of 12 columns, recent days 5 */
+@media (min-width: 1024px), (min-width: 768px) and (orientation: landscape) {
+  .today__layout {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  }
+}
+
+/* ---------- Sync page: counts by record status ---------- */
+.sync-status__counts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sync-status__count {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.sync-status__count .ui-record-status {
+  min-width: 12rem;
+}
+
+/* ---------- Stock ---------- */
+.stock__fix {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
 /* ---------- Dashboard ---------- */
 .dashboard__attention {
   margin: 0;
@@ -828,16 +870,105 @@
   flex: 1 1 16rem;
 }
 
+/* ---------- Dashboard: the term snapshot ---------- */
+.dashboard__snapshot {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--space-4);
+  margin: 0;
+}
+
+.dashboard__figure dt {
+  font-size: var(--font-size-sm);
+  color: var(--color-ink-muted);
+}
+
+.dashboard__figure dd {
+  margin: 0;
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+}
+
 /* ---------- Analytics ---------- */
 .analytics__flag .ui-badge {
   white-space: nowrap;
 }
 
-.analytics__rules {
-  margin-top: var(--space-4);
-  max-width: var(--measure-wide);
-  font-size: var(--font-size-sm);
+/* In the phone card list a long figure wraps instead of widening the page */
+.ui-table__list .analytics__flag .ui-badge {
+  max-width: 100%;
+  white-space: normal;
+  text-align: start;
+}
+
+.analytics__controls {
+  max-width: 20rem;
+}
+
+.analytics__triage {
+  display: grid;
+  gap: var(--density-gap);
+}
+
+@media (min-width: 1024px) {
+  .analytics__triage {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* The first reason (Can't judge yet, when there is one) spans the full width */
+  .analytics__triage > .ui-triage:first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+/* A chart inside a triage section needs no second card frame */
+.ui-triage .ui-card {
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+.ui-triage .ui-card--pad-md > .ui-card__header,
+.ui-triage .ui-card--pad-md > .ui-card__body,
+.ui-triage .ui-card--pad-md > .ui-card__footer {
+  padding-inline: 0;
+}
+
+.analytics__schools {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.analytics__school {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-4);
+  padding-block: var(--space-2);
+  border-bottom: var(--border-default);
+}
+
+.analytics__school:last-child {
+  border-bottom: 0;
+}
+
+.analytics__school-name {
+  font-weight: var(--font-weight-semibold);
+}
+
+/* The row a triage link jumped to is outlined, so the eye lands on it */
+.ui-table__table tr:focus,
+.ui-table__item:focus {
+  outline: var(--border-width-strong) solid var(--focus-ring-color);
+  outline-offset: calc(-1 * var(--border-width-strong));
+}
+
+.analytics__school-figure {
   color: var(--color-ink-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ---------- Weekly review ---------- */
@@ -1109,5 +1240,52 @@
 
   .ui-sparkline {
     display: none;
+  }
+
+  /* Charts print as their data table, which reads well in black and white */
+  .ui-chart {
+    display: none !important;
+  }
+
+  .ui-chart__sr-table {
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    clip: auto !important;
+    white-space: normal !important;
+  }
+
+  /* Search and filter controls are for the screen only */
+  .ui-table__controls,
+  .ui-table__more {
+    display: none !important;
+  }
+
+  /* On A4 a wide table wraps its headings and figures instead of being cut off */
+  .ui-table__table {
+    table-layout: auto;
+    font-size: var(--font-size-xs);
+  }
+
+  .ui-table--sticky th,
+  .analytics__flag .ui-badge {
+    white-space: normal !important;
+  }
+
+  .ui-table__table th,
+  .ui-table__table td {
+    padding: var(--space-1) var(--space-2);
+    height: auto;
+  }
+
+  .ui-table--sticky .ui-table__cell--sticky {
+    position: static;
+    box-shadow: none;
+  }
+
+  /* Reasons one under another on paper */
+  .analytics__triage {
+    grid-template-columns: 1fr !important;
   }
 }

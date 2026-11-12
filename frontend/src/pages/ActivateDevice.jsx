@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, Clock, LogIn, Tablet } from 'lucide-react';
 import { Alert, APP_NAME, Button, Card, FormField } from '../components/ui';
+import DeviceSteps from '../features/devices/DeviceSteps';
 import LisheLogo from '../components/shell/LisheLogo';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { deviceSetupErrors, MIN_PASSWORD_LENGTH } from '../features/users/accountRules';
@@ -116,6 +117,7 @@ function ActivateDevice() {
                 {approved ? 'You are set up' : 'Waiting for approval'}
               </h1>
             </div>
+            <DeviceSteps status={approved ? 'approved' : 'pending'} />
             <p className="login__intro">
               {approved
                 ? `${result.user.name}, you can now sign in on ${result.device.name} with your email and PIN.`
@@ -139,6 +141,7 @@ function ActivateDevice() {
               For feeding teachers, on the school's tablet or phone. You choose a PIN to sign in with here.
             </p>
           </div>
+          {!identity && <DeviceSteps status={null} />}
 
           {identity && (
             <Alert tone="neutral" icon={Tablet} title={`This is ${identity.name}`}>

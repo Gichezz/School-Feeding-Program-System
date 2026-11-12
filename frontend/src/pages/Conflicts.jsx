@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { liveQuery } from 'dexie';
 import { ArrowLeft, CheckCircle2, GitCompareArrows } from 'lucide-react';
-import { Alert, Badge, Button, Card, EmptyState, LoadingRegion, PageHeader, SkeletonText, useToast } from '../components/ui';
+import { Alert, Badge, Button, Card, EmptyState, LoadingRegion, PageHeader, RecordStatus, SkeletonText, useToast } from '../components/ui';
 import db from '../db/database';
 import HeldRecordsCard from '../features/held/HeldRecordsCard';
 import ServerConflicts from '../features/conflicts/ServerConflicts';
@@ -52,11 +52,11 @@ function DeviceConflicts() {
 
   if (!selected) {
     return (
-      <Card title="Being checked">
+      <Card title="Waiting for your officer" description="Records changed on this device and on another one. Your programme officer chooses which to keep; you don’t need to do anything.">
         {conflicts === null ? (
           <LoadingRegion label="Loading conflicts"><SkeletonText lines={3} /></LoadingRegion>
         ) : conflicts.length === 0 ? (
-          <EmptyState compact icon={CheckCircle2} title="Nothing being checked" description="A record changed on this device and on another one appears here until it has been checked." />
+          <EmptyState compact icon={CheckCircle2} title="Nothing waiting" description="A record changed on this device and on another one appears here until it has been checked." />
         ) : (
           <ul className="conflicts__list">
             {conflicts.map((conflict) => {
@@ -69,6 +69,7 @@ function DeviceConflicts() {
                     <p className="conflicts__item-meta">
                       {schoolNames[conflict.localPayload?.schoolId] || 'School'} · found {formatDateTime(conflict.createdAt)}
                     </p>
+                    <RecordStatus state="waiting" />
                   </div>
                   <Button variant="secondary" size="sm" onClick={() => setSelectedId(conflict.id)}>View</Button>
                 </li>
@@ -139,9 +140,9 @@ function Conflicts() {
   const resolves = useResolvesConflicts();
 
   return (
-    <>
+    <div data-density={resolves ? 'compact' : undefined}>
       <PageHeader
-        title={resolves ? 'Conflicts' : 'Records being checked'}
+        title={resolves ? 'Conflicts' : 'Waiting for your officer'}
         description={resolves
           ? 'Records changed on two devices with different numbers. Decide which numbers to keep.'
           : 'Records changed on this device and on another one.'}
@@ -150,7 +151,7 @@ function Conflicts() {
         {resolves ? <ServerConflicts /> : <DeviceConflicts />}
         {resolves && <HeldRecordsCard />}
       </div>
-    </>
+    </div>
   );
 }
 

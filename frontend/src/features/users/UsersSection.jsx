@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Copy, Fingerprint, HandHelping, KeyRound, Mail, Pencil, UserPlus, UserRoundCheck, UserRoundX } from 'lucide-react';
+import { Ban, CheckCircle2, Copy, Fingerprint, HandHelping, KeyRound, Mail, Pencil, UserPlus, UserRoundCheck, UserRoundX } from 'lucide-react';
 import { Alert, Badge, Button, Card, DataTable, FormField, useToast } from '../../components/ui';
 import {
   createUser, emailActivationCode, getAccountHistory, getSchools, getUsers, handOverActivationCode, resetUserPasskeys, resetUserPassword, updateUser,
@@ -514,6 +514,7 @@ function UsersSection() {
       key: 'name',
       header: 'Name',
       primary: true,
+      sortValue: (u) => u.name,
       render: (u) => (
         <span className="users__name">
           {u.name}
@@ -542,11 +543,12 @@ function UsersSection() {
         return <Badge tone="success">{parts.join(' + ')}</Badge>;
       },
     },
-    { key: 'status', header: 'Status', render: (u) => (u.isActive ? <Badge tone="success">Active</Badge> : <Badge tone="neutral">Deactivated</Badge>) },
-    { key: 'added', header: 'Added', render: (u) => formatDate(u.createdAt) },
+    { key: 'status', header: 'Status', render: (u) => (u.isActive ? <Badge tone="success" icon={CheckCircle2}>Active</Badge> : <Badge tone="neutral" icon={Ban}>Deactivated</Badge>) },
+    { key: 'added', header: 'Added', render: (u) => formatDate(u.createdAt), sortValue: (u) => u.createdAt },
     {
       key: 'actions',
       header: <span className="visually-hidden">Actions</span>,
+      action: true,
       render: (u) => (
         <Button variant="ghost" size="sm" icon={Pencil} onClick={() => setPanel(u.id)} aria-label={`Manage ${u.name}`}>
           Manage
@@ -559,8 +561,7 @@ function UsersSection() {
 
   return (
     <Card
-      title="Users"
-      description="Everyone who can sign in to Lishe."
+      title="People"
       actions={panel === null && !activation && (
         <Button icon={UserPlus} onClick={() => setPanel('add')} disabled={!isOnline}>Add user</Button>
       )}
@@ -590,6 +591,22 @@ function UsersSection() {
             rows={users || []}
             loading={users === null}
             emptyState={{ title: 'No users yet' }}
+            noun="people"
+            stickyFirstColumn
+            pageSize={50}
+            initialSort={{ key: 'name', direction: 'ascending' }}
+            search={{ label: 'Find someone by name or email', textOf: (u) => [u.name, u.email, u.schoolName, u.subCounty] }}
+            filters={[
+              { key: 'role', label: 'Role', options: ROLE_OPTIONS.map((r) => ({ value: r.value, label: r.label })), matches: (u, value) => u.role === value },
+              {
+                key: 'status',
+                label: 'Status',
+                options: [{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Deactivated' }, { value: 'waiting', label: 'Waiting for activation' }],
+                matches: (u, value) => (value === 'active' ? u.isActive
+                  : value === 'inactive' ? !u.isActive
+                    : u.role === 'school_staff' && u.isActive && u.activation && !u.activation.activated),
+              },
+            ]}
           />
         )}
       </div>

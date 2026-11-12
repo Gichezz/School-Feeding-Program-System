@@ -7,9 +7,7 @@ import LisheLogo from '../components/shell/LisheLogo';
 import ChangePasswordCard from '../features/users/ChangePasswordCard';
 import PasskeysCard from '../features/passkeys/PasskeysCard';
 import AuthenticatorCard from '../features/totp/AuthenticatorCard';
-import DevicesCard from '../features/devices/DevicesCard';
 import { getDeviceIdentity } from '../features/devices/deviceIdentity';
-import UsersSection from '../features/users/UsersSection';
 import { ROLE_LABELS, useSignOut } from '../components/shell/UserMenu';
 import db, { getOrCreateClientId } from '../db/database';
 import { useSession } from '../hooks/useSession';
@@ -66,7 +64,7 @@ function Settings() {
 
   return (
     <>
-      <PageHeader title="Settings" description={isAdmin ? 'Your account, user accounts and what is stored on this device.' : 'Your account and what is stored on this device.'} />
+      <PageHeader title="Settings" description="Your account and what is stored on this device." />
 
       <div className="ui-stack">
         <Card
@@ -78,7 +76,7 @@ function Settings() {
               { key: 'name', label: 'Name', value: user?.name || '–' },
               { key: 'email', label: 'Email', value: user?.email || '–' },
               { key: 'role', label: 'Role', value: ROLE_LABELS[user?.role] || user?.role || '–' },
-              { key: 'expires', label: 'Signed in until', value: isValid ? formatDateTime(session.expiresAt) : 'Expired. Sign in again to sync' },
+              { key: 'expires', label: 'Signed in until', value: isValid ? formatDateTime(session.expiresAt) : 'Expired. Sign in again to send records' },
             ]}
           />
         </Card>
@@ -88,10 +86,6 @@ function Settings() {
         {isAdmin && <AuthenticatorCard />}
 
         <ChangePasswordCard />
-
-        {isAdmin && <UsersSection />}
-
-        {isAdmin && <DevicesCard />}
 
         <Card title="This device" description="Records are saved here first, so they are safe without a connection.">
           <SummaryList
@@ -106,7 +100,7 @@ function Settings() {
               },
               { key: 'feeding', label: 'Feeding days', value: count(device?.feeding) },
               { key: 'stock', label: 'Stock entries and counts', value: count(device?.stock) },
-              { key: 'waiting', label: 'Changes waiting to sync', value: count(device?.waiting) },
+              { key: 'waiting', label: 'Changes waiting to send', value: count(device?.waiting) },
               { key: 'device', label: 'Device ID', value: <code className="settings__code">{clientId || '–'}</code> },
             ]}
           />
