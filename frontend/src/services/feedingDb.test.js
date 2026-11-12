@@ -79,11 +79,13 @@ describe('addStockMovement', () => {
 
     expect(a.id).toMatch(/^[0-9a-f-]{36}$/);
     expect(a.id).not.toBe(b.id);
+    // Compared without relying on the order the queue comes back in
     const queue = await db.syncQueue.toArray();
-    expect(queue.map((op) => [op.entityType, op.operation, op.recordId])).toEqual([
+    expect(queue.map((op) => [op.entityType, op.operation, op.recordId])).toHaveLength(2);
+    expect(queue.map((op) => [op.entityType, op.operation, op.recordId])).toEqual(expect.arrayContaining([
       ['stockMovement', 'create', a.id],
       ['stockMovement', 'create', b.id],
-    ]);
-    expect(queue[0].payload).toEqual({ ...delivery, id: a.id });
+    ]));
+    expect(queue.find((op) => op.recordId === a.id).payload).toEqual({ ...delivery, id: a.id });
   });
 });
