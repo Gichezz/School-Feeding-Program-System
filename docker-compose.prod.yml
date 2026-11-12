@@ -30,8 +30,17 @@ services:
   backend:
     environment:
       FRONTEND_URL: https://${DOMAIN}
+      PUBLIC_URL: https://${DOMAIN}
+      # A real mail server or email provider from .env; without SMTP_HOST, activation
+      # codes are shown to the administrator to hand over
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
       WEBAUTHN_RP_ID: ${DOMAIN}
       WEBAUTHN_ORIGINS: https://${DOMAIN}
+
+  # The test mailbox is for local use only
+  mailpit:
+    profiles: [local-only]
 
 volumes:
   caddy-data:

@@ -3,6 +3,8 @@ const { isUuid } = require('../validation/records');
 const crypto = require('crypto');
 const { PUBLIC_COLUMNS, publicUser, hashPassword } = require('../services/userAccounts');
 const { issueActivationCode } = require('../services/devices');
+const { isEmailConfigured, activationEmail } = require('../services/mailer');
+const { deliver, recordAccountEvent, accountHistory } = require('../services/emailDelivery');
 const { nameError, emailError, roleError, passwordError, normaliseEmail } = require('../validation/users');
 
 /**
@@ -24,6 +26,50 @@ async function subCountyExists(name) {
   return (await pool.query('SELECT 1 FROM schools WHERE sub_county = $1 LIMIT 1', [name.trim()])).rows.length === 1;
 }
 
+/**
+ * Email a feeding teacher a new activation code. The code goes only to their address, so
+ * only its owner can activate, and the address is verified when they do. The
+ * administrator never sees it: they see whether the provider accepted the email, and can
+ * send a new one. Without email set up nothing is sent and the account waits; handing a
+ * code over in person is a separate, recorded action (handOverActivation).
+ * Returns { status: 'accepted' | 'failed' | 'not_sent', expiresAt? }.
+ */
+async function emailActivation(user, actorId) {
+  if (!isEmailConfigured()) return { status: 'not_sent', emailConfigured: false };
+  const activation = await issueActivationCode(user.id, actorId, { emailed: true });
+  const sent = await deliver({
+    kind: 'activation', userId: user.id, to: user.email,
+    message: activationEmail({ name: user.name, code: activation.code, expiresAt: activation.expiresAt }),
+  });
+  await recordAccountEvent(pool, { userId: user.id, actorId, kind: sent.status === 'accepted' ? 'activation_emailed' : 'activation_email_failed' });
+  return { status: sent.status, emailConfigured: true, expiresAt: activation.expiresAt };
+}
+
+/**
+ * Whether each feeding teacher has activated their account, and the state of the last
+ * activation email, for the accounts list.
+ */
+const ACTIVATION_COLUMNS = `,
+  EXISTS (SELECT 1 FROM activation_codes a WHERE a.user_id = users.id AND a.used_at IS NOT NULL)
+    OR EXISTS (SELECT 1 FROM device_users du WHERE du.user_id = users.id) AS activated,
+  (SELECT status FROM email_deliveries d WHERE d.user_id = users.id AND d.kind = 'activation'
+   ORDER BY d.created_at DESC LIMIT 1) AS activation_email,
+  (SELECT expires_at FROM activation_codes a WHERE a.user_id = users.id AND a.used_at IS NULL AND a.expires_at > NOW()
+   ORDER BY a.created_at DESC LIMIT 1) AS activation_expires_at`;
+
+function withActivation(row) {
+  const user = publicUser(row);
+  if (row.role !== 'school_staff') return user;
+  return {
+    ...user,
+    activation: {
+      activated: Boolean(row.activated),
+      email: row.activation_email || null,
+      codeExpiresAt: row.activation_expires_at || null,
+    },
+  };
+}
+
 async function findUser(id) {
   if (!isUuid(id)) return null;
   const result = await pool.query(`SELECT ${PUBLIC_COLUMNS} FROM users WHERE id = $1`, [id]);
@@ -40,10 +86,11 @@ async function listUsers(req, res, next) {
       `SELECT ${PUBLIC_COLUMNS.split(', ').map((c) => `users.${c}`).join(', ')}, schools.name AS school_name,
               (SELECT count(*) FROM passkey_credentials pc WHERE pc.user_id = users.id) AS passkey_count,
               EXISTS (SELECT 1 FROM totp_credentials t WHERE t.user_id = users.id AND t.confirmed_at IS NOT NULL) AS totp_enabled
+              ${ACTIVATION_COLUMNS}
        FROM users LEFT JOIN schools ON schools.id = users.school_id
        ORDER BY users.is_active DESC, lower(users.name)`
     );
-    res.json({ users: result.rows.map(publicUser) });
+    res.json({ users: result.rows.map(withActivation) });
   } catch (error) {
     next(error);
   }
@@ -53,9 +100,10 @@ async function listUsers(req, res, next) {
  * POST /api/users
  * System administrators: { name, email, role: 'admin', password } → 201 { user }
  * Programme officers: { name, email, role: 'programme_officer', password, subCounty } → 201 { user }
- * School staff: { name, email, role: 'school_staff', schoolId } → 201 { user, activationCode, activationExpiresAt }
- *   Staff set their own password and PIN when they set up a school device with the
- *   one-time activation code (#60), so no password is chosen for them.
+ * Feeding teachers: { name, email, role: 'school_staff', schoolId }
+ *   → 201 { user, activation: { status: 'accepted' | 'failed' | 'not_sent', expiresAt? } }
+ *   The activation code is emailed to them and never returned here. They set their own
+ *   password and PIN when they set up a school device with it (#60).
  */
 async function createUser(req, res, next) {
   try {
@@ -83,8 +131,7 @@ async function createUser(req, res, next) {
     );
     const user = result.rows[0];
     if (!isStaff) return res.status(201).json({ user: publicUser(user) });
-    const activation = await issueActivationCode(user.id, req.user.id);
-    res.status(201).json({ user: publicUser(user), activationCode: activation.code, activationExpiresAt: activation.expiresAt });
+    res.status(201).json({ user: publicUser(user), activation: await emailActivation(user, req.user.id) });
   } catch (error) {
     next(error);
   }
@@ -206,27 +253,71 @@ async function resetPasskeys(req, res, next) {
   }
 }
 
+async function staffForActivation(req, res) {
+  const user = await findUser(req.params.id);
+  if (!user) { res.status(404).json({ error: 'User not found' }); return null; }
+  if (user.role !== 'school_staff') { badRequest(res, 'Activation codes are for feeding teachers'); return null; }
+  if (!user.is_active) { badRequest(res, 'Reactivate this user first'); return null; }
+  return user;
+}
+
 /**
- * POST /api/users/:id/activation-code → { activationCode, expiresAt }
- * A new one-time code for a staff member (first set-up, or a forgotten password);
- * any earlier unused code stops working.
+ * POST /api/users/:id/activation/email → { activation: { status, expiresAt } }
+ * Email a new one-time code (first set-up, a lost email, or a forgotten password); any
+ * earlier unused code stops working. The code is never returned.
  */
-async function newActivationCode(req, res, next) {
+async function resendActivation(req, res, next) {
+  try {
+    const user = await staffForActivation(req, res);
+    if (!user) return undefined;
+    if (!isEmailConfigured()) return badRequest(res, 'Email is not set up on this server');
+    return res.json({ activation: await emailActivation(user, req.user.id) });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+/**
+ * POST /api/users/:id/activation/hand-over  { note } → { activationCode, expiresAt }
+ * For a teacher who cannot get email: a new code for the administrator to give them in
+ * person. It is a deliberate, recorded action: the note (for example "No email access;
+ * given at the sub-county office") is kept with who did it and when, in the account's
+ * history. The address stays unverified. Any earlier unused code stops working.
+ */
+async function handOverActivation(req, res, next) {
+  try {
+    const user = await staffForActivation(req, res);
+    if (!user) return undefined;
+    const note = typeof req.body?.note === 'string' ? req.body.note.trim() : '';
+    if (!note) return badRequest(res, 'Say why the code is being handed over, and how');
+    if (note.length > 500) return badRequest(res, 'Keep the note to 500 characters');
+    const activation = await issueActivationCode(user.id, req.user.id);
+    await recordAccountEvent(pool, { userId: user.id, actorId: req.user.id, kind: 'activation_handed_over', note });
+    return res.json({ activationCode: activation.code, expiresAt: activation.expiresAt });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+/**
+ * GET /api/users/:id/history → { events, emails }
+ * What happened to the account and who did it, and every email sent for it.
+ */
+async function getAccountHistory(req, res, next) {
   try {
     const user = await findUser(req.params.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
-    if (user.role !== 'school_staff') return badRequest(res, 'Activation codes are for feeding teachers');
-    if (!user.is_active) return badRequest(res, 'Reactivate this user first');
-    const activation = await issueActivationCode(user.id, req.user.id);
-    res.json({ activationCode: activation.code, expiresAt: activation.expiresAt });
+    return res.json(await accountHistory(user.id));
   } catch (error) {
-    next(error);
+    return next(error);
   }
 }
 
 module.exports = {
   listUsers,
-  newActivationCode,
+  resendActivation,
+  handOverActivation,
+  getAccountHistory,
   createUser,
   updateUser,
   resetPassword,

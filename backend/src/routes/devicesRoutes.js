@@ -2,12 +2,14 @@ const express = require('express');
 const router = express.Router();
 const {
   challenge,
+  deviceStatus,
   enrol,
   signIn,
   listDevices,
   approveDevice,
   revokeDevice,
   unlockDeviceUser,
+  resendApprovalEmail,
 } = require('../controllers/deviceController');
 const { requireAuth, requireRole } = require('../middleware/auth');
 
@@ -30,6 +32,12 @@ router.post('/enrol', enrol);
  */
 router.post('/sign-in', signIn);
 
+/**
+ * POST /api/devices/status
+ * Whether this device has been approved yet, for the waiting screen (public)
+ */
+router.post('/status', deviceStatus);
+
 // Managing devices is for administrators only
 const adminOnly = [requireAuth, requireRole('admin')];
 
@@ -43,6 +51,8 @@ router.get('/', adminOnly, listDevices);
  * POST /api/devices/:id/approve and /revoke
  */
 router.post('/:id/approve', adminOnly, approveDevice);
+// Send the approval notice again to staff whose last one failed (the device stays approved)
+router.post('/:id/approval-email', adminOnly, resendApprovalEmail);
 router.post('/:id/revoke', adminOnly, revokeDevice);
 
 /**

@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { listUsers, createUser, updateUser, resetPassword, resetPasskeys, newActivationCode } = require('../controllers/usersController');
+const {
+  listUsers, createUser, updateUser, resetPassword, resetPasskeys, resendActivation, handOverActivation, getAccountHistory,
+} = require('../controllers/usersController');
 const { requireRole } = require('../middleware/auth');
 
 // Account management is for administrators only
@@ -38,9 +40,21 @@ router.post('/:id/password', resetPassword);
 router.post('/:id/passkeys/reset', resetPasskeys);
 
 /**
- * POST /api/users/:id/activation-code
- * A new one-time activation code for a staff member
+ * POST /api/users/:id/activation/email
+ * Email a feeding teacher a new one-time activation code (never shown here)
  */
-router.post('/:id/activation-code', newActivationCode);
+router.post('/:id/activation/email', resendActivation);
+
+/**
+ * POST /api/users/:id/activation/hand-over
+ * A code to give a teacher in person, recorded with a note in the account's history
+ */
+router.post('/:id/activation/hand-over', handOverActivation);
+
+/**
+ * GET /api/users/:id/history
+ * The account's history and the emails sent for it
+ */
+router.get('/:id/history', getAccountHistory);
 
 module.exports = router;

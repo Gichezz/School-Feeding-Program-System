@@ -370,6 +370,11 @@ export async function getDeviceChallenge() {
   return apiRequest('/devices/challenge', { method: 'POST' });
 }
 
+/** Whether this device has been approved yet: { status } */
+export async function getDeviceApprovalStatus(deviceId) {
+  return apiRequest('/devices/status', { method: 'POST', body: JSON.stringify({ deviceId }) });
+}
+
 export async function enrolDevice(data) {
   return apiRequest('/devices/enrol', {
     method: 'POST',
@@ -400,8 +405,24 @@ export async function unlockDeviceUser(deviceId, userId) {
   return apiRequest(`/devices/${deviceId}/users/${userId}/unlock`, { method: 'POST' });
 }
 
-export async function newActivationCode(userId) {
-  return apiRequest(`/users/${userId}/activation-code`, { method: 'POST' });
+/** Email a feeding teacher a new activation code; the code is never returned. */
+export async function emailActivationCode(userId) {
+  return apiRequest(`/users/${userId}/activation/email`, { method: 'POST' });
+}
+
+/** A code to give a teacher in person, recorded with the note in the account's history. */
+export async function handOverActivationCode(userId, note) {
+  return apiRequest(`/users/${userId}/activation/hand-over`, { method: 'POST', body: JSON.stringify({ note }) });
+}
+
+/** What happened to an account, and the emails sent for it. */
+export async function getAccountHistory(userId) {
+  return apiRequest(`/users/${userId}/history`);
+}
+
+/** Send a device's approval notice again to staff whose last one failed. */
+export async function resendApprovalEmail(deviceId) {
+  return apiRequest(`/devices/${deviceId}/approval-email`, { method: 'POST' });
 }
 
 /**

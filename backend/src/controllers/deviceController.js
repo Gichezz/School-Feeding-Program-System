@@ -5,6 +5,7 @@ const { passwordError, pinError } = require('../validation/users');
 const { hashPassword, sessionFor } = require('../services/userAccounts');
 const { saveChallenge, consumeChallenge } = require('../services/challenges');
 const devices = require('../services/devices');
+const { notifyDeviceApproved, recordAccountEvent } = require('../services/emailDelivery');
 
 /**
  * School devices and staff PIN sign-in (#60).
@@ -108,9 +109,19 @@ async function enrol(req, res, next) {
 
     await client.query('BEGIN');
     if (activationCode) {
-      if (!(await devices.useActivationCode(user.id, activationCode, client))) {
+      const used = await devices.useActivationCode(user.id, activationCode, client);
+      if (!used) {
         await client.query('ROLLBACK');
+        // Counted against the live code, outside the rolled-back transaction
+        if (await devices.recordWrongActivationCode(user.id)) {
+          await recordAccountEvent(pool, { userId: user.id, kind: 'activation_code_locked' });
+        }
         return res.status(401).json({ error: 'The activation code is not correct or has expired. Ask an administrator for a new one.' });
+      }
+      await recordAccountEvent(client, { userId: user.id, actorId: user.id, kind: 'activated' });
+      // A code that reached them by email proves the address is real and theirs
+      if (used.emailed) {
+        await client.query('UPDATE users SET email_verified_at = COALESCE(email_verified_at, NOW()) WHERE id = $1', [user.id]);
       }
       // The new password replaces any earlier one and ends other sessions
       await client.query(
@@ -226,7 +237,10 @@ async function listDevices(req, res, next) {
               d.revoked_at, d.last_seen_at, e.name AS enrolled_by_name,
               COALESCE(json_agg(json_build_object(
                 'userId', u.id, 'name', u.name, 'email', u.email,
-                'locked', du.locked_at IS NOT NULL, 'lastSignInAt', du.last_sign_in_at
+                'locked', du.locked_at IS NOT NULL, 'lastSignInAt', du.last_sign_in_at,
+                'emailVerified', u.email_verified_at IS NOT NULL,
+                'approvalEmail', (SELECT status FROM email_deliveries ed WHERE ed.user_id = u.id AND ed.device_id = d.id
+                                  AND ed.kind = 'device_approved' ORDER BY ed.created_at DESC LIMIT 1)
               ) ORDER BY u.name) FILTER (WHERE u.id IS NOT NULL), '[]') AS staff
        FROM devices d
        JOIN schools s ON s.id = d.school_id
@@ -267,8 +281,30 @@ async function setStatus(req, res, next, status) {
       [req.params.id, req.user.id]
     );
     res.json({ device: devicePublic(result.rows[0]) });
+    // After the approval is saved and answered: the notice never holds it up or undoes it
+    if (status === 'approved' && current.status !== 'approved') {
+      notifyDeviceApproved(result.rows[0]).catch((error) => console.warn(`Approval notice not recorded: ${error.code || 'error'}`));
+    }
   } catch (error) {
     next(error);
+  }
+}
+
+/**
+ * POST /api/devices/:id/approval-email (administrators) → { sent: [{ status }] }
+ * Send the approval notice again to the device's verified staff whose last one failed.
+ * The device stays approved either way; this never approves it again.
+ */
+async function resendApprovalEmail(req, res, next) {
+  try {
+    if (!isUuid(req.params.id)) return res.status(404).json({ error: 'Device not found' });
+    const device = (await pool.query('SELECT id, name, status FROM devices WHERE id = $1', [req.params.id])).rows[0];
+    if (!device) return res.status(404).json({ error: 'Device not found' });
+    if (device.status !== 'approved') return res.status(400).json({ error: 'This device is not approved' });
+    const sent = await notifyDeviceApproved(device, { onlyFailed: true });
+    return res.json({ sent: sent.map((s) => ({ status: s.status })) });
+  } catch (error) {
+    return next(error);
   }
 }
 
@@ -306,9 +342,31 @@ async function unlockDeviceUser(req, res, next) {
   }
 }
 
+/**
+ * POST /api/devices/status { deviceId } → { status } (public)
+ * A device waiting for approval asks this every few seconds while its screen is open,
+ * so the feeding teacher sees "approved" as soon as it is, like a TV waiting for its
+ * sign-in to be approved elsewhere (the OAuth device flow, RFC 8628). The device id is a
+ * random 122-bit UUID the device was given at set-up, which works as the secret, so the
+ * answer says only the status: no school, name or people.
+ */
+async function deviceStatus(req, res, next) {
+  try {
+    const { deviceId } = req.body || {};
+    if (!isUuid(deviceId)) return res.status(404).json({ error: 'Device not found' });
+    const device = (await pool.query('SELECT status FROM devices WHERE id = $1', [deviceId])).rows[0];
+    if (!device) return res.status(404).json({ error: 'Device not found' });
+    res.json({ status: device.status });
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
+  resendApprovalEmail,
   MAX_PIN_ATTEMPTS,
   challenge,
+  deviceStatus,
   enrol,
   signIn,
   listDevices,

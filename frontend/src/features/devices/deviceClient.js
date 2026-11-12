@@ -1,4 +1,4 @@
-import { enrolDevice, getDeviceChallenge, signInOnDevice } from '../../services/api';
+import { enrolDevice, getDeviceApprovalStatus, getDeviceChallenge, signInOnDevice } from '../../services/api';
 import {
   clearDeviceIdentity,
   createDeviceKeys,
@@ -74,4 +74,27 @@ export async function signInWithPin(email, pin) {
     if (error.data?.deviceRevoked) await clearDeviceIdentity();
     throw error;
   }
+}
+
+/**
+ * Ask the server whether this device has been approved yet, and keep the answer.
+ * A device the server has removed (or no longer knows) forgets its identity, so it can
+ * be set up again. Returns the status, or null when this is not a school device.
+ */
+export async function checkDeviceApproval() {
+  const identity = await getDeviceIdentity();
+  if (!identity) return null;
+  let status;
+  try {
+    ({ status } = await getDeviceApprovalStatus(identity.deviceId));
+  } catch (error) {
+    if (error.status === 404) {
+      await clearDeviceIdentity();
+      return 'revoked';
+    }
+    throw error;
+  }
+  if (status === 'revoked') await clearDeviceIdentity();
+  else if (status !== identity.status) await updateDeviceStatus(status);
+  return status;
 }

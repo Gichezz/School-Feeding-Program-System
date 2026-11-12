@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { CheckCircle2, LockOpen, Tablet, XCircle } from 'lucide-react';
 import { Alert, Badge, Button, Card, EmptyState, LoadingRegion, SkeletonText, useToast } from '../../components/ui';
-import { approveDevice, getDevices, revokeDevice, unlockDeviceUser } from '../../services/api';
+import { approveDevice, getDevices, resendApprovalEmail, revokeDevice, unlockDeviceUser } from '../../services/api';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { formatDate, formatRelativeTime } from '../../utils/format';
 
@@ -106,7 +106,19 @@ function DevicesCard() {
                         <span>
                           {person.name}
                           {person.locked && <Badge tone="danger">Locked: too many wrong PINs</Badge>}
+                          {device.status === 'approved' && person.approvalEmail === 'failed' && <Badge tone="warning">Approval email not sent</Badge>}
                         </span>
+                        {device.status === 'approved' && person.approvalEmail === 'failed' && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            loading={busy === `${device.id}:email`}
+                            disabled={!isOnline || Boolean(busy)}
+                            onClick={() => run(`${device.id}:email`, () => resendApprovalEmail(device.id), { title: 'Approval email sent again', description: 'The device stays approved either way.' })}
+                          >
+                            Send again
+                          </Button>
+                        )}
                         {person.locked && device.status !== 'revoked' && (
                           <Button
                             variant="secondary"
