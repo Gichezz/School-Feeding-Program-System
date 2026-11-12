@@ -22,6 +22,8 @@ const MAX_DEVICE_NAME = 60;
 const SETUP_FAILED = 'Those details could not be used to set up this device';
 const SIGN_IN_FAILED = 'Email or PIN is not correct';
 
+const EXPIRED_MESSAGE = 'This device was not approved in time, so its set-up has expired. Set it up again.';
+
 function devicePublic(row) {
   return {
     id: row.id,
@@ -89,9 +91,13 @@ async function enrol(req, res, next) {
     let key;
     if (deviceId) {
       if (!isUuid(deviceId)) return res.status(400).json({ error: SETUP_FAILED });
+      await devices.expirePendingDevices();
       device = (await pool.query('SELECT id, name, status, school_id, public_key FROM devices WHERE id = $1', [deviceId])).rows[0];
       if (!device || device.status === 'revoked') {
         return res.status(409).json({ error: 'This device has been removed. Set it up again as a new device.', deviceRevoked: true });
+      }
+      if (device.status === 'expired') {
+        return res.status(409).json({ error: EXPIRED_MESSAGE, deviceExpired: true });
       }
       key = device.public_key;
     } else {
@@ -176,9 +182,13 @@ async function signIn(req, res, next) {
       return res.status(401).json({ error: 'This sign-in request has expired. Try again.' });
     }
 
+    await devices.expirePendingDevices();
     const device = (await pool.query('SELECT id, name, status, school_id, public_key FROM devices WHERE id = $1', [deviceId])).rows[0];
     if (!device || device.status === 'revoked') {
       return res.status(403).json({ error: 'This device can no longer be used. Set it up again to keep using it.', deviceRevoked: true });
+    }
+    if (device.status === 'expired') {
+      return res.status(403).json({ error: EXPIRED_MESSAGE, deviceExpired: true });
     }
     if (!devices.verifyDeviceSignature(device.public_key, signedChallenge, signature)) {
       return res.status(401).json({ error: 'This device could not be checked. Try again.' });
@@ -232,9 +242,10 @@ async function signIn(req, res, next) {
  */
 async function listDevices(req, res, next) {
   try {
+    await devices.expirePendingDevices();
     const result = await pool.query(
       `SELECT d.id, d.name, d.status, d.school_id, s.name AS school_name, d.created_at, d.approved_at,
-              d.revoked_at, d.last_seen_at, e.name AS enrolled_by_name,
+              d.revoked_at, d.expired_at, d.last_seen_at, e.name AS enrolled_by_name,
               COALESCE(json_agg(json_build_object(
                 'userId', u.id, 'name', u.name, 'email', u.email,
                 'locked', du.locked_at IS NOT NULL, 'lastSignInAt', du.last_sign_in_at,
@@ -248,7 +259,7 @@ async function listDevices(req, res, next) {
        LEFT JOIN device_users du ON du.device_id = d.id
        LEFT JOIN users u ON u.id = du.user_id
        GROUP BY d.id, s.name, e.name
-       ORDER BY CASE d.status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END, s.name, d.created_at`
+       ORDER BY CASE d.status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 WHEN 'expired' THEN 2 ELSE 3 END, s.name, d.created_at`
     );
     res.json({
       devices: result.rows.map((row) => ({
@@ -256,6 +267,7 @@ async function listDevices(req, res, next) {
         createdAt: row.created_at,
         approvedAt: row.approved_at,
         revokedAt: row.revoked_at,
+        expiredAt: row.expired_at,
         lastSeenAt: row.last_seen_at,
         enrolledBy: row.enrolled_by_name,
         staff: row.staff,
@@ -269,10 +281,14 @@ async function listDevices(req, res, next) {
 async function setStatus(req, res, next, status) {
   try {
     if (!isUuid(req.params.id)) return res.status(404).json({ error: 'Device not found' });
+    await devices.expirePendingDevices();
     const current = (await pool.query('SELECT status FROM devices WHERE id = $1', [req.params.id])).rows[0];
     if (!current) return res.status(404).json({ error: 'Device not found' });
     if (current.status === 'revoked') {
       return res.status(400).json({ error: 'A removed device cannot be used again; set it up as a new device' });
+    }
+    if (current.status === 'expired') {
+      return res.status(400).json({ error: 'This set-up expired before it was approved. The teacher sets the device up again.' });
     }
     const result = await pool.query(
       status === 'approved'
@@ -354,8 +370,11 @@ async function deviceStatus(req, res, next) {
   try {
     const { deviceId } = req.body || {};
     if (!isUuid(deviceId)) return res.status(404).json({ error: 'Device not found' });
+    await devices.expirePendingDevices();
     const device = (await pool.query('SELECT status FROM devices WHERE id = $1', [deviceId])).rows[0];
     if (!device) return res.status(404).json({ error: 'Device not found' });
+    // An expired registration is finished: the device stops asking and is set up again
+    if (device.status === 'expired') return res.status(410).json({ status: 'expired', error: EXPIRED_MESSAGE });
     res.json({ status: device.status });
   } catch (error) {
     next(error);

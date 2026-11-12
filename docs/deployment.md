@@ -76,6 +76,7 @@ All settings come from `.env` in the project folder, which Git ignores. [`.env.e
 | `LOAD_DEMO_DATA` | no | `true` loads the demo school and demo accounts on the database's **first** start. Local use only. |
 | `REVIEW_SCHEDULE`, `REVIEW_SCHEDULE_MINUTES` | no | The API scores each sub-county's finished weeks for the weekly review list by itself, and scores a recent week again when records for it sync late (`on`, every `60` minutes). `off` leaves scoring to officers. |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_REQUIRE_TLS`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` | no | The mail server the API sends activation codes and device approvals through. Locally it is Mailpit, a test mailbox that catches every message (<http://localhost:8025>). On a server, set the programme's mail server or an email provider (see **Email in production** below). Without `SMTP_HOST`, nothing is sent and new feeding teachers wait for activation until an administrator hands a code over in person, which is recorded. |
+| `DEVICE_PENDING_DAYS` | no | Days a school device may wait for approval before its set-up expires and it must be set up again (default 14). Approved devices never expire. |
 | `PUBLIC_URL` | no | The address people open Lishe at, used for links in emails. |
 | `BACKUP_KEEP_DAYS` | no | How many days of daily backups the `backup` service keeps in `./backups` (`14`). |
 | `MIGRATIONS_BASELINE` | once, if needed | Only for a database migrated by hand before the API applied migrations itself: the last script it already has (for example `016`). |

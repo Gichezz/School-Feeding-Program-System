@@ -9,6 +9,31 @@ const { pool } = require('../db/pool');
  */
 
 const ACTIVATION_TTL_HOURS = 48;
+const DEFAULT_PENDING_DAYS = 14;
+
+/**
+ * Days a school device may wait for approval after it is set up (DEVICE_PENDING_DAYS,
+ * 14 by default). Long enough for a slow connection or an administrator who is away,
+ * without leaving abandoned registrations open for ever.
+ */
+function pendingDays() {
+  const days = Number(process.env.DEVICE_PENDING_DAYS);
+  return Number.isInteger(days) && days > 0 ? days : DEFAULT_PENDING_DAYS;
+}
+
+/**
+ * Mark devices still waiting for approval after pendingDays() as expired. Only pending
+ * devices: an approved device never expires. Run before anything reads a device's
+ * status, so an old registration is never approved or signed in on. Returns how many.
+ */
+async function expirePendingDevices(db = pool) {
+  const result = await db.query(
+    `UPDATE devices SET status = 'expired', expired_at = NOW()
+     WHERE status = 'pending' AND created_at < NOW() - make_interval(days => $1)`,
+    [pendingDays()]
+  );
+  return result.rowCount;
+}
 // No 0/O or 1/I, so codes are easy to read out and type
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
@@ -127,6 +152,8 @@ async function useActivationCode(userId, code, client = pool) {
 }
 
 module.exports = {
+  pendingDays,
+  expirePendingDevices,
   MAX_ACTIVATION_ATTEMPTS,
   recordWrongActivationCode,
   ACTIVATION_TTL_HOURS,

@@ -50,6 +50,14 @@ describe('checkDeviceApproval', () => {
     expect(await getDeviceIdentity()).toBeNull();
   });
 
+  it('forgets a device whose set-up expired before it was approved, so it is set up again as a new device', async () => {
+    await waitingDevice();
+    vi.mocked(getDeviceApprovalStatus).mockRejectedValue(Object.assign(new Error('Expired'), { status: 410 }));
+
+    expect(await checkDeviceApproval()).toBe('expired');
+    expect(await getDeviceIdentity()).toBeNull();
+  });
+
   it('does nothing on a browser that is not a school device', async () => {
     expect(await checkDeviceApproval()).toBeNull();
     expect(getDeviceApprovalStatus).not.toHaveBeenCalled();

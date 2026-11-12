@@ -86,6 +86,21 @@ function ActivateDevice() {
 
   if (identity === undefined) return null;
 
+  if (result && approval === 'expired') {
+    return (
+      <div className="login">
+        <div className="login__brand"><LisheLogo withTagline className="login__logo" /></div>
+        <Card>
+          <div className="login__form">
+            <h1 ref={resultRef} tabIndex={-1} className="login__title">This set-up has expired</h1>
+            <p className="login__intro">{result.device.name} was not approved in time. Set it up again; it then waits for approval as a new device.</p>
+            <Button onClick={() => { setResult(null); setIdentity(null); }} fullWidth>Set up again</Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
   if (result) {
     const approved = approval === 'approved';
     return (

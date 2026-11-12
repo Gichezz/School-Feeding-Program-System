@@ -43,7 +43,7 @@ offline capture  →  sync  →  analytics  →  anomaly scoring  →  officer r
 
 ### System administrators
 
-- Accounts (feeding teachers with their school, programme officers with their sub-county), school devices (each needs approval), passkey or authenticator-app sign-in, and recovery codes.
+- Accounts (feeding teachers with their school, programme officers with their sub-county), school devices (each needs approval; one not approved within 14 days expires and is set up again), passkey or authenticator-app sign-in, and recovery codes.
 - No access to school records (least privilege): their dashboard shows devices waiting for approval, locked sign-ins and accounts. Programme records and decisions stay with the programme officer.
 
 ### Automatic
