@@ -1,20 +1,21 @@
 /*
  * Fonts are bundled with the app (no font CDN) so they work offline.
- * Both are variable fonts licensed under the SIL Open Font License 1.1
- * (see src/assets/fonts/LICENSE-*.txt).
+ * Lexend (headings, figures) and Source Sans 3 (text) are variable fonts licensed under
+ * the SIL Open Font License 1.1 (see src/assets/fonts/LICENSE-*.txt). Both were drawn
+ * for easy reading, which suits people who are not used to reading screens all day.
  */
 @font-face {
-  font-family: 'Inter';
+  font-family: 'Lexend';
   font-style: normal;
   font-weight: 100 900;
   font-display: swap;
-  src: url('../assets/fonts/inter-latin-variable.woff2') format('woff2-variations');
+  src: url('../assets/fonts/lexend-latin-variable.woff2') format('woff2-variations');
 }
 
 @font-face {
-  font-family: 'Fraunces';
+  font-family: 'Source Sans 3';
   font-style: normal;
-  font-weight: 100 900;
+  font-weight: 200 900;
   font-display: swap;
-  src: url('../assets/fonts/fraunces-latin-variable.woff2') format('woff2-variations');
+  src: url('../assets/fonts/source-sans-3-latin-variable.woff2') format('woff2-variations');
 }

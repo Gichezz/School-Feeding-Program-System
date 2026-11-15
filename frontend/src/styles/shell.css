@@ -44,7 +44,7 @@
 .lishe-logo__wordmark {
   font-family: var(--font-display);
   font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-bold);
+  font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-tight);
   color: var(--mark-ink);
 }
@@ -98,6 +98,12 @@
   overflow-y: auto;
   background: var(--color-sidebar-bg);
   color: var(--color-sidebar-text);
+}
+
+/* On pine, the mark is maize gold (the .lishe-logo default would be pine on pine) */
+.app-sidebar .lishe-logo {
+  --mark-ink: var(--food-maize);
+  --mark-cut: var(--color-sidebar-bg);
 }
 
 .app-sidebar .lishe-logo__wordmark {

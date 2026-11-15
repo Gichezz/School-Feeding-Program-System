@@ -196,6 +196,15 @@ export async function recordEnrolmentDiscrepancy(schoolId, termId, note) {
   return apiRequest(`/enrolment/${schoolId}/${termId}/discrepancy`, { method: 'POST', body: JSON.stringify({ note }) });
 }
 
+/**
+ * One school's term day by day (fed, not fed, not recorded, holidays), for its programme
+ * officer or its own staff.
+ */
+export async function getSchoolFeeding(schoolId, params = {}) {
+  const query = new URLSearchParams(params).toString();
+  return apiRequest(`/schools/${encodeURIComponent(schoolId)}/feeding${query ? `?${query}` : ''}`);
+}
+
 export async function getTermAnalytics(params = {}) {
   const query = new URLSearchParams(params).toString();
   return apiRequest(`/analytics/term${query ? `?${query}` : ''}`);

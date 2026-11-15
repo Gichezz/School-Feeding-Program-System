@@ -96,6 +96,23 @@ describe('term analytics', () => {
     expect(res.body.schools.find((s) => s.schoolId === SCHOOL_ID).daysSinceSync).toBe(0);
   });
 
+  it('counts the school days left in the term, so food can be judged against them', async () => {
+    const { res, school } = await demoSchool();
+
+    // 9 to 23 October: 11 weekdays less Mashujaa Day (20 October)
+    expect(school.schoolDaysLeft).toBe(10);
+    expect(res.body.term.closed).toBe(false);
+  });
+
+  it('has no school days left once the term has closed', async () => {
+    const term2 = (await pool.query('SELECT id FROM school_terms WHERE year = 2026 AND term = 2')).rows[0].id;
+
+    const res = await asOfficer.get(`/api/analytics/term?termId=${term2}`);
+
+    expect(res.body.term.closed).toBe(true);
+    expect(res.body.schools.every((s) => s.schoolDaysLeft === 0)).toBe(true);
+  });
+
   it("leaves out the school's own closures", async () => {
     await pool.query(
       "INSERT INTO calendar_events (school_id, starts_on, ends_on, kind, name) VALUES ($1, '2026-10-02', '2026-10-02', 'school_closure', 'Water shortage')",

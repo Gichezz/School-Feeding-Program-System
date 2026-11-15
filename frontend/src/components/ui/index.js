@@ -10,6 +10,7 @@ export { default as DateField, maskDate, parseDisplayDate } from './DateField';
 export { default as DateRangeFilter, DATE_PRESETS, rangeForPreset } from './DateRangeFilter';
 export { default as EmptyState } from './EmptyState';
 export { default as FilterChips } from './FilterChips';
+export { default as FoodIcon } from './FoodIcon';
 export { default as FormField } from './FormField';
 export { default as PageHeader, APP_NAME } from './PageHeader';
 export { PrintButton, PrintHeader } from './PrintLayout';

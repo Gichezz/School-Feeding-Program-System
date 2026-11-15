@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarX, ClipboardCheck, CloudOff, Flag, GitCompareArrows, ListChecks, PieChart } from 'lucide-react';
-import { Alert, Card, PageHeader, StatusLine, WorkQueue } from '../components/ui';
+import { Alert, Card, StatusLine, WorkQueue } from '../components/ui';
+import StockTable from '../features/analytics/StockTable';
 import { getCalendarStatus, getEnrolmentChecks, getReviewWeeks, getTermAnalytics } from '../services/api';
 import { useDataFreshness } from '../hooks/useDataFreshness';
 import SystemDashboard from '../features/system/SystemDashboard';
-import { ATTENTION, attention, summary, triage } from '../features/analytics/analyticsData';
+import { attention, summary, triage } from '../features/analytics/analyticsData';
 import { TO_CHECK } from '../features/enrolment/checkStatus';
 import { recentMondays } from '../features/weeklyReview/weeks';
 import { useSession } from '../hooks/useSession';
@@ -14,6 +15,7 @@ import { useOpenFlagCount } from '../features/review/useOpenFlagCount';
 import { useResolvesConflicts, useServerConflictCount } from '../features/conflicts/useServerConflictCount';
 import { formatNumber, formatPercent } from '../utils/format';
 
+const QUEUE_ORDER = ['enrolment', 'conflicts', 'flags', 'cantJudge', 'weekly'];
 const count = (n, one, many) => `${formatNumber(n)} ${n === 1 ? one : many}`;
 
 /** This week's review list (or last week's if this week is not scored yet). */
@@ -100,47 +102,79 @@ function ProgrammeDashboard() {
         ? { title: count(groups.cantJudge.length, 'school can’t be judged yet', 'schools can’t be judged yet'), description: 'Records behind, or stock records incomplete.', actionLabel: 'See which' }
         : { title: 'Every school’s records are up to date', done: true }),
     }] : []),
-  ];
+  ]
+    // Work waiting comes first, the most pressing at the top; finished rows sink to the bottom
+    .sort((a, b) => Number(Boolean(a.done)) - Number(Boolean(b.done)) || QUEUE_ORDER.indexOf(a.key) - QUEUE_ORDER.indexOf(b.key));
+
+  // The week in sentences: what has happened to the term, and the one thing waiting most
+  const termName = term?.term.label;
+  const zeroDays = schools.filter((s) => s.daysOfFood === 0).length;
+  const headline = (() => {
+    if (!term) return 'Your work for the sub-county';
+    const state = term.term.closed ? `${termName} has closed.` : `${termName} is under way.`;
+    if (enrolmentToCheck > 0) return `${state} ${count(enrolmentToCheck, 'enrolment check is', 'enrolment checks are')} waiting for you.`;
+    if (serverConflicts > 0) return `${state} ${count(serverConflicts, 'record needs', 'records need')} a decision.`;
+    if (openFlags > 0) return `${state} ${count(openFlags, 'flagged record is', 'flagged records are')} waiting for you.`;
+    return `${state} Nothing is waiting for you.`;
+  })();
+  const detail = !term ? null : term.term.closed
+    ? `The figures below are final for the term.${zeroDays > 0 ? ` ${count(zeroDays, 'school', 'schools')} ended it with no cereals left in the store, so ${zeroDays === 1 ? 'it needs' : 'they need'} a delivery before next term opens.` : ''}`
+    : totals.lowStock > 0
+      ? `${count(totals.lowStock, 'school', 'schools')} will run out of cereals before the term ends, at the rate ${totals.lowStock === 1 ? 'it is' : 'they are'} using food now.`
+      : 'Every school has enough cereals for the rest of the term, at the rate it is using food now.';
+
+  useEffect(() => { document.title = 'Dashboard · Lishe'; }, []);
 
   return (
-    <div data-density="compact">
-      <PageHeader
-        title="Dashboard"
-        description={term ? `${term.subCounty} · ${term.term.label} · figures up to ${term.asOf}` : 'The work waiting for you, and the term so far.'}
-      />
+    <div data-density="compact" className="officer-home">
+      <header className="page-band">
+        <p className="page-band__eyebrow">{term ? `${term.subCounty} · ${termName}${term.term.closed ? ' (closed)' : ''}` : 'Dashboard'}</p>
+        <h1 className="page-band__title">{headline}</h1>
+        {detail && <p className="page-band__detail">{detail}</p>}
+      </header>
 
       <div className="ui-stack">
         {!isOnline && <StatusLine icon={CloudOff}>Offline. Your work list needs a connection.</StatusLine>}
         {error && <Alert tone="danger" title="Could not load the term's figures">{error}</Alert>}
         {calendarEnded && (
           <StatusLine icon={CalendarX} tone="warning">
-            <strong>The next term&apos;s dates are not in Lishe yet.</strong> The figures below are for the last term. Days left and food planning start again once the next term is in.
+            <strong>The next term&apos;s dates are not in Lishe yet.</strong> Days left and food planning start again once the next term is in.
           </StatusLine>
         )}
 
-        <Card title="To do">
-          <WorkQueue items={items} loading={ready && weeks === null && !error} label="Work waiting for you" />
-        </Card>
+        <div className="officer-home__split">
+          <section aria-labelledby="todo-h" className="officer-home__todo">
+            <h2 id="todo-h" className="officer-home__h">To do</h2>
+            <WorkQueue items={items} loading={ready && weeks === null && !error} label="Work waiting for you" />
+          </section>
 
-        <Card title="The term so far" description={term ? `${term.term.label}, across ${count(totals.schools, 'school', 'schools')}` : undefined}
-          actions={<Link to="/analytics" className="ui-button ui-button--secondary ui-button--sm"><PieChart className="ui-button__icon" aria-hidden="true" />Open analytics</Link>}>
-          {loading ? null : term && (
-            <dl className="dashboard__snapshot">
-              <div className="dashboard__figure">
-                <dt>School days recorded</dt>
-                <dd className="tabular-nums">{formatPercent(totals.recordedShare)}</dd>
-              </div>
-              <div className="dashboard__figure">
-                <dt>Learners fed, of enrolment</dt>
-                <dd className="tabular-nums">{formatPercent(totals.meanCoverage)}</dd>
-              </div>
-              <div className="dashboard__figure">
-                <dt>Low on food (under {ATTENTION.daysOfFood} days)</dt>
-                <dd className="tabular-nums">{count(totals.lowStock, 'school', 'schools')}</dd>
-              </div>
-            </dl>
-          )}
-        </Card>
+          <section aria-labelledby="term-h" className="officer-home__term">
+            <h2 id="term-h" className="officer-home__h">The term in three lines</h2>
+            {term && (
+              <>
+                <p className="officer-home__line"><b>{formatNumber(totals.schools)}</b> schools, {formatPercent(totals.recordedShare)} of school days recorded.</p>
+                <p className="officer-home__line"><b>{formatPercent(totals.meanCoverage)}</b> of enrolled learners fed on feeding days, on average.</p>
+                <p className="officer-home__line">
+                  {term.term.closed
+                    ? <><b>{formatNumber(zeroDays)}</b> {zeroDays === 1 ? 'school' : 'schools'} with no cereals left at the close.</>
+                    : <><b>{formatNumber(totals.lowStock)}</b> {totals.lowStock === 1 ? 'school' : 'schools'} short of food for the rest of the term.</>}
+                </p>
+              </>
+            )}
+          </section>
+        </div>
+
+        {term && (
+          <Card
+            title={term.term.closed ? 'Cereals in each store at the close of term' : 'Cereals in each store'}
+            description={term.term.closed
+              ? 'The term has closed, so none of these is marked: this is what each store carries into next term.'
+              : 'School days of food at each school’s recent daily use, against the school days left in the term.'}
+            actions={<Link to="/analytics" className="ui-button ui-button--ghost ui-button--sm"><PieChart className="ui-button__icon" aria-hidden="true" />All figures in Analytics</Link>}
+          >
+            <StockTable schools={schools} caption="Cereals in store and school days of food, by school" />
+          </Card>
+        )}
       </div>
     </div>
   );

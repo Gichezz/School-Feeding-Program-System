@@ -2,16 +2,16 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, CalendarCheck, CalendarX, Save, Wheat } from 'lucide-react';
 import {
-  Alert, Button, Card, ChoiceGroup, DataTable, DateField, EmptyState, FormField, PageHeader, RecordStatus, StatusLine,
+  Alert, Button, Card, ChoiceGroup, DataTable, DateField, EmptyState, FoodIcon, FormField, PageHeader, RecordStatus, StatusLine,
   recordStateFor, useToast,
 } from '../components/ui';
 import SchoolGate from '../features/feeding/SchoolGate';
 import { useSchoolData } from '../features/feeding/useSchoolData';
 import {
   NOT_FED_REASONS, UNUSUAL_REASONS, averageFed, calendarEnded, dayKey, foodRemaining, schoolDays, stockBalances, todayKey,
-  validateFeeding, COMMODITY_LABELS,
+  validateFeeding, COMMODITIES, COMMODITY_LABELS,
 } from '../features/feeding/planning';
-import { foodStatus } from '../features/feeding/foodStatus';
+import { displayBalance, foodStatus } from '../features/feeding/foodStatus';
 import { saveDailyFeeding } from '../services/feedingDb';
 import { manualSync } from '../sync/syncManager';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
@@ -230,16 +230,44 @@ function Recent({ data }) {
   );
 }
 
+const DAILY = ['cereals', 'pulses'];
+
+/** What is in the store, each food with its drawn icon; gaps in the records point to Stock. */
+function InStore({ data }) {
+  const balances = stockBalances({ movements: data.movements, feedingDays: data.feedingDays, ration: data.ration });
+  const shown = COMMODITIES.map((c) => ({ c, ...displayBalance(balances[c]) }));
+  const gaps = shown.filter((f) => !DAILY.includes(f.c) && f.shortfallKg > 0).map((f) => COMMODITY_LABELS[f.c].toLowerCase());
+  return (
+    <section className="in-store" aria-labelledby="in-store-h">
+      <h2 id="in-store-h" className="in-store__title">In the store</h2>
+      <ul className="in-store__foods">
+        {shown.map((f) => (
+          <li key={f.c} className="in-store__food">
+            <FoodIcon food={f.c} />
+            <b className="tabular-nums">{formatNumber(f.shownKg)} kg</b>
+            <span>{COMMODITY_LABELS[f.c]}</span>
+          </li>
+        ))}
+      </ul>
+      {gaps.length > 0 && (
+        <Link to="/stock" className="in-store__gap">{gaps.join(' and ').replace(/^./, (x) => x.toUpperCase())} records look incomplete: check them on Stock</Link>
+      )}
+    </section>
+  );
+}
+
 /**
  * One line on whether the food will last the term. Only this interrupts the day's
  * task: when food runs short, the teacher tells the head teacher, who arranges more.
  */
 function FoodLine({ data }) {
-  // The last term on this device has ended and the next one has not arrived yet
+  // The last term on this device has closed and the next one has not arrived yet (this is
+  // also the only time the current term is one that has closed, so it covers the holidays)
   if (calendarEnded(data.terms)) {
     return (
       <StatusLine icon={CalendarX} tone="warning">
         <strong>Next term&apos;s dates are not on this device yet.</strong> They arrive the next time this device is online.
+        Record a day only if learners were fed.
       </StatusLine>
     );
   }
@@ -247,7 +275,13 @@ function FoodLine({ data }) {
   const avg = averageFed(data.feedingDays);
   const remaining = data.term ? schoolDays(data.terms, data.events, todayKey(), dayKey(data.term.closesOn)) : [];
   const food = foodRemaining({ balances, fedPerDay: avg, ration: data.ration, remainingDays: remaining });
-  const status = foodStatus({ balances, food, remainingDays: remaining.length });
+  // Today speaks only of the two foods issued every day; oil and salt gaps live on Stock
+  const daily = food && {
+    ...food,
+    limiting: DAILY.filter((c) => food.perCommodity[c].days !== null)
+      .reduce((a, b) => (a === null || food.perCommodity[b].days < food.perCommodity[a].days ? b : a), null),
+  };
+  const status = foodStatus({ balances: { cereals: balances.cereals, pulses: balances.pulses }, food: daily, remainingDays: remaining.length });
   const days = (n) => (n === 1 ? '1 more school day' : `${formatNumber(n)} more school days`);
   const left = (n) => (n === 1 ? '1 school day left this term' : `${formatNumber(n)} school days left this term`);
 
@@ -286,6 +320,7 @@ function Today() {
         <div className="today__layout">
           <div className="today__main ui-stack">
             <FoodLine data={data} />
+            <InStore data={data} />
             <TodayForm data={data} />
           </div>
           <div className="today__side">
