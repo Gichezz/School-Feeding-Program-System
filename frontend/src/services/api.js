@@ -493,3 +493,13 @@ export async function updateCalendarEvent(id, changes) {
 export async function deleteCalendarEvent(id) {
   return apiRequest(`/calendar/events/${id}`, { method: 'DELETE' });
 }
+
+/** Add the year's public holidays Lishe works out (Eid al-Fitr as an estimate to confirm). */
+export async function prefillCalendarHolidays(year) {
+  return apiRequest('/calendar/events/prefill', { method: 'POST', body: JSON.stringify({ year }) });
+}
+
+/** What the calendar is missing: next year's terms, holidays to confirm, no term left. */
+export async function getCalendarStatus() {
+  return apiRequest('/calendar/status');
+}

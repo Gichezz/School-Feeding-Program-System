@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { CalendarDays, CalendarPlus, CalendarRange, Pencil, Plus, Trash2 } from 'lucide-react';
+import { CalendarCheck2, CalendarClock, CalendarDays, CalendarPlus, CalendarRange, Check, Pencil, Plus, Trash2 } from 'lucide-react';
 import {
   Alert, Badge, Button, Card, ChoiceGroup, DataTable, DateField, EmptyState, FormField, LoadingRegion, SkeletonText,
   StatusLine, useToast,
 } from '../../components/ui';
 import {
   createCalendarEvent, createCalendarTerm, deleteCalendarEvent, deleteCalendarTerm, getCalendarEvents, getCalendarTerms,
-  updateCalendarEvent, updateCalendarTerm,
+  prefillCalendarHolidays, updateCalendarEvent, updateCalendarTerm,
 } from '../../services/api';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import {
@@ -68,13 +68,20 @@ function EventForm({ year, initial, busy, serverError, onSave, onCancel }) {
     event.preventDefault();
     const found = eventErrors(form);
     setErrors(found);
-    if (Object.keys(found).length === 0) onSave({ ...form, name: form.name.trim(), endsOn: form.endsOn || form.startsOn });
+    if (Object.keys(found).length === 0) {
+      const { kind, startsOn, endsOn } = form;
+      // Saving an estimated date confirms it
+      onSave({ kind, name: form.name.trim(), startsOn, endsOn: endsOn || startsOn, ...(initial?.toConfirm && { confirmed: true }) });
+    }
   };
 
   return (
     <form className="calendar__form" onSubmit={submit} noValidate>
       <h3 ref={headingRef} tabIndex={-1} className="calendar__form-title">{initial ? `Change ${initial.name}` : `Add a holiday or exam for ${year}`}</h3>
       {serverError && <Alert tone="danger" title="Not saved">{serverError}</Alert>}
+      {initial?.toConfirm && (
+        <StatusLine icon={CalendarClock} tone="warning">Lishe estimated this date. Set it to the date in the gazette notice; saving confirms it.</StatusLine>
+      )}
       <ChoiceGroup name="kind" label="What is it?" required options={EVENT_KINDS} value={form.kind} onChange={set('kind')} error={errors.kind} />
       <FormField label="Name" required maxLength={MAX_NAME} value={form.name} onChange={(e) => set('name')(e.target.value)} error={errors.name}
         hint="As schools know it, for example Madaraka Day or KCSE 2027" />
@@ -83,7 +90,7 @@ function EventForm({ year, initial, busy, serverError, onSave, onCancel }) {
         <DateField label="Last day" value={form.endsOn} onChange={set('endsOn')} error={errors.endsOn} hint="Leave empty for a single day" />
       </div>
       <div className="calendar__actions">
-        <Button type="submit" loading={busy}>{initial ? 'Save changes' : 'Add'}</Button>
+        <Button type="submit" loading={busy}>{initial?.toConfirm ? 'Save and confirm' : initial ? 'Save changes' : 'Add'}</Button>
         <Button variant="secondary" onClick={onCancel} disabled={busy}>Cancel</Button>
       </div>
     </form>
@@ -195,8 +202,36 @@ function SchoolCalendar() {
     ? run(() => updateCalendarEvent(editing.id, form), `${form.name} saved`, () => loadEvents(year))
     : run(() => createCalendarEvent(form), `${form.name} added`, () => loadEvents(year)));
 
+  // Fill in the year's public holidays Lishe works out; the result says what was added
+  const fillHolidays = async () => {
+    setBusy(true);
+    setServerError(null);
+    try {
+      const { added } = await prefillCalendarHolidays(year);
+      toast.show(added.length > 0
+        ? { tone: 'success', title: `${added.length === 1 ? '1 public holiday' : `${added.length} public holidays`} added for ${year}`, description: 'Check them, and confirm any marked to confirm.' }
+        : { tone: 'success', title: `All of ${year}'s regular public holidays are already in` });
+      closeForms();
+      await loadEvents(year);
+    } catch (err) {
+      setServerError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toConfirm = (events || []).filter((e) => e.toConfirm);
+
   const eventColumns = [
-    { key: 'name', header: 'Name', primary: true, sortValue: (e) => e.name },
+    {
+      key: 'name', header: 'Name', primary: true, sortValue: (e) => e.name,
+      render: (e) => (
+        <span className="calendar__name">
+          {e.name}
+          {e.toConfirm && <Badge tone="warning" icon={CalendarClock}>To confirm</Badge>}
+        </span>
+      ),
+    },
     { key: 'kind', header: 'What', render: (e) => <Badge tone={e.kind === 'national_exam' ? 'info' : 'neutral'}>{KIND_LABEL[e.kind]}</Badge> },
     { key: 'dates', header: 'Dates', render: (e) => <span className="tabular-nums">{dateRange(e.startsOn, e.endsOn)}</span>, sortValue: (e) => e.startsOn.split('-').reverse().join('-') },
     {
@@ -206,6 +241,11 @@ function SchoolCalendar() {
       align: 'end',
       render: (e) => (
         <div className="calendar__actions calendar__actions--row">
+          {e.toConfirm && (
+            <Button size="sm" icon={Check} disabled={disabled}
+              onClick={() => run(() => updateCalendarEvent(e.id, { confirmed: true }), `${e.name} on ${e.startsOn} confirmed`, () => loadEvents(year))}
+              aria-label={`Confirm ${e.name} on ${e.startsOn}`}>Confirm</Button>
+          )}
           <Button variant="secondary" size="sm" icon={Pencil} disabled={disabled} onClick={() => { closeForms(); setEditing({ type: 'event', id: e.id }); }}
             aria-label={`Change ${e.name}`}>Change</Button>
           <Button variant="ghost" size="sm" icon={Trash2} disabled={disabled} onClick={() => { closeForms(); setRemoving({ type: 'event', id: e.id }); }}
@@ -313,12 +353,22 @@ function SchoolCalendar() {
 
           <Card
             title={`Holidays and national exams ${year}`}
-            description="Days schools do not feed learners as usual. Add each public holiday and exam period the Ministry announces."
+            description="Days schools do not feed learners as usual. Lishe fills in the regular public holidays; add exam periods and any extra gazetted holiday."
             actions={!(editing?.type === 'event' && !editing.id) && (
-              <Button icon={CalendarPlus} disabled={disabled} onClick={() => { closeForms(); setEditing({ type: 'event' }); }}>Add a holiday or exam</Button>
+              <div className="calendar__actions">
+                <Button variant="secondary" icon={CalendarCheck2} disabled={disabled} loading={busy && !editing} onClick={fillHolidays}>Fill in public holidays</Button>
+                <Button icon={CalendarPlus} disabled={disabled} onClick={() => { closeForms(); setEditing({ type: 'event' }); }}>Add a holiday or exam</Button>
+              </div>
             )}
           >
             <div className="ui-stack">
+              {!editing && !removing && serverError && <Alert tone="danger" title="Not done">{serverError}</Alert>}
+              {toConfirm.length > 0 && (
+                <StatusLine icon={CalendarClock} tone="warning">
+                  <strong>{toConfirm.map((e) => `${e.name} (${e.startsOn})`).join(', ')} {toConfirm.length === 1 ? 'is an estimate' : 'are estimates'}.</strong>{' '}
+                  Check the gazette notice, then confirm the date or change it.
+                </StatusLine>
+              )}
               {editing?.type === 'event' && !editing.id && (
                 <EventForm year={year} busy={busy} serverError={serverError} onSave={saveEvent} onCancel={closeForms} />
               )}

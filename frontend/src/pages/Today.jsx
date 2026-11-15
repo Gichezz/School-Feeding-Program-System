@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, CalendarCheck, Save, Wheat } from 'lucide-react';
+import { AlertTriangle, CalendarCheck, CalendarX, Save, Wheat } from 'lucide-react';
 import {
   Alert, Button, Card, ChoiceGroup, DataTable, DateField, EmptyState, FormField, PageHeader, RecordStatus, StatusLine,
   recordStateFor, useToast,
@@ -8,7 +8,7 @@ import {
 import SchoolGate from '../features/feeding/SchoolGate';
 import { useSchoolData } from '../features/feeding/useSchoolData';
 import {
-  NOT_FED_REASONS, UNUSUAL_REASONS, averageFed, dayKey, foodRemaining, schoolDays, stockBalances, todayKey,
+  NOT_FED_REASONS, UNUSUAL_REASONS, averageFed, calendarEnded, dayKey, foodRemaining, schoolDays, stockBalances, todayKey,
   validateFeeding, COMMODITY_LABELS,
 } from '../features/feeding/planning';
 import { foodStatus } from '../features/feeding/foodStatus';
@@ -235,6 +235,14 @@ function Recent({ data }) {
  * task: when food runs short, the teacher tells the head teacher, who arranges more.
  */
 function FoodLine({ data }) {
+  // The last term on this device has ended and the next one has not arrived yet
+  if (calendarEnded(data.terms)) {
+    return (
+      <StatusLine icon={CalendarX} tone="warning">
+        <strong>Next term&apos;s dates are not on this device yet.</strong> They arrive the next time this device is online.
+      </StatusLine>
+    );
+  }
   const balances = stockBalances({ movements: data.movements, feedingDays: data.feedingDays, ration: data.ration });
   const avg = averageFed(data.feedingDays);
   const remaining = data.term ? schoolDays(data.terms, data.events, todayKey(), dayKey(data.term.closesOn)) : [];

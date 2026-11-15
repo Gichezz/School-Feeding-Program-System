@@ -299,3 +299,117 @@ describe('school devices get calendar changes on their next sync', () => {
     expect(after.body.calendarEvents.map((e) => e.id)).not.toContain(eventId);
   });
 });
+
+describe('filling in a year\'s public holidays', () => {
+  const clock = require('../src/utils/clock');
+  const { prefillNextYearIfDue } = require('../src/services/calendar');
+  const realNow = clock.now;
+  afterEach(() => { clock.now = realNow; });
+
+  it('adds the year\'s holidays, with Eid marked to confirm, and only once', async () => {
+    const res = await asAdmin.post('/api/calendar/events/prefill').send({ year: 2027 });
+    const again = await asAdmin.post('/api/calendar/events/prefill').send({ year: 2027 });
+
+    expect(res.status).toBe(201);
+    expect(res.body.added).toHaveLength(11);
+    expect(res.body.added).toContainEqual(expect.objectContaining({ name: 'Good Friday', startsOn: '26-03-2027', toConfirm: false }));
+    expect(res.body.added).toContainEqual(expect.objectContaining({ name: 'Eid al-Fitr', startsOn: '09-03-2027', toConfirm: true }));
+    expect(again.status).toBe(200);
+    expect(again.body.added).toEqual([]);
+    const listed = (await asAdmin.get('/api/calendar/events?year=2027')).body.events;
+    expect(listed.find((e) => e.name === 'Eid al-Fitr')).toMatchObject({ toConfirm: true, kind: 'public_holiday' });
+  });
+
+  it('adds only the holidays a year is missing', async () => {
+    await asAdmin.post('/api/calendar/events').send(holiday({ startsOn: '01-01-2027' }));
+
+    const res = await asAdmin.post('/api/calendar/events/prefill').send({ year: 2027 });
+
+    expect(res.body.added.map((h) => h.name)).not.toContain('New Year\'s Day');
+    expect(res.body.added).toHaveLength(10);
+  });
+
+  it('is for administrators only and needs a year', async () => {
+    expect((await asOfficer.post('/api/calendar/events/prefill').send({ year: 2027 })).status).toBe(403);
+    expect((await asAdmin.post('/api/calendar/events/prefill').send({})).status).toBe(400);
+  });
+
+  it('keeps Eid marked until an administrator confirms it, moving it if needed', async () => {
+    const eid = (await asAdmin.post('/api/calendar/events/prefill').send({ year: 2027 })).body.added.find((h) => h.name === 'Eid al-Fitr');
+
+    const renamed = await asAdmin.patch(`/api/calendar/events/${eid.id}`).send({ name: 'Eid al-Fitr' });
+    expect(renamed.body.event).toMatchObject({ name: 'Eid al-Fitr', toConfirm: true });
+
+    const confirmed = await asAdmin.patch(`/api/calendar/events/${eid.id}`).send({ startsOn: '10-03-2027', endsOn: '10-03-2027', confirmed: true });
+    expect(confirmed.body.event).toMatchObject({ name: 'Eid al-Fitr', startsOn: '10-03-2027', toConfirm: false });
+    expect((await pool.query('SELECT name FROM calendar_events WHERE id = $1', [eid.id])).rows[0].name).toBe('Eid al-Fitr');
+  });
+
+  it('sends pre-filled holidays to school devices under their plain names', async () => {
+    await asAdmin.post('/api/calendar/events/prefill').send({ year: 2027 });
+
+    const res = await deviceChanges();
+
+    const eid = res.body.calendarEvents.find((e) => e.startsOn === '09-03-2027');
+    expect(eid).toMatchObject({ kind: 'public_holiday', name: 'Eid al-Fitr' });
+    expect(res.body.calendarEvents.filter((e) => e.startsOn.endsWith('2027'))).toHaveLength(11);
+  });
+
+  it('fills in next year by itself from 1 October, once', async () => {
+    clock.now = () => new Date('2026-09-30T06:00:00Z');
+    expect(await prefillNextYearIfDue(pool)).toBeNull();
+
+    clock.now = () => new Date('2026-10-01T06:00:00Z');
+    const first = await prefillNextYearIfDue(pool);
+    expect(first).toMatchObject({ year: 2027 });
+    expect(first.added).toHaveLength(11);
+
+    // An administrator removes one: it is not put back
+    await pool.query("DELETE FROM calendar_events WHERE name = 'Labour Day' AND starts_on = '2027-05-01'");
+    expect(await prefillNextYearIfDue(pool)).toBeNull();
+  });
+});
+
+describe('GET /api/calendar/status', () => {
+  const clock = require('../src/utils/clock');
+  const realNow = clock.now;
+  afterEach(() => { clock.now = realNow; });
+  const at = (iso) => { clock.now = () => new Date(`${iso}T06:00:00Z`); };
+
+  it('asks for next year\'s terms from 1 November until all three are entered', async () => {
+    at('2026-10-31');
+    expect((await asAdmin.get('/api/calendar/status')).body).toMatchObject({ nextYear: 2027, missingTerms: [1, 2, 3], termsReminder: false });
+
+    at('2026-11-01');
+    expect((await asAdmin.get('/api/calendar/status')).body.termsReminder).toBe(true);
+
+    await asAdmin.post('/api/calendar/terms').send(term());
+    await asAdmin.post('/api/calendar/terms').send(term({ term: 2, opensOn: '03-05-2027', closesOn: '30-07-2027', halfTermStart: null, halfTermEnd: null }));
+    expect((await asAdmin.get('/api/calendar/status')).body).toMatchObject({ missingTerms: [3], termsReminder: true });
+    await asAdmin.post('/api/calendar/terms').send(term({ term: 3, opensOn: '30-08-2027', closesOn: '05-11-2027', halfTermStart: null, halfTermEnd: null }));
+    expect((await asAdmin.get('/api/calendar/status')).body).toMatchObject({ missingTerms: [], termsReminder: false });
+  });
+
+  it('lists estimated holidays still to confirm', async () => {
+    await asAdmin.post('/api/calendar/events/prefill').send({ year: 2027 });
+
+    const res = await asAdmin.get('/api/calendar/status');
+
+    expect(res.body.toConfirm).toEqual([expect.objectContaining({ name: 'Eid al-Fitr', startsOn: '09-03-2027' })]);
+  });
+
+  it('says when the last term has ended and no next term exists', async () => {
+    at('2026-10-23');
+    expect((await asOfficer.get('/api/calendar/status')).body).toEqual({ today: '23-10-2026', calendarEnded: false });
+
+    at('2026-11-15');
+    expect((await asOfficer.get('/api/calendar/status')).body.calendarEnded).toBe(true);
+
+    await asAdmin.post('/api/calendar/terms').send(term());
+    expect((await asOfficer.get('/api/calendar/status')).body.calendarEnded).toBe(false);
+  });
+
+  it('is not for school staff', async () => {
+    expect((await asStaff.get('/api/calendar/status')).status).toBe(403);
+  });
+});

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ClipboardCheck, CloudOff, Flag, GitCompareArrows, ListChecks, PieChart } from 'lucide-react';
+import { CalendarX, ClipboardCheck, CloudOff, Flag, GitCompareArrows, ListChecks, PieChart } from 'lucide-react';
 import { Alert, Card, PageHeader, StatusLine, WorkQueue } from '../components/ui';
-import { getEnrolmentChecks, getReviewWeeks, getTermAnalytics } from '../services/api';
+import { getCalendarStatus, getEnrolmentChecks, getReviewWeeks, getTermAnalytics } from '../services/api';
 import { useDataFreshness } from '../hooks/useDataFreshness';
 import SystemDashboard from '../features/system/SystemDashboard';
 import { ATTENTION, attention, summary, triage } from '../features/analytics/analyticsData';
@@ -37,6 +37,7 @@ function ProgrammeDashboard() {
   const [weeks, setWeeks] = useState(null);
   const [enrolment, setEnrolment] = useState(null);
   const [error, setError] = useState(null);
+  const [calendarEnded, setCalendarEnded] = useState(false);
   const { refreshKey, markLoaded } = useDataFreshness();
   const ready = resolves && isOnline;
 
@@ -47,6 +48,7 @@ function ProgrammeDashboard() {
     getTermAnalytics().then((res) => { if (active) { setTerm(res); markLoaded(res.subCounty); } }).catch((err) => { if (active) setError(err.message); });
     getReviewWeeks().then((res) => { if (active) setWeeks(res.weeks || []); }).catch(() => { if (active) setWeeks([]); });
     getEnrolmentChecks().then((res) => { if (active) setEnrolment(res.schools || []); }).catch(() => { if (active) setEnrolment(null); });
+    getCalendarStatus().then((res) => { if (active) setCalendarEnded(Boolean(res.calendarEnded)); }).catch(() => {});
     return () => { active = false; };
   }, [ready, refreshKey, markLoaded]);
 
@@ -110,6 +112,11 @@ function ProgrammeDashboard() {
       <div className="ui-stack">
         {!isOnline && <StatusLine icon={CloudOff}>Offline. Your work list needs a connection.</StatusLine>}
         {error && <Alert tone="danger" title="Could not load the term's figures">{error}</Alert>}
+        {calendarEnded && (
+          <StatusLine icon={CalendarX} tone="warning">
+            <strong>The next term&apos;s dates are not in Lishe yet.</strong> The figures below are for the last term. Days left and food planning start again once the next term is in.
+          </StatusLine>
+        )}
 
         <Card title="To do">
           <WorkQueue items={items} loading={ready && weeks === null && !error} label="Work waiting for you" />

@@ -1,6 +1,6 @@
 const express = require('express');
 const {
-  listTerms, createTerm, updateTerm, deleteTerm, listEvents, createEvent, updateEvent, deleteEvent,
+  listTerms, createTerm, updateTerm, deleteTerm, listEvents, createEvent, updateEvent, deleteEvent, prefillEvents, getStatus,
 } = require('../controllers/calendarController');
 const { requireRole } = require('../middleware/auth');
 
@@ -22,11 +22,19 @@ router.patch('/terms/:id', adminOnly, updateTerm);
 router.delete('/terms/:id', adminOnly, deleteTerm);
 
 /**
+ * GET /api/calendar/status  what the calendar is missing: next year's terms, holidays to
+ * confirm, or no term left (officers see only the last)
+ * POST /api/calendar/events/prefill { year }  add the year's public holidays Lishe works out
+ */
+router.get('/status', calendarKeepers, getStatus);
+router.post('/events/prefill', adminOnly, prefillEvents);
+
+/**
  * Calendar dates. Administrators: public holidays and national exams. Programme officers:
  * school closures and events for schools in their sub-county.
  * GET    /api/calendar/events?year=
  * POST   /api/calendar/events       { kind, name, startsOn, endsOn?, schoolId? }
- * PATCH  /api/calendar/events/:id   any of the same
+ * PATCH  /api/calendar/events/:id   any of the same, and confirmed: true for an estimated date
  * DELETE /api/calendar/events/:id
  */
 router.get('/events', calendarKeepers, listEvents);

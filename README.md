@@ -252,7 +252,7 @@ Work is tracked in [issues](https://github.com/Gichezz/School-Feeding-Program-Sy
 - **Synthetic data.** No real school feeding records were available. The anomaly method was chosen on a synthetic dataset built from real Kenyan inputs, and needs checking against real records before use.
 - **A list, not a verdict.** A listed school often has an ordinary explanation; only the officer's notes are judgements. Records that never sync cannot be ranked.
 - **Background sync.** Devices sync when the app is open or reconnects, not in the background, which not every phone browser supports.
-- **Calendar.** `calendar_kenya.sql` covers 2024–2026. Administrators add later years under Manage → School calendar from the Ministry of Education's circular; school devices get them on their next sync.
+- **Calendar.** `calendar_kenya.sql` covers 2024–2026. Lishe fills in later years' public holidays itself; Eid al-Fitr is an estimate until an administrator confirms it, and extra gazetted holidays are added by hand. Terms are entered by an administrator from the Ministry of Education's circular (Manage → School calendar, with a reminder from 1 November). School devices get changes on their next sync. Set `CALENDAR_PREFILL=off` to stop the automatic fill.
 - **Scope.** Public primary and junior school day schools with one meal a day. Boarding schools are not covered.
 - **Sign-in.** The first sign-in on a device needs a connection, and sign-in is not yet rate-limited.
 - **Backups.** Daily backups are kept on the same machine; copy them elsewhere regularly.

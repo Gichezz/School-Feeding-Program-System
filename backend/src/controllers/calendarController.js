@@ -1,5 +1,8 @@
 const { pool } = require('../db/pool');
 const { isUuid, isDisplayDate } = require('../validation/records');
+const {
+  isToConfirm, plainName, storedName, prefillHolidays, calendarStatus,
+} = require('../services/calendar');
 
 /**
  * The school calendar: national terms, public holidays and national exams, and a
@@ -57,7 +60,9 @@ function eventShape(e) {
   return {
     id: e.id,
     kind: e.kind,
-    name: e.name,
+    // An estimated date (Eid before it is gazetted) waits for an administrator to confirm it
+    name: plainName(e.name),
+    toConfirm: isToConfirm(e.name),
     startsOn: toDisplay(e.starts_on),
     endsOn: toDisplay(e.ends_on),
     schoolId: e.school_id,
@@ -135,7 +140,7 @@ async function eventValues(db, user, input) {
   if (!kinds.includes(input.kind)) {
     throw new CalendarError(isAdmin ? 'Choose public holiday or national exam' : 'Choose school closed or school event');
   }
-  const name = typeof input.name === 'string' ? input.name.trim() : '';
+  const name = typeof input.name === 'string' ? plainName(input.name.trim()).trim() : '';
   if (!name) throw new CalendarError('Give it a name, for example Madaraka Day');
   if (name.length > MAX_NAME) throw new CalendarError(`Keep the name to ${MAX_NAME} characters`);
   const starts = dateField(input.startsOn, 'Starts');
@@ -294,9 +299,11 @@ const updateEvent = handle(async (req, res) => {
     endsOn: pick('endsOn', toDisplay(current.ends_on)),
     schoolId: pick('schoolId', current.school_id),
   });
+  // An estimated date stays marked until an administrator confirms it (confirmed: true)
+  const stillToConfirm = isToConfirm(current.name) && body.confirmed !== true;
   await pool.query(
     'UPDATE calendar_events SET school_id = $2, starts_on = $3, ends_on = $4, kind = $5, name = $6 WHERE id = $1',
-    [current.id, v.schoolId, v.starts, v.ends, v.kind, v.name]
+    [current.id, v.schoolId, v.starts, v.ends, v.kind, storedName(v.name, stillToConfirm)]
   );
   return res.json({ event: eventShape(await eventById(current.id)) });
 });
@@ -311,6 +318,31 @@ const deleteEvent = handle(async (req, res) => {
   return res.status(204).end();
 });
 
+/**
+ * POST /api/calendar/events/prefill { year } → { added }
+ * Adds the year's public holidays that are not in the calendar yet, worked out by Lishe
+ * (fixed dates, Easter, and an estimate of Eid al-Fitr marked to confirm).
+ */
+const prefillEvents = handle(async (req, res) => {
+  const year = Number((req.body || {}).year);
+  if (!Number.isInteger(year) || year < 2000 || year > 2100) throw new CalendarError('Year must be a year such as 2027');
+  const added = await prefillHolidays(pool, year, req.user.id);
+  res.status(added.length ? 201 : 200).json({
+    added: added.map((h) => ({ id: h.id, name: h.name, startsOn: toDisplay(h.date), toConfirm: h.toConfirm })),
+  });
+});
+
+/**
+ * GET /api/calendar/status → what the calendar is missing (services/calendar.js).
+ * Programme officers see only whether the terms have run out.
+ */
+const getStatus = handle(async (req, res) => {
+  const status = await calendarStatus(pool);
+  if (req.user.role !== 'admin') return res.json({ today: status.today, calendarEnded: status.calendarEnded });
+  return res.json(status);
+});
+
 module.exports = {
+  prefillEvents, getStatus,
   listTerms, createTerm, updateTerm, deleteTerm, listEvents, createEvent, updateEvent, deleteEvent,
 };
