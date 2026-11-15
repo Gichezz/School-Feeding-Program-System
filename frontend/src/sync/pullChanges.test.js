@@ -44,6 +44,22 @@ describe('applyChanges', () => {
     expect(await db.syncCursors.get(SCHOOL_ID)).toMatchObject({ cursor: '1200' });
   });
 
+  it('replaces the calendar with the downloaded one, so changed and removed dates reach the device', async () => {
+    await applyChanges(SCHOOL_ID, download());
+
+    await applyChanges(SCHOOL_ID, download({
+      terms: [
+        { id: 't-3', year: 2026, term: 3, opensOn: '24-08-2026', closesOn: '30-10-2026' },
+        { id: 't-4', year: 2027, term: 1, opensOn: '04-01-2027', closesOn: '09-04-2027', halfTermStart: '19-02-2027', halfTermEnd: '28-02-2027' },
+      ],
+      calendarEvents: [{ id: 'e-2', startsOn: '01-01-2027', endsOn: '01-01-2027', kind: 'public_holiday', name: "New Year's Day" }],
+    }));
+
+    expect(await db.terms.get('t-3')).toMatchObject({ closesOn: '30-10-2026' });
+    expect(await db.terms.get('t-4')).toMatchObject({ year: 2027, halfTermStart: '19-02-2027' });
+    expect((await db.calendarEvents.toArray()).map((e) => e.id)).toEqual(['e-2']);
+  });
+
   it('updates a record to a newer server version', async () => {
     await applyChanges(SCHOOL_ID, download({ dailyFeeding: [serverDay] }));
 

@@ -19,6 +19,7 @@ import { useSession } from './hooks/useSession';
 import Settings from './pages/Settings';
 import Users from './pages/Users';
 import Devices from './pages/Devices';
+import SchoolCalendar from './pages/SchoolCalendar';
 import { setupAutoSync } from './sync/syncManager';
 
 // Design system reference; only included in development builds
@@ -85,6 +86,7 @@ function App() {
         {/* Accounts and devices are the administrator's; anyone else goes to their start page */}
         <Route path="/users" element={session.user?.role === 'admin' ? <Users /> : <Navigate to="/" replace />} />
         <Route path="/devices" element={session.user?.role === 'admin' ? <Devices /> : <Navigate to="/" replace />} />
+        <Route path="/calendar" element={session.user?.role === 'admin' ? <SchoolCalendar /> : <Navigate to="/" replace />} />
         <Route path="/settings" element={<Settings />} />
       </Route>
     </Routes>

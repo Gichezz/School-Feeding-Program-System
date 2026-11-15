@@ -2,7 +2,14 @@
 -- national exams for 2024-2026, from the Ministry of Education calendars (sources and
 -- disputed dates: forecasting/config/kenya_inputs.yaml, which holds the same dates).
 -- Reference data every installation needs, not demo data. Safe to run again.
--- Add each new year from the Ministry's circular in the same way.
+-- From 2027 on, administrators add each year in the app (Manage → School calendar),
+-- from the Ministry's circular; school devices get it on their next sync.
+--
+-- TODO(2027): the 2027 calendar is not loaded here. It was announced in a Ministry of
+-- Education circular (ref. MOE.HQS/3/13/3/VOL III, 19-10-2026), but only news reports of
+-- it could be found, and they disagree on some dates (Term 1 closing differs between
+-- primary/junior and secondary schools). Enter 2027 from the circular itself, in the app
+-- or as a migration in database/migrations/.
 --
 -- Run after schema.sql: psql -U postgres -d <database> -f database/calendar_kenya.sql
 

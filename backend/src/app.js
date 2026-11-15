@@ -13,6 +13,7 @@ const usersRoutes = require('./routes/usersRoutes');
 const devicesRoutes = require('./routes/devicesRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
 const enrolmentRoutes = require('./routes/enrolmentRoutes');
+const calendarRoutes = require('./routes/calendarRoutes');
 const { requireAuth } = require('./middleware/auth');
 const errorHandler = require('./middleware/errorHandler');
 
@@ -48,6 +49,7 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/review', reviewRoutes);
 app.use('/api/enrolment', enrolmentRoutes);
+app.use('/api/calendar', calendarRoutes);
 
 // Placeholder mount points for later phases
 // app.use('/api/students', studentRoutes);

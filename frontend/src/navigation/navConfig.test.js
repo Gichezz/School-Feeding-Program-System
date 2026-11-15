@@ -4,10 +4,10 @@ import { allItems, visibleGroups } from './navConfig';
 const paths = (who) => allItems(who).map((item) => item.to);
 
 describe('who sees which pages', () => {
-  it('shows the system administrator accounts, devices and settings, and no school records', () => {
+  it('shows the system administrator accounts, devices, the school calendar and settings, and no school records', () => {
     const admin = paths({ isAdmin: true, role: 'admin' });
 
-    expect(admin).toEqual(['/', '/users', '/devices', '/settings']);
+    expect(admin).toEqual(['/', '/users', '/devices', '/calendar', '/settings']);
   });
 
   it('shows the programme officer the oversight pages', () => {

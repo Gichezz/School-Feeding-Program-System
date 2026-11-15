@@ -125,6 +125,10 @@ The server refuses a decision if the record changed again since the conflict was
 
 Held records (possible duplicate deliveries, records from deactivated users or removed devices) wait under Conflicts → Held records for the school's programme officer (or an administrator) to apply, keeping the original author, or discard. The school's devices get the decision with their next download.
 
+## School calendar
+
+Terms (with half-term) and national dates (public holidays, national exams) are kept by system administrators under Manage → School calendar (`/api/calendar/terms`, `/api/calendar/events`). Programme officers may add a closure or event for a school in their sub-county through the same events API; administrators never see those. A term that schools have entered enrolment for cannot be removed, only changed, and practice terms are not changed here. Every download (`GET /api/sync/changes`) carries the whole calendar, which the device replaces, so added, changed and removed dates reach school devices on their next sync.
+
 ## Monitoring
 
 **Analytics** (`GET /api/analytics/term`) show each school's term so far: school days recorded against the calendar, learners fed against enrolment, food issued against the ration, days of cereals left by the ledger, the first delivery and any shortfall against the delivery notes, and how far behind its synced records are (counted to the term's last day, so schools are not "behind" in the holidays). Figures outside stated rules are marked for a look.

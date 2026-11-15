@@ -131,7 +131,7 @@ psql -U postgres -d school_feeding -f database/calendar_kenya.sql
 psql -U postgres -d school_feeding -f database/seed.sql
 ```
 
-- `calendar_kenya.sql` loads the national school calendar (terms, half-terms, public holidays, national exams). Every installation needs it.
+- `calendar_kenya.sql` loads the national school calendar (terms, half-terms, public holidays, national exams) for 2024–2026. Every installation needs it. Later years are kept in the app: Manage → School calendar.
 - `seed.sql` adds four fictional schools and three demo accounts, for **local use only**. Their passwords are listed at the top of the file.
 
 **2. Start the API** (port 5000)
@@ -252,7 +252,7 @@ Work is tracked in [issues](https://github.com/Gichezz/School-Feeding-Program-Sy
 - **Synthetic data.** No real school feeding records were available. The anomaly method was chosen on a synthetic dataset built from real Kenyan inputs, and needs checking against real records before use.
 - **A list, not a verdict.** A listed school often has an ordinary explanation; only the officer's notes are judgements. Records that never sync cannot be ranked.
 - **Background sync.** Devices sync when the app is open or reconnects, not in the background, which not every phone browser supports.
-- **Calendar.** The national calendar covers 2024–2026; later years are added when the Ministry publishes them.
+- **Calendar.** `calendar_kenya.sql` covers 2024–2026. Administrators add later years under Manage → School calendar from the Ministry of Education's circular; school devices get them on their next sync.
 - **Scope.** Public primary and junior school day schools with one meal a day. Boarding schools are not covered.
 - **Sign-in.** The first sign-in on a device needs a connection, and sign-in is not yet rate-limited.
 - **Backups.** Daily backups are kept on the same machine; copy them elsewhere regularly.

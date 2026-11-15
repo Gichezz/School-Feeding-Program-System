@@ -457,3 +457,39 @@ export async function checkReviewFlag(id, note) {
 export async function getRecordHistory(entityType, id) {
   return apiRequest(`/review/records/${entityType}/${id}/history`);
 }
+
+/**
+ * School calendar. Administrators keep the terms and the national dates (public holidays
+ * and national exams); school devices download them with every sync. Dates are DD-MM-YYYY.
+ */
+export async function getCalendarTerms() {
+  return apiRequest('/calendar/terms');
+}
+
+export async function createCalendarTerm(data) {
+  return apiRequest('/calendar/terms', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function updateCalendarTerm(id, changes) {
+  return apiRequest(`/calendar/terms/${id}`, { method: 'PATCH', body: JSON.stringify(changes) });
+}
+
+export async function deleteCalendarTerm(id) {
+  return apiRequest(`/calendar/terms/${id}`, { method: 'DELETE' });
+}
+
+export async function getCalendarEvents(year) {
+  return apiRequest(`/calendar/events${year ? `?year=${encodeURIComponent(year)}` : ''}`);
+}
+
+export async function createCalendarEvent(data) {
+  return apiRequest('/calendar/events', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function updateCalendarEvent(id, changes) {
+  return apiRequest(`/calendar/events/${id}`, { method: 'PATCH', body: JSON.stringify(changes) });
+}
+
+export async function deleteCalendarEvent(id) {
+  return apiRequest(`/calendar/events/${id}`, { method: 'DELETE' });
+}
