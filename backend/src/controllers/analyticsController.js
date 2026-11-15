@@ -22,6 +22,8 @@ const { subCountyFor } = require('../services/schoolAccess');
  *                  kilograms short of the delivery notes
  *   lastSync       when the school's records last reached the server; daysSinceSync
  *                  counts to the last day so far, so a school is not 'behind' in the holidays
+ *   schoolDaysLeft school days after today until the term closes (0 once it has closed),
+ *                  so days of food can be judged against what the term still needs
  */
 
 const RECENT_DAYS = 10;
@@ -63,6 +65,14 @@ const SCHOOL_FIGURES = `
       AND NOT EXISTS (SELECT 1 FROM calendar_events e
                       WHERE e.kind = 'school_closure' AND e.school_id = s.id AND d.day BETWEEN e.starts_on AND e.ends_on)
   ),
+  days_left AS (
+    SELECT d::date AS day
+    FROM generate_series($3::date + 1, $7::date, interval '1 day') AS d
+    WHERE EXTRACT(ISODOW FROM d) < 6
+      AND NOT ($4::date IS NOT NULL AND d BETWEEN $4::date AND $5::date)
+      AND NOT EXISTS (SELECT 1 FROM calendar_events e
+                      WHERE e.kind = 'public_holiday' AND d BETWEEN e.starts_on AND e.ends_on)
+  ),
   feeding AS (
     SELECT f.* FROM daily_feeding f JOIN schools s ON s.id = f.school_id
     WHERE s.sub_county = $1 AND f.feeding_date BETWEEN $2::date AND $3::date
@@ -101,7 +111,10 @@ const SCHOOL_FIGURES = `
           WHERE m.school_id = s.id AND m.kind = 'delivery' AND m.movement_date BETWEEN $2::date AND $3::date) AS first_delivery,
          (SELECT COALESCE(SUM(GREATEST(note_quantity_kg - quantity_kg, 0)), 0)::float FROM stock_movements m
           WHERE m.school_id = s.id AND m.kind = 'delivery' AND m.movement_date BETWEEN $2::date AND $3::date) AS delivery_short_kg,
-         (SELECT MAX(received_at) FROM daily_feeding f WHERE f.school_id = s.id) AS last_sync
+         (SELECT MAX(received_at) FROM daily_feeding f WHERE f.school_id = s.id) AS last_sync,
+         (SELECT COUNT(*) FROM days_left dl
+          WHERE NOT EXISTS (SELECT 1 FROM calendar_events e
+                            WHERE e.kind = 'school_closure' AND e.school_id = s.id AND dl.day BETWEEN e.starts_on AND e.ends_on))::int AS school_days_left
   FROM schools s
   WHERE s.sub_county = $1
   ORDER BY s.name`;
@@ -132,6 +145,7 @@ function schoolFigures(row, opensOn, asOf) {
     firstDelivery: toDisplay(row.first_delivery),
     deliveryDaysAfterOpening: daysAfterOpening,
     deliveryShortKg: row.delivery_short_kg,
+    schoolDaysLeft: row.school_days_left,
     lastSync: row.last_sync,
     daysSinceSync: row.last_sync
       ? Math.max(Math.floor((Date.parse(`${asOf}T00:00:00Z`) - Date.parse(`${localDate(row.last_sync)}T00:00:00Z`)) / 86400000), 0)
@@ -157,6 +171,7 @@ async function getTermAnalytics(req, res, next) {
       term.half_term_start,
       term.half_term_end,
       term.id,
+      closesOn,
     ]);
     if (result.rows.length === 0) throw new NotFoundError('Sub-county not found');
     const terms = await pool.query(
@@ -168,6 +183,7 @@ async function getTermAnalytics(req, res, next) {
       term: {
         id: term.id, year: term.year, term: term.term, label: termLabel(term), practice: term.practice,
         opensOn: toDisplay(opensOn), closesOn: toDisplay(closesOn),
+        closed: today > closesOn,
       },
       asOf: toDisplay(asOf),
       terms: terms.rows.map((t) => ({ id: t.id, label: termLabel(t) })),
