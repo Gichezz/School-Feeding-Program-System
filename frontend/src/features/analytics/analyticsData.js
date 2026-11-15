@@ -8,10 +8,19 @@ export const ATTENTION = {
   missingDays: 3,          // school days with no record at all
   rationLow: 0.9,          // food issued against the ration for learners fed
   rationHigh: 1.1,
-  daysOfFood: 10,          // about two school weeks left in the store
   deliveryDays: 10,        // first delivery this many days after the term opened
   syncDays: 7,             // a week without the school's records reaching the server
 };
+
+/**
+ * Low on food: the cereals in the store will not last the school days left in the term.
+ * Once a term has closed there are no days left to cover, so no school is low; what is
+ * in the store is simply carried into the next term.
+ */
+export function lowOnFood(school) {
+  return school.daysOfFood !== null && school.daysOfFood !== undefined
+    && school.schoolDaysLeft > 0 && school.daysOfFood < school.schoolDaysLeft;
+}
 
 /** The figures of one school that need attention, as { key: reason }. */
 export function attention(school) {
@@ -26,8 +35,8 @@ export function attention(school) {
   if (school.cerealsInStoreKg !== null && school.cerealsInStoreKg !== undefined && school.cerealsInStoreKg < 0) {
     // More recorded as used than received: the days of food cannot be known from these records
     notes.stock = 'Stock records incomplete';
-  } else if (school.daysOfFood !== null && school.daysOfFood < ATTENTION.daysOfFood) {
-    notes.daysOfFood = `${school.daysOfFood} ${school.daysOfFood === 1 ? 'day' : 'days'} of food left`;
+  } else if (lowOnFood(school)) {
+    notes.daysOfFood = `Food for ${school.daysOfFood} of the ${school.schoolDaysLeft} school days left`;
   }
   if (school.programmeType === 'in_kind') {
     if (school.firstDelivery === null) notes.delivery = 'No delivery this term';
@@ -84,7 +93,7 @@ export function summary(schools) {
     schools: schools.length,
     recordedShare: schoolDays ? recorded / schoolDays : null,
     meanCoverage: mean(schools.map((s) => s.coverage)),
-    lowStock: schools.filter((s) => !(s.cerealsInStoreKg < 0) && s.daysOfFood !== null && s.daysOfFood < ATTENTION.daysOfFood).length,
+    lowStock: schools.filter((s) => !(s.cerealsInStoreKg < 0) && lowOnFood(s)).length,
     notSynced: schools.filter((s) => s.lastSync === null || s.daysSinceSync > ATTENTION.syncDays).length,
     needAttention: schools.filter((s) => Object.keys(attention(s)).length > 0).length,
   };

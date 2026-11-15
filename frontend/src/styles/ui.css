@@ -16,7 +16,7 @@
 .ui-page-header__title {
   font-family: var(--font-display);
   font-size: var(--font-size-3xl);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
 }
 
 .ui-page-header__description {
@@ -516,12 +516,11 @@
 }
 
 .ui-table__table th {
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
   color: var(--color-ink-muted);
-  text-transform: uppercase;
-  letter-spacing: var(--letter-spacing-caps);
-  background: var(--color-surface-sunken);
+  background: transparent;
+  border-bottom: var(--border-width) solid var(--color-border-strong);
 }
 
 .ui-table__table tbody tr:hover {
@@ -1125,6 +1124,19 @@
   padding: 0;
 }
 
+/* ---------- Food icons ---------- */
+.food-icon { width: var(--icon-lg); height: var(--icon-lg); flex: none; }
+.food-icon__grain { fill: var(--food-maize); }
+.food-icon__line { fill: none; stroke: var(--food-maize-line); stroke-width: 1.1; }
+.food-icon__leaf { fill: none; stroke: var(--food-leaf); stroke-width: 1.6; stroke-linecap: round; }
+.food-icon__bean { fill: var(--food-bean); }
+.food-icon__bean--light { fill: var(--food-bean-light); }
+.food-icon__tin { fill: var(--food-tin); stroke: var(--food-maize-line); stroke-width: 1.3; }
+.food-icon__cap { fill: var(--food-maize-line); }
+.food-icon__shaker { fill: var(--food-salt); stroke: var(--color-border-strong); stroke-width: 1.3; }
+.food-icon__lid { fill: var(--food-salt-lid); }
+.food-icon__hole { fill: var(--color-brand-900); }
+
 /* ---------- Chart labels ---------- */
 .ui-chart .ui-chart__value-label,
 .ui-chart .ui-chart__rule-label {
@@ -1583,7 +1595,7 @@
 }
 
 .ui-table--sticky thead .ui-table__cell--sticky {
-  background: var(--color-surface-sunken);
+  background: var(--color-surface-work);
 }
 
 .ui-table__item-actions {
