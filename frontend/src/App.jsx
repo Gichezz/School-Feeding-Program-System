@@ -19,6 +19,7 @@ import { useSession } from './hooks/useSession';
 import Settings from './pages/Settings';
 import Users from './pages/Users';
 import Devices from './pages/Devices';
+import School from './pages/School';
 import { setupAutoSync } from './sync/syncManager';
 
 // Design system reference; only included in development builds
@@ -76,6 +77,7 @@ function App() {
         <Route path="/review" element={<Review />} />
         <Route path="/weekly-review" element={<WeeklyReview />} />
         <Route path="/analytics" element={<Analytics />} />
+        <Route path="/schools/:id" element={<School />} />
         <Route path="/enrolment-checks" element={<EnrolmentChecks />} />
         {/* Reports showed the older attendance and meal records; Analytics replaces it */}
         <Route path="/reports" element={<Navigate to="/analytics" replace />} />

@@ -3,7 +3,7 @@ import { attention, summary, triage } from './analyticsData';
 
 const steady = {
   schoolDays: 34, recorded: 34, missing: 0, coverage: 0.9, cerealsVsRation: 1.02, pulsesVsRation: 0.97,
-  daysOfFood: 25, programmeType: 'in_kind', firstDelivery: '26-08-2026', deliveryDaysAfterOpening: 2,
+  daysOfFood: 25, schoolDaysLeft: 20, programmeType: 'in_kind', firstDelivery: '26-08-2026', deliveryDaysAfterOpening: 2,
   lastSync: '2026-10-07T12:00:00Z', daysSinceSync: 1,
 };
 
@@ -20,7 +20,7 @@ describe('attention', () => {
     expect(notes).toEqual({
       records: '5 school days with no record',
       cerealsVsRation: 'Cereals issued at 1.25 times the ration',
-      daysOfFood: '6 days of food left',
+      daysOfFood: 'Food for 6 of the 20 school days left',
       delivery: 'First delivery 21 days after opening',
       sync: 'Records 12 days behind',
     });
@@ -37,7 +37,16 @@ describe('attention: stock records', () => {
   });
 
   it('counts a store at zero as low on food', () => {
-    expect(attention({ ...steady, cerealsInStoreKg: 0, daysOfFood: 0 })).toEqual({ daysOfFood: '0 days of food left' });
+    expect(attention({ ...steady, cerealsInStoreKg: 0, daysOfFood: 0 })).toEqual({ daysOfFood: 'Food for 0 of the 20 school days left' });
+  });
+
+  it('judges food against the school days left in the term, not a fixed number', () => {
+    expect(attention({ ...steady, daysOfFood: 4, schoolDaysLeft: 3 })).toEqual({});
+    expect(attention({ ...steady, daysOfFood: 4, schoolDaysLeft: 5 })).toEqual({ daysOfFood: 'Food for 4 of the 5 school days left' });
+  });
+
+  it('marks no school low on food once the term has closed', () => {
+    expect(attention({ ...steady, daysOfFood: 0, schoolDaysLeft: 0 })).toEqual({});
   });
 });
 

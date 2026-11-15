@@ -3,7 +3,9 @@ import { AlertTriangle, CalendarX, CloudOff, Scale, Truck, Warehouse } from 'luc
 import {
   Alert, Badge, Card, ChartCard, DataTable, FormField, PageHeader, PrintButton, PrintHeader, StatusLine, TriageSection,
 } from '../components/ui';
+import { Link } from 'react-router-dom';
 import { getTermAnalytics } from '../services/api';
+import StockTable from '../features/analytics/StockTable';
 import { useDataFreshness } from '../hooks/useDataFreshness';
 import { ATTENTION, attention, summary, triage } from '../features/analytics/analyticsData';
 import { NOT_FED_REASONS } from '../features/feeding/planning';
@@ -33,7 +35,7 @@ const SECTIONS = {
   daysOfFood: {
     icon: Warehouse,
     title: 'Low on food',
-    rule: `Fewer than ${ATTENTION.daysOfFood} school days of cereals left by the records, at the school's recent daily use.`,
+    rule: 'The cereals in the store will not last the school days left in the term, at the school’s recent daily use.',
   },
   delivery: {
     icon: Truck,
@@ -67,7 +69,7 @@ const REASON_FILTER = {
 
 function columns() {
   return [
-    { key: 'name', header: 'School', primary: true, render: (s) => s.name, sortValue: (s) => s.name },
+    { key: 'name', header: 'School', primary: true, render: (s) => <Link to={`/schools/${s.schoolId}`}>{s.name}</Link>, sortValue: (s) => s.name },
     {
       key: 'records', header: 'Days recorded', sortValue: (s) => s.missing,
       render: (s) => (
@@ -116,22 +118,13 @@ function columns() {
 
 const rowId = (s) => `school-${s.schoolId}`;
 
-/** Jump to a school's row in All schools (its card on a phone) and put focus there. */
-function showRow(event, school) {
-  event.preventDefault();
-  const row = document.getElementById(rowId(school));
-  const target = row && row.offsetParent !== null ? row : document.getElementById(`${rowId(school)}-card`);
-  target?.scrollIntoView({ block: 'center', behavior: 'instant' });
-  target?.focus({ preventScroll: true });
-}
-
-/** The schools under one reason, each with the figure that put it there and a link to its row. */
+/** The schools under one reason, each with the figure that put it there and a link to its page. */
 function SchoolList({ schools, figure }) {
   return (
     <ul className="analytics__schools">
       {schools.map((s) => (
         <li key={s.schoolId} className="analytics__school">
-          <a href={`#${rowId(s)}`} className="analytics__school-name" onClick={(e) => showRow(e, s)}>{s.name}</a>
+          <Link to={`/schools/${s.schoolId}`} className="analytics__school-name">{s.name}</Link>
           <span className="analytics__school-figure">{figure(s)}</span>
         </li>
       ))}
@@ -159,13 +152,8 @@ function Triage({ groups }) {
       )}
       {daysOfFood.length > 0 && (
         <TriageSection {...SECTIONS.daysOfFood} tone="warning" count={daysOfFood.length}>
-          <ChartCard title="School days of cereals left" type="ranked" xKey="school" xLabel="School"
-            data={daysOfFood.map((s) => ({ school: shortName(s.name), days: s.daysOfFood }))}
-            summary={`${daysOfFood.length} ${daysOfFood.length === 1 ? 'school has' : 'schools have'} under ${ATTENTION.daysOfFood} school days of cereals; ${shortName(daysOfFood[0].name)} has the fewest (${days(daysOfFood[0].daysOfFood)}).`}
-            series={[{ dataKey: 'days', metric: 'figure', label: 'School days of cereals' }]}
-            referenceLine={{ value: ATTENTION.daysOfFood, label: `Rule: ${ATTENTION.daysOfFood} days` }}
-            height={daysOfFood.length > 6 ? 'md' : 'sm'} />
-          <SchoolList schools={daysOfFood} figure={(s) => s.notes.daysOfFood} />
+          <StockTable schools={daysOfFood} caption="Schools short of food for the rest of the term" />
+
         </TriageSection>
       )}
       {groups.delivery.length > 0 && (

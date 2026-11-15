@@ -130,7 +130,7 @@ function Styleguide() {
           ))}
         </Section>
 
-        <Section title="Typography" description="Fraunces for page titles and the wordmark; Inter everywhere else.">
+        <Section title="Typography" description="Lexend for headings, figures and the wordmark; Source Sans 3 for text.">
           <p className="sg-wordmark">Lishe</p>
           <p className="sg-tagline">Every meal counted, even offline.</p>
           <div className="sg-type-scale">
