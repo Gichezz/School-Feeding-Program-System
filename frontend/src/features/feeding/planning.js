@@ -140,6 +140,12 @@ export function currentTerm(terms, now = new Date()) {
     || null;
 }
 
+/** True when no term on this device closes today or later: the calendar has run out. */
+export function calendarEnded(terms, now = new Date()) {
+  const today = todayKey(now);
+  return !terms.some((t) => dayKey(t.closesOn) >= today);
+}
+
 /** Average learners fed over the last `n` feeding days up to `upTo`, or null with none. */
 export function averageFed(feedingDays, { n = AVERAGE_DAYS, upTo } = {}) {
   const fed = feedingDays

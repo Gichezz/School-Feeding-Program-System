@@ -1,6 +1,7 @@
 import {
   LayoutDashboard,
   CalendarCheck,
+  CalendarDays,
   Warehouse,
   Users,
   FileText,
@@ -58,11 +59,12 @@ export const NAV_GROUPS = [
     ],
   },
   {
-    // The system administrator's work: accounts and school devices (no school records)
+    // The system administrator's work: accounts, school devices and the national calendar (no school records)
     label: 'Manage',
     items: [
       { to: '/users', label: 'Users', icon: UserCog, adminOnly: true, mobileTab: true },
       { to: '/devices', label: 'Devices', icon: Tablet, adminOnly: true, mobileTab: true },
+      { to: '/calendar', label: 'School calendar', shortLabel: 'Calendar', icon: CalendarDays, adminOnly: true },
     ],
   },
   {

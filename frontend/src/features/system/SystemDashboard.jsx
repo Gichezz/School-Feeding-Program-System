@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { CloudOff, KeyRound, Lock, Tablet } from 'lucide-react';
+import { CalendarClock, CalendarDays, CloudOff, KeyRound, Lock, Tablet } from 'lucide-react';
 import { Alert, Card, PageHeader, StatusLine, WorkQueue } from '../../components/ui';
-import { getDevices, getUsers } from '../../services/api';
+import { getCalendarStatus, getDevices, getUsers } from '../../services/api';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { formatNumber } from '../../utils/format';
 
@@ -19,6 +19,34 @@ export function systemSummary(devices, users) {
 }
 
 /**
+ * School calendar to-dos for the administrator, from GET /api/calendar/status: no term
+ * left at all, next year's terms (from 1 November) and estimated holidays to confirm.
+ * Nothing is shown before November while next year's terms are not due yet.
+ */
+export function calendarItems(status) {
+  if (!status) return [];
+  const items = [];
+  const terms = { key: 'terms', icon: CalendarDays, to: '/calendar' };
+  if (status.calendarEnded) {
+    items.push({ ...terms, title: 'No school term is in the calendar after today', description: 'Enter the next terms from the Ministry of Education circular. Until then schools have no term to plan for.' });
+  } else if (status.termsReminder) {
+    const which = status.missingTerms.length === 3 ? 'school terms' : status.missingTerms.map((n) => `Term ${n}`).join(' and ');
+    items.push({ ...terms, title: `Enter the ${status.nextYear} ${which} from the Ministry circular`, description: 'Schools need them to plan food for next year.' });
+  } else if (status.missingTerms?.length === 0) {
+    items.push({ ...terms, title: `${status.nextYear} school terms entered`, done: true });
+  }
+  const toConfirm = status.toConfirm || [];
+  if (toConfirm.length > 0) {
+    items.push({
+      key: 'confirm', icon: CalendarClock, to: '/calendar', actionLabel: 'Check',
+      title: toConfirm.length === 1 ? `Confirm the date of ${toConfirm[0].name} ${toConfirm[0].startsOn.slice(6)}` : `${toConfirm.length} holiday dates to confirm`,
+      description: 'Lishe estimated it. Check the gazette notice, then confirm or change it.',
+    });
+  }
+  return items;
+}
+
+/**
  * The system administrator's start page. They run accounts, devices and configuration
  * and see no school records (least privilege), so this shows only what needs them.
  */
@@ -30,8 +58,9 @@ function SystemDashboard() {
   useEffect(() => {
     if (!isOnline) return undefined;
     let active = true;
-    Promise.all([getDevices(), getUsers()])
-      .then(([d, u]) => { if (active) setData(systemSummary(d.devices || [], u.users || [])); })
+    // The calendar's to-dos are extra: the page still loads if they cannot be fetched
+    Promise.all([getDevices(), getUsers(), getCalendarStatus().catch(() => null)])
+      .then(([d, u, c]) => { if (active) setData({ ...systemSummary(d.devices || [], u.users || []), calendar: c }); })
       .catch((err) => { if (active) setError(err.message); });
     return () => { active = false; };
   }, [isOnline]);
@@ -58,11 +87,12 @@ function SystemDashboard() {
         ? { title: n(data.withoutSecondFactor, 'administrator without a passkey or authenticator app', 'administrators without a passkey or authenticator app'), description: 'Anyone with their password can sign in as them.' }
         : { title: 'Every administrator has a passkey or authenticator app', done: true }),
     },
+    ...calendarItems(data.calendar),
   ] : [];
 
   return (
     <div data-density="compact">
-      <PageHeader title="Dashboard" description="Accounts and school devices." />
+      <PageHeader title="Dashboard" description="Accounts, school devices and the school calendar." />
       <div className="ui-stack">
         {!isOnline && <StatusLine icon={CloudOff}>Offline. Accounts and devices need a connection.</StatusLine>}
         {error && <Alert tone="danger" title="Could not load accounts and devices">{error}</Alert>}

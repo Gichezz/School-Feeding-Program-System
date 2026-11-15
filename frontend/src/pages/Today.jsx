@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, CalendarCheck, Save, Wheat } from 'lucide-react';
+import { AlertTriangle, CalendarCheck, CalendarX, Save, Wheat } from 'lucide-react';
 import {
   Alert, Button, Card, ChoiceGroup, DataTable, DateField, EmptyState, FoodIcon, FormField, PageHeader, RecordStatus, StatusLine,
   recordStateFor, useToast,
@@ -8,8 +8,8 @@ import {
 import SchoolGate from '../features/feeding/SchoolGate';
 import { useSchoolData } from '../features/feeding/useSchoolData';
 import {
-  NOT_FED_REASONS, UNUSUAL_REASONS, averageFed, dayKey, foodRemaining, schoolDays, stockBalances, todayKey,
-  validateFeeding, COMMODITIES, COMMODITY_LABELS, termName,
+  NOT_FED_REASONS, UNUSUAL_REASONS, averageFed, calendarEnded, dayKey, foodRemaining, schoolDays, stockBalances, todayKey,
+  validateFeeding, COMMODITIES, COMMODITY_LABELS,
 } from '../features/feeding/planning';
 import { displayBalance, foodStatus } from '../features/feeding/foodStatus';
 import { saveDailyFeeding } from '../services/feedingDb';
@@ -261,6 +261,16 @@ function InStore({ data }) {
  * task: when food runs short, the teacher tells the head teacher, who arranges more.
  */
 function FoodLine({ data }) {
+  // The last term on this device has closed and the next one has not arrived yet (this is
+  // also the only time the current term is one that has closed, so it covers the holidays)
+  if (calendarEnded(data.terms)) {
+    return (
+      <StatusLine icon={CalendarX} tone="warning">
+        <strong>Next term&apos;s dates are not on this device yet.</strong> They arrive the next time this device is online.
+        Record a day only if learners were fed.
+      </StatusLine>
+    );
+  }
   const balances = stockBalances({ movements: data.movements, feedingDays: data.feedingDays, ration: data.ration });
   const avg = averageFed(data.feedingDays);
   const remaining = data.term ? schoolDays(data.terms, data.events, todayKey(), dayKey(data.term.closesOn)) : [];
@@ -297,9 +307,6 @@ function FoodLine({ data }) {
   }
   if (status.kind === 'unknown') {
     return <StatusLine icon={Wheat}>Record feeding for a few days to see how long the food will last · {left(status.remainingDays)}</StatusLine>;
-  }
-  if (data.term && dayKey(data.term.closesOn) < todayKey()) {
-    return <StatusLine icon={Wheat}>Schools are on holiday: {termName(data.term)} closed on {data.term.closesOn}. Record a day only if learners were fed.</StatusLine>;
   }
   return <StatusLine icon={Wheat}>No school days are left this term.</StatusLine>;
 }

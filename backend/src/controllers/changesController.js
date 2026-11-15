@@ -2,6 +2,7 @@ const { pool } = require('../db/pool');
 const { isUuid } = require('../validation/records');
 const { isoDate } = require('../services/integrity');
 const { visibleSchool } = require('../services/schoolAccess');
+const { plainName } = require('../services/calendar');
 
 /**
  * Downloading changes to a school device (the pull half of sync).
@@ -177,7 +178,8 @@ async function getChanges(req, res, next) {
       'SELECT * FROM calendar_events WHERE school_id IS NULL OR school_id = $1 ORDER BY starts_on',
       [schoolId]
     )).rows.map((e) => ({
-      id: e.id, startsOn: displayDate(e.starts_on), endsOn: displayDate(e.ends_on), kind: e.kind, name: e.name,
+      // An estimated holiday still counts; teachers see its plain name
+      id: e.id, startsOn: displayDate(e.starts_on), endsOn: displayDate(e.ends_on), kind: e.kind, name: plainName(e.name),
     }));
 
     await client.query('COMMIT');

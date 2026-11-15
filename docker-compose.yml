@@ -46,6 +46,8 @@ services:
       # Scores each sub-county's finished weeks for the weekly review list by itself
       REVIEW_SCHEDULE: ${REVIEW_SCHEDULE:-on}
       REVIEW_SCHEDULE_MINUTES: ${REVIEW_SCHEDULE_MINUTES:-60}
+      # From 1 October, fills in next year's public holidays for an administrator to check
+      CALENDAR_PREFILL: ${CALENDAR_PREFILL:-on}
       # Applied on start-up (backend/src/db/migrate.js). Only for a database migrated by
       # hand before that: the last script it already has, set once
       MIGRATIONS_BASELINE: ${MIGRATIONS_BASELINE:-}
