@@ -1,0 +1,104 @@
+{
+  "protocol": "config/anomaly_v9.yaml part A, investigation 6",
+  "model": "HistGradientBoostingClassifier, default settings, random_state=0",
+  "trained_on": "2024 (labels)",
+  "evaluated_on": "2025",
+  "note": "a benchmark of what the features can separate, not a ceiling and not part of the system",
+  "version_8_features": {
+    "features": [
+      "fed_rate",
+      "fed_vs_own",
+      "fed_vs_peers",
+      "fed_rate_vs_last_term",
+      "enrolment_change",
+      "uptake",
+      "cereal_ratio",
+      "pulse_ratio",
+      "usage_trend",
+      "count_gap_change",
+      "entry_delay",
+      "entry_batch",
+      "after_hours_share",
+      "round_share",
+      "fed_steadiness"
+    ],
+    "threshold_quantile_chosen_on_2024": "0.97",
+    "school_days": {
+      "auc": 0.8118,
+      "average_precision": 0.5966,
+      "by_type_auc": {
+        "consumption_drift": 0.9032,
+        "inflated_headcount": 0.9501,
+        "stock_leakage": 0.5733
+      }
+    },
+    "school_weeks": {
+      "precision_at_k": 0.9294,
+      "recall_at_k": 0.5113,
+      "f1_at_k": 0.6597
+    },
+    "listed_by_type": {
+      "consumption_drift": 0.7379,
+      "inflated_headcount": 0.8119,
+      "stock_leakage": 0.0094
+    },
+    "best_threshold_on_2025_optimistic": {
+      "precision_at_k": 0.9191,
+      "recall_at_k": 0.5146,
+      "f1_at_k": 0.6598,
+      "q": 0.97
+    }
+  },
+  "with_version_8_candidates": {
+    "features": [
+      "fed_rate",
+      "fed_vs_own",
+      "fed_vs_peers",
+      "fed_rate_vs_last_term",
+      "enrolment_change",
+      "uptake",
+      "cereal_ratio",
+      "pulse_ratio",
+      "usage_trend",
+      "count_gap_change",
+      "entry_delay",
+      "entry_batch",
+      "after_hours_share",
+      "round_share",
+      "fed_steadiness",
+      "fed_vs_peers_trend",
+      "count_gap_recent"
+    ],
+    "threshold_quantile_chosen_on_2024": "0.95",
+    "school_days": {
+      "auc": 0.8455,
+      "average_precision": 0.6567,
+      "by_type_auc": {
+        "consumption_drift": 0.8974,
+        "inflated_headcount": 0.9488,
+        "stock_leakage": 0.6844
+      }
+    },
+    "school_weeks": {
+      "precision_at_k": 0.7192,
+      "recall_at_k": 0.6796,
+      "f1_at_k": 0.6988
+    },
+    "listed_by_type": {
+      "consumption_drift": 0.8058,
+      "inflated_headcount": 0.8713,
+      "stock_leakage": 0.3774
+    },
+    "best_threshold_on_2025_optimistic": {
+      "precision_at_k": 0.7257,
+      "recall_at_k": 0.6764,
+      "f1_at_k": 0.7002,
+      "q": 0.95
+    }
+  },
+  "version_8_unsupervised": {
+    "precision_at_k": 0.4686,
+    "recall_at_k": 0.3625,
+    "f1_at_k": 0.4088
+  }
+}
