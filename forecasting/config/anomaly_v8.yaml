@@ -1,0 +1,112 @@
+# Protocol version 8: improving the weekly review list.
+#
+# Written and committed before any version 8 run. Version 7's deployed list (Extended
+# Isolation Forest, review threshold q = 0.98) had Precision@3 43.8%, Recall@3 30.3% and
+# F1@3 35.7% on 2026. A list of at most 3 does not cap this: in 2026 a perfect model would
+# reach about 99% Recall@3 (most sub-county-weeks hold 0 or 1 problem school-weeks). So the
+# gap is in the scoring. Version 8 tests four changes, each answering one finding, in a
+# fixed order, choosing on the selection year (2025) only. The test year (2026) is scored
+# once, at the end, for the final settings and for version 7's, side by side.
+#
+# What does not change: the method (Extended Isolation Forest, settings from the main
+# evaluation), the deployment loop (each sub-county refitted every 20 school days on its
+# last 125, follow-up weeks left out of later fits), at most 3 school-weeks per officer-week,
+# the review threshold rule (the q-quantile of the training window's school-week scores,
+# q chosen per candidate on 2025 by F1@3 from [none, 0.90, 0.95, 0.98], ties to the lower q),
+# the data (4 datasets x 5 model seeds, as version 7), and that no labels reach the model.
+#
+# The injected problems are not changed in any way: making them easier would raise the
+# figures without making the list better.
+
+version: 8
+plan_for: forecasting/config/anomaly_deployment_test.yaml
+
+selection: {start: 2025-01-06, end: 2025-12-31}
+test: {start: 2026-01-01, end: 2026-10-23}
+choose_by: f1_at_k            # mean over datasets and model seeds, selection year only
+
+# A candidate replaces the current setting only if it beats it on 2025 by at least this
+# many F1@3 points (mean), so a difference within the run-to-run spread does not change
+# anything. Otherwise the current setting stays.
+margins:
+  stage_1_aggregation: 1.0
+  stage_2_features: 1.0
+  stage_3_grouped_models: 2.0   # more moving parts, so a larger margin
+  stage_4_rules_first: 1.0
+
+stages:
+  # Finding: a school's week is its single highest-scoring day, so one unusual day at an
+  # ordinary school can outrank a problem that lasts all week. But stock leakage shows only
+  # on a store-count day and a backdated catch-up is one sitting, so the maximum may still
+  # be best. The same weekly score is used for the threshold and for the list.
+  - name: stage_1_aggregation
+    current: max
+    candidates:
+      max: the highest day of the school-week (version 7)
+      top2_mean: the mean of the two highest days (the highest alone for a one-day week)
+      weighted: 0.6 x the highest day + 0.4 x the second highest
+
+  # Finding: the two weakest types in version 7 were stock leakage (14% of days found in the
+  # main evaluation) and inflated headcount (48%). Both are small signals spread over time.
+  # Each new feature uses only the school's own past and present records, like every other.
+  - name: stage_2_features
+    current: version 7's 15 features
+    candidates:
+      fed_vs_peers_trend: >
+        the mean of fed_vs_peers over the school's last 10 school days (at least 3), ending
+        that day. A steady few percent above similar schools stands out once the daily
+        noise is averaged.
+      count_gap_recent: >
+        the store count's gap with the records (count_gap_change) at the school's most
+        recent count in the last 10 school days, carried on the days after it; 0 when there
+        was no count. A count shows on one day; this keeps it visible for the weeks after.
+      both: the two together
+    leakage_check: the behaviour tests (no future records change a score) must pass with the new features
+
+  # Finding: one model on 15 features splits on random pairs of them, so a problem that moves
+  # 2 or 3 features can be hidden among the 12 that look ordinary. Fit a small model for each
+  # group of related features, plus the model on all features, and take the highest
+  # standardised score. The groups are fixed here, from what the features measure, not
+  # from any result. Group weights are not tuned.
+  - name: stage_3_grouped_models
+    current: one Extended Isolation Forest on all features
+    candidate:
+      grouped: >
+        Extended Isolation Forest on each group below and on all features (5 models, the
+        same settings). Each model's daily scores are standardised on its own training
+        window (median and 1.4826 x MAD); a day's score is the highest of the 5. The
+        reasons come from the model with the highest standardised score.
+    groups:
+      attendance_and_enrolment: [fed_rate, fed_vs_own, fed_vs_peers, fed_rate_vs_last_term, enrolment_change, uptake, fed_vs_peers_trend]
+      kitchen_and_store: [cereal_ratio, pulse_ratio, usage_trend, count_gap_change, count_gap_recent]
+      entry_timing: [entry_delay, entry_batch, after_hours_share]
+      made_up_figures: [round_share, fed_steadiness]
+    note: a feature not adopted in stage 2 is left out of its group
+    also_required: no group over-listed (fairness, below) on 2025
+
+  # Finding: the fixed rules alone had Precision@3 32.1% and find some problems the model
+  # misses. Today they are shown beside the list, not in it.
+  - name: stage_4_rules_first
+    current: the list is the model's (rule breaches are shown separately)
+    candidate:
+      rules_first: >
+        school-weeks that broke a fixed rule are listed first (by the rules' score), then the
+        model's school-weeks above the review threshold, at most 3 in all
+
+# Reported for the test year, for the final settings and version 7's, and not used to choose
+test_report:
+  weekly: [precision_at_k, recall_at_k, f1_at_k, empty_weeks_share, listings_per_officer_week, false_listings_per_officer_term, listed_by_type]
+  # A problem (an injected episode: one school, one type, from its first to its last day) is
+  # caught if any school-week it covers is listed. Weeks to catch: school weeks from the
+  # episode's first week to the first listing (0 = its first week). The officer's question
+  # is whether a problem is noticed while it is still going on, which the weekly figures
+  # do not show. Reported next to them, never instead.
+  episodes: [episodes_caught, episodes_caught_within_2_weeks, median_weeks_to_catch, caught_by_type]
+  fairness: as version 7 (over-listed above 1.5 times the overall false listing rate)
+  stages: every stage's 2025 figures for every candidate, and which won
+
+# After the deployment test, with the final settings, reported and not used to choose: the
+# main evaluation (with its feature ablation), the robustness scenarios and the explanation
+# faithfulness check. Version 8 does not reopen the choice of method; if another method
+# leads the main evaluation with the new features, the report says so.
+rerun_after: [evaluate_anomaly_detection, run_anomaly_robustness, check_explanation_faithfulness]
