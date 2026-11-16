@@ -199,3 +199,30 @@ part_b:
     reported_whatever_it_shows: >
       The result is reported as it comes out. No expectation is set that it will be higher
       or lower than 2025's or 2026's figures, and nothing is changed after it is seen.
+
+# ---------------------------------------------------------------------------------------
+# Freeze. Written after the part B development stages (data/reports/anomaly/v9/
+# development.json) and committed before any fresh dataset is generated.
+#
+# No change met every adoption rule on 2025:
+#   change 1 (over-recording): F1@3 -7.6 points; problems caught fell (78.6% to 58.2%).
+#     Inflated headcount weeks listed rose (16% to 70%), but consumption drift (63% to 16%)
+#     and stock leakage (30% to 6%) fell: averaging halves the isolation model's signal on
+#     days only it picks up.
+#   change 2 (store gap): +0.4 points, under the 1.0 margin.
+#   change 3 (persistence): +0.4 points, under the margin, and +1.3 ordinary schools listed
+#     per officer-term against the limit of 1.0 (problems caught rose, 78.6% to 91.1%).
+# So version 9 is version 8. The robustness check is not needed: the setting is version 8's,
+# already checked. The final test still runs, once, as an independent estimate of the
+# deployed list on data nobody has looked at; version 8 and version 9 are the same run.
+# ---------------------------------------------------------------------------------------
+frozen:
+  method: extended_isolation_forest
+  features: [fed_rate, fed_vs_own, fed_vs_peers, fed_rate_vs_last_term, enrolment_change, uptake, cereal_ratio,
+             pulse_ratio, usage_trend, count_gap_change, entry_delay, entry_batch, after_hours_share, round_share,
+             fed_steadiness]
+  weekly_score: top2_mean
+  q: 0.98
+  persistence: false
+  same_as: version 8
+  generator_commit: 050703a0063efe39f7c2d1dab57e303e0605e50d
