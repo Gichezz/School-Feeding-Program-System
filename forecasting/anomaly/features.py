@@ -44,6 +44,8 @@ FEATURES = {
 EXTRA_FEATURES = {
     "fed_vs_peers_trend": "learners fed against similar schools nearby, over the last 10 school days",
     "count_gap_recent": "the gap between the store and the records at the last count, in the past 10 school days",
+    # Protocol version 9: an input to the over-recording signal
+    "fed_rate_vs_last_term_trend": "the share of learners fed against the school's last term, over the last 10 school days",
 }
 RECENT_DAYS = 10
 
@@ -211,6 +213,8 @@ def build_features(schools, enrolment, feeding, counts, school_days, timing="cap
     # Version 8 candidates. Both use only the school's own records up to that day.
     # A steady few percent above similar schools, with the daily noise averaged out
     f["fed_vs_peers_trend"] = f.groupby("school_id").fed_vs_peers.transform(
+        lambda s: s.rolling(RECENT_DAYS, min_periods=3).mean()).fillna(0.0)
+    f["fed_rate_vs_last_term_trend"] = f.groupby("school_id").fed_rate_vs_last_term.transform(
         lambda s: s.rolling(RECENT_DAYS, min_periods=3).mean()).fillna(0.0)
     # The last store count's gap, carried on the school days after it (0 with no recent count)
     counted = f.count_gap_change.where(f.count_day)

@@ -105,6 +105,30 @@ Version 8 did not reopen the choice of method. With the new weekly score the mai
 
 One disclosure. While checking the code ran, before the stages, one 2026 figure was printed for a setting that was not the final one. Nothing used it: each stage was decided automatically by the margins on 2025.
 
+**Version 9: an investigation, three changes and an independent test** ([plan](../forecasting/config/anomaly_v9.yaml), [investigation](../forecasting/data/reports/anomaly/v9_investigation/v9_investigation_report.md), [report](../forecasting/data/reports/anomaly/v9/v9_report.md)). 2026 had been looked at for versions 7 and 8, so version 9 developed on 2025 only and was judged once on 10 fresh datasets (seeds 9001–9010).
+
+- **The investigation** (2025, the three types present):
+  - a list of 3 is not the limit: a perfect list reaches 100% F1@3;
+  - even a model trained with the labels reaches only about 70%, because stock leakage is nearly invisible between store counts;
+  - version 8's largest gap is inflated headcount.
+- **Three changes were tested in order on 2025, and none met every rule fixed in advance:**
+  - **An over-recording signal averaged with the model** listed far more inflated headcount (16% → 70% of weeks), but much less of the other types (F1@3 −7.6 points).
+  - **The carried store-count gap** gained +0.4 points, under the margin.
+  - **A persistence rule** raised problems caught from 79% to 91%, but F1@3 gained only +0.4, and it listed 1.3 more ordinary schools per officer-term, over the limit of 1.0.
+- **So version 9 is version 8,** and the fresh-data test is an independent estimate of the deployed list:
+
+  | Fresh data | Result (95% interval) |
+  |---|---|
+  | F1@3 | **50.8%** (46.4–55.9%) |
+  | Precision@3 | 53.8% |
+  | Recall@3 | 48.5% |
+  | Problems caught while still going on | **85.2%** (80.6–89.2%) |
+  | Caught within 2 weeks | 47.8% |
+  | Ordinary schools listed per officer-term | 4.3 |
+  | Highest fairness ratio | 1.13 |
+
+  These agree with version 8's 2026 figures, so those were not an artefact of having studied 2026. The weakness left is inflated headcount: 49% of those problems are caught.
+
 The rest of this section is version 7's method comparison, run again with version 8's weekly score where it applies.
 
 
