@@ -1,0 +1,457 @@
+{
+  "plan": "forecasting\\config\\anomaly_v8.yaml",
+  "protocol_version": 8,
+  "settings": {
+    "n_estimators": 100,
+    "ndim": 15
+  },
+  "final_setting": {
+    "aggregation": "top2_mean",
+    "features": [
+      "fed_rate",
+      "fed_vs_own",
+      "fed_vs_peers",
+      "fed_rate_vs_last_term",
+      "enrolment_change",
+      "uptake",
+      "cereal_ratio",
+      "pulse_ratio",
+      "usage_trend",
+      "count_gap_change",
+      "entry_delay",
+      "entry_batch",
+      "after_hours_share",
+      "round_share",
+      "fed_steadiness"
+    ],
+    "grouped": false,
+    "rules_first": false
+  },
+  "stages": [
+    {
+      "stage": "stage_1_aggregation",
+      "margin": 1.0,
+      "candidates": {
+        "max": {
+          "label": "max; v7 features; one model; model list",
+          "q": "0.98",
+          "selection": {
+            "precision_at_k": 0.3769,
+            "recall_at_k": 0.2574,
+            "f1_at_k": 0.3057,
+            "empty_weeks_share": 0.7611,
+            "listings_per_officer_week": 0.3642,
+            "false_listings_per_officer_term": 2.9385
+          }
+        },
+        "top2_mean": {
+          "label": "top2_mean; v7 features; one model; model list",
+          "q": "0.98",
+          "selection": {
+            "precision_at_k": 0.4718,
+            "recall_at_k": 0.3619,
+            "f1_at_k": 0.4075,
+            "empty_weeks_share": 0.7056,
+            "listings_per_officer_week": 0.4156,
+            "false_listings_per_officer_term": 2.8799
+          }
+        },
+        "weighted": {
+          "label": "weighted; v7 features; one model; model list",
+          "q": "0.98",
+          "selection": {
+            "precision_at_k": 0.4619,
+            "recall_at_k": 0.3527,
+            "f1_at_k": 0.3982,
+            "empty_weeks_share": 0.7111,
+            "listings_per_officer_week": 0.4115,
+            "false_listings_per_officer_term": 2.8934
+          }
+        }
+      },
+      "incumbent": "max; v7 features; one model; model list",
+      "best": "top2_mean",
+      "gain_f1_points": 10.18,
+      "adopted": true,
+      "fairness_ok": true
+    },
+    {
+      "stage": "stage_2_features",
+      "margin": 1.0,
+      "candidates": {
+        "fed_vs_peers_trend": {
+          "label": "top2_mean; +fed_vs_peers_trend; one model; model list",
+          "q": "0.98",
+          "selection": {
+            "precision_at_k": 0.4591,
+            "recall_at_k": 0.3827,
+            "f1_at_k": 0.4151,
+            "empty_weeks_share": 0.683,
+            "listings_per_officer_week": 0.4483,
+            "false_listings_per_officer_term": 3.1642
+          }
+        },
+        "count_gap_recent": {
+          "label": "top2_mean; +count_gap_recent; one model; model list",
+          "q": "0.98",
+          "selection": {
+            "precision_at_k": 0.4441,
+            "recall_at_k": 0.3876,
+            "f1_at_k": 0.4117,
+            "empty_weeks_share": 0.6806,
+            "listings_per_officer_week": 0.4729,
+            "false_listings_per_officer_term": 3.4486
+          }
+        },
+        "both": {
+          "label": "top2_mean; +fed_vs_peers_trend, +count_gap_recent; one model; model list",
+          "q": "0.98",
+          "selection": {
+            "precision_at_k": 0.4415,
+            "recall_at_k": 0.3872,
+            "f1_at_k": 0.4106,
+            "empty_weeks_share": 0.6715,
+            "listings_per_officer_week": 0.4729,
+            "false_listings_per_officer_term": 3.4531
+          }
+        }
+      },
+      "incumbent": "top2_mean; v7 features; one model; model list",
+      "best": "fed_vs_peers_trend",
+      "gain_f1_points": 0.76,
+      "adopted": false,
+      "fairness_ok": true
+    },
+    {
+      "stage": "stage_3_grouped_models",
+      "margin": 2.0,
+      "candidates": {
+        "grouped": {
+          "label": "top2_mean; v7 features; grouped; model list",
+          "q": "0.95",
+          "selection": {
+            "precision_at_k": 0.1636,
+            "recall_at_k": 0.2257,
+            "f1_at_k": 0.1894,
+            "empty_weeks_share": 0.4715,
+            "listings_per_officer_week": 0.7372,
+            "false_listings_per_officer_term": 8.0031
+          }
+        }
+      },
+      "incumbent": "top2_mean; v7 features; one model; model list",
+      "best": "grouped",
+      "gain_f1_points": -21.81,
+      "adopted": false,
+      "fairness_ok": true
+    },
+    {
+      "stage": "stage_4_rules_first",
+      "margin": 1.0,
+      "candidates": {
+        "rules_first": {
+          "label": "top2_mean; v7 features; one model; rules first",
+          "q": "0.95",
+          "selection": {
+            "precision_at_k": 0.2245,
+            "recall_at_k": 0.4691,
+            "f1_at_k": 0.3036,
+            "empty_weeks_share": 0.391,
+            "listings_per_officer_week": 1.1201,
+            "false_listings_per_officer_term": 11.2938
+          }
+        }
+      },
+      "incumbent": "top2_mean; v7 features; one model; model list",
+      "best": "rules_first",
+      "gain_f1_points": -10.39,
+      "adopted": false,
+      "fairness_ok": true
+    }
+  ],
+  "test": {
+    "version_8": {
+      "label": "top2_mean; v7 features; one model; model list",
+      "q": "0.98",
+      "precision_at_k": 0.5306,
+      "recall_at_k": 0.5236,
+      "f1_at_k": 0.5257,
+      "empty_weeks_share": 0.5368,
+      "listings_per_officer_week": 0.7403,
+      "false_listings_per_officer_term": 4.5139,
+      "listed_by_type": {
+        "backdated_bulk_entry": 1.0,
+        "consumption_drift": 0.4635,
+        "ghost_learners": 0.5925,
+        "inflated_headcount": 0.2066,
+        "round_number_entry": 0.5097,
+        "stock_leakage": 0.3099
+      },
+      "episodes": 360,
+      "episodes_caught": 0.8833333333333333,
+      "episodes_caught_within_2_weeks": 0.5361111111111111,
+      "median_weeks_to_catch": 1.0,
+      "caught_by_type": {
+        "backdated_bulk_entry": 1.0,
+        "consumption_drift": 0.8333,
+        "ghost_learners": 1.0,
+        "inflated_headcount": 0.6333,
+        "round_number_entry": 0.9167,
+        "stock_leakage": 0.9167
+      },
+      "fairness": {
+        "overall_false_listing_rate": 0.03755868544600939,
+        "overall_detection_rate": 0.5204597701149425,
+        "groups": {
+          "large schools": {
+            "by": "size_group",
+            "ordinary_weeks": 9350,
+            "problem_weeks": 730,
+            "false_listing_rate": 0.039037433155080216,
+            "detection_rate": 0.5917808219178082,
+            "false_listing_ratio": 1.0393716577540106
+          },
+          "small schools": {
+            "by": "size_group",
+            "ordinary_weeks": 8980,
+            "problem_weeks": 740,
+            "false_listing_rate": 0.030066815144766147,
+            "detection_rate": 0.4648648648648649,
+            "false_listing_ratio": 0.8005289532293987
+          },
+          "medium schools": {
+            "by": "size_group",
+            "ordinary_weeks": 8295,
+            "problem_weeks": 705,
+            "false_listing_rate": 0.044002411091018684,
+            "detection_rate": 0.5049645390070922,
+            "false_listing_ratio": 1.1715641952983724
+          },
+          "food delivered": {
+            "by": "programme_group",
+            "ordinary_weeks": 18915,
+            "problem_weeks": 1605,
+            "false_listing_rate": 0.04118424530795665,
+            "detection_rate": 0.4722741433021807,
+            "false_listing_ratio": 1.0965305313243456
+          },
+          "cash transfer": {
+            "by": "programme_group",
+            "ordinary_weeks": 7710,
+            "problem_weeks": 570,
+            "false_listing_rate": 0.028664072632944227,
+            "detection_rate": 0.656140350877193,
+            "false_listing_ratio": 0.76318093385214
+          },
+          "Mfano East": {
+            "by": "sub_county",
+            "ordinary_weeks": 6730,
+            "problem_weeks": 470,
+            "false_listing_rate": 0.040416047548291235,
+            "detection_rate": 0.4829787234042553,
+            "false_listing_ratio": 1.076077265973254
+          },
+          "Mfano North": {
+            "by": "sub_county",
+            "ordinary_weeks": 6670,
+            "problem_weeks": 530,
+            "false_listing_rate": 0.042578710644677664,
+            "detection_rate": 0.5867924528301887,
+            "false_listing_ratio": 1.1336581709145428
+          },
+          "Mfano South": {
+            "by": "sub_county",
+            "ordinary_weeks": 6605,
+            "problem_weeks": 595,
+            "false_listing_rate": 0.030582891748675248,
+            "detection_rate": 0.47058823529411764,
+            "false_listing_ratio": 0.8142694928084785
+          },
+          "Mfano West": {
+            "by": "sub_county",
+            "ordinary_weeks": 6620,
+            "problem_weeks": 580,
+            "false_listing_rate": 0.036555891238670694,
+            "detection_rate": 0.5413793103448276,
+            "false_listing_ratio": 0.9733006042296072
+          },
+          "syncs every 3-5 days": {
+            "by": "sync_group",
+            "ordinary_weeks": 17505,
+            "problem_weeks": 1395,
+            "false_listing_rate": 0.039303056269637246,
+            "detection_rate": 0.5340501792114696,
+            "false_listing_ratio": 1.0464438731790917
+          },
+          "syncs every 1-2 days": {
+            "by": "sync_group",
+            "ordinary_weeks": 9120,
+            "problem_weeks": 780,
+            "false_listing_rate": 0.034210526315789476,
+            "detection_rate": 0.49615384615384617,
+            "false_listing_ratio": 0.9108552631578948
+          },
+          "week without": {
+            "by": "in_outage",
+            "ordinary_weeks": 24550,
+            "problem_weeks": 2025,
+            "false_listing_rate": 0.03706720977596741,
+            "detection_rate": 0.5022222222222222,
+            "false_listing_ratio": 0.9869144602851323
+          },
+          "week with an outage": {
+            "by": "in_outage",
+            "ordinary_weeks": 2075,
+            "problem_weeks": 150,
+            "false_listing_rate": 0.043373493975903614,
+            "detection_rate": 0.7666666666666667,
+            "false_listing_ratio": 1.1548192771084338
+          }
+        },
+        "over_listed": []
+      }
+    },
+    "version_7": {
+      "label": "max; v7 features; one model; model list",
+      "q": "0.98",
+      "precision_at_k": 0.4376,
+      "recall_at_k": 0.3029,
+      "f1_at_k": 0.3568,
+      "empty_weeks_share": 0.684,
+      "listings_per_officer_week": 0.5208,
+      "false_listings_per_officer_term": 3.8233,
+      "listed_by_type": {
+        "backdated_bulk_entry": 1.0,
+        "consumption_drift": 0.2728,
+        "ghost_learners": 0.1683,
+        "inflated_headcount": 0.0573,
+        "round_number_entry": 0.2068,
+        "stock_leakage": 0.3194
+      },
+      "episodes": 360,
+      "episodes_caught": 0.7027777777777777,
+      "episodes_caught_within_2_weeks": 0.3611111111111111,
+      "median_weeks_to_catch": 1.0,
+      "caught_by_type": {
+        "backdated_bulk_entry": 1.0,
+        "consumption_drift": 0.7167,
+        "ghost_learners": 0.75,
+        "inflated_headcount": 0.25,
+        "round_number_entry": 0.5833,
+        "stock_leakage": 0.9167
+      },
+      "fairness": {
+        "overall_false_listing_rate": 0.03181220657276995,
+        "overall_detection_rate": 0.3002298850574713,
+        "groups": {
+          "large schools": {
+            "by": "size_group",
+            "ordinary_weeks": 9350,
+            "problem_weeks": 730,
+            "false_listing_rate": 0.02727272727272727,
+            "detection_rate": 0.29041095890410956,
+            "false_listing_ratio": 0.8573038531716217
+          },
+          "small schools": {
+            "by": "size_group",
+            "ordinary_weeks": 8980,
+            "problem_weeks": 740,
+            "false_listing_rate": 0.029398663697104678,
+            "detection_rate": 0.3472972972972973,
+            "false_listing_ratio": 0.9241315477395656
+          },
+          "medium schools": {
+            "by": "size_group",
+            "ordinary_weeks": 8295,
+            "problem_weeks": 705,
+            "false_listing_rate": 0.03954189270644967,
+            "detection_rate": 0.26099290780141843,
+            "false_listing_ratio": 1.2429786225610655
+          },
+          "food delivered": {
+            "by": "programme_group",
+            "ordinary_weeks": 18915,
+            "problem_weeks": 1605,
+            "false_listing_rate": 0.039545334390695214,
+            "detection_rate": 0.3177570093457944,
+            "false_listing_ratio": 1.2430868100971193
+          },
+          "cash transfer": {
+            "by": "programme_group",
+            "ordinary_weeks": 7710,
+            "problem_weeks": 570,
+            "false_listing_rate": 0.012840466926070038,
+            "detection_rate": 0.25087719298245614,
+            "false_listing_ratio": 0.40363333164889587
+          },
+          "Mfano East": {
+            "by": "sub_county",
+            "ordinary_weeks": 6730,
+            "problem_weeks": 470,
+            "false_listing_rate": 0.03387815750371471,
+            "detection_rate": 0.26382978723404255,
+            "false_listing_ratio": 1.0649420820972895
+          },
+          "Mfano North": {
+            "by": "sub_county",
+            "ordinary_weeks": 6670,
+            "problem_weeks": 530,
+            "false_listing_rate": 0.03253373313343328,
+            "detection_rate": 0.35283018867924526,
+            "false_listing_ratio": 1.0226808083561525
+          },
+          "Mfano South": {
+            "by": "sub_county",
+            "ordinary_weeks": 6605,
+            "problem_weeks": 595,
+            "false_listing_rate": 0.030128690386071157,
+            "detection_rate": 0.28403361344537814,
+            "false_listing_ratio": 0.9470795531630987
+          },
+          "Mfano West": {
+            "by": "sub_county",
+            "ordinary_weeks": 6620,
+            "problem_weeks": 580,
+            "false_listing_rate": 0.03066465256797583,
+            "detection_rate": 0.2982758620689655,
+            "false_listing_ratio": 0.963927242765474
+          },
+          "syncs every 3-5 days": {
+            "by": "sync_group",
+            "ordinary_weeks": 17505,
+            "problem_weeks": 1395,
+            "false_listing_rate": 0.03164810054270208,
+            "detection_rate": 0.3139784946236559,
+            "false_listing_ratio": 0.994841413163451
+          },
+          "syncs every 1-2 days": {
+            "by": "sync_group",
+            "ordinary_weeks": 9120,
+            "problem_weeks": 780,
+            "false_listing_rate": 0.03212719298245614,
+            "detection_rate": 0.27564102564102566,
+            "false_listing_ratio": 1.0099014322997577
+          },
+          "week without": {
+            "by": "in_outage",
+            "ordinary_weeks": 24550,
+            "problem_weeks": 2025,
+            "false_listing_rate": 0.03209775967413442,
+            "detection_rate": 0.2928395061728395,
+            "false_listing_ratio": 1.008976211716445
+          },
+          "week with an outage": {
+            "by": "in_outage",
+            "ordinary_weeks": 2075,
+            "problem_weeks": 150,
+            "false_listing_rate": 0.028433734939759037,
+            "detection_rate": 0.4,
+            "false_listing_ratio": 0.8937995192102531
+          }
+        },
+        "over_listed": []
+      }
+    }
+  },
+  "runtime_seconds": 17549
+}

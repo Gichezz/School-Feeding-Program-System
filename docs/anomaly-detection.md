@@ -47,32 +47,80 @@ Fifteen per school-day, each a figure an officer could check by hand ([`forecast
 
 ## 4. Protocol
 
-The comparison follows a protocol written and committed before each run ([`anomaly_evaluation.yaml`](../forecasting/config/anomaly_evaluation.yaml)); every change between versions is recorded there with its reason. Version 7 is current:
+The comparison follows a protocol written and committed before each run ([`anomaly_evaluation.yaml`](../forecasting/config/anomaly_evaluation.yaml)); every change between versions is recorded there with its reason. Version 7 is the method comparison; version 8 ([`anomaly_v8.yaml`](../forecasting/config/anomaly_v8.yaml)) changed how the weekly list is built (section 5):
 
 - **Methods:** fixed rules and a robust z-score (baselines), and learned methods from the main families of unsupervised detectors: Isolation Forest and Extended Isolation Forest (isolation), the one-class SVM and SGDOneClassSVM (kernel boundary), Local Outlier Factor (density). Each gets six settings.
 - **Periods:** models fitted on 2024; settings and the threshold chosen on 2025; the choice refitted on 2024–2025; January–October 2026 tested once.
 - **No future records:** every feature uses only records up to the day it describes, as the deployed service can; a test checks that a day's features do not change when later records arrive.
-- **Units:** every method scores the same school-days; lists are built from school-weeks (each school's highest-scoring day that week). The deployment test is judged on school-weeks within each sub-county-week.
+- **Units:** every method scores the same school-days; lists are built from school-weeks (since version 8, the mean of each school's two highest-scoring days that week; before, its highest day). The deployment test is judged on school-weeks within each sub-county-week.
 - **Primary metric:** precision@10 for the weekly review list (the share of the week's top school-weeks that contain a real problem), with a 95% block bootstrap over weeks. Also precision, recall and F1 on school-days, recall per type and on held-out types, false flags per 1,000 ordinary days, and fit time.
 - **Decision rule:** the highest precision@10; a method within the bootstrap interval of the leader counts as tied, and ties go to the simpler method, then to the faster fit on 50,000 rows. The deployment-matching test then checks the choice the way the system runs it.
 
 Version 7 separated entry from sync timing, added connectivity outages to the data, and added the review threshold, Recall@3, workload, wider fairness, a connectivity check and a feature ablation, all written before the run. Version 6 came from an audit of version 5 ([anomaly-model-audit.md](anomaly-model-audit.md)): four statistics in the features used whole-dataset values including the test months; settings were chosen on the same years the models were fitted on; the grids were narrow; and food rounded to the nearest 0.5 kg read as unusual at small schools. Versions 3 and 5 had also changed the features after finding problems (context flags read as evidence; closing days read as a collapse). Every change was committed before the run it affected, and every earlier version's results stay in git history.
 
-## 5. Results (version 7)
+## 5. Results
 
-**Main evaluation** ([report](../forecasting/data/reports/anomaly/anomaly_evaluation.md)). The best precision@10 any method could reach is 27.8%, because most weeks have fewer than 10 problem school-weeks.
+**Version 8: improving the weekly list** ([plan](../forecasting/config/anomaly_v8.yaml), [report](../forecasting/data/reports/anomaly/v8/anomaly_v8.md)). Version 7's list was cautious: Recall@3 30.3%. A list of at most 3 does not cap it: most sub-county-weeks hold 0 or 1 problem school-weeks, so a perfect model would reach about 99% Recall@3. The gap was in the scoring.
+
+The plan was written and committed before any run. It tested four changes in order, each chosen on 2025 only, and adopted a change only if it beat the current setting by a fixed margin (1 F1@3 point; 2 for the grouped models). The planted problems were not changed. F1@3 on 2025:
+
+| Stage | Candidates (F1@3 on 2025) | Decision |
+|---|---|---|
+| 1. A school's weekly score | single highest day 30.6%; **mean of the two highest days 40.8%**; 0.6 × highest + 0.4 × second 39.8% | **Adopted** (+10.2 points) |
+| 2. Two new features | 10-day trend against similar schools 41.5%; last store count's gap carried 10 days 41.2%; both 41.1% | Not adopted (+0.8, below the margin) |
+| 3. One model per group of features, plus one on all | 18.9% | Not adopted (−21.8) |
+| 4. Rule breaches listed first | 30.4% | Not adopted (−10.4) |
+
+**Why the weekly score mattered.** With the single highest day, one unusual day at an ordinary school outranks a problem that runs all week. The mean of the two highest days needs a second unusual day. A week with one school day uses that day.
+
+**Why the others did not help.**
+- **The grouped models** gave each small model its own chance to look unusual. Taking the highest of five raised the false alarms more than the detections.
+- **Listing rule breaches first** filled the list with breaches the model ranked lower and that are already shown to the officer beside the list.
+- **The new features** helped a little, inside the run-to-run spread. They stay in the code, unused.
+
+**2026, scored once, for version 8 and version 7:**
+
+| | Precision@3 | Recall@3 | F1@3 | Schools listed per officer-week | Ordinary schools listed per officer-term | Problems caught | Caught within 2 weeks |
+|---|---|---|---|---|---|---|---|
+| **Version 8 (deployed)** | **53.1%** | **52.4%** | **52.6%** | 0.74 | 4.5 | **88.3%** | **53.6%** |
+| Version 7 | 43.8% | 30.3% | 35.7% | 0.52 | 3.8 | 70.3% | 36.1% |
+
+- **A problem** is one planted episode: one school, one type, from its first to its last day, about 37 days on average. It counts as caught if any school-week it covers is listed. The median time to catch one is 1 school week after it starts.
+- **Problems caught, by type:**
+
+  | Type | Caught |
+  |---|---|
+  | Backdated bulk entry | 100% |
+  | Ghost learners | 100% (version 7: 75%) |
+  | Round-number entry | 92% (58%) |
+  | Stock leakage | 92% |
+  | Consumption drift | 83% (72%) |
+  | Inflated headcount | 63% (25%), the hardest |
+
+- **Fairness:** no group is over-listed. The highest ratio is 1.17 (the limit is 1.5).
+- **The cost:** about 0.7 ordinary schools more per officer per term (4.5 against 3.8).
+- **Plain reading:** about half the schools listed have a real problem, about half of the problem weeks are listed, and 9 in 10 problems are noticed while they are still going on.
+
+Version 8 did not reopen the choice of method. With the new weekly score the main evaluation still recommends Extended Isolation Forest, now ahead of every other method outside the bootstrap interval (precision@10 22.5%; Isolation Forest 20.6%). The explanation faithfulness check is unaffected: it explains each school's most unusual day, which the weekly score does not change.
+
+One disclosure. While checking the code ran, before the stages, one 2026 figure was printed for a setting that was not the final one. Nothing used it: each stage was decided automatically by the margins on 2025.
+
+The rest of this section is version 7's method comparison, run again with version 8's weekly score where it applies.
+
+
+**Main evaluation** (run again with version 8's weekly score; [report](../forecasting/data/reports/anomaly/anomaly_evaluation.md)). The best precision@10 any method could reach is 27.8%, because most weeks have fewer than 10 problem school-weeks.
 
 | Method | Precision@10 | Recall, held-out types | False flags per 1,000 ordinary days | Fit on 50,000 rows |
 |---|---|---|---|---|
-| Fixed rules (baseline) | 13.1% | 62.7% | **15.5** | 0.00 s |
-| Robust z-score (baseline) | 15.0% | 55.5% | 40.5 | 0.06 s |
-| Isolation Forest | 20.0% | 56.7% | 40.2 | 0.83 s |
-| **Extended Isolation Forest** | **21.7%** | 94.7% | 99.2 | 0.75 s |
-| One-class SVM | 19.7% | 78.0% | 36.3 | 0.17 s |
-| SGD one-class SVM | 19.4% | 78.3% | 38.6 | 0.28 s |
-| Local Outlier Factor | 18.1% | 95.4% | 82.3 | 55.1 s |
+| Fixed rules (baseline) | 13.3% | 62.7% | **15.5** | 0.00 s |
+| Robust z-score (baseline) | 15.8% | 55.5% | 40.5 | 0.06 s |
+| Isolation Forest | 20.6% | 56.6% | 40.2 | 0.83 s |
+| **Extended Isolation Forest** | **22.5%** | 94.7% | 99.2 | 0.75 s |
+| One-class SVM | 20.3% | 78.0% | 36.3 | 0.17 s |
+| SGD one-class SVM | 20.6% | 78.3% | 38.6 | 0.28 s |
+| Local Outlier Factor | 18.3% | 95.4% | 82.3 | 55.1 s |
 
-Extended Isolation Forest leads. Isolation Forest is within its bootstrap interval, and the speed tie-break names Extended Isolation Forest (0.75 s against 0.83 s).
+Extended Isolation Forest leads, and with version 8's weekly score every other method is outside its bootstrap interval (with version 7's, Isolation Forest was inside it and the speed tie-break decided). Precision@10 is with version 8's weekly score; the day-level columns do not depend on it.
 - **By type,** Extended Isolation Forest found 97% of ghost-learner days, 82% of round-number days, 63% of consumption-drift days and 48% of inflated-headcount days.
 - **Stock leakage,** which only shows on store-count days, remains the hardest (14%).
 - **Its day-level false flags are the highest,** which is why the deployed list uses a review threshold rather than flagging single days.
@@ -84,9 +132,9 @@ Extended Isolation Forest leads. Isolation Forest is within its bootstrap interv
 
 The entry-timing features change little on their own, because bulk entry also shows in round numbers and steadiness.
 
-**Robustness** ([report](../forecasting/data/reports/anomaly/robustness/anomaly_robustness.md)): 7 differently generated scenarios × 3 seeds, including a new one with outages twice as common and up to five weeks long. No method is robustly best under the plan's strict rule. Extended Isolation Forest has the best average rank (**1.50**; SGD one-class SVM 2.33, LOF 3.48, one-class SVM 3.88). It ranks first or close to it in every scenario (1.5 under heavy outages), and is weakest with noisier day-to-day figures (3.2).
+**Robustness** (run again with version 8's weekly score; [report](../forecasting/data/reports/anomaly/robustness/anomaly_robustness.md)): 7 differently generated scenarios × 3 seeds, including one with outages twice as common and up to five weeks long. No method is robustly best under the plan's strict rule. Extended Isolation Forest has the best average rank (**1.43**; SGD one-class SVM 2.21, one-class SVM 3.55, Isolation Forest 3.83; with version 7's weekly score it was 1.50). It ranks first or close to it in every scenario (1.3 under heavy outages), and is weakest with noisier day-to-day figures (2.0; 3.2 with version 7's).
 
-**Deployment-matching test** ([report](../forecasting/data/reports/anomaly/deployment/anomaly_deployment_test.md)): each sub-county is refitted every 20 school days on its last 125, with no labels. Up to 3 school-weeks a week are listed **above a review threshold**, and follow-up weeks are left out of later fits; 4 datasets × 5 model seeds. The threshold is the q-quantile of the school-week scores in the model's own training window ("more unusual than q of the last two terms' weeks"), chosen per method on 2025 by F1@3. The figures are for 2026:
+**Deployment-matching test, version 7** ([report](../forecasting/data/reports/anomaly/deployment/anomaly_deployment_test.md)), which version 8 improved on: each sub-county is refitted every 20 school days on its last 125, with no labels. Up to 3 school-weeks a week are listed **above a review threshold**, and follow-up weeks are left out of later fits; 4 datasets × 5 model seeds. The threshold is the q-quantile of the school-week scores in the model's own training window ("more unusual than q of the last two terms' weeks"), chosen per method on 2025 by F1@3. The figures are for 2026:
 
 | | Precision@3 | Recall@3 | Schools listed per officer-week | Ordinary schools listed per officer-term | Weeks with nothing listed |
 |---|---|---|---|---|---|
@@ -135,7 +183,7 @@ Inflated headcount is only just above chance. On the main dataset, its listings 
 **Behaviour tests** ([`test_anomaly_behaviour.py`](../forecasting/tests/test_anomaly_behaviour.py), CheckList style). These run the deployed scorer on a generated sub-county:
 - **Must be listed:** a feeding day with nobody fed but food issued (validation lets this through; it refuses food on a day marked not fed); more learners fed than enrolled; a store count ten days of food short; three weeks entered together long after.
 - **Must not change the list:** the order records arrive in; renamed sync batches; the hour of a record within school hours; scoring the same records twice.
-- **Must not lower the score:** more learners recorded as fed; more food for the same learners; records entered later.
+- **Must not lower the score:** more learners recorded as fed; more food for the same learners; records entered later (since version 8, within 1%: a record entered 5 and one entered 10 school days late are both far outside the usual range, and an isolation model scores both about as high as it can, so the random trees can put the later one a little lower).
 - **Must not change the score (version 7):** records entered on time but sent days later, together, as after an outage.
 
 ## 6. In the system
@@ -144,8 +192,8 @@ The scoring service ([`forecasting/services/scoring_service.py`](../forecasting/
 
 1. The model is Extended Isolation Forest (isotree, 300 trees, splits on combinations of 2 features, 1,024-row samples) on robust-scaled features, fitted on the sub-county's previous 125 school days, about two terms. Refit points fall every 20 school days, so the model changes about monthly and no model file is kept; the seed is fixed, so the same week gives the same list.
 2. School-weeks an officer marked follow-up are left out of the fit, so a confirmed problem does not become normal.
-3. Each school's week takes its highest-scoring day. Up to 3 are the week's list: the highest-scoring, and only those above the **review threshold**, the 98th percentile of the school-week scores in the model's training window (protocol version 7). A quiet week can list fewer than 3, or none. Every school is returned in order.
-4. Reasons come from the model itself: each feature of the top day is set in turn to its median in the sub-county's training records, and the two that lower the score most are named in plain words ("learners fed 16% below the school's usual number"). They are signals to check, not causes (section 5).
+3. Each school's week is scored as the mean of its two highest-scoring days (protocol version 8; one school day: that day). Up to 3 are the week's list: the highest-scoring, and only those above the **review threshold**, the 98th percentile of the school-week scores in the model's training window, scored the same way. A quiet week can list fewer than 3, or none. Every school is returned in order.
+4. Reasons come from the model itself, for the school's most unusual day: each feature of that day is set in turn to its median in the sub-county's training records, and the two that lower the score most are named in plain words ("learners fed 16% below the school's usual number"). They are signals to check, not causes (section 5).
 5. Fixed rules run alongside, and their breaches are shown for every school, whatever its rank.
 6. A sub-county with fewer than 60 school days of records is ranked by the fixed rules alone. Only schools that broke a rule are listed then: with no model, a school that broke none has nothing to point the officer at.
 7. A school listed again shows the officer's latest decision on it from the previous four weeks, and whether it was on last week's list.

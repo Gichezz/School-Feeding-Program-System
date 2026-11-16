@@ -6,7 +6,7 @@ import pytest
 import yaml
 
 from anomaly.explain import explain
-from anomaly.features import FEATURES, build_features
+from anomaly.features import EXTRA_FEATURES, FEATURES, build_features
 from anomaly.methods import METHODS
 
 
@@ -61,6 +61,10 @@ def test_an_inflated_headcount_stands_out_against_the_school_and_its_peers():
 def test_every_method_scores_the_inflated_days_above_ordinary_ones(name):
     f = build_features(*tiny_dataset(inflate_from=45))
     kwargs = {} if name in ("rules", "robust_zscore") else {"random_state": 0}
+    if name == "grouped_extended_isolation_forest":
+        plan = yaml.safe_load(open(Path(__file__).resolve().parent.parent / "config" / "anomaly_v8.yaml", encoding="utf-8"))
+        groups = next(s for s in plan["stages"] if s["name"] == "stage_3_grouped_models")["groups"]
+        kwargs["groups"] = {g: [x for x in feats if x in FEATURES] for g, feats in groups.items()}
     model = METHODS[name](**kwargs).fit(f[f.date < f.date.unique()[40]])
     scores = pd.Series(model.score(f), index=f.index)
     inflated = (f.school_id == "A") & (f.date >= f.date.unique()[50])
@@ -151,8 +155,27 @@ def test_no_feature_uses_records_after_its_day():
     key = ["school_id", "date"]
     merged = full[full.date <= cutoff].merge(early, on=key, suffixes=("_full", "_early"))
     assert len(merged) == len(early)
-    for name in FEATURES:
+    # Version 8's candidate features too (protocol version 8's leakage check)
+    for name in list(FEATURES) + list(EXTRA_FEATURES):
         np.testing.assert_allclose(merged[f"{name}_full"], merged[f"{name}_early"], err_msg=name)
+
+
+def test_a_store_count_gap_stays_visible_for_the_school_days_after_the_count():
+    schools, enrolment, feeding, _, school_days = tiny_dataset()
+    count_day = school_days.date.iloc[30]
+    counts = pd.DataFrame({"school_id": ["A"], "date": [count_day], "commodity": ["cereals"],
+                           "counted_kg": [60.0], "ledger_kg": [100.0]})
+
+    f = build_features(schools, enrolment, feeding, counts, school_days)
+    a = f[f.school_id == "A"].set_index("date")
+    gap = a.loc[pd.Timestamp(count_day), "count_gap_change"]
+    after = a.count_gap_recent.loc[pd.Timestamp(count_day):]
+
+    assert gap < 0
+    # The count day and the 9 school days after it carry the gap; then it is gone
+    assert (after.iloc[:10] == gap).all()
+    assert (after.iloc[10:] == 0).all()
+    assert (a.count_gap_recent.loc[:pd.Timestamp(count_day)].iloc[:-1] == 0).all()
 
 
 def test_rounding_to_half_a_kilogram_is_not_read_as_unusual():
@@ -207,3 +230,16 @@ def test_version_6_timing_reads_the_outage_as_late_entry():
     f = build_features(schools, enrolment, feeding, counts, school_days, timing="sync")
 
     assert f[(f.school_id == "A") & f.date.isin(dates[20:35])].entry_batch.max() == 15
+
+
+def test_a_school_week_is_the_mean_of_its_two_highest_days():
+    from anomaly.weekly import weekly_scores
+
+    frame = pd.DataFrame({"school_id": ["A"] * 5 + ["B"], "week": ["2026-10"] * 6,
+                          "score": [0.9, 0.2, 0.7, 0.1, 0.3, 0.8]})
+
+    top2 = weekly_scores(frame)
+    assert top2["A", "2026-10"] == pytest.approx(0.8)
+    # A week with one school day uses that day
+    assert top2["B", "2026-10"] == pytest.approx(0.8)
+    assert weekly_scores(frame, "max")["A", "2026-10"] == pytest.approx(0.9)

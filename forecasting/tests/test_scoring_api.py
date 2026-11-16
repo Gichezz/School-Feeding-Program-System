@@ -84,6 +84,8 @@ def test_ranks_every_school_and_lists_at_most_three_above_the_review_threshold(c
     # Version 7: up to 3, and only school-weeks above the review threshold, so a quiet week lists fewer
     threshold = body["model"]["review_threshold"]
     assert body["model"]["review_quantile"] == 0.98
+    # Protocol version 8: a school's week is the mean of its two highest days
+    assert body["model"]["weekly_score"] == "top2_mean"
     assert [i["listed"] for i in body["items"]] == [i["rank"] <= 3 and i["score"] > threshold for i in body["items"]]
     assert all(i["explanation"].startswith("Needs review") for i in body["items"])
     assert body["model"]["window_school_days"] <= 125
