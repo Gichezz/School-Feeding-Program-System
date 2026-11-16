@@ -92,3 +92,110 @@ rules_for_part_b:
 
 outputs: forecasting/data/reports/anomaly/v9_investigation/
 code: forecasting/scripts/v9_investigation/   # new files only; existing code and reports untouched
+
+# ---------------------------------------------------------------------------------------
+# Part B. Added after the investigation report (data/reports/anomaly/v9_investigation/
+# v9_investigation_report.md) was reviewed and approved, and committed before any part B
+# experiment runs.
+# ---------------------------------------------------------------------------------------
+part_b:
+  benchmark_qualified: >
+    The investigation's labelled benchmark (HistGradientBoostingClassifier, default
+    settings, random_state 0; trained on 2024 school-days with their labels, 5-fold
+    cross-validation grouped by school on 2024 to choose its weekly threshold; evaluated on
+    2025) reached about 70% F1@3. 2024 holds the same three types as 2025 in the same
+    numbers in every dataset (5 consumption drift, 5 inflated headcount and 4 stock leakage
+    episodes), so its training data is representative of what it was evaluated on. It is
+    evidence that these features and this approach have difficulty reaching 80% F1@3, not a
+    proven ceiling.
+
+  development: 2025 only (2025-01-06 to 2025-12-31); the deployment loop is stopped at the
+    end of 2025, so no part of 2026 is scored or read until the final test.
+
+  # Each change is tested in this order. Within each, the review threshold q is re-chosen
+  # from [none, 0.90, 0.95, 0.98] by F1@3 on 2025 (ties to the lower q).
+  changes:
+    - name: change_1_over_recording
+      margin_f1_points: 2.0          # it adds a second scoring signal
+      what: >
+        A second, unsupervised signal for learners fed recorded above what the school's
+        enrolment, its peers and its own last term would suggest. For each school-day,
+        over_recording = the mean of two robust z-scores, each one-sided (below 0 counts as
+        0): fed_vs_peers_trend (learners fed against similar schools nearby, 10-day mean,
+        an existing candidate feature) and the 10-day mean of fed_rate_vs_last_term. Each
+        z-score uses the median and 1.4826 x MAD of that quantity over the model's training
+        window (the sub-county's last 125 school days, as the isolation model).
+        Combined with the isolation model at the level of the school-day: day score = the
+        mean of the isolation score's percentile and over_recording's percentile among the
+        training window's school-days. The weekly score (top-2 day mean), the review
+        threshold and the list are then built exactly as in version 8. No labels are used.
+      growth_test: >
+        A behaviour test: a school whose enrolment and learners fed rise together (real
+        growth, the share fed unchanged) must not have its over_recording raised.
+      report: results by school size and by sub-county
+    - name: change_2_store_gap
+      margin_f1_points: 1.0
+      what: >
+        count_gap_recent (the last store count's gap with the records, carried on the 9
+        school days after the count; built and tested in version 8) added to the isolation
+        model's features, on top of change 1's decision.
+      wording: >
+        a gap is an unexplained stock variance ("the last store count N days of food short
+        of the records"), never stated as leakage or misconduct
+      frequency_check: the robustness scenario with fortnightly store counts
+    - name: change_3_persistence
+      margin_f1_points: 1.0
+      optional: adopted only if it meets every rule below
+      what: >
+        A school-week is also listed if its weekly score is above the 90th percentile of
+        the training window's school-week scores (the same population as the review
+        threshold) this week and the week before. Schools above the review threshold are
+        listed first, then persistent ones, at most 3 in all. A school listed the week
+        before is not listed through this route (it can still be listed through the review
+        threshold), so it does not repeat alerts for a problem already being looked into.
+
+  # A change is adopted only if, on 2025, against the current setting, it meets all of:
+  adoption_rules:
+    f1_at_k: gains at least the change's margin (mean over 4 datasets x 5 model seeds)
+    problems_caught: does not fall
+    workload: ordinary schools listed per officer-term rises by no more than 1.0
+    fairness: no group (school size, programme type, sub-county, sync interval, outage week)
+      over 1.5 times the overall false listing rate
+  robustness_after_development: >
+    The setting reached after the three changes is run in the robustness scenarios
+    (config/anomaly_robustness.yaml) as a method next to the others. It is rejected if its
+    average rank is worse than version 8's Extended Isolation Forest (1.43) by more than
+    0.25, or if in any scenario its rank is worse than Extended Isolation Forest's version
+    8 rank in that scenario by more than 1.0. If rejected, the last adopted change is
+    removed and the check repeated.
+
+  freeze: >
+    Before the fresh datasets are generated, the final setting (method, features,
+    combination, q, listing rule) and the generator's code version (git commit of
+    scripts/generate_feeding_dataset.py and config/feeding_dataset.yaml) are written below
+    and committed.
+
+  final_evaluation:
+    datasets: 10 fresh datasets from config/feeding_dataset.yaml with seeds 9001-9010, never used before
+    period: each dataset's 2026 (2026-01-01 to 2026-10-23), all six types; the loop runs
+      from 2025 so the first fits have history, and only 2026 is measured
+    model_seeds: [1, 2, 3, 4, 5]
+    compared: version 8 (as deployed) and version 9 (frozen), on the same datasets and seeds
+    measures:
+      - precision_at_k
+      - recall_at_k
+      - f1_at_k
+      - problems_caught            # an episode: one school, one type, first to last day; caught if any school-week it covers is listed
+      - problems_caught_within_2_weeks   # weeks to catch 0 or 1 (0 = the episode's first week)
+      - median_weeks_to_catch
+      - false_listings_per_officer_term
+      - listings_per_officer_week
+      - listed_by_type and caught_by_type, all six types
+      - fairness by group
+    uncertainty: >
+      each dataset's result, the mean, the standard deviation across datasets, and 95%
+      intervals from 2,000 bootstrap resamples of the 10 datasets, for each measure and for
+      the version 9 minus version 8 difference
+    reported_whatever_it_shows: >
+      The result is reported as it comes out. No expectation is set that it will be higher
+      or lower than 2025's or 2026's figures, and nothing is changed after it is seen.
