@@ -1,0 +1,94 @@
+# Protocol version 9: investigating further improvements to the weekly review list.
+#
+# Part A (this file as first committed) is written and committed before any version 9
+# analysis is run. It fixes what the investigation may look at and how. Part B (the at most
+# three changes to test, their margins and the final evaluation) is added to this file
+# after the investigation report is reviewed and approved, and committed before any
+# experiment runs.
+#
+# Version 8 is the baseline: Extended Isolation Forest, one model per sub-county refitted
+# every 20 school days on its last 125, a school's week scored as the mean of its two
+# highest days, review threshold q = 0.98, at most 3 school-weeks per officer-week.
+#
+# Why version 9 changes how it is judged. The 2026 test year has now been looked at for
+# versions 7 and 8, and version 8's 2026 errors were broken down by type. Designing fixes
+# from 2026 would tune on the test year. So version 9 develops on 2025 only and is judged
+# once on fresh datasets, generated with seeds never used before, that nobody has looked
+# at. 2026 of the existing datasets stays for comparison with earlier versions only.
+
+version: 9
+part: A
+baseline: version 8 (config/anomaly_v8.yaml, data/reports/anomaly/v8)
+
+# What each year is for. Nothing in Part A reads 2026 of any dataset.
+periods:
+  training_for_the_diagnostic: {start: 2024-01-01, end: 2024-12-31}
+  development: {start: 2025-01-06, end: 2025-12-31}     # error analysis and every choice
+  never_read_in_part_a: {start: 2026-01-01, end: 2026-12-31}
+
+# The existing datasets (main and seeds 101, 202, 303) and model seeds 1-5, as version 8.
+data: the version 8 deployment datasets
+# 2024 and 2025 hold only three of the six problem types (consumption drift, inflated
+# headcount, stock leakage); the other three are held out until each dataset's 2026 by
+# design. So the investigation describes those three types only, and says so.
+types_in_development: [consumption_drift, inflated_headcount, stock_leakage]
+
+investigation:
+  1_feature_inventory: >
+    Every existing feature: what it measures, the type of problem it is meant to show, and
+    how well it separates problem school-days from ordinary ones in 2025 (area under the
+    ROC curve, alone), per type present.
+  2_capacity_check: >
+    Problem school-weeks per sub-county-week in 2025, how often a week holds more than 3,
+    and the best Precision@3, Recall@3 and F1@3 a perfect list of at most 3 could reach.
+  3_error_analysis: >
+    Version 8 run as deployed over 2025 (the version 8 runner's loop, q = 0.98), keeping
+    each school-week's score, rank and the threshold. Missed problem school-weeks and
+    ordinary school-weeks listed (false listings), each broken down by type, school size,
+    sub-county, programme type, how long the problem ran, how many of its days fell in
+    the week, and weeks since it began; and why a missed one was missed (below the
+    threshold, or above it but outranked by 3 others).
+  4_temporal_signals: >
+    From the same daily scores: days in the week above the training window's 90th
+    percentile of daily scores, the longest run of such consecutive days, the previous
+    week's weekly score (recurrence), the change from the previous week (trend), and the
+    week against the school's own earlier weeks. Each compared with the top-2 mean by how
+    well it separates problem school-weeks (area under the ROC curve) and by Precision@3,
+    Recall@3 and F1@3 when ranked with the same threshold rule.
+  5_calibration: >
+    Whether a school-week's raw score means the same in every sub-county and through the
+    year: its percentile within its own model's training-window school-weeks, against the
+    raw score, by sub-county and by term.
+  6_detectability_diagnostic: >
+    A labelled model (histogram gradient boosting, default settings, no tuning) trained on
+    2024's school-days with their labels and evaluated on 2025: area under the ROC and
+    precision-recall curves on school-days, and Precision@3, Recall@3 and F1@3 on
+    school-weeks (top-2 mean, at most 3 per sub-county-week, threshold chosen on 2024).
+    It is a benchmark of how much the features can tell problems apart, not a ceiling
+    (a better model could do better) and not part of the system: real schools have no
+    labels. It is compared with version 8 on the same 2025 school-weeks.
+
+# Fixed now for Part B, whatever the investigation finds
+rules_for_part_b:
+  at_most: 3 changes, tested in order, chosen on 2025, as version 8
+  margins: version 8's (1.0 F1@3 point; 2.0 for any change adding models)
+  co_primary: [problems_caught, weeks_to_catch, f1_at_k]
+  problem: >
+    one injected episode: one school, one type, from its first to its last day. Caught if
+    any school-week it covers is listed. Weeks to catch: school weeks from the episode's
+    first week to the first listing (0 = its first week). Caught within 2 weeks: 0 or 1.
+  no_labels_in_the_system: >
+    a change may learn only from what the system has: the records, and officers' follow-up
+    and explained decisions as simulated by the deployment loop. The injected labels are
+    used only to measure.
+  robustness_limits: >
+    a change is rejected if, on the robustness scenarios, Extended Isolation Forest's
+    average rank worsens by more than 0.25, any scenario's rank by more than 1.0, or any
+    group's false listing ratio exceeds 1.5
+  final_evaluation: >
+    10 fresh datasets from the main configuration with seeds never used before, generated
+    only after Part B's settings are frozen and committed, each scored once over its 2026
+    (all six types), with 5 model seeds; version 8 scored on the same data.
+
+outputs: forecasting/data/reports/anomaly/v9_investigation/
+code: forecasting/scripts/v9_investigation/   # new files only; existing code and reports untouched
