@@ -242,6 +242,49 @@ class SGDOneClassSVMMethod(_Learned):
         return -self.model.decision_function(x)
 
 
+class GroupedExtendedIsolationForest:
+    """Protocol version 8, stage 3: an Extended Isolation Forest for each group of related
+    features and one on all of them. Each model's scores are standardised on its own
+    training window (median and 1.4826 x MAD), and a day's score is the highest, so a
+    problem that moves only a few features is not hidden among the many that look
+    ordinary. The reasons come from the model with the highest standardised score.
+
+    groups: {name: [features]}; features: all the features used."""
+    name = "grouped_extended_isolation_forest"
+
+    def __init__(self, groups, features=FEATURE_NAMES, n_estimators=100, ndim=2, random_state=0):
+        self.groups = {"all_features": list(features), **{g: list(f) for g, f in groups.items() if f}}
+        self.kwargs = dict(n_estimators=n_estimators, ndim=ndim, random_state=random_state)
+
+    def fit(self, train):
+        self.models_, self.centre_, self.spread_ = {}, {}, {}
+        for name, feats in self.groups.items():
+            model = ExtendedIsolationForestMethod(**self.kwargs)
+            model.features = feats
+            model.fit(train)
+            scores = model.score(train)
+            centre = float(np.median(scores))
+            self.models_[name] = model
+            self.centre_[name] = centre
+            self.spread_[name] = max(float(np.median(np.abs(scores - centre))) * 1.4826, 1e-9)
+        return self
+
+    def _standardised(self, frame):
+        return pd.DataFrame({name: (m.score(frame) - self.centre_[name]) / self.spread_[name]
+                             for name, m in self.models_.items()}, index=frame.index)
+
+    def score(self, frame):
+        return self._standardised(frame).max(axis=1).to_numpy()
+
+    def firing_group(self, row):
+        z = self._standardised(pd.DataFrame([row]))
+        return z.iloc[0].idxmax()
+
+    def contributions(self, row):
+        model = self.models_[self.firing_group(row)]
+        return model.contributions(row)
+
+
 METHODS = {
     "rules": Rules,
     "robust_zscore": RobustZScore,
@@ -250,4 +293,5 @@ METHODS = {
     "local_outlier_factor": LocalOutlierFactorMethod,
     "one_class_svm": OneClassSVMMethod,
     "sgd_one_class_svm": SGDOneClassSVMMethod,
+    "grouped_extended_isolation_forest": GroupedExtendedIsolationForest,
 }

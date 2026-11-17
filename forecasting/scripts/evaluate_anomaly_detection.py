@@ -33,6 +33,7 @@ import yaml  # noqa: E402
 
 from anomaly.explain import explain  # noqa: E402
 from anomaly.features import build_features  # noqa: E402
+from anomaly.weekly import weekly_scores  # noqa: E402
 from anomaly.methods import FEATURE_NAMES, METHODS  # noqa: E402
 from common import REPORTS_DIR, md_table, sha256_of, write_json  # noqa: E402
 from generate_feeding_dataset import OUT_DIR as DATA_DIR, PROTOCOL  # noqa: E402
@@ -101,9 +102,12 @@ def day_metrics(flag, frame):
 
 
 def review_weeks(frame, scores):
-    """School-weeks with their highest day score and whether they contain an anomaly."""
+    """School-weeks with their weekly score and whether they contain an anomaly."""
     w = frame[["school_id", "date", "label"]].assign(score=scores, week=frame.date.dt.strftime("%G-%V"))
-    return w.groupby(["week", "school_id"]).agg(score=("score", "max"), anomalous=("label", lambda s: (s != "").any())).reset_index()
+    # A school-week's score from its days (protocol version 8: the mean of the two highest)
+    score = weekly_scores(w, keys=("week", "school_id")).rename("score")
+    anomalous = w.groupby(["week", "school_id"]).label.agg(lambda s: (s != "").any()).rename("anomalous")
+    return pd.concat([score, anomalous], axis=1).reset_index()
 
 
 def precision_at_k(weeks, k):

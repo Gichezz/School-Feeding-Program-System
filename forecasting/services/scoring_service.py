@@ -33,6 +33,7 @@ from anomaly.calendar import school_days
 from anomaly.explain import describe, explain
 from anomaly.features import build_features
 from anomaly.methods import ExtendedIsolationForestMethod, Rules
+from anomaly.weekly import WEEKLY_AGGREGATION, weekly_scores
 
 METHOD = "extended_isolation_forest"
 SETTINGS = {"n_estimators": 300, "ndim": 2}
@@ -43,7 +44,7 @@ DEFAULT_K = 3
 # Version 7: a school-week is listed only if it is also more unusual than this share of the
 # school-weeks in the model's own training window, so a quiet week can list fewer than 3, or
 # none. Chosen on the selection year in the deployment test (None: always the top 3).
-REVIEW_QUANTILE = 0.98   # protocol version 7: chosen on 2025 by F1@3 (data/reports/anomaly/deployment)
+REVIEW_QUANTILE = 0.98   # chosen on 2025 by F1@3; protocol version 8 chose it again with the weekly score below (data/reports/anomaly/v8)
 NOTICE = ("Ranks records for review; it does not decide anything. Thresholds and settings were tested on "
           "synthetic data and need checking against real records.")
 
@@ -129,23 +130,28 @@ def score_week(body):
         model = ExtendedIsolationForestMethod(**SETTINGS, random_state=0).fit(history)
         scores = model.score(week)
         mode = METHOD
-        weekly_history = history.assign(score=model.score(history)).groupby(["school_id", "week"]).score.max()
+        # The same weekly score as the list (protocol version 8: the mean of the two highest days)
+        weekly_history = weekly_scores(history.assign(score=model.score(history)))
         threshold = None if REVIEW_QUANTILE is None else float(weekly_history.quantile(REVIEW_QUANTILE))
         model_info = {"method": METHOD, "settings": SETTINGS, "fitted_on_rows": int(len(history)),
                       "window_school_days": int(history.day_index.nunique()),
                       "refit_point": str(pd.Timestamp(calendar.date.iloc[anchor]).date()) if anchor < len(calendar) else None,
-                      "review_quantile": REVIEW_QUANTILE, "review_threshold": threshold}
+                      "review_quantile": REVIEW_QUANTILE, "review_threshold": threshold,
+                      "weekly_score": WEEKLY_AGGREGATION}
     else:
         model, scores, mode, threshold = None, rule_scores, "rules_only", None
 
     week = week.assign(score=scores, rule_score=rule_scores)
     items = []
     for school_id, rows in week.groupby("school_id"):
+        # The reasons come from the school's most unusual day; its weekly score, for the model,
+        # is the mean of its two highest days. Ranked by the rules alone it stays the highest
         top = rows.loc[rows.score.idxmax()]
         contributions = model.contributions(top) if model is not None else rules.contributions(top)
+        week_score = top.score if model is None else float(weekly_scores(rows).iloc[0])
         items.append({
             "school_id": school_id,
-            "score": float(np.round(top.score, 6)),
+            "score": float(np.round(week_score, 6)),
             "top_date": str(top.date.date()),
             "reasons": _reasons(contributions, top),
             "explanation": explain(top, contributions),

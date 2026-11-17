@@ -10,15 +10,15 @@ Each week, the 10 school-weeks with the highest scores across the programme. Pre
 
 | Method | Precision@10 | Anomalous school-weeks listed | Difference from the best (points, 95% interval) |
 |---|---|---|---|
-| Fixed rules | 13.1% | 47.0% | -8.6 (-11.9 to -5.6) |
-| Robust z-score | 15.0% | 54.0% | -6.7 (-8.9 to -4.7) |
-| Isolation Forest | 20.0% | 72.0% | -1.7 (-3.3 to +0.3) |
-| Extended Isolation Forest | 21.7% | 78.0% | +0.0 (+0.0 to +0.0) |
-| One-class SVM | 19.7% | 71.0% | -1.9 (-3.6 to -0.3) |
-| SGD one-class SVM | 19.4% | 70.0% | -2.2 (-4.2 to -0.6) |
-| Local Outlier Factor | 18.1% | 65.0% | -3.6 (-6.1 to -1.1) |
+| Fixed rules | 13.3% | 48.0% | -9.2 (-12.5 to -5.8) |
+| Robust z-score | 15.8% | 57.0% | -6.7 (-8.9 to -4.4) |
+| Isolation Forest | 20.6% | 74.0% | -1.9 (-3.3 to -0.8) |
+| Extended Isolation Forest | 22.5% | 81.0% | +0.0 (+0.0 to +0.0) |
+| One-class SVM | 20.3% | 73.0% | -2.2 (-3.9 to -0.8) |
+| SGD one-class SVM | 20.6% | 74.0% | -1.9 (-3.9 to -0.3) |
+| Local Outlier Factor | 18.3% | 66.0% | -4.2 (-6.4 to -1.9) |
 
-**Recommended under the decision rule: Extended Isolation Forest** (best precision@10: Extended Isolation Forest; among learned methods not distinguishable from the best, the rule prefers the fastest to fit on 50,000 rows). Not distinguishable from it at 95%: Isolation Forest.
+**Recommended under the decision rule: Extended Isolation Forest** (best precision@10: Extended Isolation Forest; among learned methods not distinguishable from the best, the rule prefers the fastest to fit on 50,000 rows). 
 
 The best precision@10 any method could reach is 27.8%: most weeks have fewer than 10 school-weeks with an anomaly, so a full list must include some ordinary ones. Precision@10 is therefore best read against that ceiling, together with the share of anomalous school-weeks that make the list.
 
@@ -68,11 +68,11 @@ Seconds to fit the chosen setting on n school-days, and to score 5,000. The one-
 |---|---|---|---|---|
 | Fixed rules | 0.00 | 0.00 | 0.00 | 0.00 |
 | Robust z-score | 0.01 | 0.03 | 0.06 | 0.30 |
-| Isolation Forest | 0.40 | 0.53 | 0.83 | 0.08 |
-| Extended Isolation Forest | 0.67 | 0.71 | 0.75 | 0.48 |
-| One-class SVM | 0.13 | 0.15 | 0.17 | 0.14 |
-| SGD one-class SVM | 0.03 | 0.10 | 0.28 | 0.01 |
-| Local Outlier Factor | 0.60 | 7.75 | 55.15 | 4.86 |
+| Isolation Forest | 0.41 | 0.52 | 0.78 | 0.08 |
+| Extended Isolation Forest | 0.67 | 0.70 | 0.74 | 0.74 |
+| One-class SVM | 0.17 | 0.14 | 0.16 | 0.14 |
+| SGD one-class SVM | 0.03 | 0.11 | 0.24 | 0.01 |
+| Local Outlier Factor | 0.65 | 7.47 | 39.92 | 3.93 |
 
 ## Feature ablation (Extended Isolation Forest)
 
@@ -80,36 +80,36 @@ The recommended method refitted without one feature, or one group, at a time; pr
 
 | Variant | Precision@k 2025 | Change (points) | Precision@k 2026 | Change (points) | backdated_bulk_entry | consumption_drift | ghost_learners | inflated_headcount | round_number_entry | stock_leakage |
 |---|---|---|---|---|---|---|---|---|---|---|
-| all features | 15.8% | +0.0 | 21.7% | +0.0 | 100.0% | 68.8% | 96.8% | 58.3% | 71.4% | 50.0% |
-| without fed_rate | 14.4% | -1.4 | 21.9% | +0.3 | 100.0% | 68.8% | 96.8% | 66.7% | 71.4% | 50.0% |
-| without fed_vs_own | 15.6% | -0.3 | 21.4% | -0.3 | 100.0% | 68.8% | 96.8% | 50.0% | 71.4% | 50.0% |
-| without fed_vs_peers | 15.0% | -0.8 | 21.7% | +0.0 | 100.0% | 68.8% | 96.8% | 58.3% | 71.4% | 50.0% |
-| without fed_rate_vs_last_term | 15.3% | -0.5 | 21.4% | -0.3 | 100.0% | 68.8% | 96.8% | 50.0% | 71.4% | 50.0% |
-| without enrolment_change | 15.6% | -0.3 | 18.9% | -2.8 | 100.0% | 75.0% | 61.3% | 58.3% | 71.4% | 50.0% |
-| without uptake | 15.6% | -0.3 | 21.1% | -0.6 | 100.0% | 68.8% | 93.5% | 50.0% | 71.4% | 50.0% |
-| without cereal_ratio | 15.3% | -0.5 | 22.5% | +0.8 | 100.0% | 68.8% | 100.0% | 66.7% | 78.6% | 50.0% |
-| without pulse_ratio | 15.0% | -0.8 | 21.1% | -0.6 | 100.0% | 62.5% | 96.8% | 50.0% | 71.4% | 50.0% |
-| without usage_trend | 13.9% | -1.9 | 21.7% | +0.0 | 100.0% | 62.5% | 100.0% | 58.3% | 71.4% | 50.0% |
-| without count_gap_change | 15.0% | -0.8 | 20.6% | -1.1 | 100.0% | 68.8% | 100.0% | 50.0% | 78.6% | 7.1% |
-| without entry_delay | 14.7% | -1.1 | 21.7% | +0.0 | 100.0% | 75.0% | 96.8% | 50.0% | 71.4% | 50.0% |
-| without entry_batch | 15.3% | -0.5 | 21.9% | +0.3 | 100.0% | 75.0% | 100.0% | 50.0% | 78.6% | 42.9% |
-| without after_hours_share | 15.6% | -0.3 | 21.9% | +0.3 | 100.0% | 68.8% | 100.0% | 58.3% | 71.4% | 50.0% |
-| without round_share | 13.9% | -1.9 | 19.4% | -2.2 | 100.0% | 68.8% | 96.8% | 58.3% | 14.3% | 50.0% |
-| without fed_steadiness | 13.6% | -2.2 | 21.9% | +0.3 | 100.0% | 75.0% | 96.8% | 58.3% | 71.4% | 50.0% |
-| without the entry timing group | 15.3% | -0.5 | 21.1% | -0.6 | 78.6% | 68.8% | 100.0% | 50.0% | 78.6% | 50.0% |
-| without the made up figures group | 14.2% | -1.7 | 20.3% | -1.4 | 100.0% | 75.0% | 100.0% | 58.3% | 21.4% | 50.0% |
-| without the headcount group | 15.0% | -0.8 | 21.7% | +0.0 | 100.0% | 75.0% | 96.8% | 50.0% | 71.4% | 50.0% |
-| without the food group | 10.6% | -5.3 | 19.2% | -2.5 | 100.0% | 0.0% | 100.0% | 58.3% | 78.6% | 50.0% |
+| all features | 16.7% | +0.0 | 22.5% | +0.0 | 100.0% | 75.0% | 100.0% | 66.7% | 78.6% | 42.9% |
+| without fed_rate | 15.0% | -1.7 | 22.8% | +0.3 | 100.0% | 68.8% | 100.0% | 75.0% | 78.6% | 50.0% |
+| without fed_vs_own | 16.4% | -0.3 | 22.5% | +0.0 | 100.0% | 68.8% | 100.0% | 66.7% | 78.6% | 50.0% |
+| without fed_vs_peers | 15.3% | -1.4 | 23.1% | +0.6 | 100.0% | 75.0% | 100.0% | 75.0% | 78.6% | 50.0% |
+| without fed_rate_vs_last_term | 15.8% | -0.8 | 21.9% | -0.6 | 100.0% | 75.0% | 100.0% | 58.3% | 71.4% | 42.9% |
+| without enrolment_change | 16.7% | +0.0 | 19.4% | -3.1 | 100.0% | 75.0% | 61.3% | 66.7% | 78.6% | 50.0% |
+| without uptake | 15.8% | -0.8 | 21.9% | -0.6 | 100.0% | 75.0% | 100.0% | 58.3% | 71.4% | 42.9% |
+| without cereal_ratio | 16.1% | -0.6 | 22.8% | +0.3 | 100.0% | 75.0% | 100.0% | 75.0% | 78.6% | 42.9% |
+| without pulse_ratio | 15.6% | -1.1 | 22.5% | +0.0 | 100.0% | 68.8% | 100.0% | 66.7% | 78.6% | 50.0% |
+| without usage_trend | 15.3% | -1.4 | 22.2% | -0.3 | 100.0% | 68.8% | 100.0% | 58.3% | 78.6% | 50.0% |
+| without count_gap_change | 15.8% | -0.8 | 20.8% | -1.7 | 100.0% | 75.0% | 100.0% | 58.3% | 78.6% | 0.0% |
+| without entry_delay | 16.1% | -0.6 | 22.5% | +0.0 | 100.0% | 75.0% | 100.0% | 66.7% | 78.6% | 42.9% |
+| without entry_batch | 15.6% | -1.1 | 22.8% | +0.3 | 100.0% | 75.0% | 100.0% | 75.0% | 78.6% | 42.9% |
+| without after_hours_share | 16.4% | -0.3 | 22.8% | +0.3 | 100.0% | 75.0% | 100.0% | 66.7% | 78.6% | 50.0% |
+| without round_share | 15.8% | -0.8 | 20.6% | -1.9 | 100.0% | 75.0% | 100.0% | 75.0% | 14.3% | 50.0% |
+| without fed_steadiness | 14.7% | -1.9 | 22.8% | +0.3 | 100.0% | 75.0% | 100.0% | 75.0% | 78.6% | 42.9% |
+| without the entry timing group | 17.2% | +0.5 | 21.9% | -0.6 | 78.6% | 75.0% | 100.0% | 66.7% | 85.7% | 42.9% |
+| without the made up figures group | 13.9% | -2.8 | 20.0% | -2.5 | 100.0% | 75.0% | 100.0% | 58.3% | 14.3% | 50.0% |
+| without the headcount group | 16.4% | -0.3 | 22.8% | +0.3 | 100.0% | 75.0% | 100.0% | 66.7% | 78.6% | 50.0% |
+| without the food group | 12.2% | -4.5 | 20.3% | -2.2 | 100.0% | 12.5% | 100.0% | 75.0% | 78.6% | 50.0% |
 
 ## Example review-list entries (Extended Isolation Forest)
 
 | School | Date | Injected anomaly | What the officer sees |
 |---|---|---|---|
-| S14 | 2026-09-21 | ghost_learners | Needs review: the store count 4.3 days of food short of the records; 2 dates entered in the same sitting |
-| S08 | 2026-02-02 | stock_leakage | Needs review: the store count 2.8 days of food short of the records; a share of learners fed 6 percentage points below similar schools nearby that day |
 | S19 | 2026-08-24 | backdated_bulk_entry | Needs review: 28 dates entered in the same sitting; 80% of the school's recent records entered outside school hours |
 | S19 | 2026-07-31 | backdated_bulk_entry | Needs review: 28 dates entered in the same sitting; 70% of the school's recent records entered outside school hours |
-| S19 | 2026-09-11 | none | Needs review: 28 dates entered in the same sitting; round numbers on 43% of recent days |
-| S24 | 2026-09-23 | none | Needs review: 18 dates entered in the same sitting; 371 learners fed of 431 enrolled (86%) |
+| S10 | 2026-03-06 | backdated_bulk_entry | Needs review: 17 dates entered in the same sitting; 50% of the school's recent records entered outside school hours |
+| S24 | 2026-07-27 | backdated_bulk_entry | Needs review: 40% of the school's recent records entered outside school hours; enrolment 1% down on last term (431 learners) |
+| S23 | 2026-07-30 | none | Needs review: enrolment 29% down on last term (558 learners); entered 2 school days after the date |
+| S23 | 2026-06-08 | none | Needs review: enrolment 29% down on last term (558 learners); pulses issued at 1.07 times the ration for learners fed |
 
 These results are on synthetic data with injected anomalies, so they show how the methods compare under the stated assumptions, not how often they would be right at real schools.

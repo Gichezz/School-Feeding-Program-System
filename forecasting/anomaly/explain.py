@@ -58,6 +58,12 @@ def describe(feature, row):
         return f"enrolment {_pct(change)} {'up' if change > 0 else 'down'} on last term ({row['learners']} learners)"
     if feature == "uptake":
         return f"{row['learners_fed']} learners fed of {row['learners_present']:.0f} present ({_pct(row['uptake'])})"
+    if feature == "fed_vs_peers_trend":
+        diff = row["fed_vs_peers_trend"]
+        return f"over the last 10 school days, a share of learners fed {_points(diff)} {'above' if diff > 0 else 'below'} similar schools nearby"
+    if feature == "count_gap_recent":
+        gap = row["count_gap_recent"]
+        return f"the last store count {abs(gap):.1f} days of food {'short of' if gap < 0 else 'above'} the records"
     if feature == "after_hours_share":
         return f"{row['after_hours_share'] * 100:.0f}% of the school's recent records entered outside school hours"
     return feature.replace("_", " ")

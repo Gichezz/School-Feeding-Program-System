@@ -40,6 +40,13 @@ FEATURES = {
     "fed_steadiness": "how little learners fed, for that kind of day, changed from day to day",
 }
 
+# Protocol version 8, stage 2 candidates: computed with the others, used only if adopted
+EXTRA_FEATURES = {
+    "fed_vs_peers_trend": "learners fed against similar schools nearby, over the last 10 school days",
+    "count_gap_recent": "the gap between the store and the records at the last count, in the past 10 school days",
+}
+RECENT_DAYS = 10
+
 # A school's usual number: the median of 40 school days, ending 10 school days back, so
 # an episode that has run for a couple of weeks cannot become its own baseline
 OWN_HISTORY = 40
@@ -145,6 +152,7 @@ def build_features(schools, enrolment, feeding, counts, school_days, timing="cap
     c["gap_days"] = c.new_gap / c.daily_use.replace(0, np.nan)
     worst = c.groupby(["school_id", "date"]).gap_days.min().rename("count_gap_change")
     f = f.join(worst, on=["school_id", "date"])
+    f["count_day"] = f.count_gap_change.notna()
     f["count_gap_change"] = f.count_gap_change.astype(float).fillna(0.0)
 
     def school_days_between(start, end):
@@ -199,4 +207,13 @@ def build_features(schools, enrolment, feeding, counts, school_days, timing="cap
                           | (captured.dt.weekday >= 5)).astype(float)
     f["after_hours_share"] = f.groupby("school_id").outside_hours.transform(
         lambda s: s.rolling(PATTERN_WINDOW, min_periods=1).mean())
+
+    # Version 8 candidates. Both use only the school's own records up to that day.
+    # A steady few percent above similar schools, with the daily noise averaged out
+    f["fed_vs_peers_trend"] = f.groupby("school_id").fed_vs_peers.transform(
+        lambda s: s.rolling(RECENT_DAYS, min_periods=3).mean()).fillna(0.0)
+    # The last store count's gap, carried on the school days after it (0 with no recent count)
+    counted = f.count_gap_change.where(f.count_day)
+    f["count_gap_recent"] = counted.groupby(f.school_id).transform(
+        lambda s: s.ffill(limit=RECENT_DAYS - 1)).fillna(0.0)
     return f
