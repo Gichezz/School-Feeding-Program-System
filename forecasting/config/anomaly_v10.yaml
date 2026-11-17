@@ -129,3 +129,29 @@ final_test: >
   estimate of version 8 on 20 more datasets, and version 8 stays the deployed method.
 
 after: if a change is adopted, the scoring service and its tests are updated to the frozen setting
+
+# ---------------------------------------------------------------------------------------
+# Freeze. Written after development (data/reports/anomaly/v10/development.json) and the
+# robustness check (robustness.json) and committed before any test dataset is generated.
+#
+# Development, 2025 of the 10 development datasets:
+#   step 2: over_recording lists 20.1% of problem school-weeks the isolation model does not
+#     (nearly all inflated headcount); stock_variance 5.8%; both went on.
+#   step 3: independent beat day_max (46.3% against 39.8% F1@3) and was adopted: F1@3 33.6%
+#     to 46.3%, problems caught 63.0% to 82.7%, ordinary listings 3.1 to 2.4 per officer-term,
+#     highest fairness ratio 1.19.
+#   step 4: stock_variance (best carry 10) +0.4 points, under the 1.0 margin: not adopted.
+#   step 5: q = 0.99, the top of the fixed grid (a limitation: a stricter q was not tried).
+#   step 6: persistence, as an extended option, caught 90.4% for 5.7 more ordinary listings
+#     per officer-term.
+# Robustness (deployment loop, 7 scenarios x 3 seeds x 3 model seeds): mean F1@3 44.2%
+# (version 8) and 47.6% (this setting); worst scenario -0.4 points (subtle anomalies): passed.
+# ---------------------------------------------------------------------------------------
+frozen:
+  detectors: [eif, over_recording]
+  combination: independent
+  carry: 10                 # unused (stock_variance not adopted)
+  q: 0.99
+  persistence: false
+  extended_persistence: true   # also reported, as the extended operating point
+  generator_commit: 050703a
