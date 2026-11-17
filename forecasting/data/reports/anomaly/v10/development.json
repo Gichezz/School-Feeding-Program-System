@@ -1,0 +1,396 @@
+{
+  "plan": "config/anomaly_v10.yaml",
+  "period": {
+    "start": "2025-01-06",
+    "end": "2025-12-31"
+  },
+  "steps": {
+    "1_baseline": {
+      "q": "0.98",
+      "f1_by_q": {
+        "0.95": 0.3243,
+        "0.96": 0.3244,
+        "0.97": 0.3333,
+        "0.98": 0.3364,
+        "0.99": 0.3294
+      },
+      "precision_at_k": 0.3877,
+      "recall_at_k": 0.3002,
+      "f1_at_k": 0.3364,
+      "pr_auc": 0.3283,
+      "day_level_f1": 0.2387,
+      "false_listings_per_officer_term": 3.1128,
+      "listings_per_officer_week": 0.3922,
+      "problems_caught": 0.63,
+      "problems_caught_within_2_weeks": 0.2371,
+      "median_weeks_to_catch": 2.0,
+      "listed_by_type": {
+        "consumption_drift": 0.4985,
+        "inflated_headcount": 0.1301,
+        "stock_leakage": 0.2877
+      },
+      "caught_by_type": {
+        "consumption_drift": 0.86,
+        "inflated_headcount": 0.26,
+        "stock_leakage": 0.805
+      },
+      "fairness_max_ratio": 1.243,
+      "over_listed": [],
+      "by_size": {
+        "medium schools": {
+          "by": "size_group",
+          "ordinary_weeks": 22420,
+          "problem_weeks": 980,
+          "false_listing_rate": 0.023327386262265833,
+          "detection_rate": 0.2969387755102041,
+          "false_listing_ratio": 0.9244356319245949
+        },
+        "small schools": {
+          "by": "size_group",
+          "ordinary_weeks": 22575,
+          "problem_weeks": 1365,
+          "false_listing_rate": 0.03136212624584717,
+          "detection_rate": 0.3120879120879121,
+          "false_listing_ratio": 1.2428424971672152
+        },
+        "large schools": {
+          "by": "size_group",
+          "ordinary_weeks": 23325,
+          "problem_weeks": 1335,
+          "false_listing_rate": 0.021136120042872453,
+          "detection_rate": 0.2868913857677903,
+          "false_listing_ratio": 0.8375984462465463
+        }
+      },
+      "by_sub_county": {
+        "Mfano East": {
+          "by": "sub_county",
+          "ordinary_weeks": 17085,
+          "problem_weeks": 915,
+          "false_listing_rate": 0.03061164764413228,
+          "detection_rate": 0.35628415300546445,
+          "false_listing_ratio": 1.2131019530435716
+        },
+        "Mfano North": {
+          "by": "sub_county",
+          "ordinary_weeks": 16995,
+          "problem_weeks": 1005,
+          "false_listing_rate": 0.024418946749043838,
+          "detection_rate": 0.28955223880597014,
+          "false_listing_ratio": 0.9676928317254495
+        },
+        "Mfano South": {
+          "by": "sub_county",
+          "ordinary_weeks": 17075,
+          "problem_weeks": 925,
+          "false_listing_rate": 0.023250366032210836,
+          "detection_rate": 0.30594594594594593,
+          "false_listing_ratio": 0.9213834149191672
+        },
+        "Mfano West": {
+          "by": "sub_county",
+          "ordinary_weeks": 17165,
+          "problem_weeks": 835,
+          "false_listing_rate": 0.022662394407224003,
+          "detection_rate": 0.23952095808383234,
+          "false_listing_ratio": 0.8980828224486913
+        }
+      }
+    },
+    "2_complementarity": {
+      "total_problem_weeks": 3680,
+      "detectors": {
+        "eif": {
+          "precision_at_k": 0.3877,
+          "recall_at_k": 0.3002,
+          "f1_at_k": 0.3364,
+          "problems_caught": 0.63,
+          "listed_by_type": {
+            "consumption_drift": 0.4985,
+            "inflated_headcount": 0.1301,
+            "stock_leakage": 0.2877
+          },
+          "problem_weeks_listed": 1100,
+          "problem_weeks_not_listed_by_eif": 0,
+          "share_of_problem_weeks_not_listed_by_eif": 0.0,
+          "problem_weeks_listed_by_no_other": 335,
+          "false_listings": 1724,
+          "false_listings_not_listed_by_eif": 0,
+          "unique_by_type": {
+            "consumption_drift": 0,
+            "inflated_headcount": 0,
+            "stock_leakage": 0
+          }
+        },
+        "over_recording": {
+          "precision_at_k": 0.3744,
+          "recall_at_k": 0.2387,
+          "f1_at_k": 0.2907,
+          "problems_caught": 0.3786,
+          "listed_by_type": {
+            "consumption_drift": 0.0163,
+            "inflated_headcount": 0.6652,
+            "stock_leakage": 0.0071
+          },
+          "problem_weeks_listed": 880,
+          "problem_weeks_not_listed_by_eif": 741,
+          "share_of_problem_weeks_not_listed_by_eif": 0.2014,
+          "problem_weeks_listed_by_no_other": 721,
+          "false_listings": 1475,
+          "false_listings_not_listed_by_eif": 1380,
+          "unique_by_type": {
+            "consumption_drift": 15,
+            "inflated_headcount": 716,
+            "stock_leakage": 10
+          }
+        },
+        "stock_variance": {
+          "precision_at_k": 0.2898,
+          "recall_at_k": 0.1458,
+          "f1_at_k": 0.1915,
+          "problems_caught": 0.2357,
+          "listed_by_type": {
+            "consumption_drift": 0.0083,
+            "inflated_headcount": 0.0048,
+            "stock_leakage": 0.4127
+          },
+          "problem_weeks_listed": 535,
+          "problem_weeks_not_listed_by_eif": 214,
+          "share_of_problem_weeks_not_listed_by_eif": 0.0582,
+          "problem_weeks_listed_by_no_other": 209,
+          "false_listings": 1305,
+          "false_listings_not_listed_by_eif": 976,
+          "unique_by_type": {
+            "consumption_drift": 0,
+            "inflated_headcount": 5,
+            "stock_leakage": 209
+          }
+        },
+        "rules": {
+          "precision_at_k": 0.1544,
+          "recall_at_k": 0.1831,
+          "f1_at_k": 0.167,
+          "problems_caught": 0.5929,
+          "listed_by_type": {
+            "consumption_drift": 0.2843,
+            "inflated_headcount": 0.0744,
+            "stock_leakage": 0.2045
+          },
+          "problem_weeks_listed": 670,
+          "problem_weeks_not_listed_by_eif": 160,
+          "share_of_problem_weeks_not_listed_by_eif": 0.0435,
+          "problem_weeks_listed_by_no_other": 135,
+          "false_listings": 3705,
+          "false_listings_not_listed_by_eif": 3198,
+          "unique_by_type": {
+            "consumption_drift": 55,
+            "inflated_headcount": 45,
+            "stock_leakage": 60
+          }
+        }
+      },
+      "go": {
+        "over_recording": true,
+        "stock_variance": true
+      }
+    },
+    "3_combination": {
+      "compared": {
+        "day_max": {
+          "q": "0.98",
+          "f1_at_k": 0.3977
+        },
+        "independent": {
+          "q": "0.99",
+          "f1_at_k": 0.4631
+        }
+      },
+      "better": "independent",
+      "decision": {
+        "candidate": "eif+over_recording [independent]",
+        "q": "0.99",
+        "f1_by_q": {
+          "0.95": 0.3386,
+          "0.96": 0.361,
+          "0.97": 0.3998,
+          "0.98": 0.4324,
+          "0.99": 0.4631
+        },
+        "gain_f1_points": 12.67,
+        "checks": {
+          "f1_margin": true,
+          "problems_caught_not_lower": true,
+          "workload_within_1": true,
+          "fairness_within_1_5": true
+        },
+        "adopted": true,
+        "precision_at_k": 0.5376,
+        "recall_at_k": 0.4103,
+        "f1_at_k": 0.4631,
+        "pr_auc": 0.3719,
+        "day_level_f1": 0.3764,
+        "false_listings_per_officer_term": 2.3815,
+        "listings_per_officer_week": 0.3929,
+        "problems_caught": 0.8271,
+        "problems_caught_within_2_weeks": 0.2743,
+        "median_weeks_to_catch": 2.0,
+        "listed_by_type": {
+          "consumption_drift": 0.4156,
+          "inflated_headcount": 0.5771,
+          "stock_leakage": 0.2275
+        },
+        "caught_by_type": {
+          "consumption_drift": 0.804,
+          "inflated_headcount": 0.9,
+          "stock_leakage": 0.765
+        },
+        "fairness_max_ratio": 1.193,
+        "over_listed": []
+      }
+    },
+    "4_stock_variance": {
+      "f1_by_carry_at_current_q": {
+        "5": 0.4629,
+        "10": 0.467,
+        "20": 0.4525
+      },
+      "carry": 10,
+      "decision": {
+        "candidate": "eif+over_recording+stock_variance(10) [independent]",
+        "q": "0.99",
+        "f1_by_q": {
+          "0.95": 0.3283,
+          "0.96": 0.3516,
+          "0.97": 0.3881,
+          "0.98": 0.4283,
+          "0.99": 0.467
+        },
+        "gain_f1_points": 0.39,
+        "checks": {
+          "f1_margin": false,
+          "problems_caught_not_lower": true,
+          "workload_within_1": true,
+          "fairness_within_1_5": true
+        },
+        "adopted": false,
+        "precision_at_k": 0.4598,
+        "recall_at_k": 0.4753,
+        "f1_at_k": 0.467,
+        "pr_auc": 0.3691,
+        "day_level_f1": 0.3869,
+        "false_listings_per_officer_term": 3.705,
+        "listings_per_officer_week": 0.5278,
+        "problems_caught": 0.8371,
+        "problems_caught_within_2_weeks": 0.3157,
+        "median_weeks_to_catch": 2.0,
+        "listed_by_type": {
+          "consumption_drift": 0.4148,
+          "inflated_headcount": 0.5877,
+          "stock_leakage": 0.4073
+        },
+        "caught_by_type": {
+          "consumption_drift": 0.804,
+          "inflated_headcount": 0.9,
+          "stock_leakage": 0.8
+        },
+        "fairness_max_ratio": 1.158,
+        "over_listed": []
+      }
+    },
+    "5_threshold": {
+      "setting": "eif+over_recording [independent]",
+      "q": "0.99",
+      "f1_by_q": {
+        "0.95": 0.3386,
+        "0.96": 0.361,
+        "0.97": 0.3998,
+        "0.98": 0.4324,
+        "0.99": 0.4631
+      },
+      "precision_at_k": 0.5376,
+      "recall_at_k": 0.4103,
+      "f1_at_k": 0.4631,
+      "pr_auc": 0.3719,
+      "day_level_f1": 0.3764,
+      "false_listings_per_officer_term": 2.3815,
+      "listings_per_officer_week": 0.3929,
+      "problems_caught": 0.8271,
+      "problems_caught_within_2_weeks": 0.2743,
+      "median_weeks_to_catch": 2.0,
+      "listed_by_type": {
+        "consumption_drift": 0.4156,
+        "inflated_headcount": 0.5771,
+        "stock_leakage": 0.2275
+      },
+      "caught_by_type": {
+        "consumption_drift": 0.804,
+        "inflated_headcount": 0.9,
+        "stock_leakage": 0.765
+      },
+      "fairness_max_ratio": 1.193,
+      "over_listed": []
+    },
+    "6_persistence": {
+      "extended": {
+        "precision_at_k": 0.2852,
+        "recall_at_k": 0.4822,
+        "f1_at_k": 0.3581,
+        "pr_auc": 0.3701,
+        "day_level_f1": 0.376,
+        "false_listings_per_officer_term": 8.0492,
+        "listings_per_officer_week": 0.8656,
+        "problems_caught": 0.9043,
+        "problems_caught_within_2_weeks": 0.4271,
+        "median_weeks_to_catch": 2.0,
+        "listed_by_type": {
+          "consumption_drift": 0.4885,
+          "inflated_headcount": 0.6656,
+          "stock_leakage": 0.2743
+        },
+        "caught_by_type": {
+          "consumption_drift": 0.88,
+          "inflated_headcount": 1.0,
+          "stock_leakage": 0.815
+        },
+        "fairness_max_ratio": 1.086,
+        "over_listed": []
+      },
+      "standard_in_the_same_run": {
+        "precision_at_k": 0.5238,
+        "recall_at_k": 0.4145,
+        "f1_at_k": 0.4611,
+        "pr_auc": 0.3701,
+        "day_level_f1": 0.376,
+        "false_listings_per_officer_term": 2.5314,
+        "listings_per_officer_week": 0.4064,
+        "problems_caught": 0.8186,
+        "problems_caught_within_2_weeks": 0.2829,
+        "median_weeks_to_catch": 2.0,
+        "listed_by_type": {
+          "consumption_drift": 0.4127,
+          "inflated_headcount": 0.5771,
+          "stock_leakage": 0.2415
+        },
+        "caught_by_type": {
+          "consumption_drift": 0.78,
+          "inflated_headcount": 0.9,
+          "stock_leakage": 0.765
+        },
+        "fairness_max_ratio": 1.219,
+        "over_listed": []
+      },
+      "extra_ordinary_per_officer_term": 5.67
+    }
+  },
+  "reached": {
+    "detectors": [
+      "eif",
+      "over_recording"
+    ],
+    "combination": "independent",
+    "carry": 10,
+    "persistence": false,
+    "q": "0.99"
+  },
+  "runtime_seconds": 13540
+}

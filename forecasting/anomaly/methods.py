@@ -295,6 +295,52 @@ def _percentile(sorted_reference, values):
     return (left + right) / (2 * len(sorted_reference))
 
 
+class OverRecording:
+    """Protocol version 10: the over-recording signal on its own, as a detector. The mean
+    of two one-sided robust z-scores (below 0 counts as 0) of fed_vs_peers_trend and
+    fed_rate_vs_last_term_trend, against the training window's median and 1.4826 x MAD."""
+    name = "over_recording"
+
+    def __init__(self, **_):
+        pass
+
+    def fit(self, train):
+        self.centre_, self.spread_ = {}, {}
+        for f in OVER_RECORDING:
+            values = train[f].to_numpy()
+            self.centre_[f] = float(np.median(values))
+            self.spread_[f] = max(float(np.median(np.abs(values - self.centre_[f]))) * 1.4826, 1e-6)
+        return self
+
+    def z(self, frame):
+        return {f: (frame[f].to_numpy() - self.centre_[f]) / self.spread_[f] for f in OVER_RECORDING}
+
+    def score(self, frame):
+        return np.mean([np.maximum(v, 0.0) for v in self.z(frame).values()], axis=0)
+
+    def contributions(self, row):
+        return {f: float(v[0]) for f, v in self.z(pd.DataFrame([row])).items() if v[0] > 0}
+
+
+class StockVariance:
+    """Protocol version 10: the shortfall at the school's last store count, in days of
+    food, carried on the N school days after the count (count_shortfall_N). An unexplained
+    stock variance, never a finding of leakage or misconduct."""
+    name = "stock_variance"
+
+    def __init__(self, carry=10, **_):
+        self.feature = f"count_shortfall_{carry}"
+
+    def fit(self, train):
+        return self
+
+    def score(self, frame):
+        return frame[self.feature].to_numpy(dtype=float)
+
+    def contributions(self, row):
+        return {self.feature: float(row[self.feature])} if row[self.feature] > 0 else {}
+
+
 class ExtendedIsolationForestWithOverRecording:
     """Protocol version 9, change 1: Extended Isolation Forest averaged with a transparent
     signal for learners fed recorded above what similar schools and the school's own last
@@ -361,4 +407,6 @@ METHODS = {
     "sgd_one_class_svm": SGDOneClassSVMMethod,
     "grouped_extended_isolation_forest": GroupedExtendedIsolationForest,
     "extended_isolation_forest_with_over_recording": ExtendedIsolationForestWithOverRecording,
+    "over_recording": OverRecording,
+    "stock_variance": StockVariance,
 }

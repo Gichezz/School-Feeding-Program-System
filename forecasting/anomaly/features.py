@@ -44,6 +44,10 @@ FEATURES = {
 EXTRA_FEATURES = {
     "fed_vs_peers_trend": "learners fed against similar schools nearby, over the last 10 school days",
     "count_gap_recent": "the gap between the store and the records at the last count, in the past 10 school days",
+    # Protocol version 10: the stock-variance signal, carried 5, 10 or 20 school days
+    "count_shortfall_5": "the shortfall at the last store count, in days of food, in the past 5 school days",
+    "count_shortfall_10": "the shortfall at the last store count, in days of food, in the past 10 school days",
+    "count_shortfall_20": "the shortfall at the last store count, in days of food, in the past 20 school days",
     # Protocol version 9: an input to the over-recording signal
     "fed_rate_vs_last_term_trend": "the share of learners fed against the school's last term, over the last 10 school days",
 }
@@ -220,4 +224,9 @@ def build_features(schools, enrolment, feeding, counts, school_days, timing="cap
     counted = f.count_gap_change.where(f.count_day)
     f["count_gap_recent"] = counted.groupby(f.school_id).transform(
         lambda s: s.ffill(limit=RECENT_DAYS - 1)).fillna(0.0)
+    # Version 10: only a shortfall (the store below the records) counts, in days of food
+    shortfall = (-counted).clip(lower=0).where(f.count_day)
+    for days in (5, 10, 20):
+        f[f"count_shortfall_{days}"] = shortfall.groupby(f.school_id).transform(
+            lambda s, n=days: s.ffill(limit=n - 1)).fillna(0.0)
     return f

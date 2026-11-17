@@ -57,7 +57,8 @@ def test_an_inflated_headcount_stands_out_against_the_school_and_its_peers():
     assert late_a.fed_vs_peers.median() > 0.08
 
 
-@pytest.mark.parametrize("name", list(METHODS))
+# The stock-variance detector only reads store counts, which this dataset has none of
+@pytest.mark.parametrize("name", [m for m in METHODS if m != "stock_variance"])
 def test_every_method_scores_the_inflated_days_above_ordinary_ones(name):
     f = build_features(*tiny_dataset(inflate_from=45))
     kwargs = {} if name in ("rules", "robust_zscore") else {"random_state": 0}
@@ -276,3 +277,21 @@ def test_real_growth_does_not_raise_the_over_recording_signal_but_over_recording
 
     assert growth <= same + 0.05
     assert over > same + 0.3
+
+
+def test_the_stock_variance_detector_carries_only_a_shortfall_for_n_school_days():
+    from anomaly.methods import StockVariance
+
+    schools, enrolment, feeding, _, school_days = tiny_dataset()
+    short, over = school_days.date.iloc[20], school_days.date.iloc[40]
+    counts = pd.DataFrame({"school_id": ["A", "A"], "date": [short, over], "commodity": ["cereals", "cereals"],
+                           "counted_kg": [60.0, 140.0], "ledger_kg": [100.0, 100.0]})
+    f = build_features(schools, enrolment, feeding, counts, school_days)
+    a = f[f.school_id == "A"].set_index("date")
+
+    for carry in (5, 10, 20):
+        score = pd.Series(StockVariance(carry=carry).fit(f).score(a), index=a.index)
+        after = score.loc[pd.Timestamp(short):]
+        assert (after.iloc[:carry] > 0).all() and (after.iloc[carry:20] == 0).all()
+    # A count above the records is not a shortfall
+    assert StockVariance(carry=5).score(a.loc[[pd.Timestamp(over)]])[0] == 0
