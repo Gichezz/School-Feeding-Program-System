@@ -1,0 +1,503 @@
+{
+  "protocol": "config/anomaly_v9.yaml part A",
+  "period": "2025 (development)",
+  "version_8_on_2025": {
+    "precision_at_k": 0.4718,
+    "recall_at_k": 0.3619,
+    "f1_at_k": 0.4075
+  },
+  "feature_inventory": {
+    "types": [
+      "consumption_drift",
+      "inflated_headcount",
+      "stock_leakage"
+    ],
+    "rows": [
+      {
+        "feature": "fed_rate",
+        "extra_candidate": false,
+        "consumption_drift": 0.5201,
+        "consumption_drift_direction": "higher",
+        "inflated_headcount": 0.8449,
+        "inflated_headcount_direction": "higher",
+        "stock_leakage": 0.513,
+        "stock_leakage_direction": "higher"
+      },
+      {
+        "feature": "fed_vs_own",
+        "extra_candidate": false,
+        "consumption_drift": 0.5516,
+        "consumption_drift_direction": "lower",
+        "inflated_headcount": 0.8278,
+        "inflated_headcount_direction": "higher",
+        "stock_leakage": 0.5706,
+        "stock_leakage_direction": "lower"
+      },
+      {
+        "feature": "fed_vs_peers",
+        "extra_candidate": false,
+        "consumption_drift": 0.5121,
+        "consumption_drift_direction": "higher",
+        "inflated_headcount": 0.852,
+        "inflated_headcount_direction": "higher",
+        "stock_leakage": 0.5191,
+        "stock_leakage_direction": "lower"
+      },
+      {
+        "feature": "fed_rate_vs_last_term",
+        "extra_candidate": false,
+        "consumption_drift": 0.5567,
+        "consumption_drift_direction": "lower",
+        "inflated_headcount": 0.8787,
+        "inflated_headcount_direction": "higher",
+        "stock_leakage": 0.5161,
+        "stock_leakage_direction": "lower"
+      },
+      {
+        "feature": "enrolment_change",
+        "extra_candidate": false,
+        "consumption_drift": 0.5081,
+        "consumption_drift_direction": "lower",
+        "inflated_headcount": 0.5088,
+        "inflated_headcount_direction": "lower",
+        "stock_leakage": 0.5701,
+        "stock_leakage_direction": "lower"
+      },
+      {
+        "feature": "uptake",
+        "extra_candidate": false,
+        "consumption_drift": 0.59,
+        "consumption_drift_direction": "higher",
+        "inflated_headcount": 0.811,
+        "inflated_headcount_direction": "higher",
+        "stock_leakage": 0.5811,
+        "stock_leakage_direction": "lower"
+      },
+      {
+        "feature": "cereal_ratio",
+        "extra_candidate": false,
+        "consumption_drift": 0.8995,
+        "consumption_drift_direction": "higher",
+        "inflated_headcount": 0.5098,
+        "inflated_headcount_direction": "lower",
+        "stock_leakage": 0.5106,
+        "stock_leakage_direction": "lower"
+      },
+      {
+        "feature": "pulse_ratio",
+        "extra_candidate": false,
+        "consumption_drift": 0.9015,
+        "consumption_drift_direction": "higher",
+        "inflated_headcount": 0.5125,
+        "inflated_headcount_direction": "higher",
+        "stock_leakage": 0.5,
+        "stock_leakage_direction": "higher"
+      },
+      {
+        "feature": "usage_trend",
+        "extra_candidate": false,
+        "consumption_drift": 0.9021,
+        "consumption_drift_direction": "higher",
+        "inflated_headcount": 0.5568,
+        "inflated_headcount_direction": "lower",
+        "stock_leakage": 0.5285,
+        "stock_leakage_direction": "lower"
+      },
+      {
+        "feature": "count_gap_change",
+        "extra_candidate": false,
+        "consumption_drift": 0.506,
+        "consumption_drift_direction": "lower",
+        "inflated_headcount": 0.5036,
+        "inflated_headcount_direction": "lower",
+        "stock_leakage": 0.5327,
+        "stock_leakage_direction": "lower"
+      },
+      {
+        "feature": "entry_delay",
+        "extra_candidate": false,
+        "consumption_drift": 0.5126,
+        "consumption_drift_direction": "lower",
+        "inflated_headcount": 0.5007,
+        "inflated_headcount_direction": "lower",
+        "stock_leakage": 0.5128,
+        "stock_leakage_direction": "lower"
+      },
+      {
+        "feature": "entry_batch",
+        "extra_candidate": false,
+        "consumption_drift": 0.519,
+        "consumption_drift_direction": "lower",
+        "inflated_headcount": 0.5109,
+        "inflated_headcount_direction": "higher",
+        "stock_leakage": 0.5183,
+        "stock_leakage_direction": "lower"
+      },
+      {
+        "feature": "after_hours_share",
+        "extra_candidate": false,
+        "consumption_drift": 0.515,
+        "consumption_drift_direction": "lower",
+        "inflated_headcount": 0.5447,
+        "inflated_headcount_direction": "lower",
+        "stock_leakage": 0.5092,
+        "stock_leakage_direction": "lower"
+      },
+      {
+        "feature": "round_share",
+        "extra_candidate": false,
+        "consumption_drift": 0.5214,
+        "consumption_drift_direction": "lower",
+        "inflated_headcount": 0.6211,
+        "inflated_headcount_direction": "lower",
+        "stock_leakage": 0.5135,
+        "stock_leakage_direction": "higher"
+      },
+      {
+        "feature": "fed_steadiness",
+        "extra_candidate": false,
+        "consumption_drift": 0.5262,
+        "consumption_drift_direction": "lower",
+        "inflated_headcount": 0.7917,
+        "inflated_headcount_direction": "higher",
+        "stock_leakage": 0.5126,
+        "stock_leakage_direction": "lower"
+      },
+      {
+        "feature": "fed_vs_peers_trend",
+        "extra_candidate": true,
+        "consumption_drift": 0.5294,
+        "consumption_drift_direction": "higher",
+        "inflated_headcount": 0.8554,
+        "inflated_headcount_direction": "higher",
+        "stock_leakage": 0.5279,
+        "stock_leakage_direction": "lower"
+      },
+      {
+        "feature": "count_gap_recent",
+        "extra_candidate": true,
+        "consumption_drift": 0.5596,
+        "consumption_drift_direction": "lower",
+        "inflated_headcount": 0.5049,
+        "inflated_headcount_direction": "lower",
+        "stock_leakage": 0.6258,
+        "stock_leakage_direction": "lower"
+      }
+    ]
+  },
+  "capacity": {
+    "sub_county_weeks": 576,
+    "problems_per_sub_county_week": {
+      "0": 328,
+      "1": 192,
+      "2": 51,
+      "3": 5
+    },
+    "share_with_more_than_3": 0.0,
+    "problem_school_weeks": 309,
+    "share_of_school_weeks_with_a_problem": 0.0536,
+    "best_recall_at_k": 1.0,
+    "best_precision_at_k": 1.0,
+    "best_f1_at_k": 1.0
+  },
+  "error_analysis": {
+    "problem_weeks": 1545,
+    "missed_share": 0.6382,
+    "why_missed": {
+      "below the review threshold": 0.9919,
+      "above it, outranked by 3 others": 0.0081
+    },
+    "missed_rank_distribution": {
+      "1": 212,
+      "2": 177,
+      "3": 129,
+      "4": 99,
+      "5": 53,
+      "6": 113,
+      "7": 54,
+      "8": 149
+    },
+    "missed_percentile_in_window_median": 0.7963,
+    "by_type": {
+      "consumption_drift": {
+        "problem_weeks": 515,
+        "listed": 0.6194
+      },
+      "inflated_headcount": {
+        "problem_weeks": 505,
+        "listed": 0.1604
+      },
+      "stock_leakage": {
+        "problem_weeks": 450,
+        "listed": 0.2222
+      }
+    },
+    "by_size": {
+      "large schools": {
+        "problem_weeks": 490,
+        "listed": 0.3551
+      },
+      "medium schools": {
+        "problem_weeks": 475,
+        "listed": 0.4
+      },
+      "small schools": {
+        "problem_weeks": 580,
+        "listed": 0.3362
+      }
+    },
+    "by_sub_county": {
+      "Mfano East": {
+        "problem_weeks": 355,
+        "listed": 0.3521
+      },
+      "Mfano North": {
+        "problem_weeks": 400,
+        "listed": 0.4425
+      },
+      "Mfano South": {
+        "problem_weeks": 440,
+        "listed": 0.2955
+      },
+      "Mfano West": {
+        "problem_weeks": 350,
+        "listed": 0.3629
+      }
+    },
+    "by_programme": {
+      "cash transfer": {
+        "problem_weeks": 375,
+        "listed": 0.288
+      },
+      "food delivered": {
+        "problem_weeks": 1170,
+        "listed": 0.3855
+      }
+    },
+    "by_episode_weeks": {
+      "1-4": {
+        "problem_weeks": 270,
+        "listed": 0.3667
+      },
+      "5-8": {
+        "problem_weeks": 785,
+        "listed": 0.3885
+      },
+      "9-13": {
+        "problem_weeks": 415,
+        "listed": 0.2313
+      },
+      "14+": {
+        "problem_weeks": 0,
+        "listed": NaN
+      }
+    },
+    "by_anomalous_days_in_week": {
+      "1": {
+        "problem_weeks": 190,
+        "listed": 0.5211
+      },
+      "2": {
+        "problem_weeks": 240,
+        "listed": 0.25
+      },
+      "3": {
+        "problem_weeks": 100,
+        "listed": 0.2
+      },
+      "4": {
+        "problem_weeks": 205,
+        "listed": 0.361
+      },
+      "5": {
+        "problem_weeks": 810,
+        "listed": 0.3778
+      }
+    },
+    "by_weeks_since_start": {
+      "0.0": {
+        "problem_weeks": 275,
+        "listed": 0.0727
+      },
+      "1.0": {
+        "problem_weeks": 255,
+        "listed": 0.251
+      },
+      "2.0": {
+        "problem_weeks": 250,
+        "listed": 0.4
+      },
+      "3.0": {
+        "problem_weeks": 180,
+        "listed": 0.5278
+      },
+      "4.0": {
+        "problem_weeks": 140,
+        "listed": 0.5
+      },
+      "5.0": {
+        "problem_weeks": 120,
+        "listed": 0.5
+      },
+      "6.0": {
+        "problem_weeks": 250,
+        "listed": 0.364
+      }
+    },
+    "by_type_and_reason": {
+      "consumption_drift": {
+        "listed": 0.6194,
+        "below the review threshold": 0.3806
+      },
+      "inflated_headcount": {
+        "below the review threshold": 0.8238,
+        "listed": 0.1604,
+        "above it, outranked by 3 others": 0.0158
+      },
+      "stock_leakage": {
+        "below the review threshold": 0.7778,
+        "listed": 0.2222
+      }
+    },
+    "false_listings": {
+      "count": 638,
+      "share_of_listed": 0.533,
+      "by_size": {
+        "large schools": {
+          "ordinary_weeks": 9590,
+          "false_listing_rate": 0.0178
+        },
+        "medium schools": {
+          "ordinary_weeks": 8525,
+          "false_listing_rate": 0.0226
+        },
+        "small schools": {
+          "ordinary_weeks": 9140,
+          "false_listing_rate": 0.03
+        }
+      },
+      "by_sub_county": {
+        "Mfano East": {
+          "ordinary_weeks": 6845,
+          "false_listing_rate": 0.0245
+        },
+        "Mfano North": {
+          "ordinary_weeks": 6800,
+          "false_listing_rate": 0.0203
+        },
+        "Mfano South": {
+          "ordinary_weeks": 6760,
+          "false_listing_rate": 0.0281
+        },
+        "Mfano West": {
+          "ordinary_weeks": 6850,
+          "false_listing_rate": 0.0207
+        }
+      },
+      "by_programme": {
+        "cash transfer": {
+          "ordinary_weeks": 7905,
+          "false_listing_rate": 0.0154
+        },
+        "food delivered": {
+          "ordinary_weeks": 19350,
+          "false_listing_rate": 0.0267
+        }
+      },
+      "with_a_rule_breach": 0.3558,
+      "within_2_weeks_after_the_schools_problem": 0.0392
+    }
+  },
+  "temporal_signals": {
+    "score": {
+      "auc": 0.7834,
+      "direction": "higher",
+      "precision_at_k": 0.4784,
+      "recall_at_k": 0.3675,
+      "f1_at_k": 0.4135
+    },
+    "days_high": {
+      "auc": 0.7543,
+      "direction": "higher",
+      "precision_at_k": 0.465,
+      "recall_at_k": 0.3563,
+      "f1_at_k": 0.4013
+    },
+    "longest_run_high": {
+      "auc": 0.7541,
+      "direction": "higher",
+      "precision_at_k": 0.444,
+      "recall_at_k": 0.3391,
+      "f1_at_k": 0.3825
+    },
+    "previous_week": {
+      "auc": 0.7079,
+      "direction": "higher",
+      "precision_at_k": 0.3319,
+      "recall_at_k": 0.2545,
+      "f1_at_k": 0.2865
+    },
+    "trend": {
+      "auc": 0.6021,
+      "direction": "higher",
+      "precision_at_k": 0.1938,
+      "recall_at_k": 0.1493,
+      "f1_at_k": 0.1677
+    },
+    "two_week_mean": {
+      "auc": 0.7985,
+      "direction": "higher",
+      "precision_at_k": 0.4632,
+      "recall_at_k": 0.3545,
+      "f1_at_k": 0.3995
+    },
+    "vs_own_weeks": {
+      "auc": 0.7365,
+      "direction": "higher",
+      "precision_at_k": 0.4153,
+      "recall_at_k": 0.3241,
+      "f1_at_k": 0.3622
+    }
+  },
+  "calibration": {
+    "auc_raw_pooled": 0.7834,
+    "auc_percentile_pooled": 0.7801,
+    "by_sub_county": {
+      "Mfano East": {
+        "median_score_ordinary": 0.411,
+        "auc_raw": 0.7838,
+        "auc_percentile": 0.7787
+      },
+      "Mfano North": {
+        "median_score_ordinary": 0.4122,
+        "auc_raw": 0.7876,
+        "auc_percentile": 0.7816
+      },
+      "Mfano South": {
+        "median_score_ordinary": 0.4144,
+        "auc_raw": 0.7802,
+        "auc_percentile": 0.7788
+      },
+      "Mfano West": {
+        "median_score_ordinary": 0.4164,
+        "auc_raw": 0.7823,
+        "auc_percentile": 0.7792
+      }
+    },
+    "by_term": {
+      "Term 1": {
+        "median_score_ordinary": 0.4079,
+        "auc_raw": 0.8251
+      },
+      "Term 2": {
+        "median_score_ordinary": 0.4177,
+        "auc_raw": 0.7418
+      },
+      "Term 3": {
+        "median_score_ordinary": 0.4164,
+        "auc_raw": 0.7849
+      }
+    },
+    "note": "each list is one sub-county-week scored by one model, so calibration across sub-counties cannot change a list"
+  }
+}

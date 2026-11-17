@@ -243,3 +243,36 @@ def test_a_school_week_is_the_mean_of_its_two_highest_days():
     # A week with one school day uses that day
     assert top2["B", "2026-10"] == pytest.approx(0.8)
     assert weekly_scores(frame, "max")["A", "2026-10"] == pytest.approx(0.9)
+
+
+def two_terms(change):
+    """Term 1 as usual; in term 2 school A either grows (enrolment and learners fed up 30%
+    together), over-records (learners fed up 13%, enrolment unchanged), or stays the same."""
+    schools, enrolment, feeding, counts, days = tiny_dataset(days=120)
+    days = days.assign(term_id=["2026-T1"] * 60 + ["2026-T2"] * 60, term_day=list(range(60)) * 2, term_days=60)
+    learners_a = 520 if change == "growth" else 400
+    enrolment = pd.DataFrame({"school_id": ["A", "B", "C"] * 2, "term_id": ["2026-T1"] * 3 + ["2026-T2"] * 3,
+                              "learners": [400, 400, 400, learners_a, 400, 400]})
+    term2 = feeding.date >= days.date.iloc[60]
+    a = (feeding.school_id == "A") & term2
+    factor = {"growth": 1.3, "over_recording": 1.13, "same": 1.0}[change]
+    feeding.loc[a, "learners_fed"] = np.minimum((feeding.loc[a, "learners_fed"] * factor).astype(int), learners_a - 1)
+    feeding.loc[a, "cereals_kg"] = (feeding.loc[a, "learners_fed"] * 0.15 * 2).round() / 2
+    feeding.loc[a, "pulses_kg"] = (feeding.loc[a, "learners_fed"] * 0.04 * 2).round() / 2
+    return build_features(schools, enrolment, feeding, counts, days)
+
+
+def test_real_growth_does_not_raise_the_over_recording_signal_but_over_recording_does():
+    # Protocol version 9's growth test: the signal compares the share of enrolled learners fed
+    from anomaly.methods import ExtendedIsolationForestWithOverRecording
+
+    def over_recording(change):
+        f = two_terms(change)
+        model = ExtendedIsolationForestWithOverRecording(random_state=0).fit(f[f.term_id == "2026-T1"])
+        late = f[(f.school_id == "A") & (f.term_id == "2026-T2") & (f.term_day >= 15)]
+        return float(np.median(model.parts(late)[1]))
+
+    same, growth, over = over_recording("same"), over_recording("growth"), over_recording("over_recording")
+
+    assert growth <= same + 0.05
+    assert over > same + 0.3

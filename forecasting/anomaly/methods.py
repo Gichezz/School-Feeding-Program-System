@@ -285,6 +285,72 @@ class GroupedExtendedIsolationForest:
         return model.contributions(row)
 
 
+OVER_RECORDING = ["fed_vs_peers_trend", "fed_rate_vs_last_term_trend"]
+
+
+def _percentile(sorted_reference, values):
+    """Each value's mid-rank percentile among the reference values (ties share the middle)."""
+    left = np.searchsorted(sorted_reference, values, side="left")
+    right = np.searchsorted(sorted_reference, values, side="right")
+    return (left + right) / (2 * len(sorted_reference))
+
+
+class ExtendedIsolationForestWithOverRecording:
+    """Protocol version 9, change 1: Extended Isolation Forest averaged with a transparent
+    signal for learners fed recorded above what similar schools and the school's own last
+    term would suggest. No labels.
+
+    over_recording for a school-day: the mean of two one-sided robust z-scores (below 0
+    counts as 0), of fed_vs_peers_trend and fed_rate_vs_last_term_trend, each against the
+    median and 1.4826 x MAD over the training window. The day's score is the mean of the
+    isolation score's percentile and over_recording's percentile among the training
+    window's school-days, so the two are on the same scale and neither dominates."""
+    name = "extended_isolation_forest_with_over_recording"
+
+    def __init__(self, features=FEATURE_NAMES, n_estimators=100, ndim=2, random_state=0):
+        self.eif = ExtendedIsolationForestMethod(n_estimators=n_estimators, ndim=ndim, random_state=random_state)
+        self.eif.features = list(features)
+
+    def _over_recording(self, frame):
+        z = [np.maximum((frame[f].to_numpy() - self.centre_[f]) / self.spread_[f], 0.0) for f in OVER_RECORDING]
+        return np.mean(z, axis=0)
+
+    def fit(self, train):
+        self.eif.fit(train)
+        self.centre_, self.spread_ = {}, {}
+        for f in OVER_RECORDING:
+            values = train[f].to_numpy()
+            centre = float(np.median(values))
+            self.centre_[f] = centre
+            self.spread_[f] = max(float(np.median(np.abs(values - centre))) * 1.4826, 1e-6)
+        self.eif_reference_ = np.sort(self.eif.score(train))
+        self.or_reference_ = np.sort(self._over_recording(train))
+        return self
+
+    def parts(self, frame):
+        return (_percentile(self.eif_reference_, self.eif.score(frame)),
+                _percentile(self.or_reference_, self._over_recording(frame)))
+
+    def score(self, frame):
+        eif, over = self.parts(frame)
+        return (eif + over) / 2
+
+    def contributions(self, row):
+        """The reasons: the over-recording figures when that signal is the stronger of the
+        two for the day, otherwise the isolation model's own."""
+        frame = pd.DataFrame([row])
+        eif, over = self.parts(frame)
+        if over[0] > eif[0]:
+            out = {}
+            for f in OVER_RECORDING:
+                z = (row[f] - self.centre_[f]) / self.spread_[f]
+                if z > 0:
+                    out[f] = float(z)
+            if out:
+                return out
+        return self.eif.contributions(row)
+
+
 METHODS = {
     "rules": Rules,
     "robust_zscore": RobustZScore,
@@ -294,4 +360,5 @@ METHODS = {
     "one_class_svm": OneClassSVMMethod,
     "sgd_one_class_svm": SGDOneClassSVMMethod,
     "grouped_extended_isolation_forest": GroupedExtendedIsolationForest,
+    "extended_isolation_forest_with_over_recording": ExtendedIsolationForestWithOverRecording,
 }
