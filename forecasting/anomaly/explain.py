@@ -61,6 +61,11 @@ def describe(feature, row):
     if feature == "fed_vs_peers_trend":
         diff = row["fed_vs_peers_trend"]
         return f"over the last 10 school days, a share of learners fed {_points(diff)} {'above' if diff > 0 else 'below'} similar schools nearby"
+    if feature.startswith("count_shortfall_"):
+        return f"the last store count {row[feature]:.1f} days of food short of the records"
+    if feature == "fed_rate_vs_last_term_trend":
+        diff = row["fed_rate_vs_last_term_trend"]
+        return f"over the last 10 school days, a share of learners fed {_points(diff)} {'above' if diff > 0 else 'below'} last term's"
     if feature == "count_gap_recent":
         gap = row["count_gap_recent"]
         return f"the last store count {abs(gap):.1f} days of food {'short of' if gap < 0 else 'above'} the records"

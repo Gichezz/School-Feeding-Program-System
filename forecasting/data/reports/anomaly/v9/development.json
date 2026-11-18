@@ -1,0 +1,433 @@
+{
+  "plan": "config/anomaly_v9.yaml part B",
+  "period": "2025 (development)",
+  "baseline_version_8": {
+    "q": "0.98",
+    "precision_at_k": 0.4718,
+    "recall_at_k": 0.3619,
+    "f1_at_k": 0.4075,
+    "empty_weeks_share": 0.7056,
+    "listings_per_officer_week": 0.4156,
+    "false_listings_per_officer_term": 2.8799,
+    "problems_caught": 0.7857,
+    "problems_caught_within_2_weeks": 0.3036,
+    "median_weeks_to_catch": 2.0,
+    "listed_by_type": {
+      "consumption_drift": 0.6251,
+      "inflated_headcount": 0.1635,
+      "stock_leakage": 0.2977
+    },
+    "caught_by_type": {
+      "consumption_drift": 1.0,
+      "inflated_headcount": 0.45,
+      "stock_leakage": 0.9375
+    }
+  },
+  "stages": [
+    {
+      "change": "change_1_over_recording",
+      "margin": 2.0,
+      "candidate": "isolation model + over-recording",
+      "gain_f1_points": -7.64,
+      "current": {
+        "label": "isolation model",
+        "q": "0.98",
+        "precision_at_k": 0.4718,
+        "recall_at_k": 0.3619,
+        "f1_at_k": 0.4075,
+        "empty_weeks_share": 0.7056,
+        "listings_per_officer_week": 0.4156,
+        "false_listings_per_officer_term": 2.8799,
+        "problems_caught": 0.7857,
+        "problems_caught_within_2_weeks": 0.3036,
+        "median_weeks_to_catch": 2.0,
+        "listed_by_type": {
+          "consumption_drift": 0.6251,
+          "inflated_headcount": 0.1635,
+          "stock_leakage": 0.2977
+        },
+        "caught_by_type": {
+          "consumption_drift": 1.0,
+          "inflated_headcount": 0.45,
+          "stock_leakage": 0.9375
+        }
+      },
+      "candidate_result": {
+        "label": "isolation model + over-recording",
+        "q": "0.98",
+        "precision_at_k": 0.38,
+        "recall_at_k": 0.2974,
+        "f1_at_k": 0.3311,
+        "empty_weeks_share": 0.649,
+        "listings_per_officer_week": 0.4229,
+        "false_listings_per_officer_term": 3.4306,
+        "problems_caught": 0.5821,
+        "problems_caught_within_2_weeks": 0.3214,
+        "median_weeks_to_catch": 1.0,
+        "listed_by_type": {
+          "consumption_drift": 0.1603,
+          "inflated_headcount": 0.6965,
+          "stock_leakage": 0.0641
+        },
+        "caught_by_type": {
+          "consumption_drift": 0.45,
+          "inflated_headcount": 0.95,
+          "stock_leakage": 0.2875
+        },
+        "fairness_max_ratio": 1.4323516817190907,
+        "by_size": {
+          "large schools": {
+            "by": "size_group",
+            "ordinary_weeks": 9590,
+            "problem_weeks": 490,
+            "false_listing_rate": 0.028050052137643378,
+            "detection_rate": 0.14285714285714285,
+            "false_listing_ratio": 1.0059265408045661
+          },
+          "small schools": {
+            "by": "size_group",
+            "ordinary_weeks": 9140,
+            "problem_weeks": 580,
+            "false_listing_rate": 0.032494529540481404,
+            "detection_rate": 0.33620689655172414,
+            "false_listing_ratio": 1.1653136876655534
+          },
+          "medium schools": {
+            "by": "size_group",
+            "ordinary_weeks": 8525,
+            "problem_weeks": 475,
+            "false_listing_rate": 0.02275659824046921,
+            "detection_rate": 0.4063157894736842,
+            "false_listing_ratio": 0.8160935329526162
+          }
+        },
+        "by_sub_county": {
+          "Mfano East": {
+            "by": "sub_county",
+            "ordinary_weeks": 6845,
+            "problem_weeks": 355,
+            "false_listing_rate": 0.028049671292914535,
+            "detection_rate": 0.3323943661971831,
+            "false_listing_ratio": 1.0059128830110338
+          },
+          "Mfano North": {
+            "by": "sub_county",
+            "ordinary_weeks": 6800,
+            "problem_weeks": 400,
+            "false_listing_rate": 0.023382352941176472,
+            "detection_rate": 0.225,
+            "false_listing_ratio": 0.8385342492260063
+          },
+          "Mfano South": {
+            "by": "sub_county",
+            "ordinary_weeks": 6760,
+            "problem_weeks": 440,
+            "false_listing_rate": 0.03994082840236687,
+            "detection_rate": 0.32954545454545453,
+            "false_listing_ratio": 1.4323516817190907
+          },
+          "Mfano West": {
+            "by": "sub_county",
+            "ordinary_weeks": 6850,
+            "problem_weeks": 350,
+            "false_listing_rate": 0.02029197080291971,
+            "detection_rate": 0.3,
+            "false_listing_ratio": 0.7277074529389167
+          }
+        }
+      },
+      "checks": {
+        "f1_margin": false,
+        "problems_caught_not_lower": false,
+        "workload_within_1": true,
+        "fairness_within_1_5": true
+      },
+      "adopted": false
+    },
+    {
+      "change": "change_2_store_gap",
+      "margin": 1.0,
+      "candidate": "isolation model; +count_gap_recent",
+      "gain_f1_points": 0.42,
+      "current": {
+        "label": "isolation model",
+        "q": "0.98",
+        "precision_at_k": 0.4718,
+        "recall_at_k": 0.3619,
+        "f1_at_k": 0.4075,
+        "empty_weeks_share": 0.7056,
+        "listings_per_officer_week": 0.4156,
+        "false_listings_per_officer_term": 2.8799,
+        "problems_caught": 0.7857,
+        "problems_caught_within_2_weeks": 0.3036,
+        "median_weeks_to_catch": 2.0,
+        "listed_by_type": {
+          "consumption_drift": 0.6251,
+          "inflated_headcount": 0.1635,
+          "stock_leakage": 0.2977
+        },
+        "caught_by_type": {
+          "consumption_drift": 1.0,
+          "inflated_headcount": 0.45,
+          "stock_leakage": 0.9375
+        }
+      },
+      "candidate_result": {
+        "label": "isolation model; +count_gap_recent",
+        "q": "0.98",
+        "precision_at_k": 0.4441,
+        "recall_at_k": 0.3876,
+        "f1_at_k": 0.4117,
+        "empty_weeks_share": 0.6806,
+        "listings_per_officer_week": 0.4729,
+        "false_listings_per_officer_term": 3.4486,
+        "problems_caught": 0.8036,
+        "problems_caught_within_2_weeks": 0.3036,
+        "median_weeks_to_catch": 2.0,
+        "listed_by_type": {
+          "consumption_drift": 0.6374,
+          "inflated_headcount": 0.1683,
+          "stock_leakage": 0.3559
+        },
+        "caught_by_type": {
+          "consumption_drift": 1.0,
+          "inflated_headcount": 0.5,
+          "stock_leakage": 0.9375
+        },
+        "fairness_max_ratio": 1.1920578360368934,
+        "by_size": {
+          "large schools": {
+            "by": "size_group",
+            "ordinary_weeks": 9590,
+            "problem_weeks": 490,
+            "false_listing_rate": 0.021793534932221064,
+            "detection_rate": 0.35714285714285715,
+            "false_listing_ratio": 0.7774643908084884
+          },
+          "small schools": {
+            "by": "size_group",
+            "ordinary_weeks": 9140,
+            "problem_weeks": 580,
+            "false_listing_rate": 0.03140043763676149,
+            "detection_rate": 0.3620689655172414,
+            "false_listing_ratio": 1.120181842656982
+          },
+          "medium schools": {
+            "by": "size_group",
+            "ordinary_weeks": 8525,
+            "problem_weeks": 475,
+            "false_listing_rate": 0.03143695014662757,
+            "detection_rate": 0.44842105263157894,
+            "false_listing_ratio": 1.1214843929925842
+          }
+        },
+        "by_sub_county": {
+          "Mfano East": {
+            "by": "sub_county",
+            "ordinary_weeks": 6845,
+            "problem_weeks": 355,
+            "false_listing_rate": 0.029510591672753834,
+            "detection_rate": 0.38028169014084506,
+            "false_listing_ratio": 1.0527633194252692
+          },
+          "Mfano North": {
+            "by": "sub_county",
+            "ordinary_weeks": 6800,
+            "problem_weeks": 400,
+            "false_listing_rate": 0.027647058823529413,
+            "detection_rate": 0.4,
+            "false_listing_ratio": 0.9862834924545735
+          },
+          "Mfano South": {
+            "by": "sub_county",
+            "ordinary_weeks": 6760,
+            "problem_weeks": 440,
+            "false_listing_rate": 0.03328402366863906,
+            "detection_rate": 0.3522727272727273,
+            "false_listing_ratio": 1.1873770485454942
+          },
+          "Mfano West": {
+            "by": "sub_county",
+            "ordinary_weeks": 6850,
+            "problem_weeks": 350,
+            "false_listing_rate": 0.021751824817518247,
+            "detection_rate": 0.4228571428571429,
+            "false_listing_ratio": 0.775976420682539
+          }
+        }
+      },
+      "checks": {
+        "f1_margin": false,
+        "problems_caught_not_lower": true,
+        "workload_within_1": true,
+        "fairness_within_1_5": true
+      },
+      "adopted": false
+    },
+    {
+      "change": "change_3_persistence",
+      "margin": 1.0,
+      "candidate": "isolation model; persistence",
+      "gain_f1_points": 0.42,
+      "current": {
+        "label": "isolation model",
+        "q": "0.98",
+        "precision_at_k": 0.4718,
+        "recall_at_k": 0.3619,
+        "f1_at_k": 0.4075,
+        "empty_weeks_share": 0.7056,
+        "listings_per_officer_week": 0.4156,
+        "false_listings_per_officer_term": 2.8799,
+        "problems_caught": 0.7857,
+        "problems_caught_within_2_weeks": 0.3036,
+        "median_weeks_to_catch": 2.0,
+        "listed_by_type": {
+          "consumption_drift": 0.6251,
+          "inflated_headcount": 0.1635,
+          "stock_leakage": 0.2977
+        },
+        "caught_by_type": {
+          "consumption_drift": 1.0,
+          "inflated_headcount": 0.45,
+          "stock_leakage": 0.9375
+        }
+      },
+      "candidate_result": {
+        "label": "isolation model; persistence",
+        "q": "0.98",
+        "precision_at_k": 0.4081,
+        "recall_at_k": 0.4165,
+        "f1_at_k": 0.4117,
+        "empty_weeks_share": 0.6177,
+        "listings_per_officer_week": 0.549,
+        "false_listings_per_officer_term": 4.2295,
+        "problems_caught": 0.9107,
+        "problems_caught_within_2_weeks": 0.3571,
+        "median_weeks_to_catch": 2.0,
+        "listed_by_type": {
+          "consumption_drift": 0.6411,
+          "inflated_headcount": 0.3163,
+          "stock_leakage": 0.3077
+        },
+        "caught_by_type": {
+          "consumption_drift": 1.0,
+          "inflated_headcount": 0.8,
+          "stock_leakage": 0.9375
+        },
+        "fairness_max_ratio": 1.2736544302918167,
+        "by_size": {
+          "large schools": {
+            "by": "size_group",
+            "ordinary_weeks": 9590,
+            "problem_weeks": 490,
+            "false_listing_rate": 0.026173096976016684,
+            "detection_rate": 0.37142857142857144,
+            "false_listing_ratio": 0.7613103074507308
+          },
+          "small schools": {
+            "by": "size_group",
+            "ordinary_weeks": 9140,
+            "problem_weeks": 580,
+            "false_listing_rate": 0.041684901531728664,
+            "detection_rate": 0.4,
+            "false_listing_ratio": 1.212510129399429
+          },
+          "medium schools": {
+            "by": "size_group",
+            "ordinary_weeks": 8525,
+            "problem_weeks": 475,
+            "false_listing_rate": 0.03577712609970674,
+            "detection_rate": 0.4842105263157895,
+            "false_listing_ratio": 1.0406676327081188
+          }
+        },
+        "by_sub_county": {
+          "Mfano East": {
+            "by": "sub_county",
+            "ordinary_weeks": 6845,
+            "problem_weeks": 355,
+            "false_listing_rate": 0.03579254930606282,
+            "detection_rate": 0.4507042253521127,
+            "false_listing_ratio": 1.0411162554287539
+          },
+          "Mfano North": {
+            "by": "sub_county",
+            "ordinary_weeks": 6800,
+            "problem_weeks": 400,
+            "false_listing_rate": 0.03,
+            "detection_rate": 0.4575,
+            "false_listing_ratio": 0.8726254002134473
+          },
+          "Mfano South": {
+            "by": "sub_county",
+            "ordinary_weeks": 6760,
+            "problem_weeks": 440,
+            "false_listing_rate": 0.04378698224852071,
+            "detection_rate": 0.34545454545454546,
+            "false_listing_ratio": 1.2736544302918167
+          },
+          "Mfano West": {
+            "by": "sub_county",
+            "ordinary_weeks": 6850,
+            "problem_weeks": 350,
+            "false_listing_rate": 0.02802919708029197,
+            "detection_rate": 0.4257142857142857,
+            "false_listing_ratio": 0.8152996439950456
+          }
+        }
+      },
+      "checks": {
+        "f1_margin": false,
+        "problems_caught_not_lower": true,
+        "workload_within_1": false,
+        "fairness_within_1_5": true
+      },
+      "adopted": false
+    }
+  ],
+  "recommended_setting": {
+    "method": "extended_isolation_forest",
+    "features": [
+      "fed_rate",
+      "fed_vs_own",
+      "fed_vs_peers",
+      "fed_rate_vs_last_term",
+      "enrolment_change",
+      "uptake",
+      "cereal_ratio",
+      "pulse_ratio",
+      "usage_trend",
+      "count_gap_change",
+      "entry_delay",
+      "entry_batch",
+      "after_hours_share",
+      "round_share",
+      "fed_steadiness"
+    ],
+    "persistence": false,
+    "q": "0.98"
+  },
+  "recommended": {
+    "q": "0.98",
+    "precision_at_k": 0.4718,
+    "recall_at_k": 0.3619,
+    "f1_at_k": 0.4075,
+    "empty_weeks_share": 0.7056,
+    "listings_per_officer_week": 0.4156,
+    "false_listings_per_officer_term": 2.8799,
+    "problems_caught": 0.7857,
+    "problems_caught_within_2_weeks": 0.3036,
+    "median_weeks_to_catch": 2.0,
+    "listed_by_type": {
+      "consumption_drift": 0.6251,
+      "inflated_headcount": 0.1635,
+      "stock_leakage": 0.2977
+    },
+    "caught_by_type": {
+      "consumption_drift": 1.0,
+      "inflated_headcount": 0.45,
+      "stock_leakage": 0.9375
+    }
+  },
+  "runtime_seconds": 2616
+}

@@ -1,0 +1,40 @@
+{
+  "by_scenario": {
+    "baseline": {
+      "version_8": 0.4587,
+      "version_10": 0.4942
+    },
+    "noisier_days": {
+      "version_8": 0.4019,
+      "version_10": 0.4337
+    },
+    "subtle_anomalies": {
+      "version_8": 0.4007,
+      "version_10": 0.3966
+    },
+    "larger_programme": {
+      "version_8": 0.4258,
+      "version_10": 0.4881
+    },
+    "fortnightly_counts": {
+      "version_8": 0.4898,
+      "version_10": 0.5299
+    },
+    "connectivity_outages": {
+      "version_8": 0.4587,
+      "version_10": 0.4942
+    },
+    "irregular_entry": {
+      "version_8": 0.4563,
+      "version_10": 0.4967
+    }
+  },
+  "mean_version_8": 0.4417,
+  "mean_version_10": 0.4762,
+  "worst_difference_points": -0.41,
+  "passed": true,
+  "period": {
+    "start": "2025-01-06",
+    "end": "2026-10-23"
+  }
+}

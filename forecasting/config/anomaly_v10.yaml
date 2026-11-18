@@ -1,0 +1,157 @@
+# Protocol version 10: the last round of improvements to the weekly review list.
+#
+# Written and committed before any version 10 run. It follows version 9's findings
+# (config/anomaly_v9.yaml, data/reports/anomaly/v9): version 8 is deployed and reached
+# F1@3 50.8% and 85.2% of problems caught on 10 fresh datasets; a labelled benchmark
+# reached about 70% F1@3 on the development types; the over-recording signal found
+# inflated headcount but averaging it with the isolation model diluted the other types.
+#
+# New data for every purpose. 2026 of the four original datasets and the fresh seeds
+# 9001-9010 have been scored, and 2025 of the original datasets has been used to choose
+# settings in versions 8 and 9. So version 10 develops on 10 new datasets and is judged
+# once on 20 others, all from config/feeding_dataset.yaml (generator commit 050703a),
+# none generated before this file was committed.
+
+version: 10
+baseline: version 8 (Extended Isolation Forest, week = mean of the 2 highest days, q = 0.98)
+
+datasets:
+  development: {seeds: [8001, 8002, 8003, 8004, 8005, 8006, 8007, 8008, 8009, 8010], period: {start: 2025-01-06, end: 2025-12-31}}
+  test: {seeds: [9101, 9102, 9103, 9104, 9105, 9106, 9107, 9108, 9109, 9110, 9111, 9112, 9113, 9114, 9115, 9116, 9117, 9118, 9119, 9120],
+         period: {start: 2026-01-01, end: 2026-10-23}}
+  # The deployment loop runs from 2025-01-06 in both, so the first fits have history; in
+  # development it stops at the end of 2025, so no 2026 week of a development dataset is
+  # scored. The test datasets are generated only after the freeze below is committed.
+model_seeds: [1, 2, 3, 4, 5]
+# 2024 and 2025 hold three of the six types (consumption drift, inflated headcount, stock
+# leakage); every development figure is about those three.
+
+# The deployment loop is version 8's: one sub-county at a time, refitted every 20 school
+# days on its last 125, follow-up weeks left out of later fits, at most 3 school-weeks a week.
+
+detectors:
+  isolation_model: Extended Isolation Forest on version 8's 15 features (settings from the main evaluation)
+  over_recording: >
+    the mean of two one-sided robust z-scores (below 0 counts as 0), of fed_vs_peers_trend
+    and fed_rate_vs_last_term_trend, each against the median and 1.4826 x MAD over the
+    training window (as version 9's change 1, without averaging with the isolation model)
+  stock_variance: >
+    the shortfall at the school's last store count (count_gap_change below 0, in days of
+    food; a count above the records counts as 0), carried on the N school days after the
+    count, 0 otherwise. N is 10 unless step 4 chooses otherwise.
+  fixed_rules: the existing rules (already shown to the officer beside the list)
+# A detector's weekly score is the mean of its two highest days, as version 8. Its
+# percentile is its weekly score's place among its own training window's school-week
+# scores (mid-rank), so every detector is on the same 0-1 scale.
+
+steps:
+  1_baseline: >
+    Version 8 on the development datasets, q chosen from the grid in step 5 by F1@3, with
+    every measure below, by type, school size and sub-county.
+  2_complementarity: >
+    Each detector alone (its own list: up to 3 school-weeks above its own window's 0.98
+    percentile), on the development datasets. For each: problem school-weeks and problems
+    it lists, those that no other detector lists, its false listings, and the overlap with
+    the isolation model, by type. Go/no-go: a detector goes on to steps 3-4 only if the
+    problem school-weeks it lists that the isolation model does not are at least 2% of all
+    problem school-weeks. If neither over_recording nor stock_variance passes, steps 3-4
+    are skipped, the report says why, and the final setting is version 8's with step 5's
+    threshold.
+  3_combination: >
+    The isolation model with over_recording (if it passed step 2), two ways:
+      day_max: a school-day's score is the higher of the two detectors' percentiles among
+        the training window's school-days; then the week (top-2 mean), the threshold and
+        the list as version 8.
+      independent: each detector's weekly percentile as above; a school-week qualifies if
+        either is above q; qualifying school-weeks are ranked by the higher of the two,
+        ties to the isolation model's; each school once; at most 3.
+    The better on F1@3 is compared with the current setting under the adoption rules.
+  4_stock_variance: >
+    stock_variance (if it passed step 2) added as a third detector in step 3's way of
+    combining (or to the isolation model alone, in the independent way, if step 3 adopted
+    nothing), with N in [5, 10, 20]; the best N on F1@3 is compared with the current
+    setting under the adoption rules.
+  5_threshold: >
+    One shared q for every detector, from [0.95, 0.96, 0.97, 0.98, 0.99], chosen by F1@3
+    on the development datasets for the setting reached after step 4 (ties to the lower q).
+  6_persistence: >
+    Reported as an extended operating point, never the standard list: the standard list
+    plus school-weeks whose combined weekly percentile is above 0.90 this week and last,
+    not listed last week, within the 3. Its extra workload is reported. Not subject to the
+    workload rule, since it is offered as a choice.
+
+adoption_rules:   # for steps 3 and 4, against the current setting, on the development datasets
+  margins: {3_combination: 2.0, 4_stock_variance: 1.0}   # F1@3 points, mean over datasets and seeds
+  problems_caught: does not fall
+  workload: ordinary schools listed per officer-term no more than 1.0 above version 8's (step 1)
+  fairness: no group (school size, programme type, sub-county, sync interval, outage week) over 1.5 times the overall false listing rate
+  growth: the behaviour test that real growth does not raise over_recording passes
+
+robustness: >
+  Before the freeze, version 8 and the final setting are run with the deployment loop on
+  the robustness scenarios (config/anomaly_robustness.yaml: 7 scenarios x 3 dataset seeds,
+  3 model seeds, q as chosen). The final setting is rejected if its mean F1@3 over all
+  scenarios is below version 8's, or in any scenario more than 3.0 points below version
+  8's; then the last adopted change is removed and the check repeated.
+
+measures:   # all reported for development and the final test; none can be swapped in later
+  - precision_at_k        # listed school-weeks that contain a problem (the list may hold fewer than 3)
+  - recall_at_k           # problem school-weeks that were listed
+  - f1_at_k
+  - pr_auc                # average precision of the combined weekly scores over all school-weeks of a run
+  - day_level_f1          # school-days flagged (any detector's day percentile above q) against problem days
+  - problems_caught       # an episode: one school, one type, first to last day; caught if any school-week it covers is listed
+  - problems_caught_within_2_weeks   # weeks to catch 0 or 1 (0 = the episode's first week)
+  - median_weeks_to_catch
+  - false_listings_per_officer_term
+  - listings_per_officer_week
+  - listed_by_type and caught_by_type (all six types in the final test)
+  - fairness by school size, programme type, sub-county, sync interval and outage week
+
+explanations: >
+  The isolation model's reasons are unchanged (checked in version 7). A school-week listed
+  through over_recording or stock_variance shows that detector's own inputs as its reasons
+  ("learners fed 18% above similar schools over the last 10 school days", "the last store
+  count 3.2 days of food short of the records"): the reason is the signal itself, so it is
+  faithful by construction. A store shortfall is an unexplained stock variance, never
+  stated as leakage or misconduct.
+
+freeze: >
+  Before the test datasets are generated, the final setting (detectors, combination, N,
+  q) is written below and committed.
+
+final_test: >
+  The 20 test datasets, each scored once over its 2026 (all six types), with 5 model seeds,
+  for version 8 and the frozen setting on the same data; each dataset's result, the mean,
+  the standard deviation across datasets and 95% intervals from 2,000 bootstrap resamples
+  of the datasets, for each measure and for the difference. Reported as it comes out;
+  nothing is changed after it is seen. If no change was adopted, the final test is an
+  estimate of version 8 on 20 more datasets, and version 8 stays the deployed method.
+
+after: if a change is adopted, the scoring service and its tests are updated to the frozen setting
+
+# ---------------------------------------------------------------------------------------
+# Freeze. Written after development (data/reports/anomaly/v10/development.json) and the
+# robustness check (robustness.json) and committed before any test dataset is generated.
+#
+# Development, 2025 of the 10 development datasets:
+#   step 2: over_recording lists 20.1% of problem school-weeks the isolation model does not
+#     (nearly all inflated headcount); stock_variance 5.8%; both went on.
+#   step 3: independent beat day_max (46.3% against 39.8% F1@3) and was adopted: F1@3 33.6%
+#     to 46.3%, problems caught 63.0% to 82.7%, ordinary listings 3.1 to 2.4 per officer-term,
+#     highest fairness ratio 1.19.
+#   step 4: stock_variance (best carry 10) +0.4 points, under the 1.0 margin: not adopted.
+#   step 5: q = 0.99, the top of the fixed grid (a limitation: a stricter q was not tried).
+#   step 6: persistence, as an extended option, caught 90.4% for 5.7 more ordinary listings
+#     per officer-term.
+# Robustness (deployment loop, 7 scenarios x 3 seeds x 3 model seeds): mean F1@3 44.2%
+# (version 8) and 47.6% (this setting); worst scenario -0.4 points (subtle anomalies): passed.
+# ---------------------------------------------------------------------------------------
+frozen:
+  detectors: [eif, over_recording]
+  combination: independent
+  carry: 10                 # unused (stock_variance not adopted)
+  q: 0.99
+  persistence: false
+  extended_persistence: true   # also reported, as the extended operating point
+  generator_commit: 050703a

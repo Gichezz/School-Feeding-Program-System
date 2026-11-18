@@ -1,0 +1,14 @@
+{
+ "0.9": {
+  "problem_weeks_two_in_a_row": 0.314,
+  "ordinary_weeks_two_in_a_row": 0.024,
+  "extra_problem_weeks_not_already_listed": 0.094,
+  "extra_ordinary_weeks_not_already_listed": 0.017
+ },
+ "0.95": {
+  "problem_weeks_two_in_a_row": 0.241,
+  "ordinary_weeks_two_in_a_row": 0.01,
+  "extra_problem_weeks_not_already_listed": 0.032,
+  "extra_ordinary_weeks_not_already_listed": 0.005
+ }
+}

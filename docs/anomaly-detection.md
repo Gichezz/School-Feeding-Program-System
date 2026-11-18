@@ -105,6 +105,48 @@ Version 8 did not reopen the choice of method. With the new weekly score the mai
 
 One disclosure. While checking the code ran, before the stages, one 2026 figure was printed for a setting that was not the final one. Nothing used it: each stage was decided automatically by the margins on 2025.
 
+**Version 9: an investigation, three changes and an independent test** ([plan](../forecasting/config/anomaly_v9.yaml), [investigation](../forecasting/data/reports/anomaly/v9_investigation/v9_investigation_report.md), [report](../forecasting/data/reports/anomaly/v9/v9_report.md)). 2026 had been looked at for versions 7 and 8, so version 9 developed on 2025 only and was judged once on 10 fresh datasets (seeds 9001–9010).
+
+- **The investigation** (2025, the three types present):
+  - a list of 3 is not the limit: a perfect list reaches 100% F1@3;
+  - even a model trained with the labels reaches only about 70%, because stock leakage is nearly invisible between store counts;
+  - version 8's largest gap is inflated headcount.
+- **Three changes were tested in order on 2025, and none met every rule fixed in advance:**
+  - **An over-recording signal averaged with the model** listed far more inflated headcount (16% → 70% of weeks), but much less of the other types (F1@3 −7.6 points).
+  - **The carried store-count gap** gained +0.4 points, under the margin.
+  - **A persistence rule** raised problems caught from 79% to 91%, but F1@3 gained only +0.4, and it listed 1.3 more ordinary schools per officer-term, over the limit of 1.0.
+- **So version 9 is version 8,** and the fresh-data test is an independent estimate of the deployed list:
+
+  | Fresh data | Result (95% interval) |
+  |---|---|
+  | F1@3 | **50.8%** (46.4–55.9%) |
+  | Precision@3 | 53.8% |
+  | Recall@3 | 48.5% |
+  | Problems caught while still going on | **85.2%** (80.6–89.2%) |
+  | Caught within 2 weeks | 47.8% |
+  | Ordinary schools listed per officer-term | 4.3 |
+  | Highest fairness ratio | 1.13 |
+
+  These agree with version 8's 2026 figures, so those were not an artefact of having studied 2026. The weakness left is inflated headcount: 49% of those problems are caught.
+
+**Version 10: two detectors kept apart** ([plan](../forecasting/config/anomaly_v10.yaml), [report](../forecasting/data/reports/anomaly/v10/v10_report.md)). Developed on 10 new datasets (2025), judged once on 20 others (2026, all six types, 1,800 problems).
+
+- **Development:** the over-recording signal finds 20% of problem weeks the isolation model misses. Keeping each detector against its own threshold, rather than averaging them, was adopted with F1@3 +12.7 points.
+- **The final test was mixed:**
+
+  | | Version 8 | Version 10 |
+  |---|---|---|
+  | F1@3 | 53.4% | 53.0% (−0.4, interval −2.5 to +1.4) |
+  | Problems caught | 88.4% | **92.8%** (+4.4, +2.2 to +6.6) |
+  | Inflated headcount caught | 57% | **94%** |
+  | PR-AUC | 0.576 | 0.462 |
+  | Day-level F1 | 47.0% | 42.0% |
+  | Caught within 2 weeks | 51.6% | 47.1% |
+
+- **Behaviour tests:** two that version 8 passes fail with version 10 in the scorer. A ten-day store shortfall isn't listed, though the fixed check still shows it, and entering later no longer always raises the score.
+- **Why development overstated the gain:** development holds only three types, and on all six the extra listings take places from other problems.
+- **Version 8 stays deployed.** Version 10 is reported as a tested option for a programme most concerned with inflated headcount.
+
 The rest of this section is version 7's method comparison, run again with version 8's weekly score where it applies.
 
 
