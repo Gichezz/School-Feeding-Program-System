@@ -129,6 +129,24 @@ One disclosure. While checking the code ran, before the stages, one 2026 figure 
 
   These agree with version 8's 2026 figures, so those were not an artefact of having studied 2026. The weakness left is inflated headcount: 49% of those problems are caught.
 
+**Version 10: two detectors kept apart** ([plan](../forecasting/config/anomaly_v10.yaml), [report](../forecasting/data/reports/anomaly/v10/v10_report.md)). Developed on 10 new datasets (2025), judged once on 20 others (2026, all six types, 1,800 problems).
+
+- **Development:** the over-recording signal finds 20% of problem weeks the isolation model misses. Keeping each detector against its own threshold, rather than averaging them, was adopted with F1@3 +12.7 points.
+- **The final test was mixed:**
+
+  | | Version 8 | Version 10 |
+  |---|---|---|
+  | F1@3 | 53.4% | 53.0% (−0.4, interval −2.5 to +1.4) |
+  | Problems caught | 88.4% | **92.8%** (+4.4, +2.2 to +6.6) |
+  | Inflated headcount caught | 57% | **94%** |
+  | PR-AUC | 0.576 | 0.462 |
+  | Day-level F1 | 47.0% | 42.0% |
+  | Caught within 2 weeks | 51.6% | 47.1% |
+
+- **Behaviour tests:** two that version 8 passes fail with version 10 in the scorer. A ten-day store shortfall isn't listed, though the fixed check still shows it, and entering later no longer always raises the score.
+- **Why development overstated the gain:** development holds only three types, and on all six the extra listings take places from other problems.
+- **Version 8 stays deployed.** Version 10 is reported as a tested option for a programme most concerned with inflated headcount.
+
 The rest of this section is version 7's method comparison, run again with version 8's weekly score where it applies.
 
 

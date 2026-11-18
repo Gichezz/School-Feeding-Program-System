@@ -1,0 +1,1489 @@
+{
+  "frozen": {
+    "detectors": [
+      "eif",
+      "over_recording"
+    ],
+    "combination": "independent",
+    "carry": 10,
+    "q": 0.99,
+    "persistence": false,
+    "extended_persistence": true,
+    "generator_commit": "050703a"
+  },
+  "period": {
+    "start": "2026-01-01",
+    "end": "2026-10-23"
+  },
+  "datasets": [
+    "seed_9101",
+    "seed_9102",
+    "seed_9103",
+    "seed_9104",
+    "seed_9105",
+    "seed_9106",
+    "seed_9107",
+    "seed_9108",
+    "seed_9109",
+    "seed_9110",
+    "seed_9111",
+    "seed_9112",
+    "seed_9113",
+    "seed_9114",
+    "seed_9115",
+    "seed_9116",
+    "seed_9117",
+    "seed_9118",
+    "seed_9119",
+    "seed_9120"
+  ],
+  "versions": {
+    "version_8": {
+      "mean": {
+        "precision_at_k": 0.5385,
+        "recall_at_k": 0.5335,
+        "f1_at_k": 0.5342,
+        "pr_auc": 0.5762,
+        "day_level_f1": 0.4704,
+        "false_listings_per_officer_term": 4.7008,
+        "listings_per_officer_week": 0.7872,
+        "problems_caught": 0.8844,
+        "problems_caught_within_2_weeks": 0.5156,
+        "median_weeks_to_catch": 1.0,
+        "listed_by_type": {
+          "backdated_bulk_entry": 1.0,
+          "consumption_drift": 0.6029,
+          "ghost_learners": 0.4568,
+          "inflated_headcount": 0.2635,
+          "round_number_entry": 0.738,
+          "stock_leakage": 0.2888
+        },
+        "caught_by_type": {
+          "backdated_bulk_entry": 1.0,
+          "consumption_drift": 0.9667,
+          "ghost_learners": 0.98,
+          "inflated_headcount": 0.5733,
+          "round_number_entry": 0.9833,
+          "stock_leakage": 0.8033
+        },
+        "fairness_max_ratio": 1.137,
+        "over_listed": []
+      },
+      "by_dataset": [
+        {
+          "dataset": "seed_9101",
+          "precision_at_k": 0.5576089950372208,
+          "recall_at_k": 0.5803278688524589,
+          "f1_at_k": 0.5686993079948152,
+          "pr_auc": 0.6143079122055439,
+          "day_level_f1": 0.5141684693046211,
+          "false_listings_per_officer_term": 5.073611111111111,
+          "listings_per_officer_week": 0.8819444444444443,
+          "problems_caught": 0.9888888888888889,
+          "problems_caught_within_2_weeks": 0.5444444444444444
+        },
+        {
+          "dataset": "seed_9102",
+          "precision_at_k": 0.5713353379203243,
+          "recall_at_k": 0.6952380952380952,
+          "f1_at_k": 0.6271910601250169,
+          "pr_auc": 0.7119649022109152,
+          "day_level_f1": 0.6174770250146919,
+          "false_listings_per_officer_term": 4.947222222222222,
+          "listings_per_officer_week": 0.8875,
+          "problems_caught": 0.8333333333333334,
+          "problems_caught_within_2_weeks": 0.5555555555555556
+        },
+        {
+          "dataset": "seed_9103",
+          "precision_at_k": 0.5393578359746731,
+          "recall_at_k": 0.5743589743589743,
+          "f1_at_k": 0.5562955278930383,
+          "pr_auc": 0.6034115496246849,
+          "day_level_f1": 0.5237281142869772,
+          "false_listings_per_officer_term": 5.181944444444445,
+          "listings_per_officer_week": 0.8652777777777778,
+          "problems_caught": 0.8888888888888888,
+          "problems_caught_within_2_weeks": 0.6111111111111112
+        },
+        {
+          "dataset": "seed_9104",
+          "precision_at_k": 0.5528272265038746,
+          "recall_at_k": 0.5788617886178862,
+          "f1_at_k": 0.5655300625270446,
+          "pr_auc": 0.631813180989227,
+          "day_level_f1": 0.5269235565225738,
+          "false_listings_per_officer_term": 5.199999999999999,
+          "listings_per_officer_week": 0.8944444444444445,
+          "problems_caught": 0.8888888888888888,
+          "problems_caught_within_2_weeks": 0.4444444444444444
+        },
+        {
+          "dataset": "seed_9105",
+          "precision_at_k": 0.5642130688334526,
+          "recall_at_k": 0.633644859813084,
+          "f1_at_k": 0.5968605215368525,
+          "pr_auc": 0.6332351429995645,
+          "day_level_f1": 0.5528622669497031,
+          "false_listings_per_officer_term": 4.730555555555556,
+          "listings_per_officer_week": 0.8347222222222224,
+          "problems_caught": 0.8444444444444444,
+          "problems_caught_within_2_weeks": 0.6555555555555556
+        },
+        {
+          "dataset": "seed_9106",
+          "precision_at_k": 0.5168470015940198,
+          "recall_at_k": 0.5407407407407407,
+          "f1_at_k": 0.5285116202710505,
+          "pr_auc": 0.5516997963535772,
+          "day_level_f1": 0.4353614105282846,
+          "false_listings_per_officer_term": 4.929166666666667,
+          "listings_per_officer_week": 0.7847222222222222,
+          "problems_caught": 1.0,
+          "problems_caught_within_2_weeks": 0.5
+        },
+        {
+          "dataset": "seed_9107",
+          "precision_at_k": 0.5259115216334468,
+          "recall_at_k": 0.5206611570247934,
+          "f1_at_k": 0.5232644628099175,
+          "pr_auc": 0.5703844037840344,
+          "day_level_f1": 0.4752470312032481,
+          "false_listings_per_officer_term": 5.127777777777778,
+          "listings_per_officer_week": 0.8319444444444443,
+          "problems_caught": 0.8888888888888888,
+          "problems_caught_within_2_weeks": 0.5555555555555556
+        },
+        {
+          "dataset": "seed_9108",
+          "precision_at_k": 0.5726641340346775,
+          "recall_at_k": 0.5895652173913042,
+          "f1_at_k": 0.5809684620313786,
+          "pr_auc": 0.6030381762818148,
+          "day_level_f1": 0.5461509172871846,
+          "false_listings_per_officer_term": 4.5680555555555555,
+          "listings_per_officer_week": 0.8222222222222222,
+          "problems_caught": 0.8333333333333334,
+          "problems_caught_within_2_weeks": 0.4444444444444444
+        },
+        {
+          "dataset": "seed_9109",
+          "precision_at_k": 0.6344633647078656,
+          "recall_at_k": 0.707936507936508,
+          "f1_at_k": 0.6691804560683602,
+          "pr_auc": 0.6941624741336826,
+          "day_level_f1": 0.5900439126004916,
+          "false_listings_per_officer_term": 4.6402777777777775,
+          "listings_per_officer_week": 0.9763888888888888,
+          "problems_caught": 0.9444444444444444,
+          "problems_caught_within_2_weeks": 0.8333333333333334
+        },
+        {
+          "dataset": "seed_9110",
+          "precision_at_k": 0.5493569969241822,
+          "recall_at_k": 0.4747826086956522,
+          "f1_at_k": 0.5093415087350881,
+          "pr_auc": 0.5211683650557396,
+          "day_level_f1": 0.4755967365766769,
+          "false_listings_per_officer_term": 4.044444444444444,
+          "listings_per_officer_week": 0.6902777777777777,
+          "problems_caught": 0.7777777777777778,
+          "problems_caught_within_2_weeks": 0.5
+        },
+        {
+          "dataset": "seed_9111",
+          "precision_at_k": 0.47870289631003915,
+          "recall_at_k": 0.415929203539823,
+          "f1_at_k": 0.4450933613238902,
+          "pr_auc": 0.4965896169967922,
+          "day_level_f1": 0.3790238532958125,
+          "false_listings_per_officer_term": 4.622222222222223,
+          "listings_per_officer_week": 0.6819444444444445,
+          "problems_caught": 0.7777777777777778,
+          "problems_caught_within_2_weeks": 0.4444444444444444
+        },
+        {
+          "dataset": "seed_9112",
+          "precision_at_k": 0.5239299417081114,
+          "recall_at_k": 0.4964912280701754,
+          "f1_at_k": 0.509793543058249,
+          "pr_auc": 0.5658742652024523,
+          "day_level_f1": 0.4221810171400585,
+          "false_listings_per_officer_term": 4.6402777777777775,
+          "listings_per_officer_week": 0.75,
+          "problems_caught": 0.8888888888888888,
+          "problems_caught_within_2_weeks": 0.5
+        },
+        {
+          "dataset": "seed_9113",
+          "precision_at_k": 0.537168066298501,
+          "recall_at_k": 0.5196581196581196,
+          "f1_at_k": 0.5282092669462992,
+          "pr_auc": 0.6345965663435853,
+          "day_level_f1": 0.4919552659703591,
+          "false_listings_per_officer_term": 4.730555555555556,
+          "listings_per_officer_week": 0.7861111111111112,
+          "problems_caught": 0.8555555555555555,
+          "problems_caught_within_2_weeks": 0.5555555555555556
+        },
+        {
+          "dataset": "seed_9114",
+          "precision_at_k": 0.6016183191134646,
+          "recall_at_k": 0.5162393162393162,
+          "f1_at_k": 0.5556436872565904,
+          "pr_auc": 0.5575783276214855,
+          "day_level_f1": 0.41394108911179445,
+          "false_listings_per_officer_term": 3.6111111111111107,
+          "listings_per_officer_week": 0.6972222222222223,
+          "problems_caught": 0.8888888888888888,
+          "problems_caught_within_2_weeks": 0.5
+        },
+        {
+          "dataset": "seed_9115",
+          "precision_at_k": 0.479590826524465,
+          "recall_at_k": 0.47857142857142854,
+          "f1_at_k": 0.47902129374567715,
+          "pr_auc": 0.5085547743235557,
+          "day_level_f1": 0.4237569861343016,
+          "false_listings_per_officer_term": 5.254166666666667,
+          "listings_per_officer_week": 0.7763888888888889,
+          "problems_caught": 0.8888888888888888,
+          "problems_caught_within_2_weeks": 0.2777777777777778
+        },
+        {
+          "dataset": "seed_9116",
+          "precision_at_k": 0.44601917241628436,
+          "recall_at_k": 0.37678571428571433,
+          "f1_at_k": 0.4084780611175921,
+          "pr_auc": 0.45005572719118814,
+          "day_level_f1": 0.33935744064931883,
+          "false_listings_per_officer_term": 4.730555555555556,
+          "listings_per_officer_week": 0.6569444444444444,
+          "problems_caught": 0.9666666666666667,
+          "problems_caught_within_2_weeks": 0.3888888888888889
+        },
+        {
+          "dataset": "seed_9117",
+          "precision_at_k": 0.6325156740887078,
+          "recall_at_k": 0.48965517241379314,
+          "f1_at_k": 0.551982483775872,
+          "pr_auc": 0.5744544549812197,
+          "day_level_f1": 0.436634733114677,
+          "false_listings_per_officer_term": 2.9791666666666665,
+          "listings_per_officer_week": 0.6236111111111111,
+          "problems_caught": 0.8666666666666667,
+          "problems_caught_within_2_weeks": 0.6
+        },
+        {
+          "dataset": "seed_9118",
+          "precision_at_k": 0.5535390620764435,
+          "recall_at_k": 0.610909090909091,
+          "f1_at_k": 0.5807458207445281,
+          "pr_auc": 0.6153433363345472,
+          "day_level_f1": 0.4864474486219425,
+          "false_listings_per_officer_term": 4.893055555555555,
+          "listings_per_officer_week": 0.8430555555555556,
+          "problems_caught": 0.8888888888888888,
+          "problems_caught_within_2_weeks": 0.6666666666666666
+        },
+        {
+          "dataset": "seed_9119",
+          "precision_at_k": 0.4501531196671108,
+          "recall_at_k": 0.40925925925925927,
+          "f1_at_k": 0.4287269736352914,
+          "pr_auc": 0.4591316842513436,
+          "day_level_f1": 0.3579219775578553,
+          "false_listings_per_officer_term": 4.875,
+          "listings_per_officer_week": 0.6819444444444444,
+          "problems_caught": 0.8333333333333334,
+          "problems_caught_within_2_weeks": 0.3333333333333333
+        },
+        {
+          "dataset": "seed_9120",
+          "precision_at_k": 0.4813812765724584,
+          "recall_at_k": 0.4598290598290598,
+          "f1_at_k": 0.4702985817106759,
+          "pr_auc": 0.5257648182547189,
+          "day_level_f1": 0.39987502613051884,
+          "false_listings_per_officer_term": 5.236111111111112,
+          "listings_per_officer_week": 0.7763888888888889,
+          "problems_caught": 0.9444444444444444,
+          "problems_caught_within_2_weeks": 0.4
+        }
+      ],
+      "fairness": {
+        "overall_false_listing_rate": 0.03929069986794945,
+        "overall_detection_rate": 0.5340305010893246,
+        "groups": {
+          "small schools": {
+            "by": "size_group",
+            "ordinary_weeks": 44960,
+            "problem_weeks": 3460,
+            "false_listing_rate": 0.03658807829181494,
+            "detection_rate": 0.5514450867052023,
+            "false_listing_ratio": 0.9312147254892981
+          },
+          "medium schools": {
+            "by": "size_group",
+            "ordinary_weeks": 42550,
+            "problem_weeks": 3890,
+            "false_listing_rate": 0.04195064629847239,
+            "detection_rate": 0.5419023136246787,
+            "false_listing_ratio": 1.067699135914164
+          },
+          "large schools": {
+            "by": "size_group",
+            "ordinary_weeks": 45015,
+            "problem_weeks": 4125,
+            "false_listing_rate": 0.039475730312118186,
+            "detection_rate": 0.512,
+            "false_listing_ratio": 1.0047092682184486
+          },
+          "food delivered": {
+            "by": "programme_group",
+            "ordinary_weeks": 94450,
+            "problem_weeks": 8150,
+            "false_listing_rate": 0.04466913710958179,
+            "detection_rate": 0.5328834355828221,
+            "false_listing_ratio": 1.1368883033315396
+          },
+          "cash transfer": {
+            "by": "programme_group",
+            "ordinary_weeks": 38075,
+            "problem_weeks": 3325,
+            "false_listing_rate": 0.025948785292186475,
+            "detection_rate": 0.5368421052631579,
+            "false_listing_ratio": 0.6604307222675269
+          },
+          "Mfano East": {
+            "by": "sub_county",
+            "ordinary_weeks": 32855,
+            "problem_weeks": 3145,
+            "false_listing_rate": 0.03795464921625323,
+            "detection_rate": 0.49411764705882355,
+            "false_listing_ratio": 0.9659957532905625
+          },
+          "Mfano North": {
+            "by": "sub_county",
+            "ordinary_weeks": 33215,
+            "problem_weeks": 2785,
+            "false_listing_rate": 0.041336745446334484,
+            "detection_rate": 0.503770197486535,
+            "false_listing_ratio": 1.0520745516181058
+          },
+          "Mfano South": {
+            "by": "sub_county",
+            "ordinary_weeks": 33400,
+            "problem_weeks": 2600,
+            "false_listing_rate": 0.04281437125748503,
+            "detection_rate": 0.66,
+            "false_listing_ratio": 1.089682072382985
+          },
+          "Mfano West": {
+            "by": "sub_county",
+            "ordinary_weeks": 33055,
+            "problem_weeks": 2945,
+            "false_listing_rate": 0.035002268945696566,
+            "detection_rate": 0.4940577249575552,
+            "false_listing_ratio": 0.8908537914400686
+          },
+          "syncs every 3-5 days": {
+            "by": "sync_group",
+            "ordinary_weeks": 78925,
+            "problem_weeks": 6575,
+            "false_listing_rate": 0.04026607538802661,
+            "detection_rate": 0.547680608365019,
+            "false_listing_ratio": 1.0248245901283322
+          },
+          "syncs every 1-2 days": {
+            "by": "sync_group",
+            "ordinary_weeks": 53600,
+            "problem_weeks": 4900,
+            "false_listing_rate": 0.0378544776119403,
+            "detection_rate": 0.5157142857142857,
+            "false_listing_ratio": 0.963446254181369
+          },
+          "week with an outage": {
+            "by": "in_outage",
+            "ordinary_weeks": 11480,
+            "problem_weeks": 855,
+            "false_listing_rate": 0.038588850174216024,
+            "detection_rate": 0.5380116959064327,
+            "false_listing_ratio": 0.9821370019854001
+          },
+          "week without": {
+            "by": "in_outage",
+            "ordinary_weeks": 121045,
+            "problem_weeks": 10620,
+            "false_listing_rate": 0.03935726382750217,
+            "detection_rate": 0.5337099811676083,
+            "false_listing_ratio": 1.0016941403379536
+          }
+        },
+        "over_listed": []
+      },
+      "episodes": 1800
+    },
+    "version_10": {
+      "mean": {
+        "precision_at_k": 0.5454,
+        "recall_at_k": 0.5183,
+        "f1_at_k": 0.5301,
+        "pr_auc": 0.462,
+        "day_level_f1": 0.42,
+        "false_listings_per_officer_term": 4.4606,
+        "listings_per_officer_week": 0.7562,
+        "problems_caught": 0.9283,
+        "problems_caught_within_2_weeks": 0.4706,
+        "median_weeks_to_catch": 1.0,
+        "listed_by_type": {
+          "backdated_bulk_entry": 0.9967,
+          "consumption_drift": 0.5466,
+          "ghost_learners": 0.3324,
+          "inflated_headcount": 0.6005,
+          "round_number_entry": 0.6622,
+          "stock_leakage": 0.2739
+        },
+        "caught_by_type": {
+          "backdated_bulk_entry": 1.0,
+          "consumption_drift": 0.9667,
+          "ghost_learners": 0.94,
+          "inflated_headcount": 0.9367,
+          "round_number_entry": 0.9733,
+          "stock_leakage": 0.7533
+        },
+        "fairness_max_ratio": 1.149,
+        "over_listed": []
+      },
+      "by_dataset": [
+        {
+          "dataset": "seed_9101",
+          "precision_at_k": 0.6009829619921363,
+          "recall_at_k": 0.5459016393442624,
+          "f1_at_k": 0.572094572094572,
+          "pr_auc": 0.5182428411491719,
+          "day_level_f1": 0.44363041331397907,
+          "false_listings_per_officer_term": 3.990277777777778,
+          "listings_per_officer_week": 0.7694444444444445,
+          "problems_caught": 0.9222222222222223,
+          "problems_caught_within_2_weeks": 0.5
+        },
+        {
+          "dataset": "seed_9102",
+          "precision_at_k": 0.5298973530492909,
+          "recall_at_k": 0.6914285714285715,
+          "f1_at_k": 0.5999714979753443,
+          "pr_auc": 0.5357947092526971,
+          "day_level_f1": 0.5403219856170479,
+          "false_listings_per_officer_term": 5.813888888888889,
+          "listings_per_officer_week": 0.951388888888889,
+          "problems_caught": 0.9444444444444444,
+          "problems_caught_within_2_weeks": 0.6666666666666666
+        },
+        {
+          "dataset": "seed_9103",
+          "precision_at_k": 0.5636252376008106,
+          "recall_at_k": 0.5384615384615385,
+          "f1_at_k": 0.5504919319921603,
+          "pr_auc": 0.46208511699842614,
+          "day_level_f1": 0.4767707274944474,
+          "false_listings_per_officer_term": 4.405555555555556,
+          "listings_per_officer_week": 0.7763888888888888,
+          "problems_caught": 0.9,
+          "problems_caught_within_2_weeks": 0.5111111111111111
+        },
+        {
+          "dataset": "seed_9104",
+          "precision_at_k": 0.5766430539157812,
+          "recall_at_k": 0.5756097560975609,
+          "f1_at_k": 0.5760598353746904,
+          "pr_auc": 0.507964888804214,
+          "day_level_f1": 0.45195546071005044,
+          "false_listings_per_officer_term": 4.694444444444445,
+          "listings_per_officer_week": 0.8527777777777779,
+          "problems_caught": 0.9444444444444444,
+          "problems_caught_within_2_weeks": 0.4444444444444444
+        },
+        {
+          "dataset": "seed_9105",
+          "precision_at_k": 0.5860749901155384,
+          "recall_at_k": 0.5663551401869158,
+          "f1_at_k": 0.5760376814505026,
+          "pr_auc": 0.53318705888095,
+          "day_level_f1": 0.5232067128425426,
+          "false_listings_per_officer_term": 3.8638888888888885,
+          "listings_per_officer_week": 0.7180555555555557,
+          "problems_caught": 0.8666666666666667,
+          "problems_caught_within_2_weeks": 0.5
+        },
+        {
+          "dataset": "seed_9106",
+          "precision_at_k": 0.525472728775481,
+          "recall_at_k": 0.5351851851851853,
+          "f1_at_k": 0.5302757312876218,
+          "pr_auc": 0.4265991009929612,
+          "day_level_f1": 0.3866681652690515,
+          "false_listings_per_officer_term": 4.7125,
+          "listings_per_officer_week": 0.763888888888889,
+          "problems_caught": 1.0,
+          "problems_caught_within_2_weeks": 0.43333333333333335
+        },
+        {
+          "dataset": "seed_9107",
+          "precision_at_k": 0.6058181233181233,
+          "recall_at_k": 0.5537190082644629,
+          "f1_at_k": 0.5785906486587262,
+          "pr_auc": 0.5291235776826426,
+          "day_level_f1": 0.4765374882892865,
+          "false_listings_per_officer_term": 3.936111111111111,
+          "listings_per_officer_week": 0.7680555555555555,
+          "problems_caught": 1.0,
+          "problems_caught_within_2_weeks": 0.6111111111111112
+        },
+        {
+          "dataset": "seed_9108",
+          "precision_at_k": 0.6414886544298309,
+          "recall_at_k": 0.6069565217391304,
+          "f1_at_k": 0.6235875462755279,
+          "pr_auc": 0.546250281070001,
+          "day_level_f1": 0.4904682095291381,
+          "false_listings_per_officer_term": 3.5208333333333335,
+          "listings_per_officer_week": 0.7555555555555556,
+          "problems_caught": 0.9333333333333333,
+          "problems_caught_within_2_weeks": 0.43333333333333335
+        },
+        {
+          "dataset": "seed_9109",
+          "precision_at_k": 0.5898226994443108,
+          "recall_at_k": 0.5984126984126984,
+          "f1_at_k": 0.5940084568237308,
+          "pr_auc": 0.5801926398332313,
+          "day_level_f1": 0.48303741786213805,
+          "false_listings_per_officer_term": 4.730555555555556,
+          "listings_per_officer_week": 0.8875,
+          "problems_caught": 0.9333333333333333,
+          "problems_caught_within_2_weeks": 0.6666666666666666
+        },
+        {
+          "dataset": "seed_9110",
+          "precision_at_k": 0.505591431671488,
+          "recall_at_k": 0.47304347826086957,
+          "f1_at_k": 0.4887444927007654,
+          "pr_auc": 0.4042550294807873,
+          "day_level_f1": 0.3836337657849679,
+          "false_listings_per_officer_term": 4.802777777777777,
+          "listings_per_officer_week": 0.7472222222222223,
+          "problems_caught": 0.8888888888888888,
+          "problems_caught_within_2_weeks": 0.4
+        },
+        {
+          "dataset": "seed_9111",
+          "precision_at_k": 0.5348320585300964,
+          "recall_at_k": 0.44955752212389377,
+          "f1_at_k": 0.4884796756641417,
+          "pr_auc": 0.4048124159175154,
+          "day_level_f1": 0.35786800133965346,
+          "false_listings_per_officer_term": 3.990277777777778,
+          "listings_per_officer_week": 0.6597222222222223,
+          "problems_caught": 0.8888888888888888,
+          "problems_caught_within_2_weeks": 0.4888888888888889
+        },
+        {
+          "dataset": "seed_9112",
+          "precision_at_k": 0.5141255006675567,
+          "recall_at_k": 0.4789473684210527,
+          "f1_at_k": 0.49590280790925434,
+          "pr_auc": 0.456485127510572,
+          "day_level_f1": 0.3735715801038862,
+          "false_listings_per_officer_term": 4.658333333333333,
+          "listings_per_officer_week": 0.7375,
+          "problems_caught": 0.9444444444444444,
+          "problems_caught_within_2_weeks": 0.2777777777777778
+        },
+        {
+          "dataset": "seed_9113",
+          "precision_at_k": 0.5762664404373767,
+          "recall_at_k": 0.5555555555555556,
+          "f1_at_k": 0.565715304883712,
+          "pr_auc": 0.5188572980746523,
+          "day_level_f1": 0.46459633394743677,
+          "false_listings_per_officer_term": 4.315277777777778,
+          "listings_per_officer_week": 0.7833333333333333,
+          "problems_caught": 0.8888888888888888,
+          "problems_caught_within_2_weeks": 0.4444444444444444
+        },
+        {
+          "dataset": "seed_9114",
+          "precision_at_k": 0.48893939811371007,
+          "recall_at_k": 0.4547008547008547,
+          "f1_at_k": 0.47118542669357766,
+          "pr_auc": 0.39924889294166227,
+          "day_level_f1": 0.3501617588122192,
+          "false_listings_per_officer_term": 5.019444444444444,
+          "listings_per_officer_week": 0.7555555555555555,
+          "problems_caught": 0.9333333333333333,
+          "problems_caught_within_2_weeks": 0.4111111111111111
+        },
+        {
+          "dataset": "seed_9115",
+          "precision_at_k": 0.5446033696412886,
+          "recall_at_k": 0.5035714285714286,
+          "f1_at_k": 0.5232319313071205,
+          "pr_auc": 0.4188499894683343,
+          "day_level_f1": 0.37992480550349617,
+          "false_listings_per_officer_term": 4.261111111111111,
+          "listings_per_officer_week": 0.7194444444444444,
+          "problems_caught": 0.9444444444444444,
+          "problems_caught_within_2_weeks": 0.3333333333333333
+        },
+        {
+          "dataset": "seed_9116",
+          "precision_at_k": 0.49273690187747865,
+          "recall_at_k": 0.42142857142857143,
+          "f1_at_k": 0.454235366687228,
+          "pr_auc": 0.3788553936902998,
+          "day_level_f1": 0.36092771729055995,
+          "false_listings_per_officer_term": 4.3875,
+          "listings_per_officer_week": 0.6652777777777779,
+          "problems_caught": 0.9444444444444444,
+          "problems_caught_within_2_weeks": 0.34444444444444444
+        },
+        {
+          "dataset": "seed_9117",
+          "precision_at_k": 0.5762292526047508,
+          "recall_at_k": 0.45,
+          "f1_at_k": 0.5053236606929661,
+          "pr_auc": 0.4542350058655737,
+          "day_level_f1": 0.39227939793633715,
+          "false_listings_per_officer_term": 3.4666666666666672,
+          "listings_per_officer_week": 0.6291666666666667,
+          "problems_caught": 0.9444444444444444,
+          "problems_caught_within_2_weeks": 0.5111111111111111
+        },
+        {
+          "dataset": "seed_9118",
+          "precision_at_k": 0.4900738603490897,
+          "recall_at_k": 0.4909090909090909,
+          "f1_at_k": 0.49048541573924337,
+          "pr_auc": 0.4124848315321885,
+          "day_level_f1": 0.3598662787359424,
+          "false_listings_per_officer_term": 5.073611111111111,
+          "listings_per_officer_week": 0.7652777777777777,
+          "problems_caught": 0.9222222222222223,
+          "problems_caught_within_2_weeks": 0.6666666666666666
+        },
+        {
+          "dataset": "seed_9119",
+          "precision_at_k": 0.45967201551754544,
+          "recall_at_k": 0.4537037037037037,
+          "f1_at_k": 0.4566659421864812,
+          "pr_auc": 0.3651101363035302,
+          "day_level_f1": 0.3863929875689474,
+          "false_listings_per_officer_term": 5.2,
+          "listings_per_officer_week": 0.7402777777777777,
+          "problems_caught": 0.8888888888888888,
+          "problems_caught_within_2_weeks": 0.3333333333333333
+        },
+        {
+          "dataset": "seed_9120",
+          "precision_at_k": 0.505113862444302,
+          "recall_at_k": 0.4222222222222222,
+          "f1_at_k": 0.4599326005603558,
+          "pr_auc": 0.38736622479861005,
+          "day_level_f1": 0.31839018743777747,
+          "false_listings_per_officer_term": 4.3694444444444445,
+          "listings_per_officer_week": 0.6791666666666667,
+          "problems_caught": 0.9333333333333333,
+          "problems_caught_within_2_weeks": 0.43333333333333335
+        }
+      ],
+      "fairness": {
+        "overall_false_listing_rate": 0.03728353140916808,
+        "overall_detection_rate": 0.5184313725490196,
+        "groups": {
+          "small schools": {
+            "by": "size_group",
+            "ordinary_weeks": 44960,
+            "problem_weeks": 3460,
+            "false_listing_rate": 0.033540925266903915,
+            "detection_rate": 0.5427745664739885,
+            "false_listing_ratio": 0.8996177132152279
+          },
+          "medium schools": {
+            "by": "size_group",
+            "ordinary_weeks": 42550,
+            "problem_weeks": 3890,
+            "false_listing_rate": 0.036897767332549944,
+            "detection_rate": 0.5074550128534704,
+            "false_listing_ratio": 0.9896532312783204
+          },
+          "large schools": {
+            "by": "size_group",
+            "ordinary_weeks": 45015,
+            "problem_weeks": 4125,
+            "false_listing_rate": 0.041386204598467174,
+            "detection_rate": 0.5083636363636364,
+            "false_listing_ratio": 1.11003982279131
+          },
+          "food delivered": {
+            "by": "programme_group",
+            "ordinary_weeks": 94450,
+            "problem_weeks": 8150,
+            "false_listing_rate": 0.039894123875066176,
+            "detection_rate": 0.4965644171779141,
+            "false_listing_ratio": 1.0700199891809643
+          },
+          "cash transfer": {
+            "by": "programme_group",
+            "ordinary_weeks": 38075,
+            "problem_weeks": 3325,
+            "false_listing_rate": 0.030807616546290217,
+            "detection_rate": 0.5720300751879699,
+            "false_listing_ratio": 0.826306290790753
+          },
+          "Mfano East": {
+            "by": "sub_county",
+            "ordinary_weeks": 32855,
+            "problem_weeks": 3145,
+            "false_listing_rate": 0.03457616801095724,
+            "detection_rate": 0.5093799682034976,
+            "false_listing_ratio": 0.9273844698749459
+          },
+          "Mfano North": {
+            "by": "sub_county",
+            "ordinary_weeks": 33215,
+            "problem_weeks": 2785,
+            "false_listing_rate": 0.03865723317778112,
+            "detection_rate": 0.4858168761220826,
+            "false_listing_ratio": 1.036844733229193
+          },
+          "Mfano South": {
+            "by": "sub_county",
+            "ordinary_weeks": 33400,
+            "problem_weeks": 2600,
+            "false_listing_rate": 0.03952095808383234,
+            "detection_rate": 0.5934615384615385,
+            "false_listing_ratio": 1.0600111252904028
+          },
+          "Mfano West": {
+            "by": "sub_county",
+            "ordinary_weeks": 33055,
+            "problem_weeks": 2945,
+            "false_listing_rate": 0.03633338375434881,
+            "detection_rate": 0.4926994906621392,
+            "false_listing_ratio": 0.9745156207336725
+          },
+          "syncs every 3-5 days": {
+            "by": "sync_group",
+            "ordinary_weeks": 78925,
+            "problem_weeks": 6575,
+            "false_listing_rate": 0.03807412100095027,
+            "detection_rate": 0.52,
+            "false_listing_ratio": 1.0212047936957973
+          },
+          "syncs every 1-2 days": {
+            "by": "sync_group",
+            "ordinary_weeks": 53600,
+            "problem_weeks": 4900,
+            "false_listing_rate": 0.03611940298507463,
+            "detection_rate": 0.5163265306122449,
+            "false_listing_ratio": 0.9687763368947612
+          },
+          "week with an outage": {
+            "by": "in_outage",
+            "ordinary_weeks": 11480,
+            "problem_weeks": 855,
+            "false_listing_rate": 0.04285714285714286,
+            "detection_rate": 0.49122807017543857,
+            "false_listing_ratio": 1.1494925839188135
+          },
+          "week without": {
+            "by": "in_outage",
+            "ordinary_weeks": 121045,
+            "problem_weeks": 10620,
+            "false_listing_rate": 0.03675492585402123,
+            "detection_rate": 0.5206214689265537,
+            "false_listing_ratio": 0.9858220094726095
+          }
+        },
+        "over_listed": []
+      },
+      "episodes": 1800
+    },
+    "version_10_extended": {
+      "mean": {
+        "precision_at_k": 0.3827,
+        "recall_at_k": 0.5818,
+        "f1_at_k": 0.4611,
+        "pr_auc": 0.4618,
+        "day_level_f1": 0.423,
+        "false_listings_per_officer_term": 9.6886,
+        "listings_per_officer_week": 1.2094,
+        "problems_caught": 0.9567,
+        "problems_caught_within_2_weeks": 0.5978,
+        "median_weeks_to_catch": 1.0,
+        "listed_by_type": {
+          "backdated_bulk_entry": 0.9994,
+          "consumption_drift": 0.602,
+          "ghost_learners": 0.4581,
+          "inflated_headcount": 0.6533,
+          "round_number_entry": 0.7093,
+          "stock_leakage": 0.2865
+        },
+        "caught_by_type": {
+          "backdated_bulk_entry": 1.0,
+          "consumption_drift": 0.9833,
+          "ghost_learners": 0.9933,
+          "inflated_headcount": 1.0,
+          "round_number_entry": 0.9833,
+          "stock_leakage": 0.78
+        },
+        "fairness_max_ratio": 1.07,
+        "over_listed": []
+      },
+      "by_dataset": [
+        {
+          "dataset": "seed_9101",
+          "precision_at_k": 0.4080856140906318,
+          "recall_at_k": 0.6262295081967213,
+          "f1_at_k": 0.4941409414794209,
+          "pr_auc": 0.5234292560645004,
+          "day_level_f1": 0.4377834680995984,
+          "false_listings_per_officer_term": 10.002777777777778,
+          "listings_per_officer_week": 1.2999999999999998,
+          "problems_caught": 1.0,
+          "problems_caught_within_2_weeks": 0.7222222222222222
+        },
+        {
+          "dataset": "seed_9102",
+          "precision_at_k": 0.4065086800771562,
+          "recall_at_k": 0.7371428571428571,
+          "f1_at_k": 0.5240311497938617,
+          "pr_auc": 0.5373729491620806,
+          "day_level_f1": 0.5391466994103054,
+          "false_listings_per_officer_term": 10.20138888888889,
+          "listings_per_officer_week": 1.3222222222222222,
+          "problems_caught": 0.9444444444444444,
+          "problems_caught_within_2_weeks": 0.6666666666666666
+        },
+        {
+          "dataset": "seed_9103",
+          "precision_at_k": 0.37798471608388284,
+          "recall_at_k": 0.5982905982905983,
+          "f1_at_k": 0.4632762474979736,
+          "pr_auc": 0.46623057459440825,
+          "day_level_f1": 0.47386197535974706,
+          "false_listings_per_officer_term": 10.4,
+          "listings_per_officer_week": 1.2861111111111112,
+          "problems_caught": 1.0,
+          "problems_caught_within_2_weeks": 0.6666666666666666
+        },
+        {
+          "dataset": "seed_9104",
+          "precision_at_k": 0.42887621012091115,
+          "recall_at_k": 0.6520325203252033,
+          "f1_at_k": 0.5174173542136823,
+          "pr_auc": 0.5207637338575029,
+          "day_level_f1": 0.47474693508270055,
+          "false_listings_per_officer_term": 9.641666666666667,
+          "listings_per_officer_week": 1.2986111111111112,
+          "problems_caught": 0.9444444444444444,
+          "problems_caught_within_2_weeks": 0.5555555555555556
+        },
+        {
+          "dataset": "seed_9105",
+          "precision_at_k": 0.3903146739991269,
+          "recall_at_k": 0.6149532710280373,
+          "f1_at_k": 0.4775277187326622,
+          "pr_auc": 0.5311473555763471,
+          "day_level_f1": 0.5396966771368045,
+          "false_listings_per_officer_term": 9.280555555555557,
+          "listings_per_officer_week": 1.1708333333333336,
+          "problems_caught": 0.8888888888888888,
+          "problems_caught_within_2_weeks": 0.5888888888888889
+        },
+        {
+          "dataset": "seed_9106",
+          "precision_at_k": 0.35380138320670174,
+          "recall_at_k": 0.575925925925926,
+          "f1_at_k": 0.43832615701675526,
+          "pr_auc": 0.4166060528688825,
+          "day_level_f1": 0.37454858551496434,
+          "false_listings_per_officer_term": 10.255555555555556,
+          "listings_per_officer_week": 1.2208333333333334,
+          "problems_caught": 1.0,
+          "problems_caught_within_2_weeks": 0.5555555555555556
+        },
+        {
+          "dataset": "seed_9107",
+          "precision_at_k": 0.41941885059469486,
+          "recall_at_k": 0.5933884297520662,
+          "f1_at_k": 0.4914485375133132,
+          "pr_auc": 0.5241039420740294,
+          "day_level_f1": 0.4745292799123263,
+          "false_listings_per_officer_term": 8.973611111111111,
+          "listings_per_officer_week": 1.1888888888888889,
+          "problems_caught": 0.9444444444444444,
+          "problems_caught_within_2_weeks": 0.7111111111111111
+        },
+        {
+          "dataset": "seed_9108",
+          "precision_at_k": 0.4486158262458038,
+          "recall_at_k": 0.6678260869565217,
+          "f1_at_k": 0.5366909445802179,
+          "pr_auc": 0.5543908135729313,
+          "day_level_f1": 0.4871975929932204,
+          "false_listings_per_officer_term": 8.522222222222222,
+          "listings_per_officer_week": 1.1888888888888887,
+          "problems_caught": 1.0,
+          "problems_caught_within_2_weeks": 0.5888888888888889
+        },
+        {
+          "dataset": "seed_9109",
+          "precision_at_k": 0.44528013229151575,
+          "recall_at_k": 0.6777777777777778,
+          "f1_at_k": 0.537456726003601,
+          "pr_auc": 0.5880775607109385,
+          "day_level_f1": 0.5043986187843121,
+          "false_listings_per_officer_term": 9.605555555555556,
+          "listings_per_officer_week": 1.3319444444444444,
+          "problems_caught": 0.9444444444444444,
+          "problems_caught_within_2_weeks": 0.7555555555555555
+        },
+        {
+          "dataset": "seed_9110",
+          "precision_at_k": 0.37529583763329893,
+          "recall_at_k": 0.5547826086956522,
+          "f1_at_k": 0.4477160382237563,
+          "pr_auc": 0.3967290726162239,
+          "day_level_f1": 0.3690134993666882,
+          "false_listings_per_officer_term": 9.5875,
+          "listings_per_officer_week": 1.1805555555555556,
+          "problems_caught": 0.9444444444444444,
+          "problems_caught_within_2_weeks": 0.6111111111111112
+        },
+        {
+          "dataset": "seed_9111",
+          "precision_at_k": 0.34923411800758397,
+          "recall_at_k": 0.4654867256637168,
+          "f1_at_k": 0.39905852417302795,
+          "pr_auc": 0.40775898463295046,
+          "day_level_f1": 0.35807370002466454,
+          "false_listings_per_officer_term": 8.847222222222221,
+          "listings_per_officer_week": 1.0458333333333334,
+          "problems_caught": 0.8888888888888888,
+          "problems_caught_within_2_weeks": 0.5888888888888889
+        },
+        {
+          "dataset": "seed_9112",
+          "precision_at_k": 0.3447418299526453,
+          "recall_at_k": 0.5280701754385965,
+          "f1_at_k": 0.41713862751391045,
+          "pr_auc": 0.445496373245206,
+          "day_level_f1": 0.3880809616791648,
+          "false_listings_per_officer_term": 10.327777777777778,
+          "listings_per_officer_week": 1.2125,
+          "problems_caught": 0.9444444444444444,
+          "problems_caught_within_2_weeks": 0.4444444444444444
+        },
+        {
+          "dataset": "seed_9113",
+          "precision_at_k": 0.40485676235955825,
+          "recall_at_k": 0.6581196581196581,
+          "f1_at_k": 0.5013114477599535,
+          "pr_auc": 0.5203066986963327,
+          "day_level_f1": 0.47768140140006005,
+          "false_listings_per_officer_term": 10.219444444444445,
+          "listings_per_officer_week": 1.3208333333333333,
+          "problems_caught": 0.8888888888888888,
+          "problems_caught_within_2_weeks": 0.6111111111111112
+        },
+        {
+          "dataset": "seed_9114",
+          "precision_at_k": 0.33873651669672944,
+          "recall_at_k": 0.5316239316239316,
+          "f1_at_k": 0.4137978262913628,
+          "pr_auc": 0.401669045491824,
+          "day_level_f1": 0.3487265375641615,
+          "false_listings_per_officer_term": 10.959722222222222,
+          "listings_per_officer_week": 1.275,
+          "problems_caught": 0.9888888888888889,
+          "problems_caught_within_2_weeks": 0.6
+        },
+        {
+          "dataset": "seed_9115",
+          "precision_at_k": 0.3818462344074903,
+          "recall_at_k": 0.5625,
+          "f1_at_k": 0.45488550336387756,
+          "pr_auc": 0.4183789560136687,
+          "day_level_f1": 0.3781637029510632,
+          "false_listings_per_officer_term": 9.208333333333334,
+          "listings_per_officer_week": 1.1458333333333333,
+          "problems_caught": 0.9444444444444444,
+          "problems_caught_within_2_weeks": 0.4444444444444444
+        },
+        {
+          "dataset": "seed_9116",
+          "precision_at_k": 0.31660468616015575,
+          "recall_at_k": 0.4392857142857142,
+          "f1_at_k": 0.36798284479132704,
+          "pr_auc": 0.37993185573705,
+          "day_level_f1": 0.3673291175204513,
+          "false_listings_per_officer_term": 9.5875,
+          "listings_per_officer_week": 1.0791666666666666,
+          "problems_caught": 0.9777777777777777,
+          "problems_caught_within_2_weeks": 0.45555555555555555
+        },
+        {
+          "dataset": "seed_9117",
+          "precision_at_k": 0.42577187435713126,
+          "recall_at_k": 0.5689655172413792,
+          "f1_at_k": 0.48704635244293604,
+          "pr_auc": 0.46408340110064045,
+          "day_level_f1": 0.41596640069808216,
+          "false_listings_per_officer_term": 8.034722222222223,
+          "listings_per_officer_week": 1.0763888888888888,
+          "problems_caught": 0.9444444444444444,
+          "problems_caught_within_2_weeks": 0.7111111111111111
+        },
+        {
+          "dataset": "seed_9118",
+          "precision_at_k": 0.3615865376291962,
+          "recall_at_k": 0.5818181818181818,
+          "f1_at_k": 0.44599519721470937,
+          "pr_auc": 0.40587473451453854,
+          "day_level_f1": 0.348673094506429,
+          "false_listings_per_officer_term": 10.20138888888889,
+          "listings_per_officer_week": 1.2291666666666667,
+          "problems_caught": 1.0,
+          "problems_caught_within_2_weeks": 0.6666666666666666
+        },
+        {
+          "dataset": "seed_9119",
+          "precision_at_k": 0.33254472541839625,
+          "recall_at_k": 0.5092592592592593,
+          "f1_at_k": 0.4023486474881923,
+          "pr_auc": 0.3558020841910962,
+          "day_level_f1": 0.38022336385853694,
+          "false_listings_per_officer_term": 9.966666666666667,
+          "listings_per_officer_week": 1.148611111111111,
+          "problems_caught": 1.0,
+          "problems_caught_within_2_weeks": 0.5
+        },
+        {
+          "dataset": "seed_9120",
+          "precision_at_k": 0.34327060165383516,
+          "recall_at_k": 0.49230769230769234,
+          "f1_at_k": 0.4044971583889301,
+          "pr_auc": 0.37776416438046834,
+          "day_level_f1": 0.3225151200089151,
+          "false_listings_per_officer_term": 9.948611111111111,
+          "listings_per_officer_week": 1.165277777777778,
+          "problems_caught": 0.9444444444444444,
+          "problems_caught_within_2_weeks": 0.5111111111111111
+        }
+      ],
+      "fairness": {
+        "overall_false_listing_rate": 0.08098094699113374,
+        "overall_detection_rate": 0.5823965141612201,
+        "groups": {
+          "small schools": {
+            "by": "size_group",
+            "ordinary_weeks": 44960,
+            "problem_weeks": 3460,
+            "false_listing_rate": 0.07493327402135232,
+            "detection_rate": 0.5956647398843931,
+            "false_listing_ratio": 0.9253198042936747
+          },
+          "medium schools": {
+            "by": "size_group",
+            "ordinary_weeks": 42550,
+            "problem_weeks": 3890,
+            "false_listing_rate": 0.08197414806110458,
+            "detection_rate": 0.5809768637532133,
+            "false_listing_ratio": 1.012264626518625
+          },
+          "large schools": {
+            "by": "size_group",
+            "ordinary_weeks": 45015,
+            "problem_weeks": 4125,
+            "false_listing_rate": 0.0860824169721204,
+            "detection_rate": 0.5726060606060606,
+            "false_listing_ratio": 1.062995928925667
+          },
+          "food delivered": {
+            "by": "programme_group",
+            "ordinary_weeks": 94450,
+            "problem_weeks": 8150,
+            "false_listing_rate": 0.083928004235045,
+            "detection_rate": 0.5764417177914111,
+            "false_listing_ratio": 1.0363919829714257
+          },
+          "cash transfer": {
+            "by": "programme_group",
+            "ordinary_weeks": 38075,
+            "problem_weeks": 3325,
+            "false_listing_rate": 0.07367038739330269,
+            "detection_rate": 0.5969924812030075,
+            "false_listing_ratio": 0.9097249430951769
+          },
+          "Mfano East": {
+            "by": "sub_county",
+            "ordinary_weeks": 32855,
+            "problem_weeks": 3145,
+            "false_listing_rate": 0.07660934408765789,
+            "detection_rate": 0.565341812400636,
+            "false_listing_ratio": 0.9460168957525962
+          },
+          "Mfano North": {
+            "by": "sub_county",
+            "ordinary_weeks": 33215,
+            "problem_weeks": 2785,
+            "false_listing_rate": 0.08201113954538612,
+            "detection_rate": 0.5605026929982047,
+            "false_listing_ratio": 1.012721418957538
+          },
+          "Mfano South": {
+            "by": "sub_county",
+            "ordinary_weeks": 33400,
+            "problem_weeks": 2600,
+            "false_listing_rate": 0.08374251497005988,
+            "detection_rate": 0.6565384615384615,
+            "false_listing_ratio": 1.0341014532619444
+          },
+          "Mfano West": {
+            "by": "sub_county",
+            "ordinary_weeks": 33055,
+            "problem_weeks": 2945,
+            "false_listing_rate": 0.08150052942066253,
+            "detection_rate": 0.5558573853989813,
+            "false_listing_ratio": 1.0064161071070912
+          },
+          "syncs every 3-5 days": {
+            "by": "sync_group",
+            "ordinary_weeks": 78925,
+            "problem_weeks": 6575,
+            "false_listing_rate": 0.08217928413050364,
+            "detection_rate": 0.5806844106463879,
+            "false_listing_ratio": 1.014797766436358
+          },
+          "syncs every 1-2 days": {
+            "by": "sync_group",
+            "ordinary_weeks": 53600,
+            "problem_weeks": 4900,
+            "false_listing_rate": 0.07921641791044776,
+            "detection_rate": 0.5846938775510204,
+            "false_listing_ratio": 0.9782105650001948
+          },
+          "week with an outage": {
+            "by": "in_outage",
+            "ordinary_weeks": 11480,
+            "problem_weeks": 855,
+            "false_listing_rate": 0.08667247386759581,
+            "detection_rate": 0.543859649122807,
+            "false_listing_ratio": 1.0702822958724503
+          },
+          "week without": {
+            "by": "in_outage",
+            "ordinary_weeks": 121045,
+            "problem_weeks": 10620,
+            "false_listing_rate": 0.08044115824693296,
+            "detection_rate": 0.5854990583804143,
+            "false_listing_ratio": 0.9933343735254185
+          }
+        },
+        "over_listed": []
+      },
+      "episodes": 1800
+    }
+  },
+  "summary": {
+    "version_8": {
+      "precision_at_k": {
+        "mean": 0.5385,
+        "sd": 0.053,
+        "ci95": [
+          0.5162,
+          0.5615
+        ]
+      },
+      "recall_at_k": {
+        "mean": 0.5335,
+        "sd": 0.0893,
+        "ci95": [
+          0.4966,
+          0.5714
+        ]
+      },
+      "f1_at_k": {
+        "mean": 0.5342,
+        "sd": 0.0657,
+        "ci95": [
+          0.5071,
+          0.5617
+        ]
+      },
+      "pr_auc": {
+        "mean": 0.5762,
+        "sd": 0.0702,
+        "ci95": [
+          0.5476,
+          0.6054
+        ]
+      },
+      "day_level_f1": {
+        "mean": 0.4704,
+        "sd": 0.0762,
+        "ci95": [
+          0.4393,
+          0.5027
+        ]
+      },
+      "problems_caught": {
+        "mean": 0.8844,
+        "sd": 0.0614,
+        "ci95": [
+          0.8589,
+          0.9117
+        ]
+      },
+      "problems_caught_within_2_weeks": {
+        "mean": 0.5156,
+        "sd": 0.1258,
+        "ci95": [
+          0.4639,
+          0.5706
+        ]
+      },
+      "false_listings_per_officer_term": {
+        "mean": 4.7008,
+        "sd": 0.5708,
+        "ci95": [
+          4.4245,
+          4.912
+        ]
+      },
+      "listings_per_officer_week": {
+        "mean": 0.7872,
+        "sd": 0.0935,
+        "ci95": [
+          0.7489,
+          0.8257
+        ]
+      }
+    },
+    "version_10": {
+      "precision_at_k": {
+        "mean": 0.5454,
+        "sd": 0.0482,
+        "ci95": [
+          0.5251,
+          0.5655
+        ]
+      },
+      "recall_at_k": {
+        "mean": 0.5183,
+        "sd": 0.0706,
+        "ci95": [
+          0.4901,
+          0.5489
+        ]
+      },
+      "f1_at_k": {
+        "mean": 0.5301,
+        "sd": 0.0534,
+        "ci95": [
+          0.509,
+          0.5524
+        ]
+      },
+      "pr_auc": {
+        "mean": 0.462,
+        "sd": 0.066,
+        "ci95": [
+          0.4359,
+          0.491
+        ]
+      },
+      "day_level_f1": {
+        "mean": 0.42,
+        "sd": 0.0642,
+        "ci95": [
+          0.3937,
+          0.4479
+        ]
+      },
+      "problems_caught": {
+        "mean": 0.9283,
+        "sd": 0.0347,
+        "ci95": [
+          0.9139,
+          0.9433
+        ]
+      },
+      "problems_caught_within_2_weeks": {
+        "mean": 0.4706,
+        "sd": 0.1136,
+        "ci95": [
+          0.4239,
+          0.5189
+        ]
+      },
+      "false_listings_per_officer_term": {
+        "mean": 4.4606,
+        "sd": 0.582,
+        "ci95": [
+          4.2322,
+          4.7161
+        ]
+      },
+      "listings_per_officer_week": {
+        "mean": 0.7562,
+        "sd": 0.0759,
+        "ci95": [
+          0.7274,
+          0.7901
+        ]
+      }
+    },
+    "version_10_extended": {
+      "precision_at_k": {
+        "mean": 0.3827,
+        "sd": 0.0395,
+        "ci95": [
+          0.3658,
+          0.3999
+        ]
+      },
+      "recall_at_k": {
+        "mean": 0.5818,
+        "sd": 0.0757,
+        "ci95": [
+          0.55,
+          0.6132
+        ]
+      },
+      "f1_at_k": {
+        "mean": 0.4611,
+        "sd": 0.05,
+        "ci95": [
+          0.4398,
+          0.4824
+        ]
+      },
+      "pr_auc": {
+        "mean": 0.4618,
+        "sd": 0.0699,
+        "ci95": [
+          0.4334,
+          0.4924
+        ]
+      },
+      "day_level_f1": {
+        "mean": 0.423,
+        "sd": 0.068,
+        "ci95": [
+          0.395,
+          0.4522
+        ]
+      },
+      "problems_caught": {
+        "mean": 0.9567,
+        "sd": 0.0383,
+        "ci95": [
+          0.9405,
+          0.9722
+        ]
+      },
+      "problems_caught_within_2_weeks": {
+        "mean": 0.5978,
+        "sd": 0.0943,
+        "ci95": [
+          0.5583,
+          0.6378
+        ]
+      },
+      "false_listings_per_officer_term": {
+        "mean": 9.6886,
+        "sd": 0.7125,
+        "ci95": [
+          9.3771,
+          9.9883
+        ]
+      },
+      "listings_per_officer_week": {
+        "mean": 1.2094,
+        "sd": 0.0862,
+        "ci95": [
+          1.1758,
+          1.2444
+        ]
+      }
+    }
+  },
+  "difference_v10_minus_v8": {
+    "precision_at_k": {
+      "mean": 0.0069,
+      "ci95": [
+        -0.016,
+        0.0277
+      ]
+    },
+    "recall_at_k": {
+      "mean": -0.0152,
+      "ci95": [
+        -0.037,
+        0.0045
+      ]
+    },
+    "f1_at_k": {
+      "mean": -0.0041,
+      "ci95": [
+        -0.0247,
+        0.0136
+      ]
+    },
+    "pr_auc": {
+      "mean": -0.1142,
+      "ci95": [
+        -0.1315,
+        -0.0987
+      ]
+    },
+    "day_level_f1": {
+      "mean": -0.0504,
+      "ci95": [
+        -0.0678,
+        -0.0329
+      ]
+    },
+    "problems_caught": {
+      "mean": 0.0439,
+      "ci95": [
+        0.0217,
+        0.0656
+      ]
+    },
+    "problems_caught_within_2_weeks": {
+      "mean": -0.045,
+      "ci95": [
+        -0.0817,
+        -0.0083
+      ]
+    },
+    "false_listings_per_officer_term": {
+      "mean": -0.2401,
+      "ci95": [
+        -0.5426,
+        0.0732
+      ]
+    },
+    "listings_per_officer_week": {
+      "mean": -0.0309,
+      "ci95": [
+        -0.0553,
+        -0.0051
+      ]
+    }
+  }
+}
