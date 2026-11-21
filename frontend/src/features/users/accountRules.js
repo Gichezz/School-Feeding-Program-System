@@ -14,6 +14,19 @@ export const ROLE_OPTIONS = [
   { value: 'admin', label: 'System administrator' },
 ];
 
+/**
+ * One status per account, so a list never shows two that disagree. A feeding teacher's
+ * account stays "waiting" until its activation code has been used.
+ * Returns 'deactivated' | 'activation_failed' | 'waiting' | 'active'.
+ */
+export function accountStatus(user) {
+  if (!user.isActive) return 'deactivated';
+  if (user.role === 'school_staff' && user.activation && !user.activation.activated) {
+    return user.activation.email === 'failed' ? 'activation_failed' : 'waiting';
+  }
+  return 'active';
+}
+
 export function passwordError(password) {
   if (!password) return 'Enter a password';
   if (password.length < MIN_PASSWORD_LENGTH) return `Use at least ${MIN_PASSWORD_LENGTH} characters`;

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Ban, CheckCircle2, Copy, Fingerprint, HandHelping, KeyRound, Mail, Pencil, UserPlus, UserRoundCheck, UserRoundX } from 'lucide-react';
+import { Ban, CheckCircle2, Clock, Copy, Fingerprint, HandHelping, KeyRound, Mail, MailWarning, Pencil, UserPlus, UserRoundCheck, UserRoundX } from 'lucide-react';
 import { Alert, Badge, Button, Card, DataTable, FormField, useToast } from '../../components/ui';
 import {
   createUser, emailActivationCode, getAccountHistory, getSchools, getUsers, handOverActivationCode, resetUserPasskeys, resetUserPassword, updateUser,
@@ -7,9 +7,15 @@ import {
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { useSession } from '../../hooks/useSession';
 import { formatDate, formatDateTime } from '../../utils/format';
-import { MIN_PASSWORD_LENGTH, newUserErrors, passwordError, ROLE_OPTIONS } from './accountRules';
+import { accountStatus, MIN_PASSWORD_LENGTH, newUserErrors, passwordError, ROLE_OPTIONS } from './accountRules';
 
 const ROLE_LABEL = Object.fromEntries(ROLE_OPTIONS.map((r) => [r.value, r.label]));
+const STATUS_BADGE = {
+  active: { tone: 'success', icon: CheckCircle2, label: 'Active' },
+  waiting: { tone: 'warning', icon: Clock, label: 'Waiting for activation' },
+  activation_failed: { tone: 'danger', icon: MailWarning, label: 'Activation email failed' },
+  deactivated: { tone: 'neutral', icon: Ban, label: 'Deactivated' },
+};
 const EMPTY_USER = { name: '', email: '', role: 'school_staff', password: '', schoolId: '', subCounty: '' };
 const PASSWORD_HINT = `At least ${MIN_PASSWORD_LENGTH} characters. Share it with them privately; they can change it in Settings.`;
 
@@ -519,11 +525,6 @@ function UsersSection() {
         <span className="users__name">
           {u.name}
           {u.id === me?.id && <Badge tone="brand">You</Badge>}
-          {u.role === 'school_staff' && u.isActive && u.activation && !u.activation.activated && (
-            <Badge tone={u.activation.email === 'failed' ? 'danger' : 'warning'}>
-              {u.activation.email === 'failed' ? 'Activation email failed' : 'Waiting for activation'}
-            </Badge>
-          )}
         </span>
       ),
     },
@@ -543,7 +544,14 @@ function UsersSection() {
         return <Badge tone="success">{parts.join(' + ')}</Badge>;
       },
     },
-    { key: 'status', header: 'Status', render: (u) => (u.isActive ? <Badge tone="success" icon={CheckCircle2}>Active</Badge> : <Badge tone="neutral" icon={Ban}>Deactivated</Badge>) },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (u) => {
+        const { tone, icon, label } = STATUS_BADGE[accountStatus(u)];
+        return <Badge tone={tone} icon={icon}>{label}</Badge>;
+      },
+    },
     { key: 'added', header: 'Added', render: (u) => formatDate(u.createdAt), sortValue: (u) => u.createdAt },
     {
       key: 'actions',
@@ -602,9 +610,12 @@ function UsersSection() {
                 key: 'status',
                 label: 'Status',
                 options: [{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Deactivated' }, { value: 'waiting', label: 'Waiting for activation' }],
-                matches: (u, value) => (value === 'active' ? u.isActive
-                  : value === 'inactive' ? !u.isActive
-                    : u.role === 'school_staff' && u.isActive && u.activation && !u.activation.activated),
+                matches: (u, value) => {
+                  const status = accountStatus(u);
+                  return value === 'active' ? status === 'active'
+                    : value === 'inactive' ? status === 'deactivated'
+                      : status === 'waiting' || status === 'activation_failed';
+                },
               },
             ]}
           />

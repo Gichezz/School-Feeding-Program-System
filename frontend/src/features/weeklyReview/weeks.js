@@ -31,6 +31,14 @@ export function scoredText(list, when) {
   return `Scored on ${when}${list.scoredBy ? ` by ${list.scoredBy}` : ''}.`;
 }
 
+/**
+ * A ranked school's reasons without the "Needs review:" verdict the scoring service puts
+ * in front. Schools below the list were not listed, so only the reasons are shown for them.
+ */
+export function withoutVerdict(explanation) {
+  return (explanation || '').replace(/^Needs review:\s*/, '');
+}
+
 export const DECISIONS = {
   explained: { label: 'Explained', tone: 'success' },
   follow_up: { label: 'Follow-up', tone: 'warning' },

@@ -18,7 +18,7 @@ import {
 } from '../components/ui';
 import { useDataFreshness } from '../hooks/useDataFreshness';
 import { decideReviewItem, getReviewList, getReviewWeeks, scoreReviewWeek } from '../services/api';
-import { DECISIONS, MODES, recentMondays, scoredText, weekLabel } from '../features/weeklyReview/weeks';
+import { DECISIONS, MODES, recentMondays, scoredText, weekLabel, withoutVerdict } from '../features/weeklyReview/weeks';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useSession } from '../hooks/useSession';
 import { formatDateTime } from '../utils/format';
@@ -225,7 +225,7 @@ function WeeklyReview() {
           </div>
           {list && (
             <p className="weekly-review__meta">
-              {MODES[list.mode]} {scoredText(list, formatDateTime(list.scoredAt))}
+              {MODES[list.mode]} {scoredText(list, formatDateTime(list.scoredAt))}{' '}
               Late records for a recent week get it scored again automatically; decisions are kept.
             </p>
           )}
@@ -291,7 +291,7 @@ function WeeklyReview() {
               <ol className="weekly-review__breaches" start={listed.length + 1}>
                 {others.map((item) => (
                   <li key={item.schoolId}>
-                    <strong>{item.schoolName}</strong>: {item.explanation}
+                    <strong>{item.schoolName}</strong>: {withoutVerdict(item.explanation)}
                     {item.decision && ` (${DECISIONS[item.decision.status].label.toLowerCase()})`}
                   </li>
                 ))}

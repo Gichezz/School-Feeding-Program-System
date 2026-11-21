@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { recentMondays, scoredText, weekLabel } from './weeks';
+import { recentMondays, scoredText, weekLabel, withoutVerdict } from './weeks';
 
 describe('recentMondays', () => {
   it('starts at the Monday of the current week', () => {
@@ -32,5 +32,17 @@ describe('scoredText', () => {
   it('names the officer who scored it, when one did', () => {
     expect(scoredText({ scoredBySchedule: false, scoredBy: 'Amina Otieno' }, '09-11-2026 10:15')).toBe('Scored on 09-11-2026 10:15 by Amina Otieno.');
     expect(scoredText({ scoredBySchedule: false, scoredBy: null }, '09-11-2026 10:15')).toBe('Scored on 09-11-2026 10:15.');
+  });
+});
+
+describe('withoutVerdict', () => {
+  it('drops the "Needs review:" verdict and keeps the reasons', () => {
+    expect(withoutVerdict('Needs review: enrolment 35% up on last term (651 learners); 514 learners fed'))
+      .toBe('enrolment 35% up on last term (651 learners); 514 learners fed');
+  });
+
+  it('leaves other text alone and copes with a missing explanation', () => {
+    expect(withoutVerdict('learners fed 12% above usual')).toBe('learners fed 12% above usual');
+    expect(withoutVerdict(undefined)).toBe('');
   });
 });

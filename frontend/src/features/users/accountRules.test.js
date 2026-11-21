@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { changePasswordErrors, deviceSetupErrors, newUserErrors, passwordError, pinError } from './accountRules';
+import { accountStatus, changePasswordErrors, deviceSetupErrors, newUserErrors, passwordError, pinError } from './accountRules';
 
 describe('passwordError', () => {
   it('needs at least 10 characters and at most 72 bytes', () => {
@@ -81,5 +81,15 @@ describe('newUserErrors for programme officers', () => {
       .toEqual({ subCounty: 'Choose their sub-county' });
     expect(newUserErrors({ name: 'Wanjiru', email: 'wanjiru@example.org', role: 'programme_officer', password: 'county-ledger-2026', subCounty: 'Mfano Sub-County' }))
       .toEqual({});
+  });
+});
+
+describe('accountStatus', () => {
+  it('gives each account one status', () => {
+    expect(accountStatus({ isActive: false, role: 'school_staff', activation: { activated: false } })).toBe('deactivated');
+    expect(accountStatus({ isActive: true, role: 'school_staff', activation: { activated: false } })).toBe('waiting');
+    expect(accountStatus({ isActive: true, role: 'school_staff', activation: { activated: false, email: 'failed' } })).toBe('activation_failed');
+    expect(accountStatus({ isActive: true, role: 'school_staff', activation: { activated: true } })).toBe('active');
+    expect(accountStatus({ isActive: true, role: 'admin' })).toBe('active');
   });
 });

@@ -14,6 +14,7 @@ import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useOpenFlagCount } from '../features/review/useOpenFlagCount';
 import { useResolvesConflicts, useServerConflictCount } from '../features/conflicts/useServerConflictCount';
 import { formatNumber, formatPercent } from '../utils/format';
+import { officerHeadline } from '../features/dashboard/officerHeadline';
 
 const QUEUE_ORDER = ['enrolment', 'conflicts', 'flags', 'cantJudge', 'weekly'];
 const count = (n, one, many) => `${formatNumber(n)} ${n === 1 ? one : many}`;
@@ -65,7 +66,7 @@ function ProgrammeDashboard() {
     {
       key: 'conflicts', icon: GitCompareArrows, to: '/conflicts',
       ...(serverConflicts == null
-        ? { title: 'Conflicts', description: 'Records changed on two devices.', actionLabel: 'Open' }
+        ? { title: 'Conflicts', description: 'Records changed on two devices.', actionLabel: 'Open', unknown: true }
         : serverConflicts > 0
           ? { title: count(serverConflicts, 'record to decide', 'records to decide'), description: 'Changed on two devices. Choose which to keep.' }
           : { title: 'No records to decide', done: true }),
@@ -73,7 +74,7 @@ function ProgrammeDashboard() {
     {
       key: 'flags', icon: Flag, to: '/review',
       ...(openFlags == null
-        ? { title: 'Record review', description: 'Records that look unusual.', actionLabel: 'Open' }
+        ? { title: 'Record review', description: 'Records that look unusual.', actionLabel: 'Open', unknown: true }
         : openFlags > 0
           ? { title: count(openFlags, 'flagged record to check', 'flagged records to check'), description: 'Check each against the register or store book.' }
           : { title: 'No flagged records to check', done: true }),
@@ -81,7 +82,7 @@ function ProgrammeDashboard() {
     {
       key: 'weekly', icon: ListChecks, to: '/weekly-review',
       ...(!week
-        ? { title: 'Weekly review', description: 'This week and last week have not been scored yet.', actionLabel: 'Open' }
+        ? { title: 'Weekly review', description: 'This week and last week have not been scored yet.', actionLabel: 'Open', unknown: weeks === null }
         : week.listed === 0
           ? { title: `${week.which}'s list has no schools on it`, done: true }
           : week.decided < week.listed
@@ -91,7 +92,7 @@ function ProgrammeDashboard() {
     {
       key: 'enrolment', icon: ClipboardCheck, to: '/enrolment-checks',
       ...(enrolmentToCheck === null
-        ? { title: 'Enrolment checks', description: 'Each school’s termly enrolment, to verify against the register.', actionLabel: 'Open' }
+        ? { title: 'Enrolment checks', description: 'Each school’s termly enrolment, to verify against the register.', actionLabel: 'Open', unknown: true }
         : enrolmentToCheck > 0
           ? { title: count(enrolmentToCheck, 'school’s enrolment to check', 'schools’ enrolment to check'), description: 'It sets the food a school can request.' }
           : { title: 'No enrolment to check', done: true }),
@@ -103,20 +104,13 @@ function ProgrammeDashboard() {
         : { title: 'Every school’s records are up to date', done: true }),
     }] : []),
   ]
-    // Work waiting comes first, the most pressing at the top; finished rows sink to the bottom
-    .sort((a, b) => Number(Boolean(a.done)) - Number(Boolean(b.done)) || QUEUE_ORDER.indexOf(a.key) - QUEUE_ORDER.indexOf(b.key));
+    // The most pressing at the top; the work list shows waiting rows first and folds finished ones
+    .sort((a, b) => QUEUE_ORDER.indexOf(a.key) - QUEUE_ORDER.indexOf(b.key));
 
-  // The week in sentences: what has happened to the term, and the one thing waiting most
+  // The term in sentences: how it stands, and how much is waiting (from the work list itself)
   const termName = term?.term.label;
   const zeroDays = schools.filter((s) => s.daysOfFood === 0).length;
-  const headline = (() => {
-    if (!term) return 'Your work for the sub-county';
-    const state = term.term.closed ? `${termName} has closed.` : `${termName} is under way.`;
-    if (enrolmentToCheck > 0) return `${state} ${count(enrolmentToCheck, 'enrolment check is', 'enrolment checks are')} waiting for you.`;
-    if (serverConflicts > 0) return `${state} ${count(serverConflicts, 'record needs', 'records need')} a decision.`;
-    if (openFlags > 0) return `${state} ${count(openFlags, 'flagged record is', 'flagged records are')} waiting for you.`;
-    return `${state} Nothing is waiting for you.`;
-  })();
+  const headline = officerHeadline(term && { label: termName, closed: term.term.closed }, items);
   const detail = !term ? null : term.term.closed
     ? `The figures below are final for the term.${zeroDays > 0 ? ` ${count(zeroDays, 'school', 'schools')} ended it with no cereals left in the store, so ${zeroDays === 1 ? 'it needs' : 'they need'} a delivery before next term opens.` : ''}`
     : totals.lowStock > 0
