@@ -1,11 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
   <title>Lishe</title>
-  <rect width="48" height="48" rx="11" fill="#f7f4ef"/>
+  <rect width="48" height="48" rx="11" fill="#faf9f6"/>
   <g transform="translate(24 24) scale(0.96) translate(-24 -24)">
-  <circle cx="24" cy="24" r="20" fill="none" stroke="#1b5e4b" stroke-width="4"/>
+  <circle cx="24" cy="24" r="20" fill="none" stroke="#14362b" stroke-width="4"/>
   <g transform="rotate(35 24 24)">
-    <path d="M24 10.5 C33 17 33 31 24 37.5 C15 31 15 17 24 10.5 Z" fill="#1b5e4b"/>
-    <line x1="24" y1="16" x2="24" y2="33" stroke="#f7f4ef" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M24 10.5 C33 17 33 31 24 37.5 C15 31 15 17 24 10.5 Z" fill="#14362b"/>
+    <line x1="24" y1="16" x2="24" y2="33" stroke="#faf9f6" stroke-width="1.8" stroke-linecap="round"/>
   </g>
   </g>
 </svg>
