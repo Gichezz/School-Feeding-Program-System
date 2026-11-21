@@ -7,6 +7,7 @@ import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useSession } from '../hooks/useSession';
 import { ENROLMENT_STATUS, TO_CHECK } from '../features/enrolment/checkStatus';
 import { formatDateTime, formatNumber } from '../utils/format';
+import { useChosenTerm } from '../hooks/useChosenTerm';
 
 const STATUS = ENROLMENT_STATUS;
 // Each status has an icon as well as a colour
@@ -138,7 +139,7 @@ function EnrolmentChecks() {
   const { user } = useSession();
   const isOfficer = user?.role === 'programme_officer';
   const allowed = isOfficer;
-  const [termId, setTermId] = useState('');
+  const [termId, setTermId] = useChosenTerm();
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [open, setOpen] = useState(null);

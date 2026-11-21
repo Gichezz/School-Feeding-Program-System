@@ -914,51 +914,6 @@
   flex: 1 1 16rem;
 }
 
-/* ---------- Page band: the officer's week, written as sentences on pine ---------- */
-.page-band {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  margin: calc(-1 * var(--space-6)) calc(-1 * var(--space-6)) var(--space-8);
-  padding: var(--space-8) var(--space-6) var(--space-8);
-  background: var(--color-brand-900);
-  color: var(--color-ink-inverse);
-}
-
-.page-band__eyebrow {
-  font-size: var(--font-size-sm);
-  color: var(--color-sidebar-muted);
-}
-
-.page-band__title {
-  max-width: 32ch;
-  font-size: var(--font-size-3xl);
-  line-height: var(--line-height-tight);
-  color: var(--color-ink-inverse);
-  text-wrap: balance;
-}
-
-.page-band__detail {
-  max-width: 70ch;
-  font-size: var(--font-size-lg);
-  color: var(--color-on-brand-muted);
-}
-
-@media (max-width: 767px) {
-  .page-band {
-    margin: calc(-1 * var(--space-4)) calc(-1 * var(--space-4)) var(--space-6);
-    padding: var(--space-6) var(--space-4);
-  }
-
-  .page-band__title {
-    font-size: var(--font-size-2xl);
-  }
-
-  .page-band__detail {
-    font-size: var(--font-size-base);
-  }
-}
-
 /* ---------- Officer home: to do beside the term in three lines ---------- */
 .officer-home__split {
   display: grid;

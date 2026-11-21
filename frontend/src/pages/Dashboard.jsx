@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarX, ClipboardCheck, CloudOff, Flag, GitCompareArrows, ListChecks, PieChart } from 'lucide-react';
-import { Alert, Card, StatusLine, WorkQueue } from '../components/ui';
+import { Alert, Card, PageHeader, StatusLine, WorkQueue } from '../components/ui';
 import StockTable from '../features/analytics/StockTable';
 import { getCalendarStatus, getEnrolmentChecks, getReviewWeeks, getTermAnalytics } from '../services/api';
 import { useDataFreshness } from '../hooks/useDataFreshness';
@@ -117,15 +117,9 @@ function ProgrammeDashboard() {
       ? `${count(totals.lowStock, 'school', 'schools')} will run out of cereals before the term ends, at the rate ${totals.lowStock === 1 ? 'it is' : 'they are'} using food now.`
       : 'Every school has enough cereals for the rest of the term, at the rate it is using food now.';
 
-  useEffect(() => { document.title = 'Dashboard · Lishe'; }, []);
-
   return (
     <div data-density="compact" className="officer-home">
-      <header className="page-band">
-        <p className="page-band__eyebrow">{term ? `${term.subCounty} · ${termName}${term.term.closed ? ' (closed)' : ''}` : 'Dashboard'}</p>
-        <h1 className="page-band__title">{headline}</h1>
-        {detail && <p className="page-band__detail">{detail}</p>}
-      </header>
+      <PageHeader title={headline} documentTitle="Dashboard" description={detail} />
 
       <div className="ui-stack">
         {!isOnline && <StatusLine icon={CloudOff}>Offline. Your work list needs a connection.</StatusLine>}

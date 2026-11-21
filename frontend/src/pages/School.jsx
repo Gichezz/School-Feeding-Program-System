@@ -10,6 +10,7 @@ import { lowOnFood } from '../features/analytics/analyticsData';
 import { ENROLMENT_STATUS, TO_CHECK } from '../features/enrolment/checkStatus';
 import { registerWeeks, termSentence } from '../features/feeding/register';
 import { formatDateTime, formatNumber, formatPercent } from '../utils/format';
+import { useChosenTerm } from '../hooks/useChosenTerm';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 const CELL_WORDS = {
@@ -49,7 +50,7 @@ function School() {
   const isOnline = useOnlineStatus();
   const toast = useToast();
   const { refreshKey, markLoaded } = useDataFreshness();
-  const [termId, setTermId] = useState('');
+  const [termId, setTermId] = useChosenTerm();
   const [feeding, setFeeding] = useState(null);
   const [figures, setFigures] = useState(null);
   const [enrolment, setEnrolment] = useState(null);

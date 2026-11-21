@@ -13,18 +13,23 @@ describe('who sees which pages', () => {
   it('shows the programme officer the oversight pages', () => {
     const officer = paths({ isAdmin: false, role: 'programme_officer' });
 
-    expect(officer).toEqual(['/', '/conflicts', '/review', '/weekly-review', '/enrolment-checks', '/analytics', '/settings']);
+    expect(officer).toEqual(['/', '/analytics', '/conflicts', '/review', '/weekly-review', '/enrolment-checks', '/settings']);
     expect(officer).not.toContain('/today');
   });
 
-  it('does not show the programme officer Sync Status, since officers queue nothing on a device', () => {
+  it('does not show the programme officer Sync, since officers queue nothing on a device', () => {
     expect(paths({ isAdmin: false, role: 'programme_officer' })).not.toContain('/sync');
   });
 
-  it('puts the officer\'s decisions under To do and Analytics under Insights', () => {
+  it('puts the officer\'s decisions under To do and Analytics beside the dashboard', () => {
     const groups = visibleGroups({ isAdmin: false, role: 'programme_officer' }).map((g) => [g.label, g.items.map((i) => i.to)]);
     expect(groups).toContainEqual(['To do', ['/conflicts', '/review', '/weekly-review', '/enrolment-checks']]);
-    expect(groups).toContainEqual(['Insights', ['/analytics']]);
+    expect(groups).toContainEqual(['Overview', ['/', '/analytics']]);
+  });
+
+  it('puts the feeding teacher\'s Sync with the school pages, not under a heading of its own', () => {
+    const groups = visibleGroups({ isAdmin: false, role: 'school_staff' }).map((g) => [g.label, g.items.map((i) => i.to)]);
+    expect(groups).toContainEqual(['School', ['/today', '/stock', '/term', '/enrolment', '/sync']]);
   });
 
   it('shows the feeding teacher the school pages only', () => {

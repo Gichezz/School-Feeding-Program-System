@@ -12,6 +12,7 @@ import { NOT_FED_REASONS } from '../features/feeding/planning';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useSession } from '../hooks/useSession';
 import { formatNumber, formatPercent } from '../utils/format';
+import { useChosenTerm } from '../hooks/useChosenTerm';
 
 /** A figure, marked when it needs attention, with the reason as its label. */
 function Figure({ note, children }) {
@@ -192,7 +193,7 @@ function Analytics() {
   const isOnline = useOnlineStatus();
   const { user } = useSession();
   const allowed = user?.role === 'programme_officer';
-  const [termId, setTermId] = useState('');
+  const [termId, setTermId] = useChosenTerm();
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const { refreshKey, markLoaded } = useDataFreshness();

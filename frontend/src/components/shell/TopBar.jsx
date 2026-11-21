@@ -66,13 +66,27 @@ function SchoolBar() {
   );
 }
 
+const scopeKey = (userId) => `lishe.scope.${userId}`;
+
+function rememberScope(userId, scope) {
+  try { sessionStorage.setItem(scopeKey(userId), scope); } catch { /* storage blocked: shown per page only */ }
+}
+
+function rememberedScope(userId) {
+  try { return sessionStorage.getItem(scopeKey(userId)) || ''; } catch { return ''; }
+}
+
 /**
  * The programme officer's top bar: whose schools these are, and how current the
  * figures on screen are. Officers record nothing on this device, so there is no sync.
  */
-function OversightBar() {
+function OversightBar({ userId }) {
   const isOnline = useOnlineStatus();
-  const { loadedAt, scope, refresh } = useDataFreshness();
+  const { loadedAt, scope: loadedScope, refresh } = useDataFreshness();
+  // Pages that do not load figures (Settings, a reload of Weekly review) keep the
+  // sub-county the officer's data last named, so every page shows it
+  useEffect(() => { if (loadedScope) rememberScope(userId, loadedScope); }, [userId, loadedScope]);
+  const scope = loadedScope || rememberedScope(userId);
 
   return (
     <>
@@ -120,7 +134,7 @@ function TopBar() {
         <LisheLogo className="app-topbar__logo" />
       </div>
       {role === 'school_staff' && <SchoolBar />}
-      {role === 'programme_officer' && <OversightBar />}
+      {role === 'programme_officer' && <OversightBar userId={user?.id} />}
       <UserMenu />
     </header>
   );
