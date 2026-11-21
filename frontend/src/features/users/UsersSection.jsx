@@ -528,7 +528,7 @@ function UsersSection() {
         </span>
       ),
     },
-    { key: 'email', header: 'Email', render: (u) => (<>{u.email}{u.emailVerified && <> <Badge tone="success">Verified</Badge></>}</>) },
+    { key: 'email', header: 'Email', nowrap: true, render: (u) => (<>{u.email}{u.emailVerified && <> <Badge tone="success">Verified</Badge></>}</>) },
     { key: 'school', header: 'School or area', render: (u) => u.schoolName || u.subCounty || (u.role === 'admin' ? 'All schools' : '–') },
     { key: 'role', header: 'Role', render: (u) => ROLE_LABEL[u.role] || u.role },
     {
@@ -552,7 +552,7 @@ function UsersSection() {
         return <Badge tone={tone} icon={icon}>{label}</Badge>;
       },
     },
-    { key: 'added', header: 'Added', render: (u) => formatDate(u.createdAt), sortValue: (u) => u.createdAt },
+    { key: 'added', header: 'Added', nowrap: true, render: (u) => formatDate(u.createdAt), sortValue: (u) => u.createdAt },
     {
       key: 'actions',
       header: <span className="visually-hidden">Actions</span>,

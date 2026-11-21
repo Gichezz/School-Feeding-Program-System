@@ -3,6 +3,7 @@ import { CheckCircle2, Hourglass, PauseCircle, RotateCw, Smartphone } from 'luci
 /**
  * The one set of words for where a record is, used on every list in Lishe.
  * Each state is always shown with its icon and its words, never colour alone.
+ * Sent is the normal state and is shown as quiet text; the others stand out.
  *
  * local:   saved on this device, not sent yet
  * sent:    on the server

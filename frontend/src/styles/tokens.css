@@ -15,6 +15,9 @@
   --color-brand: var(--color-brand-700);
   --color-on-brand: #ffffff;
   --color-on-brand-muted: #d8e2da; /* quieter text on pine */
+  /* Fed days on the register: a light sage tint, so the exceptions carry the strong colours */
+  --color-fed-tint: #d4e0d8;
+  --color-on-fed-tint: var(--color-brand-900);
 
   /* Surfaces and text: warm alabaster, ivory cards with a stone border (no shadows), warm charcoal ink */
   --color-bg: #faf9f6;

@@ -215,7 +215,7 @@ function Recent({ data }) {
     .slice(0, RECENT_DAYS)
     .map((d) => ({ ...d, key: d.id }));
   const columns = [
-    { key: 'feedingDate', header: 'Date', primary: true },
+    { key: 'feedingDate', header: 'Date', primary: true, nowrap: true },
     { key: 'learnersFed', header: 'Learners fed', align: 'end', render: (r) => (r.feedingHappened ? formatNumber(r.learnersFed) : 'Not fed') },
     { key: 'cerealsKg', header: 'Cereals (kg)', align: 'end', render: (r) => formatNumber(r.cerealsKg) },
     { key: 'pulsesKg', header: 'Pulses (kg)', align: 'end', render: (r) => formatNumber(r.pulsesKg) },

@@ -109,7 +109,7 @@
   padding: var(--space-2) var(--space-4);
   border: var(--border-width) solid transparent;
   border-radius: var(--radius-md);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
   font-size: var(--font-size-base);
   line-height: var(--line-height-tight);
   text-decoration: none;
@@ -209,7 +209,7 @@
   border: var(--border-width) solid;
   border-radius: var(--radius-pill);
   font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
   line-height: var(--line-height-tight);
   white-space: nowrap;
 }
@@ -249,7 +249,7 @@
 }
 
 .ui-alert__title {
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
 }
 
 .ui-alert__body {
@@ -273,7 +273,7 @@
 
 .ui-alert .ui-alert__body a {
   color: inherit;
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
 }
 
 /* ---------- Toast ---------- */
@@ -323,7 +323,7 @@
 }
 
 .ui-toast__title {
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
 }
 
 .ui-toast__description {
@@ -379,7 +379,7 @@
 }
 
 .ui-empty__title {
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
   color: var(--color-ink);
 }
 
@@ -428,7 +428,7 @@
 }
 
 .ui-field__label {
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
 }
 
 .ui-field__required {
@@ -481,12 +481,53 @@
   white-space: nowrap;
 }
 
+/* A unit inside the input: the row draws the box, the input inside it is borderless */
+.ui-field__control-row--unit {
+  gap: 0;
+  max-width: 16rem;
+  padding-inline-end: var(--space-3);
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+}
+
+.ui-field__control-row--unit:hover {
+  border-color: var(--color-ink-muted);
+}
+
+.ui-field__control-row--unit:focus-within {
+  border-color: var(--focus-ring-color);
+  box-shadow: var(--focus-ring);
+}
+
+.ui-field__control-row--unit .ui-field__control {
+  min-width: 0;
+  border: 0;
+  background: transparent;
+}
+
+.ui-field__control-row--unit .ui-field__control:focus-visible {
+  box-shadow: none;
+}
+
+.ui-field--invalid .ui-field__control-row--unit {
+  border-color: var(--color-danger-solid);
+  border-width: var(--border-width-strong);
+}
+
+.ui-field__unit {
+  flex: none;
+  color: var(--color-ink-muted);
+  font-size: var(--font-size-base);
+  white-space: nowrap;
+}
+
 .ui-field__error {
   display: flex;
   align-items: center;
   gap: var(--space-1);
   font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
   color: var(--color-danger);
 }
 
@@ -498,6 +539,8 @@
 
 /* ---------- Data table ---------- */
 .ui-table__scroll {
+  /* Positioned, so visually hidden header text stays inside the scrolling box */
+  position: relative;
   overflow-x: auto;
 }
 
@@ -517,7 +560,7 @@
 
 .ui-table__table th {
   font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
   color: var(--color-ink-muted);
   background: transparent;
   border-bottom: var(--border-width) solid var(--color-border-strong);
@@ -529,6 +572,11 @@
 
 .ui-table__cell--end {
   text-align: end !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.ui-table__cell--nowrap {
+  white-space: nowrap;
 }
 
 .ui-table__cell--badge {
@@ -558,7 +606,7 @@
 }
 
 .ui-table__item-title {
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
 }
 
 .ui-table__item-fields {
@@ -612,7 +660,7 @@
 }
 
 .ui-date-range__label {
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
 }
 
 .ui-segmented {
@@ -633,7 +681,7 @@
   background: transparent;
   color: var(--color-ink-muted);
   font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
   white-space: nowrap;
   cursor: pointer;
 }
@@ -706,7 +754,7 @@
 }
 
 .ui-sync__title {
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
   line-height: var(--line-height-snug);
 }
 
@@ -767,7 +815,7 @@
 }
 
 .ui-sync__failure dt {
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
 }
 
 .ui-sync__failure dd {
@@ -844,7 +892,7 @@
 
 .ui-stat__value {
   font-size: var(--font-size-3xl);
-  font-weight: var(--font-weight-bold);
+  font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-tight);
   color: var(--color-ink);
   overflow-wrap: anywhere;
@@ -862,7 +910,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
 }
 
 .ui-stat__delta {
@@ -939,7 +987,7 @@
 }
 
 .ui-chart__tooltip-label {
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
   margin-bottom: var(--space-1);
 }
 
@@ -1051,7 +1099,7 @@
 }
 
 .ui-summary__label {
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
 }
 
 .ui-summary__value {
@@ -1148,7 +1196,7 @@
 
 .ui-chart .ui-chart__rule-label {
   fill: var(--color-ink-muted);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
 }
 
 /* ---------- Record status (always icon + words) ---------- */
@@ -1177,7 +1225,9 @@
 }
 
 .ui-record-status--local { color: var(--status-local); background: var(--status-local-bg); border-color: var(--status-local-border); }
-.ui-record-status--sent { color: var(--status-sent); background: var(--status-sent-bg); border-color: var(--status-sent-border); }
+/* Sent is the normal state, so it is quiet text; the other states stand out as exceptions */
+.ui-record-status--sent { color: var(--color-ink-muted); background: transparent; border-color: transparent; padding: 0; font-weight: var(--font-weight-regular); }
+.ui-record-status--sent .ui-record-status__icon { color: var(--status-sent); }
 .ui-record-status--waiting { color: var(--status-waiting); background: var(--status-waiting-bg); border-color: var(--status-waiting-border); }
 .ui-record-status--hold { color: var(--status-hold); background: var(--status-hold-bg); border-color: var(--status-hold-border); }
 .ui-record-status--retry { color: var(--status-retry); background: var(--status-retry-bg); border-color: var(--status-retry-border); }
@@ -1278,7 +1328,7 @@
 }
 
 .ui-choice__option--checked .ui-choice__label {
-  font-weight: var(--font-weight-bold);
+  font-weight: var(--font-weight-medium);
 }
 
 .ui-choice__hint {
@@ -1355,7 +1405,7 @@
 .ui-steps__step--current {
   border-top-color: var(--color-brand);
   color: var(--color-ink);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
 }
 
 .ui-steps__marker {
@@ -1404,7 +1454,7 @@
 }
 
 .ui-queue__title {
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
 }
 
 .ui-queue__row--done {
@@ -1474,7 +1524,7 @@
 
 .ui-filters__label {
   font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
   color: var(--color-ink-muted);
 }
 
@@ -1507,7 +1557,7 @@
   border-color: var(--color-brand);
   background: var(--color-brand-100);
   color: var(--color-brand-800);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
 }
 
 .ui-chip__icon {
@@ -1595,6 +1645,7 @@
 }
 
 .ui-table--sticky .ui-table__cell--sticky {
+  white-space: nowrap;
   position: sticky;
   left: 0;
   z-index: 1;
@@ -1688,6 +1739,6 @@
 }
 
 .ui-print-header__title {
-  font-weight: var(--font-weight-bold);
+  font-weight: var(--font-weight-semibold);
   font-size: var(--font-size-lg);
 }

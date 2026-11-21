@@ -11,7 +11,8 @@ import { filterRows, resultText, searchRows, sortRows } from './tableData';
  * Table on tablet/desktop, card list on mobile.
  *
  * columns: [{
- *   key, header, render?(row), align?: 'start' | 'end',
+ *   key, header, render?(row), align?: 'start' | 'end',   // 'end' for numbers (tabular figures)
+ *   nowrap?: true,             // dates, emails and codes stay on one line
  *   primary?: true,            // the heading of each card on mobile
  *   action?: true,             // buttons: a full-width row at the foot of each mobile card
  *   sortValue?(row)            // makes the column sortable by this value
@@ -97,6 +98,7 @@ function DataTable({
     const SortIcon = sorted === 'ascending' ? ArrowUp : sorted === 'descending' ? ArrowDown : ArrowUpDown;
     const className = [
       column.align === 'end' && 'ui-table__cell--end',
+      column.nowrap && 'ui-table__cell--nowrap',
       stickyFirstColumn && index === 0 && 'ui-table__cell--sticky',
     ].filter(Boolean).join(' ') || undefined;
     return (
@@ -154,6 +156,7 @@ function DataTable({
                     {columns.map((column, index) => {
                       const className = [
                         column.align === 'end' && 'ui-table__cell--end',
+                        column.nowrap && 'ui-table__cell--nowrap',
                         column.action && 'ui-table__cell--action',
                         stickyFirstColumn && index === 0 && 'ui-table__cell--sticky',
                       ].filter(Boolean).join(' ') || undefined;

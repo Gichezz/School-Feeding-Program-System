@@ -286,11 +286,11 @@ function Ledger({ data }) {
   const signed = (m) => (m.kind === 'reversal' ? -(KINDS[byId.get(m.reversesId)?.kind]?.sign || 1) : KINDS[m.kind]?.sign || 1) * Number(m.quantityKg);
 
   const columns = [
-    { key: 'movementDate', header: 'Date', primary: true },
+    { key: 'movementDate', header: 'Date', primary: true, nowrap: true },
     { key: 'kind', header: 'Entry', render: (m) => (<>{label(m)}{reversed.has(m.id) && <> <Badge tone="neutral">Reversed</Badge></>}</>) },
     { key: 'commodity', header: 'Food', render: (m) => COMMODITY_LABELS[m.commodity] },
     { key: 'quantityKg', header: 'Kg', align: 'end', render: (m) => `${signed(m) > 0 ? '+' : '−'}${formatNumber(Math.abs(signed(m)))}` },
-    { key: 'reference', header: 'Reference', render: (m) => m.reference || m.note || '–' },
+    { key: 'reference', header: 'Reference', nowrap: true, render: (m) => m.reference || m.note || '–' },
     { key: 'witness', header: 'Witnessed by', render: (m) => m.witness || '–' },
     { key: 'status', header: 'Status', render: (m) => <RecordStatus state={recordStateFor(m.syncStatus)} /> },
     {

@@ -233,7 +233,7 @@ function SchoolCalendar() {
       ),
     },
     { key: 'kind', header: 'What', render: (e) => <Badge tone={e.kind === 'national_exam' ? 'info' : 'neutral'}>{KIND_LABEL[e.kind]}</Badge> },
-    { key: 'dates', header: 'Dates', render: (e) => <span className="tabular-nums">{dateRange(e.startsOn, e.endsOn)}</span>, sortValue: (e) => e.startsOn.split('-').reverse().join('-') },
+    { key: 'dates', header: 'Dates', nowrap: true, render: (e) => <span className="tabular-nums">{dateRange(e.startsOn, e.endsOn)}</span>, sortValue: (e) => e.startsOn.split('-').reverse().join('-') },
     {
       key: 'actions',
       header: <span className="visually-hidden">Actions</span>,
