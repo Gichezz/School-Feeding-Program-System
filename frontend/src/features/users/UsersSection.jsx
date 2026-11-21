@@ -528,7 +528,24 @@ function UsersSection() {
         </span>
       ),
     },
-    { key: 'email', header: 'Email', nowrap: true, render: (u) => (<>{u.email}{u.emailVerified && <> <Badge tone="success">Verified</Badge></>}</>) },
+    {
+      key: 'email',
+      header: 'Email',
+      // Breaks only before the @ when the column is narrow, never inside a name or domain
+      render: (u) => {
+        const at = u.email.indexOf('@');
+        return (
+          <>
+            <span className="users__email">
+              {at > 0
+                ? <><span className="users__email-part">{u.email.slice(0, at)}</span><wbr /><span className="users__email-part">{u.email.slice(at)}</span></>
+                : u.email}
+            </span>
+            {u.emailVerified && <> <Badge tone="success">Verified</Badge></>}
+          </>
+        );
+      },
+    },
     { key: 'school', header: 'School or area', render: (u) => u.schoolName || u.subCounty || (u.role === 'admin' ? 'All schools' : '–') },
     { key: 'role', header: 'Role', render: (u) => ROLE_LABEL[u.role] || u.role },
     {
@@ -541,7 +558,7 @@ function UsersSection() {
           ...(u.passkeyCount ? [u.passkeyCount === 1 ? '1 passkey' : `${u.passkeyCount} passkeys`] : []),
           ...(u.totpEnabled ? ['app'] : []),
         ];
-        return <Badge tone="success">{parts.join(' + ')}</Badge>;
+        return parts.join(' + ');
       },
     },
     {

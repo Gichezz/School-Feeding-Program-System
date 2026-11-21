@@ -1691,12 +1691,9 @@
   padding: var(--density-card-pad);
   background: var(--color-surface-work);
   border: var(--border-default);
-  border-left: var(--space-1) solid var(--color-border-strong);
   border-radius: var(--radius-lg);
 }
 
-.ui-triage--warning { border-left-color: var(--color-warning-border); }
-.ui-triage--neutral { border-left-color: var(--color-neutral-border); }
 
 .ui-triage__header {
   display: flex;

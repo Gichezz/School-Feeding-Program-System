@@ -51,3 +51,17 @@ export const MODES = {
   rules_only: 'Ranked by the fixed checks only, until there are enough records to compare schools.',
   no_records: 'No feeding records have synced for this week yet.',
 };
+
+/**
+ * The week's fixed-check breaches with the same school and finding on several days,
+ * folded into one line each: { key, schoolName, detail, dates }.
+ */
+export function groupBreaches(breaches) {
+  const groups = new Map();
+  for (const b of breaches || []) {
+    const key = `${b.schoolId}|${b.rule}|${b.detail}`;
+    if (!groups.has(key)) groups.set(key, { key, schoolName: b.schoolName, detail: b.detail, dates: [] });
+    groups.get(key).dates.push(b.date);
+  }
+  return [...groups.values()];
+}

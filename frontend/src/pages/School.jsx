@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { ClipboardCheck, CloudOff } from 'lucide-react';
-import { Alert, Button, Card, FoodIcon, FormField, LoadingRegion, SkeletonText, StatusLine, useToast } from '../components/ui';
+import { Alert, Button, Card, FormField, LoadingRegion, SkeletonText, StatusLine, useToast } from '../components/ui';
 import { getEnrolmentChecks, getReviewFlags, getSchoolFeeding, getTermAnalytics, verifyEnrolment } from '../services/api';
 import { useDataFreshness } from '../hooks/useDataFreshness';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useSession } from '../hooks/useSession';
 import { lowOnFood } from '../features/analytics/analyticsData';
 import { ENROLMENT_STATUS, TO_CHECK } from '../features/enrolment/checkStatus';
-import { registerWeeks, termSentence } from '../features/feeding/register';
+import { registerWeeks, termSentence, monthLabels } from '../features/feeding/register';
 import { formatDateTime, formatNumber, formatPercent } from '../utils/format';
 import { useChosenTerm } from '../hooks/useChosenTerm';
 
@@ -23,7 +23,7 @@ const CELL_WORDS = {
   closure: 'school closed',
 };
 
-function RegisterCell({ day }) {
+function RegisterCell({ day, month }) {
   if (!day) return <span className="register__cell register__cell--none" aria-hidden="true" />;
   const dayNumber = Number(day.date.slice(0, 2));
   const label = `${day.date}: ${day.name || CELL_WORDS[day.kind]}${day.learnersFed !== undefined ? `, ${formatNumber(day.learnersFed)} learners` : ''}`;
@@ -36,7 +36,12 @@ function RegisterCell({ day }) {
     half_term: 'Half-term',
     closure: 'Closed',
   }[day.kind];
-  return <span className={`register__cell register__cell--${day.kind}`} title={label} aria-label={label} role="img">{text}</span>;
+  return (
+    <span className={`register__cell register__cell--${day.kind}`} title={label} aria-label={label} role="img">
+      {month && <span className="register__month">{month}</span>}
+      {text}
+    </span>
+  );
 }
 
 /**
@@ -81,6 +86,7 @@ function School() {
   }, [ready, load, refreshKey]);
 
   const weeks = useMemo(() => (feeding ? registerWeeks(feeding.days) : []), [feeding]);
+  const months = useMemo(() => (feeding ? monthLabels(feeding.days) : new Map()), [feeding]);
   useEffect(() => { document.title = `${feeding?.school.name || 'School'} · Lishe`; }, [feeding]);
 
   if (!allowed) return <Navigate to="/" replace />;
@@ -146,7 +152,7 @@ function School() {
               {weeks.map((cells, w) => (
                 <div key={w} className="register__row" role="presentation">
                   <span className="register__week">Week {w + 1}</span>
-                  {cells.map((day, i) => <RegisterCell key={day?.date || `${w}-${i}`} day={day} />)}
+                  {cells.map((day, i) => <RegisterCell key={day?.date || `${w}-${i}`} day={day} month={day && months.get(day.date)} />)}
                 </div>
               ))}
             </div>
@@ -168,7 +174,7 @@ function School() {
                     <div><dt>First delivery</dt><dd>{figures.firstDelivery ? `${figures.firstDelivery}, ${figures.deliveryDaysAfterOpening === 0 ? 'on opening day' : `${formatNumber(figures.deliveryDaysAfterOpening)} ${figures.deliveryDaysAfterOpening === 1 ? 'day' : 'days'} after opening`}` : 'None yet'}</dd></div>
                   )}
                   <div>
-                    <dt><FoodIcon food="cereals" className="school-page__food" />Cereals in store</dt>
+                    <dt>Cereals in store</dt>
                     <dd className={lowOnFood(figures) ? 'school-page__short' : undefined}>
                       {figures.cerealsInStoreKg === null ? '–' : `${formatNumber(Math.max(figures.cerealsInStoreKg, 0))} kg`}
                       {figures.daysOfFood !== null && ` · ${formatNumber(figures.daysOfFood)} school days`}
@@ -182,10 +188,7 @@ function School() {
             </section>
 
             {enrolment && (
-              <Card
-                className={toCheck ? 'school-page__todo' : undefined}
-                title={toCheck ? 'Enrolment to check' : 'Enrolment'}
-              >
+              <Card title={toCheck ? 'Enrolment to check' : 'Enrolment'}>
                 <p className="school-page__todo-text">
                   {enrolment.status === 'not_entered'
                     ? `${name} has not entered its enrolment for ${feeding.term.label} yet.`
