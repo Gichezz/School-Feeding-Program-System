@@ -75,6 +75,84 @@
   }
 }
 
+/* ---------- Today: recent days, one line each, with the register's mark ---------- */
+.recent-days {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.recent-days th,
+.recent-days td {
+  padding: var(--space-2) var(--space-1);
+  border-bottom: var(--border-default);
+  text-align: start;
+  vertical-align: middle;
+}
+
+.recent-days thead th {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-ink-muted);
+  border-bottom-color: var(--color-border-strong);
+}
+
+.recent-days tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+.recent-days__date {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: var(--font-weight-regular);
+  white-space: nowrap;
+}
+
+.recent-days__date > span:last-child {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+}
+
+.recent-days__num {
+  text-align: end !important;
+}
+
+.recent-days__none {
+  text-align: end !important;
+  color: var(--color-danger);
+}
+
+.recent-days__mark {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: var(--space-4);
+  height: var(--space-4);
+  border-radius: var(--radius-sm);
+}
+
+.recent-days__mark svg {
+  width: var(--space-3);
+  height: var(--space-3);
+}
+
+.recent-days__mark--fed {
+  background: var(--color-fed-tint);
+  box-shadow: inset 0 0 0 var(--border-width) var(--color-brand-600);
+}
+
+.recent-days__mark--not-fed {
+  border: var(--border-width-strong) solid var(--color-danger);
+  color: var(--color-danger);
+}
+
+.recent-days__status {
+  font-size: var(--font-size-xs);
+}
+
 /* ---------- Sync page: counts by record status ---------- */
 .sync-status__counts {
   display: flex;
@@ -1475,9 +1553,36 @@
 
 .enrolment__grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr);
+  /* Class, girls, boys and the class total: number columns sized to the numbers they hold */
+  grid-template-columns: minmax(8rem, 14rem) 8rem 8rem 5rem;
   gap: var(--space-2) var(--space-4);
   align-items: center;
+}
+
+.enrolment__total {
+  text-align: end;
+  color: var(--color-ink-muted);
+}
+
+.enrolment__rule {
+  grid-column: 1 / -1;
+  border-top: var(--border-width) solid var(--color-border-strong);
+}
+
+.enrolment__sum .enrolment__total {
+  color: var(--color-ink);
+  font-weight: var(--font-weight-medium);
+}
+
+/* The totals row shows it on wider screens; the sentence stays for screen readers and phones */
+.enrolment__note {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 .enrolment__row {
@@ -1514,8 +1619,21 @@
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 
-  .enrolment__head {
+  .enrolment__head,
+  .enrolment__total,
+  .enrolment__rule,
+  .enrolment__sum {
     display: none;
+  }
+
+  .enrolment__note {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
   }
 
   .enrolment__class {

@@ -288,6 +288,10 @@
   display: none;
 }
 
+.app-topbar__status--always {
+  display: block;
+}
+
 .app-topbar__status .ui-sync--compact {
   padding-block: var(--space-1);
   max-width: 30rem;

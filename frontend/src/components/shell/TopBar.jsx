@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { CloudOff, MapPin, RefreshCw, School } from 'lucide-react';
 import { SyncStatusBar } from '../ui';
 import LisheLogo from './LisheLogo';
@@ -35,6 +36,8 @@ function useSchoolName() {
 /** The feeding teacher's top bar: the school and how its records are syncing. */
 function SchoolBar() {
   const sync = useSyncStatus();
+  // The Sync page shows the full sync block itself, so the top bar keeps only the short pill there
+  const onSyncPage = useLocation().pathname === '/sync';
   const schoolName = useSchoolName();
   const barProps = {
     state: sync.state,
@@ -56,10 +59,12 @@ function SchoolBar() {
           <span className="app-topbar__scope-text">{schoolName}</span>
         </p>
       )}
-      <div className="app-topbar__status app-topbar__status--bar">
-        <SyncStatusBar {...barProps} onSyncNow={sync.syncNow} />
-      </div>
-      <div className="app-topbar__status app-topbar__status--pill">
+      {!onSyncPage && (
+        <div className="app-topbar__status app-topbar__status--bar">
+          <SyncStatusBar {...barProps} onSyncNow={sync.syncNow} />
+        </div>
+      )}
+      <div className={`app-topbar__status app-topbar__status--pill ${onSyncPage ? 'app-topbar__status--always' : ''}`.trim()}>
         <SyncStatusBar {...barProps} variant="pill" />
       </div>
     </>

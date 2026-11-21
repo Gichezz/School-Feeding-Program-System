@@ -9,7 +9,7 @@ import { useSchoolData } from '../features/feeding/useSchoolData';
 import {
   COMMODITIES, COMMODITY_LABELS, averageFed, dayKey, foodRemaining, schoolDays, stockBalances, todayKey,
 } from '../features/feeding/planning';
-import { displayBalance } from '../features/feeding/foodStatus';
+import { displayBalance, schoolDaysText } from '../features/feeding/foodStatus';
 import { checkEntryWindow, lateReasonError } from '../features/recording/entryWindow';
 import { addStockCount, addStockMovement } from '../services/feedingDb';
 import { manualSync } from '../sync/syncManager';
@@ -65,13 +65,11 @@ function Balances({ data }) {
           A delivery may be missing, or was recorded on another device that has not sent it yet.
         </StatusLine>
       )}
-      {short.length > 0 && (
+      {/* One banner at a time: incomplete records come first, since they make the days of food unreliable.
+          How much each food is short, and what to request, is in its card below. */}
+      {incomplete.length === 0 && short.length > 0 && (
         <StatusLine icon={AlertTriangle} tone="warning">
-          <strong>Food runs out before the term ends.</strong>{' '}
-          {short.map((c) => {
-            const p = food.perCommodity[c];
-            return `${COMMODITY_LABELS[c]}: enough for ${formatNumber(p.days)} of ${formatNumber(remaining.length)} school days${p.lastsUntil ? ` (until ${p.lastsUntil})` : ''}; request about ${formatNumber(Math.ceil(p.shortKg))} kg.`;
-          }).join(' ')}{' '}
+          <strong>{short.map((c) => COMMODITY_LABELS[c]).join(' and ')} {short.length === 1 ? 'runs' : 'run'} out before the term ends.</strong>{' '}
           Let the head teacher know.
         </StatusLine>
       )}
@@ -81,14 +79,16 @@ function Balances({ data }) {
           const { shownKg, shortfallKg } = shown[c];
           let hint = 'Record feeding to work out days left';
           if (shortfallKg > 0) hint = `${formatNumber(shortfallKg)} kg more used than received. Count the store to know.`;
-          else if (p && p.days !== null) hint = `About ${formatNumber(p.days)} school days at ${formatNumber(p.kgPerDay)} kg a day`;
+          else if (p?.runsOut) hint = `${schoolDaysText(p.days)} of food, ${formatNumber(remaining.length)} school days left${p.lastsUntil ? ` (lasts until ${p.lastsUntil})` : ''}. Request about ${formatNumber(Math.ceil(p.shortKg))} kg.`;
+          else if (p && p.days !== null) hint = `About ${schoolDaysText(p.days).toLowerCase()} at ${formatNumber(p.kgPerDay)} kg a day`;
           return (
             <StatCard key={c} label={COMMODITY_LABELS[c]} icon={shortfallKg > 0 ? AlertTriangle : undefined}
               value={`${formatNumber(shownKg)} kg`} hint={hint} />
           );
         })}
       </div>
-      {chartData.length > 0 && (
+      {/* With no food left at all the bars would all be zero; the cards already say so */}
+      {chartData.some((d) => d.days > 0) && (
         <ChartCard title="Will the food last the term?" type="ranked" data={chartData} xKey="food" xLabel="Food"
           description="School days of food in the store, at the 10-day average of learners fed"
           summary={chartData.map((d) => `${d.food}: ${formatNumber(d.days)} school days`).join('; ') + `. ${formatNumber(remaining.length)} school days are left this term.`}
