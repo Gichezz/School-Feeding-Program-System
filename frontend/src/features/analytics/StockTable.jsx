@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Warehouse } from 'lucide-react';
+import EmptyState from '../../components/ui/EmptyState';
 import { formatNumber } from '../../utils/format';
 import { lowOnFood } from './analyticsData';
 
@@ -19,6 +20,13 @@ function StockTable({ schools, caption, limit }) {
     .sort((a, b) => a.daysOfFood - b.daysOfFood || a.name.localeCompare(b.name))
     .slice(0, limit);
   const termOpen = rows.some((s) => s.schoolDaysLeft > 0);
+
+  if (rows.length === 0) {
+    return (
+      <EmptyState compact icon={Warehouse} title="No store figures yet"
+        description="They appear once schools have sent feeding and stock records for this term." />
+    );
+  }
 
   return (
     <div className="stock-table">

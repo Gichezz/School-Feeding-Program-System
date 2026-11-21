@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { CloudOff, MapPin, RefreshCw, School } from 'lucide-react';
 import { SyncStatusBar } from '../ui';
 import LisheLogo from './LisheLogo';
@@ -35,6 +36,8 @@ function useSchoolName() {
 /** The feeding teacher's top bar: the school and how its records are syncing. */
 function SchoolBar() {
   const sync = useSyncStatus();
+  // The Sync page shows the full sync block itself, so the top bar keeps only the short pill there
+  const onSyncPage = useLocation().pathname === '/sync';
   const schoolName = useSchoolName();
   const barProps = {
     state: sync.state,
@@ -56,23 +59,39 @@ function SchoolBar() {
           <span className="app-topbar__scope-text">{schoolName}</span>
         </p>
       )}
-      <div className="app-topbar__status app-topbar__status--bar">
-        <SyncStatusBar {...barProps} onSyncNow={sync.syncNow} />
-      </div>
-      <div className="app-topbar__status app-topbar__status--pill">
+      {!onSyncPage && (
+        <div className="app-topbar__status app-topbar__status--bar">
+          <SyncStatusBar {...barProps} onSyncNow={sync.syncNow} />
+        </div>
+      )}
+      <div className={`app-topbar__status app-topbar__status--pill ${onSyncPage ? 'app-topbar__status--always' : ''}`.trim()}>
         <SyncStatusBar {...barProps} variant="pill" />
       </div>
     </>
   );
 }
 
+const scopeKey = (userId) => `lishe.scope.${userId}`;
+
+function rememberScope(userId, scope) {
+  try { sessionStorage.setItem(scopeKey(userId), scope); } catch { /* storage blocked: shown per page only */ }
+}
+
+function rememberedScope(userId) {
+  try { return sessionStorage.getItem(scopeKey(userId)) || ''; } catch { return ''; }
+}
+
 /**
  * The programme officer's top bar: whose schools these are, and how current the
  * figures on screen are. Officers record nothing on this device, so there is no sync.
  */
-function OversightBar() {
+function OversightBar({ userId }) {
   const isOnline = useOnlineStatus();
-  const { loadedAt, scope, refresh } = useDataFreshness();
+  const { loadedAt, scope: loadedScope, refresh } = useDataFreshness();
+  // Pages that do not load figures (Settings, a reload of Weekly review) keep the
+  // sub-county the officer's data last named, so every page shows it
+  useEffect(() => { if (loadedScope) rememberScope(userId, loadedScope); }, [userId, loadedScope]);
+  const scope = loadedScope || rememberedScope(userId);
 
   return (
     <>
@@ -120,7 +139,7 @@ function TopBar() {
         <LisheLogo className="app-topbar__logo" />
       </div>
       {role === 'school_staff' && <SchoolBar />}
-      {role === 'programme_officer' && <OversightBar />}
+      {role === 'programme_officer' && <OversightBar userId={user?.id} />}
       <UserMenu />
     </header>
   );

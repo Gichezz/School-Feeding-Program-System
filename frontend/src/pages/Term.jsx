@@ -154,7 +154,7 @@ function Term() {
   const data = useSchoolData();
   return (
     <>
-      <PageHeader title="Term" description="The food to request for a term, and the termly report from this device's records." />
+      <PageHeader title="Term plan and report" description="The food to request for a term, and the termly report from this device's records." />
       <SchoolGate data={data}>
         <TermScreens data={data} />
       </SchoolGate>

@@ -31,7 +31,10 @@ import {
 export const NAV_GROUPS = [
   {
     label: 'Overview',
-    items: [{ to: '/', label: 'Dashboard', shortLabel: 'Home', icon: LayoutDashboard, end: true, mobileTab: true, notStaff: true }],
+    items: [
+      { to: '/', label: 'Dashboard', shortLabel: 'Home', icon: LayoutDashboard, end: true, mobileTab: true, notStaff: true },
+      { to: '/analytics', label: 'Analytics', icon: PieChart, oversight: true, mobileTab: true },
+    ],
   },
   {
     label: 'School',
@@ -40,6 +43,8 @@ export const NAV_GROUPS = [
       { to: '/stock', label: 'Stock', icon: Warehouse, mobileTab: true, staffOnly: true },
       { to: '/term', label: 'Term plan and report', shortLabel: 'Term', icon: FileText, mobileTab: true, staffOnly: true },
       { to: '/enrolment', label: 'Enrolment', icon: Users, staffOnly: true },
+      // Only a school device sends records; officers and administrators record nothing here
+      { to: '/sync', label: 'Sync', icon: RefreshCw, mobileTab: true, staffOnly: true },
     ],
   },
   {
@@ -53,25 +58,12 @@ export const NAV_GROUPS = [
     ],
   },
   {
-    label: 'Insights',
-    items: [
-      { to: '/analytics', label: 'Analytics', icon: PieChart, oversight: true, mobileTab: true },
-    ],
-  },
-  {
     // The system administrator's work: accounts, school devices and the national calendar (no school records)
     label: 'Manage',
     items: [
       { to: '/users', label: 'Users', icon: UserCog, adminOnly: true, mobileTab: true },
       { to: '/devices', label: 'Devices', icon: Tablet, adminOnly: true, mobileTab: true },
       { to: '/calendar', label: 'School calendar', shortLabel: 'Calendar', icon: CalendarDays, adminOnly: true },
-    ],
-  },
-  {
-    // Only a school device sends records; officers and administrators record nothing here
-    label: 'Data sync',
-    items: [
-      { to: '/sync', label: 'Sync Status', shortLabel: 'Sync', icon: RefreshCw, mobileTab: true, staffOnly: true },
     ],
   },
   {

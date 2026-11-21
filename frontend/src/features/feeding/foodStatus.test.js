@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { displayBalance, foodStatus } from './foodStatus';
+import { displayBalance, foodStatus, schoolDaysText } from './foodStatus';
 
 describe('displayBalance', () => {
   it('shows a negative balance as 0 kg with the gap as a shortfall', () => {
@@ -41,5 +41,13 @@ describe('foodStatus', () => {
 
   it('has nothing to plan for when the term has no school days left', () => {
     expect(foodStatus({ balances: { cereals: 100, pulses: 20 }, food: food(10, false), remainingDays: 0 }).kind).toBe('noTerm');
+  });
+});
+
+describe('schoolDaysText', () => {
+  it('never says 0 school days', () => {
+    expect(schoolDaysText(0)).toBe('Less than a school day');
+    expect(schoolDaysText(1)).toBe('1 school day');
+    expect(schoolDaysText(12)).toBe('12 school days');
   });
 });

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle, CalendarX, CloudOff, Scale, Truck, Warehouse } from 'lucide-react';
 import {
-  Alert, Badge, Card, ChartCard, DataTable, FormField, PageHeader, PrintButton, PrintHeader, StatusLine, TriageSection,
+  Alert, Card, ChartCard, DataTable, FormField, PageHeader, PrintButton, PrintHeader, StatusLine, TriageSection,
 } from '../components/ui';
 import { Link } from 'react-router-dom';
 import { getTermAnalytics } from '../services/api';
@@ -12,12 +12,21 @@ import { NOT_FED_REASONS } from '../features/feeding/planning';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useSession } from '../hooks/useSession';
 import { formatNumber, formatPercent } from '../utils/format';
+import { useChosenTerm } from '../hooks/useChosenTerm';
 
-/** A figure, marked when it needs attention, with the reason as its label. */
-function Figure({ note, children }) {
-  return note
-    ? <span className="analytics__flag"><Badge tone="warning" icon={AlertTriangle} title={note}>{children}</Badge><span className="visually-hidden"> ({note})</span></span>
-    : <span className="tabular-nums">{children}</span>;
+/**
+ * A figure, with an optional muted second line (sub). When it needs attention it is
+ * shown in the warning colour with an icon, and the reason is its label.
+ */
+function Figure({ note, sub, children }) {
+  return (
+    <span className="analytics__cell">
+      {note
+        ? <span className="analytics__flag" title={note}><AlertTriangle className="analytics__flag-icon" aria-hidden="true" />{children}<span className="visually-hidden"> ({note})</span></span>
+        : <span className="tabular-nums">{children}</span>}
+      {sub && <span className="analytics__sub">{sub}</span>}
+    </span>
+  );
 }
 
 const days = (n) => `${formatNumber(n)} ${n === 1 ? 'day' : 'days'}`;
@@ -73,15 +82,15 @@ function columns() {
     {
       key: 'records', header: 'Days recorded', sortValue: (s) => s.missing,
       render: (s) => (
-        <Figure note={s.notes.records}>
+        <Figure note={s.notes.records}
+          sub={s.notFed > 0 && `${s.notFed} not fed${s.mainReason ? ` (${(NOT_FED_REASONS[s.mainReason] || s.mainReason).toLowerCase()})` : ''}`}>
           {formatNumber(s.recorded)} of {formatNumber(s.schoolDays)}
-          {s.notFed > 0 && ` · ${s.notFed} not fed${s.mainReason ? ` (${(NOT_FED_REASONS[s.mainReason] || s.mainReason).toLowerCase()})` : ''}`}
         </Figure>
       ),
     },
     {
       key: 'coverage', header: 'Learners fed', align: 'end', sortValue: (s) => s.coverage,
-      render: (s) => (s.coverage === null ? '–' : `${formatNumber(s.meanFed)} of ${formatNumber(s.enrolled)} (${formatPercent(s.coverage)})`),
+      render: (s) => (s.coverage === null ? '–' : <Figure sub={`${formatNumber(s.meanFed)} of ${formatNumber(s.enrolled)}`}>{formatPercent(s.coverage)}</Figure>),
     },
     {
       key: 'cereals', header: 'Cereals vs ration', align: 'end', sortValue: (s) => s.cerealsVsRation,
@@ -103,8 +112,9 @@ function columns() {
         if (s.programmeType !== 'in_kind') return 'Buys its own food';
         if (!s.firstDelivery) return <Figure note={s.notes.delivery}>None yet</Figure>;
         return (
-          <Figure note={s.notes.delivery}>
-            {s.firstDelivery} ({after(s.deliveryDaysAfterOpening)}){s.deliveryShortKg > 0 && ` · ${formatNumber(s.deliveryShortKg)} kg short`}
+          <Figure note={s.notes.delivery}
+            sub={`${after(s.deliveryDaysAfterOpening)}${s.deliveryShortKg > 0 ? ` · ${formatNumber(s.deliveryShortKg)} kg short` : ''}`}>
+            {s.firstDelivery}
           </Figure>
         );
       },
@@ -192,7 +202,7 @@ function Analytics() {
   const isOnline = useOnlineStatus();
   const { user } = useSession();
   const allowed = user?.role === 'programme_officer';
-  const [termId, setTermId] = useState('');
+  const [termId, setTermId] = useChosenTerm();
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const { refreshKey, markLoaded } = useDataFreshness();
@@ -225,7 +235,7 @@ function Analytics() {
   const inGroup = Object.fromEntries(Object.entries(groups).map(([key, list]) => [key, new Set(list.map((s) => s.schoolId))]));
 
   return (
-    <div data-density="compact">
+    <div data-density="compact" className="analytics">
       {data && <PrintHeader title="Schools to look at" scope={`${data.subCounty} · ${data.term.label} · figures up to ${data.asOf}`} />}
       <PageHeader
         title="Analytics"

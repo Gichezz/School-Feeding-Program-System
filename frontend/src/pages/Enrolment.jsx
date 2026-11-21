@@ -116,6 +116,7 @@ function EnrolmentForm({ data }) {
         <div className="enrolment__grid" role="group" aria-label="Learners by class and sex">
           <span className="enrolment__head">Class</span>
           {SEXES.map(([s, label]) => <span key={s} className="enrolment__head">{label}</span>)}
+          <span className="enrolment__head enrolment__total">Total</span>
           {CLASSES.map((c) => (
             <div key={c} className="enrolment__row">
               <span className="enrolment__class">
@@ -128,10 +129,19 @@ function EnrolmentForm({ data }) {
                   onChange={(e) => setValues((v) => ({ ...v, [cellKey(c, s)]: e.target.value }))}
                   error={submitted ? errors[cellKey(c, s)] : undefined} />
               ))}
+              <span className="enrolment__total tabular-nums" aria-hidden="true">
+                {formatNumber(SEXES.reduce((n, [s]) => n + (toCount(values[cellKey(c, s)]) || 0), 0))}
+              </span>
             </div>
           ))}
+          <span className="enrolment__rule" aria-hidden="true" />
+          <div className="enrolment__row enrolment__sum" aria-hidden="true">
+            <span className="enrolment__class">All classes</span>
+            {SEXES.map(([s]) => <span key={s} className="enrolment__total tabular-nums">{formatNumber(totalBy(s))}</span>)}
+            <span className="enrolment__total tabular-nums">{formatNumber(total)}</span>
+          </div>
         </div>
-        <p className="recording__note">
+        <p className="recording__note enrolment__note">
           {formatNumber(total)} learners: {formatNumber(totalBy('F'))} girls and {formatNumber(totalBy('M'))} boys.
         </p>
         {needsReason && (

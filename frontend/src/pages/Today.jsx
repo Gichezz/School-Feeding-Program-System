@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, CalendarCheck, CalendarX, Save, Wheat } from 'lucide-react';
+import { AlertTriangle, CalendarCheck, CalendarX, Save, Wheat, X } from 'lucide-react';
 import {
-  Alert, Button, Card, ChoiceGroup, DataTable, DateField, EmptyState, FoodIcon, FormField, PageHeader, RecordStatus, StatusLine,
+  Alert, Button, Card, ChoiceGroup, DateField, EmptyState, FoodIcon, FormField, PageHeader, RecordStatus, StatusLine,
   recordStateFor, useToast,
 } from '../components/ui';
 import SchoolGate from '../features/feeding/SchoolGate';
@@ -11,7 +11,7 @@ import {
   NOT_FED_REASONS, UNUSUAL_REASONS, averageFed, calendarEnded, dayKey, foodRemaining, schoolDays, stockBalances, todayKey,
   validateFeeding, COMMODITIES, COMMODITY_LABELS,
 } from '../features/feeding/planning';
-import { displayBalance, foodStatus } from '../features/feeding/foodStatus';
+import { displayBalance, foodStatus, schoolDaysText } from '../features/feeding/foodStatus';
 import { saveDailyFeeding } from '../services/feedingDb';
 import { manualSync } from '../sync/syncManager';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
@@ -212,20 +212,50 @@ function TodayForm({ data }) {
 function Recent({ data }) {
   const rows = [...data.feedingDays]
     .sort((a, b) => dayKey(b.feedingDate).localeCompare(dayKey(a.feedingDate)))
-    .slice(0, RECENT_DAYS)
-    .map((d) => ({ ...d, key: d.id }));
-  const columns = [
-    { key: 'feedingDate', header: 'Date', primary: true },
-    { key: 'learnersFed', header: 'Learners fed', align: 'end', render: (r) => (r.feedingHappened ? formatNumber(r.learnersFed) : 'Not fed') },
-    { key: 'cerealsKg', header: 'Cereals (kg)', align: 'end', render: (r) => formatNumber(r.cerealsKg) },
-    { key: 'pulsesKg', header: 'Pulses (kg)', align: 'end', render: (r) => formatNumber(r.pulsesKg) },
-    { key: 'status', header: 'Status', render: (r) => <RecordStatus state={recordStateFor(r.syncStatus)} /> },
-  ];
+    .slice(0, RECENT_DAYS);
   return (
     <Card title="Recent days" description="Newest first, from every device at the school.">
       {rows.length === 0
         ? <EmptyState icon={CalendarCheck} title="No feeding recorded yet" description="Days you record appear here." compact />
-        : <DataTable caption="Recent feeding days" columns={columns} rows={rows} getRowKey={(r) => r.key} />}
+        : (
+          <table className="recent-days">
+            <caption className="visually-hidden">Recent feeding days</caption>
+            <thead>
+              <tr>
+                <th scope="col">Date</th>
+                <th scope="col" className="recent-days__num">Fed</th>
+                <th scope="col" className="recent-days__num">Cereals kg</th>
+                <th scope="col" className="recent-days__num">Pulses kg</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => {
+                const state = recordStateFor(r.syncStatus);
+                return (
+                  <tr key={r.id}>
+                    <th scope="row" className="recent-days__date">
+                      {/* The register's mark: a fed day is a sage square, a day without feeding a red cross */}
+                      <span className={`recent-days__mark recent-days__mark--${r.feedingHappened ? 'fed' : 'not-fed'}`} aria-hidden="true">
+                        {!r.feedingHappened && <X />}
+                      </span>
+                      <span>
+                        {r.feedingDate}
+                        {state !== 'sent' && <RecordStatus state={state} className="recent-days__status" />}
+                      </span>
+                    </th>
+                    {r.feedingHappened ? (
+                      <>
+                        <td className="recent-days__num">{formatNumber(r.learnersFed)}</td>
+                        <td className="recent-days__num">{formatNumber(r.cerealsKg)}</td>
+                        <td className="recent-days__num">{formatNumber(r.pulsesKg)}</td>
+                      </>
+                    ) : <td colSpan={3} className="recent-days__none">Not fed</td>}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
     </Card>
   );
 }
@@ -282,7 +312,7 @@ function FoodLine({ data }) {
       .reduce((a, b) => (a === null || food.perCommodity[b].days < food.perCommodity[a].days ? b : a), null),
   };
   const status = foodStatus({ balances: { cereals: balances.cereals, pulses: balances.pulses }, food: daily, remainingDays: remaining.length });
-  const days = (n) => (n === 1 ? '1 more school day' : `${formatNumber(n)} more school days`);
+  const days = (n) => (n < 1 ? 'less than a school day' : `${schoolDaysText(n).replace(/ school/, ' more school')}`);
   const left = (n) => (n === 1 ? '1 school day left this term' : `${formatNumber(n)} school days left this term`);
 
   if (status.kind === 'incomplete') {
@@ -318,12 +348,13 @@ function Today() {
       <PageHeader title="Today" description="Record whether learners were fed and the food issued from the store." />
       <SchoolGate data={data}>
         <div className="today__layout">
+          {/* The day's record comes first; the store and recent days sit beside it, or under it on phones */}
           <div className="today__main ui-stack">
             <FoodLine data={data} />
-            <InStore data={data} />
             <TodayForm data={data} />
           </div>
-          <div className="today__side">
+          <div className="today__side ui-stack">
+            <InStore data={data} />
             <Recent data={data} />
           </div>
         </div>

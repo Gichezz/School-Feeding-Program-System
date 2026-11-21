@@ -5,6 +5,8 @@ import { AlertCircle } from 'lucide-react';
  * Labelled form control with hint and error text wired up for assistive technology.
  * as: 'input' (default), 'select' or 'textarea'. size 'lg' gives large,
  * thumb-friendly inputs for number entry on phones.
+ * The hint sits under the control, so fields side by side line up whatever their hints.
+ * suffix: a unit as text ("kg") is shown inside the input; anything else (a button) beside it.
  */
 function FormField({
   label,
@@ -25,6 +27,7 @@ function FormField({
   const errorId = error ? `${id}-error` : undefined;
   const describedBy = [hintId, errorId].filter(Boolean).join(' ') || undefined;
   const Control = as;
+  const unit = typeof suffix === 'string';
 
   return (
     <div className={`ui-field ui-field--${size} ${error ? 'ui-field--invalid' : ''} ${className}`.replace(/\s+/g, ' ').trim()}>
@@ -32,8 +35,7 @@ function FormField({
         {label}
         {required && <span className="ui-field__required" aria-hidden="true"> *</span>}
       </label>
-      {hint && <p id={hintId} className="ui-field__hint">{hint}</p>}
-      <div className="ui-field__control-row">
+      <div className={`ui-field__control-row ${unit ? 'ui-field__control-row--unit' : ''}`.trim()}>
         <Control
           id={id}
           className="ui-field__control"
@@ -49,8 +51,9 @@ function FormField({
             ))
             : undefined}
         </Control>
-        {suffix && <span className="ui-field__suffix">{suffix}</span>}
+        {suffix && <span className={unit ? 'ui-field__unit' : 'ui-field__suffix'}>{suffix}</span>}
       </div>
+      {hint && <p id={hintId} className="ui-field__hint">{hint}</p>}
       {error && (
         <p id={errorId} className="ui-field__error">
           <AlertCircle className="ui-field__error-icon" aria-hidden="true" />

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { recentMondays, scoredText, weekLabel } from './weeks';
+import { groupBreaches, recentMondays, scoredText, weekLabel, withoutVerdict } from './weeks';
 
 describe('recentMondays', () => {
   it('starts at the Monday of the current week', () => {
@@ -32,5 +32,32 @@ describe('scoredText', () => {
   it('names the officer who scored it, when one did', () => {
     expect(scoredText({ scoredBySchedule: false, scoredBy: 'Amina Otieno' }, '09-11-2026 10:15')).toBe('Scored on 09-11-2026 10:15 by Amina Otieno.');
     expect(scoredText({ scoredBySchedule: false, scoredBy: null }, '09-11-2026 10:15')).toBe('Scored on 09-11-2026 10:15.');
+  });
+});
+
+describe('withoutVerdict', () => {
+  it('drops the "Needs review:" verdict and keeps the reasons', () => {
+    expect(withoutVerdict('Needs review: enrolment 35% up on last term (651 learners); 514 learners fed'))
+      .toBe('enrolment 35% up on last term (651 learners); 514 learners fed');
+  });
+
+  it('leaves other text alone and copes with a missing explanation', () => {
+    expect(withoutVerdict('learners fed 12% above usual')).toBe('learners fed 12% above usual');
+    expect(withoutVerdict(undefined)).toBe('');
+  });
+});
+
+describe('groupBreaches', () => {
+  it('folds the same finding at one school into one line with its dates', () => {
+    const detail = 'enrolment 35% up on last term (651 learners)';
+    const breaches = [
+      { schoolId: 'a', schoolName: 'Demo Primary School', rule: 'enrolment', detail, date: '19-10-2026' },
+      { schoolId: 'a', schoolName: 'Demo Primary School', rule: 'enrolment', detail, date: '21-10-2026' },
+      { schoolId: 'b', schoolName: 'Amani Primary School', rule: 'ration', detail: 'cereals at 1.4 times the ration', date: '19-10-2026' },
+    ];
+    expect(groupBreaches(breaches)).toEqual([
+      { key: `a|enrolment|${detail}`, schoolName: 'Demo Primary School', detail, dates: ['19-10-2026', '21-10-2026'] },
+      { key: 'b|ration|cereals at 1.4 times the ration', schoolName: 'Amani Primary School', detail: 'cereals at 1.4 times the ration', dates: ['19-10-2026'] },
+    ]);
   });
 });

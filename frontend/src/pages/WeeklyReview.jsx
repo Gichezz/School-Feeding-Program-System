@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Circle, CloudOff, Eye, ListChecks, RefreshCw, Search } from 'lucide-react';
+import { useCallback, useEffect, useId, useMemo, useState } from 'react';
+import { CheckCircle2, ChevronDown, ChevronUp, Circle, CloudOff, Eye, ListChecks, RefreshCw, Search } from 'lucide-react';
 import {
   Alert,
   Badge,
@@ -18,7 +18,7 @@ import {
 } from '../components/ui';
 import { useDataFreshness } from '../hooks/useDataFreshness';
 import { decideReviewItem, getReviewList, getReviewWeeks, scoreReviewWeek } from '../services/api';
-import { DECISIONS, MODES, recentMondays, scoredText, weekLabel } from '../features/weeklyReview/weeks';
+import { DECISIONS, groupBreaches, MODES, recentMondays, scoredText, weekLabel, withoutVerdict } from '../features/weeklyReview/weeks';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useSession } from '../hooks/useSession';
 import { formatDateTime } from '../utils/format';
@@ -130,6 +130,41 @@ function ListedSchool({ item, week, canDecide, onSaved }) {
   );
 }
 
+/** The schools below the list, ranked, with their strongest reasons: folded away on screen, always on paper. */
+function OtherSchools({ others, startRank }) {
+  const [open, setOpen] = useState(false);
+  const listId = useId();
+  return (
+    <Card title={`Other schools this week (${others.length})`}
+      description="Ranked below the list. Their strongest reasons are shown for reference."
+      actions={(
+        <Button variant="ghost" size="sm" className="no-print" icon={open ? ChevronUp : ChevronDown} aria-expanded={open} aria-controls={listId}
+          onClick={() => setOpen((v) => !v)}>
+          {open ? 'Hide' : 'Show'}
+        </Button>
+      )}>
+      <table id={listId} className={`weekly-review__others ${open ? '' : 'weekly-review__others--closed'}`.trim()}>
+        <caption className="visually-hidden">Other schools this week, ranked</caption>
+        <thead>
+          <tr><th scope="col">Rank</th><th scope="col">School</th><th scope="col">Strongest reasons</th></tr>
+        </thead>
+        <tbody>
+          {others.map((item, i) => (
+            <tr key={item.schoolId}>
+              <td className="tabular-nums">{startRank + i}</td>
+              <th scope="row">{item.schoolName}</th>
+              <td>
+                {withoutVerdict(item.explanation)}
+                {item.decision && ` (${DECISIONS[item.decision.status].label.toLowerCase()})`}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Card>
+  );
+}
+
 /**
  * Weekly review list, for programme officers (their sub-county) and administrators.
  * Each week every school is ranked by how unusual its records look against the
@@ -225,7 +260,7 @@ function WeeklyReview() {
           </div>
           {list && (
             <p className="weekly-review__meta">
-              {MODES[list.mode]} {scoredText(list, formatDateTime(list.scoredAt))}
+              {MODES[list.mode]} {scoredText(list, formatDateTime(list.scoredAt))}{' '}
               Late records for a recent week get it scored again automatically; decisions are kept.
             </p>
           )}
@@ -274,9 +309,10 @@ function WeeklyReview() {
               <h2 id="rule-breaches" className="review__title"><Search className="review__icon" aria-hidden="true" />Fixed checks this week</h2>
               <p className="review__record">These are shown for every school, whatever its rank.</p>
               <ul className="weekly-review__breaches">
-                {list.ruleBreaches.map((b) => (
-                  <li key={`${b.schoolId}-${b.date}-${b.rule}`}>
-                    <strong>{b.schoolName || 'A school'}</strong>, {b.date}: {b.detail}
+                {groupBreaches(list.ruleBreaches).map((b) => (
+                  <li key={b.key}>
+                    <strong>{b.schoolName || 'A school'}</strong>: {b.detail}
+                    <span className="weekly-review__dates"> · {b.dates.length === 1 ? b.dates[0] : `${b.dates.length} days (${b.dates.join(', ')})`}</span>
                   </li>
                 ))}
               </ul>
@@ -284,21 +320,7 @@ function WeeklyReview() {
           </Card>
         )}
 
-        {others.length > 0 && (
-          <Card>
-            <details className="weekly-review__others">
-              <summary>Other schools this week ({others.length})</summary>
-              <ol className="weekly-review__breaches" start={listed.length + 1}>
-                {others.map((item) => (
-                  <li key={item.schoolId}>
-                    <strong>{item.schoolName}</strong>: {item.explanation}
-                    {item.decision && ` (${DECISIONS[item.decision.status].label.toLowerCase()})`}
-                  </li>
-                ))}
-              </ol>
-            </details>
-          </Card>
-        )}
+        {others.length > 0 && <OtherSchools others={others} startRank={listed.length + 1} />}
       </div>
     </div>
   );

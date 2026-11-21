@@ -41,7 +41,8 @@ function BlockingBanner() {
   }
 
   const needsPasskey = isAdmin && isValid && session?.user?.needsPasskey;
-  if (needsPasskey && (pathname === '/' || pathname === '/settings')) {
+  // The dashboard's work list already carries this, so the banner shows only where it is done
+  if (needsPasskey && pathname === '/settings') {
     return (
       <Alert
         tone="warning"

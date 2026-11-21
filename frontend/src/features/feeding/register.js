@@ -22,6 +22,26 @@ export function registerWeeks(days) {
   return weeks.map((w) => w.cells);
 }
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/**
+ * The register's month labels: the first day shown and the first day of each new month
+ * get the short month name, so a run like 30, 1, 2 reads as the turn of a month.
+ *
+ * @param {{ date: string }[]} days - in order, dates as DD-MM-YYYY
+ * @returns {Map<string, string>} date -> short month name
+ */
+export function monthLabels(days) {
+  const labels = new Map();
+  let month = null;
+  days.forEach((day) => {
+    const m = Number(day.date.slice(3, 5));
+    if (m !== month) labels.set(day.date, MONTHS[m - 1]);
+    month = m;
+  });
+  return labels;
+}
+
 /**
  * One plain sentence on the term so far, and a second when the school has stopped
  * feeding (three or more school days in a row without it, since the last fed day).

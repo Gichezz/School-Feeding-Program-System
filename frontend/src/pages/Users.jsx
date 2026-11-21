@@ -8,7 +8,7 @@ import UsersSection from '../features/users/UsersSection';
  */
 function Users() {
   return (
-    <div data-density="compact">
+    <div data-density="compact" className="users">
       <PageHeader title="Users" description="Everyone who can sign in to Lishe." />
       <UsersSection />
     </div>

@@ -1,3 +1,4 @@
+import { formatNumber } from '../../utils/format';
 import { COMMODITY_LABELS } from './planning';
 
 // Food is recorded to the nearest half kilogram, so anything closer to zero than a
@@ -51,4 +52,10 @@ export function foodStatus({ balances, food, remainingDays }) {
     days: limiting.days,
     remainingDays,
   };
+}
+
+/** "Less than a school day", "1 school day", "12 school days": never "0 school days". */
+export function schoolDaysText(n) {
+  if (n < 1) return 'Less than a school day';
+  return n === 1 ? '1 school day' : `${formatNumber(n)} school days`;
 }

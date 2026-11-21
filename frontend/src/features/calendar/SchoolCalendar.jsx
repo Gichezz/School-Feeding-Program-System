@@ -232,8 +232,8 @@ function SchoolCalendar() {
         </span>
       ),
     },
-    { key: 'kind', header: 'What', render: (e) => <Badge tone={e.kind === 'national_exam' ? 'info' : 'neutral'}>{KIND_LABEL[e.kind]}</Badge> },
-    { key: 'dates', header: 'Dates', render: (e) => <span className="tabular-nums">{dateRange(e.startsOn, e.endsOn)}</span>, sortValue: (e) => e.startsOn.split('-').reverse().join('-') },
+    { key: 'kind', header: 'What', render: (e) => <span className="calendar__kind">{KIND_LABEL[e.kind]}</span> },
+    { key: 'dates', header: 'Dates', nowrap: true, render: (e) => <span className="tabular-nums">{dateRange(e.startsOn, e.endsOn)}</span>, sortValue: (e) => e.startsOn.split('-').reverse().join('-') },
     {
       key: 'actions',
       header: <span className="visually-hidden">Actions</span>,
@@ -246,7 +246,7 @@ function SchoolCalendar() {
               onClick={() => run(() => updateCalendarEvent(e.id, { confirmed: true }), `${e.name} on ${e.startsOn} confirmed`, () => loadEvents(year))}
               aria-label={`Confirm ${e.name} on ${e.startsOn}`}>Confirm</Button>
           )}
-          <Button variant="secondary" size="sm" icon={Pencil} disabled={disabled} onClick={() => { closeForms(); setEditing({ type: 'event', id: e.id }); }}
+          <Button variant="ghost" size="sm" icon={Pencil} disabled={disabled} onClick={() => { closeForms(); setEditing({ type: 'event', id: e.id }); }}
             aria-label={`Change ${e.name}`}>Change</Button>
           <Button variant="ghost" size="sm" icon={Trash2} disabled={disabled} onClick={() => { closeForms(); setRemoving({ type: 'event', id: e.id }); }}
             aria-label={`Remove ${e.name}`}>Remove</Button>
@@ -332,7 +332,7 @@ function SchoolCalendar() {
                               </ConfirmRemove>
                             ) : (
                               <div className="calendar__actions calendar__actions--row">
-                                <Button variant="secondary" size="sm" icon={Pencil} disabled={disabled} onClick={() => { closeForms(); setEditing({ type: 'term', id: t.id }); }}
+                                <Button variant="ghost" size="sm" icon={Pencil} disabled={disabled} onClick={() => { closeForms(); setEditing({ type: 'term', id: t.id }); }}
                                   aria-label={`Change ${t.label}`}>Change</Button>
                                 <Button variant="ghost" size="sm" icon={Trash2} disabled={disabled} onClick={() => { closeForms(); setRemoving({ type: 'term', id: t.id }); }}
                                   aria-label={`Remove ${t.label}`}>Remove</Button>

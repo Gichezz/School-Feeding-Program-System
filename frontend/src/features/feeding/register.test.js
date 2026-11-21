@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { registerWeeks, termSentence } from './register';
+import { registerWeeks, termSentence, monthLabels } from './register';
 
 const day = (date, weekday, kind, extra = {}) => ({ date, weekday, kind, ...extra });
 
@@ -40,5 +40,12 @@ describe('termSentence', () => {
     const days = [day('08-10-2026', 4, 'fed'), day('09-10-2026', 5, 'not_fed', { reason: 'cook_absent' })];
 
     expect(termSentence(summary, days).stopped).toBeNull();
+  });
+});
+
+describe('monthLabels', () => {
+  it('names the month on the first day shown and where a new month starts', () => {
+    const days = ['29-09-2026', '30-09-2026', '01-10-2026', '02-10-2026'].map((date) => ({ date }));
+    expect([...monthLabels(days)]).toEqual([['29-09-2026', 'Sep'], ['01-10-2026', 'Oct']]);
   });
 });
