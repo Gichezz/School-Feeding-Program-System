@@ -1520,6 +1520,10 @@
   border-bottom: 0;
 }
 
+.weekly-review__others--closed {
+  display: none;
+}
+
 @media (max-width: 767px) {
   .weekly-review__others tbody th {
     white-space: normal;
@@ -1815,8 +1819,13 @@
   }
 
   .ui-table--sticky th,
-  .analytics__flag .ui-badge {
+  .ui-table--sticky .ui-table__cell--sticky,
+  .ui-table__cell--nowrap {
     white-space: normal !important;
+  }
+
+  .analytics .ui-table--sticky th {
+    min-width: 0 !important;
   }
 
   .ui-table__table th,
@@ -1828,6 +1837,11 @@
   .ui-table--sticky .ui-table__cell--sticky {
     position: static;
     box-shadow: none;
+  }
+
+  /* The whole ranking is on paper, even when it is folded away on screen */
+  .weekly-review__others--closed {
+    display: table !important;
   }
 
   /* Reasons one under another on paper */

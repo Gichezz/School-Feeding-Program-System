@@ -130,7 +130,7 @@ function ListedSchool({ item, week, canDecide, onSaved }) {
   );
 }
 
-/** The schools below the list, ranked, with their strongest reasons; folded away by default. */
+/** The schools below the list, ranked, with their strongest reasons: folded away on screen, always on paper. */
 function OtherSchools({ others, startRank }) {
   const [open, setOpen] = useState(false);
   const listId = useId();
@@ -138,31 +138,29 @@ function OtherSchools({ others, startRank }) {
     <Card title={`Other schools this week (${others.length})`}
       description="Ranked below the list. Their strongest reasons are shown for reference."
       actions={(
-        <Button variant="ghost" size="sm" icon={open ? ChevronUp : ChevronDown} aria-expanded={open} aria-controls={listId}
+        <Button variant="ghost" size="sm" className="no-print" icon={open ? ChevronUp : ChevronDown} aria-expanded={open} aria-controls={listId}
           onClick={() => setOpen((v) => !v)}>
           {open ? 'Hide' : 'Show'}
         </Button>
       )}>
-      {open && (
-        <table id={listId} className="weekly-review__others">
-          <caption className="visually-hidden">Other schools this week, ranked</caption>
-          <thead>
-            <tr><th scope="col">Rank</th><th scope="col">School</th><th scope="col">Strongest reasons</th></tr>
-          </thead>
-          <tbody>
-            {others.map((item, i) => (
-              <tr key={item.schoolId}>
-                <td className="tabular-nums">{startRank + i}</td>
-                <th scope="row">{item.schoolName}</th>
-                <td>
-                  {withoutVerdict(item.explanation)}
-                  {item.decision && ` (${DECISIONS[item.decision.status].label.toLowerCase()})`}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      <table id={listId} className={`weekly-review__others ${open ? '' : 'weekly-review__others--closed'}`.trim()}>
+        <caption className="visually-hidden">Other schools this week, ranked</caption>
+        <thead>
+          <tr><th scope="col">Rank</th><th scope="col">School</th><th scope="col">Strongest reasons</th></tr>
+        </thead>
+        <tbody>
+          {others.map((item, i) => (
+            <tr key={item.schoolId}>
+              <td className="tabular-nums">{startRank + i}</td>
+              <th scope="row">{item.schoolName}</th>
+              <td>
+                {withoutVerdict(item.explanation)}
+                {item.decision && ` (${DECISIONS[item.decision.status].label.toLowerCase()})`}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </Card>
   );
 }

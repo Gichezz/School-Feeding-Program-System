@@ -94,9 +94,9 @@
   --status-retry-border: var(--color-warning-border);
 
   /* Chart series: one colour per metric, everywhere in the app */
-  --chart-1: #4d7c5b; /* learners fed / present: sage */
-  --chart-2: #8c4a2f; /* pulses / meals served: bean brown */
-  --chart-3: #a16207; /* cereals / meals prepared: maize */
+  --chart-1: #4d7c5b; /* learners fed: sage */
+  --chart-2: #8c4a2f; /* pulses: bean brown */
+  --chart-3: #a16207; /* cereals: maize */
   --chart-grid: var(--color-border);
   --chart-axis: var(--color-ink-subtle);
   --chart-rule: var(--color-ink-muted); /* a rule's threshold, drawn dashed */

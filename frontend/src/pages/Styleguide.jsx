@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CalendarCheck, Utensils, Trash2, CloudUpload, Save, RefreshCw, Plus, Wheat, GitCompareArrows, Flag, ListChecks, Truck } from 'lucide-react';
+import { Trash2, CloudUpload, Save, RefreshCw, Plus, Wheat, GitCompareArrows, Flag, ListChecks, Truck } from 'lucide-react';
 import {
   Alert,
   Badge,
@@ -27,12 +27,12 @@ import {
   rangeForPreset,
   useToast,
 } from '../components/ui';
-import { formatDate, formatNumber, formatPercent, formatDelta } from '../utils/format';
+import { formatDate, formatNumber, formatPercent } from '../utils/format';
 import '../styles/styleguide.css';
 
 /**
- * Development-only page showing every design token and shared component, so the
- * system can be reviewed as one family before pages are rebuilt (issue #40).
+ * Development-only page showing every design token and shared component, with sample
+ * data shaped like the daily feeding record, so the system is reviewed as one family.
  */
 
 const COLOR_GROUPS = [
@@ -43,7 +43,7 @@ const COLOR_GROUPS = [
   { title: 'Record status', tokens: ['--status-local', '--status-sent', '--status-waiting', '--status-hold', '--status-retry'] },
   { title: 'Chart series (one per metric)', tokens: ['--chart-1', '--chart-2', '--chart-3', '--chart-rule'] },
 ];
-const CHART_LABELS = { '--chart-1': 'Learners fed / present', '--chart-2': 'Pulses / meals served', '--chart-3': 'Cereals / meals prepared', '--chart-rule': "A rule's threshold (dashed)" };
+const CHART_LABELS = { '--chart-1': 'Learners fed', '--chart-2': 'Pulses', '--chart-3': 'Cereals', '--chart-rule': "A rule's threshold (dashed)" };
 const TYPE_SCALE = ['4xl', '3xl', '2xl', 'xl', 'lg', 'base', 'sm', 'xs'];
 const SPACING = ['1', '2', '3', '4', '5', '6', '8', '10', '12', '16'];
 const RADII = ['sm', 'md', 'lg', 'xl', 'pill'];
@@ -53,9 +53,9 @@ const SHADOWS = ['sm', 'md', 'lg'];
 const DAYS = ['05-10-2026', '06-10-2026', '07-10-2026', '08-10-2026', '09-10-2026', '12-10-2026', '13-10-2026'];
 const TREND = DAYS.map((date, i) => ({
   date,
-  present: [571, 580, 566, 590, 585, 560, 588][i],
-  prepared: [600, 600, 590, 600, 600, 590, 600][i],
-  served: [568, 579, 560, 589, 582, 555, 586][i],
+  fed: [506, 513, 490, 528, 514, 495, 516][i],
+  cereals: [79, 76, 79, 81, 78, 80, 75][i],
+  pulses: [20, 21, 20, 22, 21, 20, 22][i],
 }));
 const RANKED = [
   { school: 'Jamhuri Primary', days: 3 },
@@ -64,9 +64,9 @@ const RANKED = [
   { school: 'Kilele Primary', days: 9 },
 ];
 const RECORDS = [
-  { id: 1, date: '13-10-2026', registered: 600, present: 588, absent: 12, synced: false },
-  { id: 2, date: '12-10-2026', registered: 600, present: 560, absent: 40, synced: true },
-  { id: 3, date: '09-10-2026', registered: 600, present: 585, absent: 15, synced: true },
+  { id: 1, date: '13-10-2026', fed: 513, cereals: 76, pulses: 21, synced: false },
+  { id: 2, date: '12-10-2026', fed: 490, cereals: 79, pulses: 20, synced: true },
+  { id: 3, date: '09-10-2026', fed: 528, cereals: 81, pulses: 22, synced: true },
 ];
 const minutesAgo = (n) => new Date(Date.now() - n * 60 * 1000).toISOString();
 
@@ -100,15 +100,14 @@ function ChoiceSample() {
 function Styleguide() {
   const toast = useToast();
   const [range, setRange] = useState({ preset: '7days', ...rangeForPreset('7days') });
-  const [present, setPresent] = useState('588');
+  const [fed, setFed] = useState('514');
   const [date, setDate] = useState('12-10-2026');
 
   const columns = [
-    { key: 'date', header: 'Date', primary: true },
-    { key: 'registered', header: 'Registered', align: 'end', render: (r) => formatNumber(r.registered) },
-    { key: 'present', header: 'Present', align: 'end', render: (r) => formatNumber(r.present) },
-    { key: 'absent', header: 'Absent', align: 'end', render: (r) => formatNumber(r.absent) },
-    { key: 'rate', header: 'Rate', align: 'end', render: (r) => formatPercent(r.present / r.registered) },
+    { key: 'date', header: 'Date', primary: true, nowrap: true },
+    { key: 'fed', header: 'Learners fed', align: 'end', render: (r) => formatNumber(r.fed) },
+    { key: 'cereals', header: 'Cereals (kg)', align: 'end', render: (r) => formatNumber(r.cereals) },
+    { key: 'pulses', header: 'Pulses (kg)', align: 'end', render: (r) => formatNumber(r.pulses) },
   ];
 
   return (
@@ -136,12 +135,12 @@ function Styleguide() {
           <div className="sg-type-scale">
             {TYPE_SCALE.map((size) => (
               <p key={size} className={`sg-type sg-type--${size}`}>
-                <code>--font-size-{size}</code> Attendance recorded for 588 learners
+                <code>--font-size-{size}</code> 514 learners fed, 78 kg of cereals issued
               </p>
             ))}
           </div>
           <p className="sg-sample">
-            Numbers: {formatNumber(4786)} meals · {formatPercent(0.915)} attendance · {formatDelta(-12)} vs last week · {formatDate('2026-10-12')}
+            Numbers: {formatNumber(1520)} kg · {formatPercent(0.836)} of enrolment fed · {formatDate('2026-10-12')}
           </p>
         </Section>
 
@@ -162,7 +161,7 @@ function Styleguide() {
 
         <Section title="Buttons" description="All at least 44px tall.">
           <div className="sg-row">
-            <Button icon={Save}>Save record</Button>
+            <Button icon={Save}>Save feeding</Button>
             <Button variant="secondary" icon={RefreshCw}>Sync now</Button>
             <Button variant="ghost">Cancel</Button>
             <Button variant="danger" icon={Trash2}>Delete</Button>
@@ -178,44 +177,45 @@ function Styleguide() {
           <div className="sg-row">
             <Badge>Neutral</Badge>
             <Badge tone="brand">Brand</Badge>
-            <Badge tone="success">Synced</Badge>
-            <Badge tone="warning" icon={CloudUpload}>Not yet synced</Badge>
-            <Badge tone="danger">Conflict</Badge>
-            <Badge tone="info">Syncing</Badge>
+            <Badge tone="success">Verified</Badge>
+            <Badge tone="warning" icon={CloudUpload}>Not sent yet</Badge>
+            <Badge tone="danger">Activation email failed</Badge>
+            <Badge tone="info">Public holiday</Badge>
           </div>
           <div className="ui-stack sg-tight">
-            <Alert tone="success" title="Saved on this device">Lishe will sync it when you are online.</Alert>
-            <Alert tone="warning" title="Your sign-in has expired" action={<Button size="sm" variant="secondary">Sign in</Button>}>
-              You can keep recording on this device; sign in again to sync.
+            <Alert tone="success" title="Saved on this device">Lishe sends it when you are online.</Alert>
+            <Alert tone="warning" title="Your sign-in has expired" action={<Button size="sm" variant="secondary">Sign in again</Button>}>
+              You can keep recording. Sign in again to send your records.
             </Alert>
-            <Alert tone="danger" title="Could not save">Present + absent must equal registered.</Alert>
+            <Alert tone="danger" title="Could not save">More learners fed than are enrolled.</Alert>
           </div>
         </Section>
 
         <Section title="Toasts">
           <div className="sg-row">
-            <Button variant="secondary" onClick={() => toast.show({ title: 'Saved on this device', description: 'Lishe will sync when you are online.' })}>Success toast</Button>
+            <Button variant="secondary" onClick={() => toast.show({ title: 'Feeding saved for 12-10-2026', description: 'Saved on this device. Lishe is sending it now.' })}>Success toast</Button>
             <Button variant="secondary" onClick={() => toast.show({ tone: 'info', title: 'Sync started' })}>Info toast</Button>
-            <Button variant="secondary" onClick={() => toast.show({ tone: 'warning', title: '2 changes did not sync', description: 'They will be retried.' })}>Warning toast</Button>
+            <Button variant="secondary" onClick={() => toast.show({ tone: 'warning', title: '2 changes were not sent', description: 'Lishe tries again by itself.' })}>Warning toast</Button>
           </div>
         </Section>
 
-        <Section title="Form fields" description="Large number inputs for daily entry on phones.">
+        <Section title="Form fields" description="Large number inputs for daily entry on phones. Hints sit under the control; a unit sits inside it.">
           <div className="ui-grid ui-grid--3">
             <DateField label="Date" value={date} onChange={setDate} hint="DD-MM-YYYY on every device. Type it, or use the calendar" />
             <FormField label="School" as="select" options={[{ value: '1', label: 'Demo Primary School' }]} />
             <FormField label="Notes" placeholder="Optional" />
-            <FormField label="Registered" size="lg" type="number" inputMode="numeric" defaultValue="600" suffix="learners" />
-            <FormField label="Present" size="lg" type="number" inputMode="numeric" value={present} onChange={(e) => setPresent(e.target.value)} required />
-            <FormField label="Absent" size="lg" type="number" inputMode="numeric" defaultValue="20" error="Present + absent must equal registered (588 + 20 = 608, registered 600)" required />
+            <FormField label="Learners fed" size="lg" type="number" inputMode="numeric" value={fed} onChange={(e) => setFed(e.target.value)}
+              suffix="learners" hint="Record this term's enrolment to check against it" required />
+            <FormField label="Cereals issued" size="lg" type="number" inputMode="decimal" defaultValue="78" suffix="kg" hint="150 g per learner" required />
+            <FormField label="Pulses issued" size="lg" type="number" inputMode="decimal" defaultValue="" suffix="kg" error="Enter the kilograms of pulses issued" required />
           </div>
         </Section>
 
-        <Section title="Summary list" description="The check-before-saving step on Attendance and Meals.">
+        <Section title="Summary list" description="Label and value pairs, each with an optional action.">
           <SummaryList rows={[
             { key: 'date', label: 'Date', value: '12-10-2026' },
-            { key: 'registered', label: 'Registered learners', value: '600 learners' },
-            { key: 'present', label: 'Present', value: '588 learners', action: <Button variant="ghost" size="sm">Change</Button> },
+            { key: 'fed', label: 'Learners fed', value: '514 learners' },
+            { key: 'cereals', label: 'Cereals issued', value: '78 kg', action: <Button variant="ghost" size="sm">Change</Button> },
           ]} />
         </Section>
 
@@ -224,45 +224,39 @@ function Styleguide() {
           <p className="sg-sample">Selected: {range.start} to {range.end}</p>
         </Section>
 
-        <Section title="Stat cards" description="2 × 2 on phones; values line up across a row even when a label wraps.">
+        <Section title="Stat cards" description="A label, a figure and one line of detail. 2 × 2 on phones.">
           <div className="ui-grid ui-grid--4">
-            <StatCard label="Attendance rate" value={formatPercent(0.979)} metric="attendance" icon={CalendarCheck}
-              delta={{ value: '+1.2 pts', direction: 'up', good: true, label: 'vs last week' }}
-              sparkline={{ data: TREND, dataKey: 'present', metric: 'attendance' }} />
-            <StatCard label="Meals served" value={formatNumber(4019)} metric="served" icon={Utensils}
-              delta={{ value: formatDelta(120), direction: 'up', good: true }}
-              sparkline={{ data: TREND, dataKey: 'served', metric: 'served' }} />
-            <StatCard label="Waste (prepared − served)" value={formatNumber(171)} metric="prepared"
-              delta={{ value: formatDelta(18), direction: 'up', good: false, label: 'more than last week' }}
-              sparkline={{ data: TREND, dataKey: 'prepared', metric: 'prepared' }} />
-            <StatCard label="Waiting to sync" value="3" hint="changes on this device" icon={CloudUpload} />
+            <StatCard label="Cereals" value="1,520 kg" hint="About 19 school days at 80 kg a day" />
+            <StatCard label="Pulses" value="15 kg" hint="Less than a school day of food, 20 school days left. Request about 377 kg." />
+            <StatCard label="Learners fed" value={formatPercent(0.836)} hint="764 of 914 enrolled, on feeding days" />
+            <StatCard label="Waiting to send" value="3" hint="changes on this device" icon={CloudUpload} />
             <StatCard label="Loading example" loading />
           </div>
         </Section>
 
         <div className="ui-grid ui-grid--2">
-          <ChartCard title="Attendance trend" description="Learners present per school day" type="line" data={TREND} xKey="date"
-            xTickFormatter={(d) => d.slice(0, 5)} series={[{ dataKey: 'present', metric: 'attendance' }]} />
-          <ChartCard title="Prepared vs served" description="Meals per school day" type="bar" data={TREND} xKey="date"
-            xTickFormatter={(d) => d.slice(0, 5)} series={[{ dataKey: 'prepared', metric: 'prepared' }, { dataKey: 'served', metric: 'served' }]} />
+          <ChartCard title="Learners fed each school day" description="Term 3 2026" type="line" data={TREND} xKey="date"
+            xTickFormatter={(d) => d.slice(0, 5)} series={[{ dataKey: 'fed', metric: 'fed' }]} />
+          <ChartCard title="Food issued" description="Kilograms per school day" type="bar" data={TREND} xKey="date"
+            xTickFormatter={(d) => d.slice(0, 5)} series={[{ dataKey: 'cereals', metric: 'cereals' }, { dataKey: 'pulses', metric: 'pulses' }]} />
           <ChartCard title="Days of food left" description="Schools under the rule, fewest days first" type="ranked" data={RANKED}
             xKey="school" xLabel="School" summary="4 schools have under 10 school days of cereals; Jamhuri Primary has 3."
             series={[{ dataKey: 'days', metric: 'figure', label: 'School days of cereals' }]}
             referenceLine={{ value: 10, label: 'Rule: 10 days' }} />
-          <ChartCard title="Empty and loading" type="line" data={[]} xKey="date" series={[{ dataKey: 'present', metric: 'attendance' }]} />
+          <ChartCard title="Empty and loading" type="line" data={[]} xKey="date" series={[{ dataKey: 'fed', metric: 'fed' }]} />
         </div>
 
         <Section title="Data table" description="A table on tablet and desktop, a card list on phones.">
-          <DataTable caption="Attendance history" columns={columns} rows={RECORDS} isUnsynced={(r) => !r.synced} />
+          <DataTable caption="Feeding days" columns={columns} rows={RECORDS} isUnsynced={(r) => !r.synced} />
           <div data-density="compact">
             <DataTable caption="Compact, with search, sort and filters" noun="days" stickyFirstColumn
-              columns={columns.map((c) => (c.key === 'present' ? { ...c, sortValue: (r) => r.present } : c))}
+              columns={columns.map((c) => (c.key === 'fed' ? { ...c, sortValue: (r) => r.fed } : c))}
               rows={RECORDS}
               search={{ label: 'Search by date', textOf: (r) => [r.date] }}
               filters={[{ key: 'synced', label: 'Sent', options: [{ value: 'yes', label: 'Sent' }, { value: 'no', label: 'Not sent' }], matches: (r, v) => r.synced === (v === 'yes') }]} />
           </div>
           <DataTable caption="Empty example" columns={columns} rows={[]}
-            emptyState={{ title: 'No attendance recorded yet', description: 'Records you save appear here.' }} />
+            emptyState={{ title: 'No feeding recorded yet', description: 'Days you record appear here.' }} />
           <DataTable caption="Loading example" columns={columns} rows={[]} loading />
         </Section>
 
@@ -271,7 +265,7 @@ function Styleguide() {
             <SyncStatusBar state="offline" pendingCount={3} onSyncNow={() => {}} />
             <SyncStatusBar state="syncing" pendingCount={3} progress={40} onSyncNow={() => {}} />
             <SyncStatusBar state="synced" pendingCount={0} lastSyncedAt={minutesAgo(5)} onSyncNow={() => {}} />
-            <SyncStatusBar state="failed" pendingCount={2} failure={{ what: '2 changes did not sync' }} onSyncNow={() => {}} />
+            <SyncStatusBar state="failed" pendingCount={2} failure={{ what: '2 changes were not sent' }} onSyncNow={() => {}} />
             <SyncStatusBar state="conflict" conflictCount={1} onSyncNow={() => {}} />
             <SyncStatusBar
               variant="expanded"
@@ -279,7 +273,7 @@ function Styleguide() {
               pendingCount={2}
               lastSyncedAt={minutesAgo(90)}
               failure={{
-                what: '2 attendance records did not sync',
+                what: '2 feeding days were not sent',
                 why: 'The server could not be reached.',
                 fix: 'Check the connection and press Sync now. Your records are safe on this device.',
               }}
@@ -305,7 +299,7 @@ function Styleguide() {
         <Section title="Status line and step track">
           <div className="ui-stack sg-tight">
             <StatusLine icon={Wheat}>Food for <strong>14 more school days</strong> · 34 school days left this term</StatusLine>
-            <StatusLine icon={Wheat} tone="warning">Food for <strong>6 more school days</strong>, but 34 are left this term. Let the head teacher know.</StatusLine>
+            <StatusLine icon={Wheat} tone="warning"><strong>Low on food:</strong> cereals for 6 more school days, but 34 school days left this term. Let the head teacher know.</StatusLine>
             <StepTrack label="Setting up this device" current="approved"
               steps={[{ key: 'setup', label: 'Set up' }, { key: 'approved', label: 'Approved' }, { key: 'ready', label: 'Ready to sign in' }]} />
           </div>
@@ -316,6 +310,7 @@ function Styleguide() {
             { key: 'conflicts', icon: GitCompareArrows, title: '2 records to decide', description: 'Changed on two devices', to: '/styleguide' },
             { key: 'weekly', icon: ListChecks, title: 'Weekly review: 4 of 9 schools reviewed', progress: { done: 4, total: 9 }, to: '/styleguide' },
             { key: 'flags', icon: Flag, title: 'No flagged records to check', done: true, to: '/styleguide' },
+            { key: 'enrolment', icon: Flag, title: 'No enrolment to check', done: true, to: '/styleguide' },
           ]} />
         </Section>
 
@@ -332,7 +327,7 @@ function Styleguide() {
 
         <Section title="Empty states and skeletons">
           <div className="ui-grid ui-grid--2">
-            <EmptyState title="No conflicts" description="Everything on this device matches the server." />
+            <EmptyState title="No conflicts" description="A record changed on two devices with different numbers appears here." />
             <div className="ui-stack sg-tight">
               <Skeleton variant="stat" />
               <SkeletonText lines={3} />
