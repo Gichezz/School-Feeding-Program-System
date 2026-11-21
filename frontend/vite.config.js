@@ -15,10 +15,10 @@ export default defineConfig({
         name: 'Lishe – School Feeding',
         short_name: 'Lishe',
         description:
-          'Every meal counted, even offline. Attendance and meal records for school feeding programmes.',
-        // Brand green and cream (--color-brand and --color-bg in src/styles/tokens.css)
-        theme_color: '#1b5e4b',
-        background_color: '#f7f4ef',
+          'Every meal counted, even offline. Daily feeding and food stock records for school feeding programmes.',
+        // Botanical pine and warm off-white (--color-brand and --color-bg in src/styles/tokens.css)
+        theme_color: '#14362b',
+        background_color: '#faf9f6',
         lang: 'en',
         display: 'standalone',
         orientation: 'any',
