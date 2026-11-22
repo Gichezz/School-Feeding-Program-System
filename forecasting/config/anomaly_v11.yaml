@@ -278,3 +278,18 @@ frozen:
     Passed. Mean F1@3 over the 7 scenarios 48.7% against version 8's 33.4%; higher in every
     scenario, by 12.0 to 19.1 points (robustness.json).
   generator_commit: 050703a
+
+# Final test, recorded after it was run (final.json, v11_report.md). Nothing above was changed.
+final_result:
+  point_in_time: >
+    F1@3 41.6% against version 8's 41.5% (+0.1, interval -2.8 to +2.9): level. Precision@3
+    66.3% against 52.5%; recall@3 30.5% against 34.8%; problems caught 74.6% against 69.4%
+    (+5.1, +0.8 to +9.8); ordinary schools listed per officer-term 1.6 against 3.1; stock
+    leakage caught 87% against 41%; round-number entry 62% against 82%; median days to
+    catch 21 against 16.
+  reported_only: >
+    Whole dataset 51.6% against 50.6%. Rescored for 56 days 47.3% against 47.3%, with
+    backdated entry caught 95% against 53% at 28 days for both. q 0.95: 45.8% against 43.4%.
+  note: >
+    The first final run with 8 workers ran out of memory before it produced any result; it
+    was re-run unchanged with 4.
