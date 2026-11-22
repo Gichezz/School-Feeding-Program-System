@@ -143,3 +143,45 @@ final_test: >
   final test measures version 8 as it is deployed.
 
 after: the scoring service, its tests and the documentation describe the frozen setting
+
+# Amendment 1, written and committed after steps 1-4 and before anything below is run.
+amendment_1:
+  why: >
+    Steps 1-4 on the development data (data/reports/anomaly/v11/development.json): version
+    8 as deployed reached F1@3 32.7% (q 0.98) and stays; the settings as evaluated reached
+    31.3%, the scaling floor 31.5% and the Harrell-Davis threshold 32.9%, so nothing was
+    adopted. The gaps that remain on the development data: stock leakage caught in 39% of
+    episodes and listed in 11% of its school-weeks; 34% of problems caught within 2 weeks;
+    the threshold resting on few school-weeks. The cache check (cache_check.json, one
+    dataset) put the cached model about 2 F1@3 points and one episode from a refit on every
+    request, in neither direction, so a gain must clear the same rules as before.
+  measure_correction: >
+    A stock leak cannot be seen until the next store count, and the generator labels that
+    count's day as part of the leak (it is in labels.csv, and in every precision and recall
+    figure), but problems_caught only looked at the leak's own weeks. From here, a leak is
+    also caught if the week of the first store count after it ends is listed. The old count
+    is kept as problems_caught_in_own_weeks. Version 8 is re-measured with it first, and
+    every comparison below uses the re-measured figures. No other measure changes.
+  steps:
+    5_two_week_score: >
+      A school-week's score is the mean of its own weekly score (the mean of its two highest
+      days) and the school's previous week with records since the start of the training
+      window, scored by the same model; a school's first week keeps its own score. The
+      threshold is taken over the training window's school-weeks scored the same way.
+      Problems last 2-6 weeks; one odd week at an ordinary school is the commonest false
+      listing. Nothing else changes.
+    6_window: >
+      The training window is the last 150 school days before the refit point instead of 125:
+      the most the backend's 365 days of records hold (about 170 school days, less up to 19
+      days to the refit point), so the review threshold rests on about 20% more school-weeks.
+      Nothing else changes.
+  order: step 5, then step 6, each against the setting current at that point, q chosen from threshold_grid
+  adoption_rules: as adoption_rules above
+  reported_only: >
+    The setting current after step 6, rescored for 56 days after the week instead of 28
+    (backend LOOK_BACK_WEEKS 8 instead of 4), on the development data and in the final test
+    next to the 28-day figures. Never used to choose; the backend is not changed by this
+    version. Backdated entries, the type it bears on, are only in the test year.
+  then: >
+    behaviour_tests, robustness and freeze as above, with the setting current after step 6.
+    final_test as above, with the 56-day run added for version 8 and the frozen setting.

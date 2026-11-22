@@ -120,14 +120,30 @@ class RobustZScore:
         raise NotImplementedError("use contributions_frame: the z-score needs the school's history")
 
 
+# Protocol version 11, step 3: the smallest spread the scaler may divide by. A feature with
+# a point mass (pulses snapped to the recording precision, uptake filled with one typical
+# value) has an interquartile range near 0, and ordinary rounding then sits at the clip.
+# The robust z-score's floors (fixed in protocol version 6), with fed_vs_own added like
+# fed_rate and fed_vs_peers.
+SCALE_FLOOR = {**MIN_SPREAD, "fed_vs_own": 0.02}
+
+
 class _Learned:
     """Shared scaling and perturbation-based explanations for the learning methods.
-    features: the features used, all of them unless one is left out (the ablation)."""
+    features: the features used, all of them unless one is left out (the ablation).
+    scale_floor: True to divide by at least SCALE_FLOOR (protocol version 11)."""
 
     features = FEATURE_NAMES
+    scale_floor = False
 
     def fit(self, train):
         self.scaler_ = RobustScaler().fit(train[self.features])
+        if self.scale_floor:
+            q75, q25 = np.percentile(train[self.features].to_numpy(dtype=float), [75, 25], axis=0)
+            floor = np.array([SCALE_FLOOR.get(f, 0.0) for f in self.features])
+            spread = np.maximum(q75 - q25, floor)
+            # A range of 0 with no floor is left as scikit-learn leaves it (1)
+            self.scaler_.scale_ = np.where(spread > 0, spread, 1.0)
         self._fit(self._x(train))
         return self
 
@@ -169,10 +185,11 @@ class ExtendedIsolationForestMethod(_Learned):
     name = "extended_isolation_forest"
     SAMPLE = 1024   # rows per tree, as Isolation Forest's larger setting
 
-    def __init__(self, n_estimators=100, ndim=2, random_state=0):
+    def __init__(self, n_estimators=100, ndim=2, random_state=0, scale_floor=False):
         self.n_estimators = n_estimators
         self.ndim = ndim
         self.random_state = random_state
+        self.scale_floor = scale_floor
 
     def _fit(self, x):
         # Imported when fitted, so the benchmark methods run without isotree installed
