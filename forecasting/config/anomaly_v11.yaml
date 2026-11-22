@@ -253,3 +253,28 @@ amendment_3:
       direct evidence of missing food, not a statistical guess. Against the setting after
       step 7, q from threshold_grid, adoption_rules as above. Nothing else changes.
   then: behaviour_tests, robustness, freeze and final_test as above, with the setting after step 8.
+
+# The freeze: written after development, the behaviour tests and the robustness check, and
+# committed before any test dataset is generated.
+frozen:
+  n_estimators: 300
+  ndim: 2
+  scale_floor: false
+  threshold: interpolated
+  review_quantile: 0.99
+  window: 125
+  weekly: top2_mean
+  one_sided: true
+  list_store_shortfall: true
+  adopted: [7_one_sided, 8_store_shortfall]
+  not_adopted: [2_one_model (deployed settings stay), 3_scaling_floor, 4_threshold_estimate, 5_two_week_score, 6_window]
+  development: >
+    F1@3 47.0% against version 8's 32.7% (q 0.98), problems caught 82.4% against 66.9%,
+    false listings per officer-term 1.7 against 3.1, PR-AUC 0.44 against 0.30; problems
+    caught within 2 weeks 39% against 34%, median days to catch 18 against 14 (leaks are
+    found at the next store count).
+  behaviour_tests: all 12 pass with the scoring service set to this setting
+  robustness: >
+    Passed. Mean F1@3 over the 7 scenarios 48.7% against version 8's 33.4%; higher in every
+    scenario, by 12.0 to 19.1 points (robustness.json).
+  generator_commit: 050703a

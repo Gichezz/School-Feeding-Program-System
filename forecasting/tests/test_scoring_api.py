@@ -12,6 +12,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 from app import create_app  # noqa: E402
+from services import scoring_service  # noqa: E402
 from generate_feeding_dataset import CONFIG, generate  # noqa: E402
 from run_anomaly_robustness import deep_merge  # noqa: E402
 
@@ -83,10 +84,13 @@ def test_ranks_every_school_and_lists_at_most_three_above_the_review_threshold(c
     assert [i["rank"] for i in body["items"]] == [1, 2, 3, 4, 5, 6]
     # Version 7: up to 3, and only school-weeks above the review threshold, so a quiet week lists fewer
     threshold = body["model"]["review_threshold"]
-    assert body["model"]["review_quantile"] == 0.98
+    assert body["model"]["review_quantile"] == scoring_service.CONFIG["review_quantile"]
     # Protocol version 8: a school's week is the mean of its two highest days
     assert body["model"]["weekly_score"] == "top2_mean"
-    assert [i["listed"] for i in body["items"]] == [i["rank"] <= 3 and i["score"] > threshold for i in body["items"]]
+    # Protocol version 11, step 8: a store count over 2 days of food short is listed first, whatever its score
+    short = {b["school_id"] for b in body["rule_breaches"] if b["rule"] == "count_gap_change"}
+    assert [i["listed"] for i in body["items"]] == [i["rank"] <= 3 and (i["score"] > threshold or i["school_id"] in short)
+                                                    for i in body["items"]]
     assert all(i["explanation"].startswith("Needs review") for i in body["items"])
     assert body["model"]["window_school_days"] <= 125
     assert "does not decide anything" in body["notice"]

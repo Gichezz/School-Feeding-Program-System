@@ -49,8 +49,10 @@ VERSION_8 = {"n_estimators": 300, "ndim": 2, "scale_floor": False, "threshold": 
              "list_store_shortfall": False}
 # A store count this many days of food short of the records (the fixed rule's threshold)
 STORE_SHORTFALL_DAYS = 2.0
-# The setting the service runs (config/anomaly_v11.yaml, data/reports/anomaly/v11)
-CONFIG = dict(VERSION_8)
+# The setting the service runs (config/anomaly_v11.yaml, data/reports/anomaly/v11): version 8
+# with one-sided scoring (step 7) and store shortfalls listed first (step 8), at review
+# quantile 0.99, as chosen on the development data
+CONFIG = dict(VERSION_8, one_sided=True, list_store_shortfall=True, review_quantile=0.99)
 SETTINGS = {"n_estimators": CONFIG["n_estimators"], "ndim": CONFIG["ndim"]}
 REVIEW_QUANTILE = CONFIG["review_quantile"]
 NOTICE = ("Ranks records for review; it does not decide anything. Thresholds and settings were tested on "
