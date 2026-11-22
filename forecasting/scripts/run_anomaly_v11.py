@@ -12,6 +12,7 @@ of the week's records arrives, each time from the records received so far and da
   --step development  steps 1-4 on the development datasets (2025)
   --step amendment    plan amendment 1: steps 5-6 and 8 weeks of rescoring (reported only)
   --step amendment_2  plan amendment 2: step 7, one-sided scoring
+  --step amendment_3  plan amendment 3: step 8, store shortfalls always listed
   --step parity       one dataset: a model per request against the cached model per refit point
   --step robustness   version 8 and the current setting on the robustness scenarios
   --step final        the test datasets (generated after the freeze), 2026, once
@@ -456,35 +457,44 @@ def amendment(args):
     print("final setting:", current, flush=True)
 
 
-def amendment_2(args):
-    """Plan amendment 2: one-sided scoring against the setting after amendment 1."""
+def _one_step(prior_file, name, change, out_file, label, args):
+    """One amendment step against the setting a prior step left, under the same rules."""
     p = plan()
     period = p["datasets"]["development"]["period"]
     seeds = p["model_seeds"]["development"]
     datasets = dev_datasets()
     prepare_features(datasets, period["start"], period["end"], args.workers)
-    prior = json.load(open(REPORT_DIR / "development_amendment.json", encoding="utf-8"))
+    prior = json.load(open(REPORT_DIR / prior_file, encoding="utf-8"))
     current, current_r = dict(VERSION_8, **prior["final_setting"]), prior["final"]
     started = time.time()
     log, steps = [], {}
-    name = "7_one_sided"
     print(f"step {name}", flush=True)
-    candidate, r_candidate = choose_q(dict(current, one_sided=True), datasets, seeds, period, args.workers, log, name)
+    candidate, r_candidate = choose_q(dict(current, **change), datasets, seeds, period, args.workers, log, name)
     ok, detail = adopt(current, current_r, candidate, r_candidate)
-    steps[name] = {"candidate": {"config": candidate, **r_candidate}, **detail, "adopted": ok,
-                   "workload_matched": {"q": current["review_quantile"]}}
+    steps[name] = {"candidate": {"config": candidate, **r_candidate}, **detail, "adopted": ok}
     print(f"  {detail['gain_f1_points']:+.1f} points, interval {detail['interval']['interval']}: "
           f"{'adopted' if ok else 'not adopted'} {detail['rules']}", flush=True)
     if ok:
         current, current_r = candidate, r_candidate
-    write_json(REPORT_DIR / "development_amendment_2.json", {"plan": "forecasting/config/anomaly_v11.yaml (amendment_2)",
-                                                             "steps": steps, "q_log": log, "final_setting": current,
-                                                             "final": current_r, "runtime_seconds": round(time.time() - started)})
+    write_json(REPORT_DIR / out_file, {"plan": f"forecasting/config/anomaly_v11.yaml ({label})", "steps": steps,
+                                       "q_log": log, "final_setting": current, "final": current_r,
+                                       "runtime_seconds": round(time.time() - started)})
     print("final setting:", current, flush=True)
 
 
+def amendment_2(args):
+    """Plan amendment 2: one-sided scoring against the setting after amendment 1."""
+    _one_step("development_amendment.json", "7_one_sided", {"one_sided": True}, "development_amendment_2.json",
+              "amendment_2", args)
+
+
+def amendment_3(args):
+    """Plan amendment 3: a store count well short of the records always listed."""
+    _one_step("development_amendment_2.json", "8_store_shortfall", {"list_store_shortfall": True},
+              "development_amendment_3.json", "amendment_3", args)
+
 def dev_final_setting():
-    for name in ("development_amendment_2.json", "development_amendment.json"):
+    for name in ("development_amendment_3.json", "development_amendment_2.json", "development_amendment.json"):
         path = REPORT_DIR / name
         if path.exists():
             return dict(VERSION_8, **json.load(open(path, encoding="utf-8"))["final_setting"])
@@ -564,10 +574,10 @@ def final(args):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--step", required=True, choices=["development", "amendment", "amendment_2", "parity", "robustness", "final"])
+    parser.add_argument("--step", required=True, choices=["development", "amendment", "amendment_2", "amendment_3", "parity", "robustness", "final"])
     parser.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) - 1))
     args = parser.parse_args()
-    {"development": development, "amendment": amendment, "amendment_2": amendment_2, "parity": parity, "robustness": robustness, "final": final}[args.step](args)
+    {"development": development, "amendment": amendment, "amendment_2": amendment_2, "amendment_3": amendment_3, "parity": parity, "robustness": robustness, "final": final}[args.step](args)
 
 
 if __name__ == "__main__":

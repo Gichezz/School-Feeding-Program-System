@@ -228,3 +228,28 @@ amendment_2:
     Reported only, never used to choose: version 8 and the frozen setting at review
     quantile 0.95 as well, point-in-time, next to the frozen q.
   then: behaviour_tests, robustness, freeze and final_test as above, with the setting after step 7.
+
+# Amendment 3, written and committed after step 7 and before step 8 is run.
+amendment_3:
+  results_so_far: >
+    Step 7 (development_amendment_2.json) was adopted: F1@3 42.4% against 32.7% (+9.7
+    points, 95% interval +6.7 to +13.0), PR-AUC 0.44 against 0.30, problems caught 71.9%
+    against 66.9%, within 2 weeks 44% against 34%, false listings per officer-term 3.3
+    against 3.1, q 0.98. Stock leaks caught fell, 32% against 47%. A behaviour check run
+    beforehand with step 7 on (not the protocol's run, which follows the freeze rules)
+    failed one test: a store count 7 days of food short was not listed. A shortfall is on
+    one day, the weekly score averages the two highest days, and the higher threshold of
+    one-sided scoring left the school just below it (0.529 against 0.540).
+  evidence: >
+    Development store counts, 2025, every record: no count at a school-day without a leak
+    was more than 2 days of food short of the records (0 of 3,118); 55% of leak count days
+    were (45 of 82). The fixed rule (count_gap_change below -2 days, anomaly/methods.py,
+    protocol version 6) already reports these as breaches.
+  steps:
+    8_store_shortfall: >
+      A school whose store count that week is more than 2 days of food short of the records
+      (the fixed rule's threshold, unchanged) is listed first, before the model's ranking,
+      within the same k of 3, whatever its score. A physical count short of the records is
+      direct evidence of missing food, not a statistical guess. Against the setting after
+      step 7, q from threshold_grid, adoption_rules as above. Nothing else changes.
+  then: behaviour_tests, robustness, freeze and final_test as above, with the setting after step 8.

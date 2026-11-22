@@ -95,8 +95,9 @@ def test_the_service_runs_the_setting_the_protocol_froze():
     assert {k: service.CONFIG[k] for k in service.VERSION_8} == {k: frozen[k] for k in service.VERSION_8}
 
 
-@pytest.mark.parametrize("change", [{"weekly": "two_week_mean"}, {"window": harness.MAX_WINDOW}, {"one_sided": True}],
-                         ids=["two_week_score", "longest_window", "one_sided"])
+@pytest.mark.parametrize("change", [{"weekly": "two_week_mean"}, {"window": harness.MAX_WINDOW}, {"one_sided": True},
+                                    {"one_sided": True, "list_store_shortfall": True}],
+                         ids=["two_week_score", "longest_window", "one_sided", "store_shortfall"])
 def test_the_harness_keeps_every_row_a_setting_it_tries_needs(dataset, scorings, change):
     """Plan amendment 1's settings read rows before the refit point's 125 school days, or the
     previous week; the harness's cached rows must give the same ranking as the full request."""

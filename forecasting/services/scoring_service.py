@@ -45,7 +45,10 @@ DEFAULT_K = 3
 # unusual than this share of the school-weeks in the model's own training window, so a
 # quiet week can list fewer than 3, or none).
 VERSION_8 = {"n_estimators": 300, "ndim": 2, "scale_floor": False, "threshold": "interpolated", "review_quantile": 0.98,
-             "window": WINDOW, "weekly": WEEKLY_AGGREGATION, "one_sided": False}
+             "window": WINDOW, "weekly": WEEKLY_AGGREGATION, "one_sided": False,
+             "list_store_shortfall": False}
+# A store count this many days of food short of the records (the fixed rule's threshold)
+STORE_SHORTFALL_DAYS = 2.0
 # The setting the service runs (config/anomaly_v11.yaml, data/reports/anomaly/v11)
 CONFIG = dict(VERSION_8)
 SETTINGS = {"n_estimators": CONFIG["n_estimators"], "ndim": CONFIG["ndim"]}
@@ -145,7 +148,8 @@ def rank_week(feats, calendar, week_start, k=DEFAULT_K, follow_up=(), config=Non
     """Rank a week's schools from their school-day features. follow_up: {(school_id, ISO
     week)} marked follow-up, left out of the fit. The evaluation calls this with its own
     config, model seed and model cache; the service with CONFIG."""
-    config = config or CONFIG
+    # A setting it does not name is version 8's (so a setting saved before an option existed runs as it did)
+    config = {**VERSION_8, **(config or CONFIG)}
     follow_up = set(map(tuple, follow_up))
     week_end = week_start + dt.timedelta(days=6)
     week = feats[(feats.date >= pd.Timestamp(week_start)) & (feats.date <= pd.Timestamp(week_end))]
@@ -173,7 +177,8 @@ def rank_week(feats, calendar, week_start, k=DEFAULT_K, follow_up=(), config=Non
             before = before[before.week == before.groupby("school_id").week.transform("max")]
             previous = weekly_scores(before.assign(score=model.score(before))).droplevel("week") if len(before) else pd.Series(dtype=float)
         model_info = {"method": METHOD, "settings": {"n_estimators": config["n_estimators"], "ndim": config["ndim"]},
-                      "scale_floor": config["scale_floor"], "one_sided": config["one_sided"], "fitted_on_rows": int(len(history)),
+                      "scale_floor": config["scale_floor"], "one_sided": config["one_sided"],
+                      "list_store_shortfall": config["list_store_shortfall"], "fitted_on_rows": int(len(history)),
                       "window_school_days": int(history.day_index.nunique()),
                       "refit_point": refit_point,
                       "review_quantile": config["review_quantile"], "review_threshold": threshold,
@@ -196,7 +201,9 @@ def rank_week(feats, calendar, week_start, k=DEFAULT_K, follow_up=(), config=Non
             item["reasons"] = _reasons(contributions, top)
             item["explanation"] = explain_row(top, contributions)
         items.append(item)
-    items.sort(key=lambda i: -i["score"])
+    # Amendment 3: a store count well short of the records is listed first, whatever the score
+    short = set(week[week.count_gap_change < -STORE_SHORTFALL_DAYS].school_id)         if model is not None and config["list_store_shortfall"] else set()
+    items.sort(key=lambda i: (i["school_id"] not in short, -i["score"]))
     for rank, item in enumerate(items, 1):
         item["rank"] = rank
         # Ranked by the fixed checks alone, a school that broke none has nothing to look into;
@@ -204,7 +211,7 @@ def rank_week(feats, calendar, week_start, k=DEFAULT_K, follow_up=(), config=Non
         if mode == "rules_only":
             item["listed"] = rank <= k and item["score"] > 0
         else:
-            item["listed"] = rank <= k and (threshold is None or item["score"] > threshold)
+            item["listed"] = rank <= k and (item["school_id"] in short or threshold is None or item["score"] > threshold)
 
     breaches = []
     if explain:
