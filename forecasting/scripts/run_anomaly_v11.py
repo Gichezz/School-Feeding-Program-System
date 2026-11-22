@@ -11,6 +11,7 @@ of the week's records arrives, each time from the records received so far and da
   --step features     build and cache every scoring's features (no model, no labels)
   --step development  steps 1-4 on the development datasets (2025)
   --step amendment    plan amendment 1: steps 5-6 and 8 weeks of rescoring (reported only)
+  --step amendment_2  plan amendment 2: step 7, one-sided scoring
   --step parity       one dataset: a model per request against the cached model per refit point
   --step robustness   version 8 and the current setting on the robustness scenarios
   --step final        the test datasets (generated after the freeze), 2026, once
@@ -455,11 +456,39 @@ def amendment(args):
     print("final setting:", current, flush=True)
 
 
+def amendment_2(args):
+    """Plan amendment 2: one-sided scoring against the setting after amendment 1."""
+    p = plan()
+    period = p["datasets"]["development"]["period"]
+    seeds = p["model_seeds"]["development"]
+    datasets = dev_datasets()
+    prepare_features(datasets, period["start"], period["end"], args.workers)
+    prior = json.load(open(REPORT_DIR / "development_amendment.json", encoding="utf-8"))
+    current, current_r = dict(VERSION_8, **prior["final_setting"]), prior["final"]
+    started = time.time()
+    log, steps = [], {}
+    name = "7_one_sided"
+    print(f"step {name}", flush=True)
+    candidate, r_candidate = choose_q(dict(current, one_sided=True), datasets, seeds, period, args.workers, log, name)
+    ok, detail = adopt(current, current_r, candidate, r_candidate)
+    steps[name] = {"candidate": {"config": candidate, **r_candidate}, **detail, "adopted": ok,
+                   "workload_matched": {"q": current["review_quantile"]}}
+    print(f"  {detail['gain_f1_points']:+.1f} points, interval {detail['interval']['interval']}: "
+          f"{'adopted' if ok else 'not adopted'} {detail['rules']}", flush=True)
+    if ok:
+        current, current_r = candidate, r_candidate
+    write_json(REPORT_DIR / "development_amendment_2.json", {"plan": "forecasting/config/anomaly_v11.yaml (amendment_2)",
+                                                             "steps": steps, "q_log": log, "final_setting": current,
+                                                             "final": current_r, "runtime_seconds": round(time.time() - started)})
+    print("final setting:", current, flush=True)
+
+
 def dev_final_setting():
-    path = REPORT_DIR / "development_amendment.json"
-    if not path.exists():
-        raise SystemExit("Run --step amendment first")
-    return json.load(open(path, encoding="utf-8"))["final_setting"]
+    for name in ("development_amendment_2.json", "development_amendment.json"):
+        path = REPORT_DIR / name
+        if path.exists():
+            return dict(VERSION_8, **json.load(open(path, encoding="utf-8"))["final_setting"])
+    raise SystemExit("Run --step amendment first")
 
 
 def parity(args):
@@ -524,15 +553,21 @@ def final(args):
             print(f"{name} {mode}: F1@3 {results[f'{name}_{mode}']['mean']['f1_at_k'] * 100:.1f}%", flush=True)
     diffs = {mode: {m: paired_interval(results[f"version_8_{mode}"], results[f"version_11_{mode}"], m) for m in NUMERIC}
              for mode in modes}
+    # Reported only (amendment 2): both at review quantile 0.95, the other operating point
+    for name, cfg in (("version_8", VERSION_8), ("version_11", setting)):
+        key = f"{name}_point_in_time_q0.95"
+        results[key] = evaluate(dict(cfg, review_quantile=0.95), datasets, seeds, "point_in_time", test["loop_from"],
+                                period["end"], period, args.workers)
+        print(f"{key}: F1@3 {results[key]['mean']['f1_at_k'] * 100:.1f}%", flush=True)
     write_json(REPORT_DIR / "final.json", {"frozen": frozen, "results": results, "differences": diffs})
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--step", required=True, choices=["development", "amendment", "parity", "robustness", "final"])
+    parser.add_argument("--step", required=True, choices=["development", "amendment", "amendment_2", "parity", "robustness", "final"])
     parser.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) - 1))
     args = parser.parse_args()
-    {"development": development, "amendment": amendment, "parity": parity, "robustness": robustness, "final": final}[args.step](args)
+    {"development": development, "amendment": amendment, "amendment_2": amendment_2, "parity": parity, "robustness": robustness, "final": final}[args.step](args)
 
 
 if __name__ == "__main__":

@@ -185,3 +185,46 @@ amendment_1:
   then: >
     behaviour_tests, robustness and freeze as above, with the setting current after step 6.
     final_test as above, with the 56-day run added for version 8 and the frozen setting.
+
+# Amendment 2, written and committed after amendment 1 and an audit of the datasets and the
+# pipeline (development data only), before anything below is run under this protocol.
+amendment_2:
+  results_so_far: >
+    Amendment 1 (development_amendment.json): version 8 re-measured with leaks counted at
+    the revealing store count, F1@3 32.7%, problems caught 66.9%; the two-week score (31.2%)
+    and the 150-day window (32.6%) were not adopted; 56 days of rescoring changed nothing
+    on the development data.
+  audit: >
+    On the development data, with features built from every record (so optimistic):
+    (a) 5.1% of school-weeks hold a problem and 59% of sub-county-weeks hold none, so with
+    3 listed every week the best possible precision is 17% (F1@3 29%); the review threshold
+    is what lets F1@3 rise above that. (b) 22% of problem school-weeks are leak weeks with
+    no store count: nothing in the records shows them, whatever the model. (c) Learners fed
+    (school-day AUC 0.87-0.91 for inflated headcount) and food per learner (0.80-0.85 for
+    consumption drift) carry most of the signal; the entry-behaviour features (about 0.50
+    on these three types) are there for backdated, round-number and ghost-learner records,
+    which the development years do not hold. (d) Gradient boosting trained on the labels of
+    nine datasets and tested on the tenth reached F1@3 about 63% and PR-AUC 0.64 against
+    Extended Isolation Forest's 31% and 0.30: the features hold about twice what the
+    unsupervised model ranks by. It learns the generator's labels, which a real programme
+    does not have, so it is an upper bound, never a candidate. (e) Exploratory, whole
+    dataset, one model seed: an EIF per family of features was worse (F1@3 28% at q 0.98);
+    an EIF that counts each feature only in its risky direction reached 42.6% against
+    31.1%, at the same workload.
+  steps:
+    7_one_sided: >
+      After scaling, each feature's harmless side is set to the median, so only the
+      direction its meaning makes worth a look can make a day unusual: every feature when
+      high (more learners fed than usual, than peers, than last term, than present; more
+      enrolment; more food per learner; a rising use; later, batched, after-hours or round
+      entries; steadier figures), and the store count's gap when the store is short of the
+      records. The directions follow from what each feature describes
+      (anomaly/features.py), the same for all six problem types, not from the labels.
+      Against the setting after amendment 1, point-in-time harness, q from threshold_grid,
+      adoption_rules as above. Nothing else changes. What the model then does not rank:
+      a school feeding fewer learners, or using less food, than usual (the fixed rules still
+      report breaches either way).
+  final_test_addition: >
+    Reported only, never used to choose: version 8 and the frozen setting at review
+    quantile 0.95 as well, point-in-time, next to the frozen q.
+  then: behaviour_tests, robustness, freeze and final_test as above, with the setting after step 7.

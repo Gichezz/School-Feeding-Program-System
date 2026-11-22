@@ -45,7 +45,7 @@ DEFAULT_K = 3
 # unusual than this share of the school-weeks in the model's own training window, so a
 # quiet week can list fewer than 3, or none).
 VERSION_8 = {"n_estimators": 300, "ndim": 2, "scale_floor": False, "threshold": "interpolated", "review_quantile": 0.98,
-             "window": WINDOW, "weekly": WEEKLY_AGGREGATION}
+             "window": WINDOW, "weekly": WEEKLY_AGGREGATION, "one_sided": False}
 # The setting the service runs (config/anomaly_v11.yaml, data/reports/anomaly/v11)
 CONFIG = dict(VERSION_8)
 SETTINGS = {"n_estimators": CONFIG["n_estimators"], "ndim": CONFIG["ndim"]}
@@ -129,7 +129,8 @@ def _model_for(history, refit_point, follow_up, config, model_seed, cache):
     if cache is not None and key in cache:
         return cache[key]
     model = ExtendedIsolationForestMethod(n_estimators=config["n_estimators"], ndim=config["ndim"],
-                                          scale_floor=config["scale_floor"], random_state=model_seed).fit(history)
+                                          scale_floor=config["scale_floor"], one_sided=config["one_sided"],
+                                          random_state=model_seed).fit(history)
     # The same weekly score as the list (protocol version 8: the mean of the two highest days)
     weekly_history = weekly_scores(history.assign(score=model.score(history)))
     if config["weekly"] == "two_week_mean":
@@ -172,7 +173,7 @@ def rank_week(feats, calendar, week_start, k=DEFAULT_K, follow_up=(), config=Non
             before = before[before.week == before.groupby("school_id").week.transform("max")]
             previous = weekly_scores(before.assign(score=model.score(before))).droplevel("week") if len(before) else pd.Series(dtype=float)
         model_info = {"method": METHOD, "settings": {"n_estimators": config["n_estimators"], "ndim": config["ndim"]},
-                      "scale_floor": config["scale_floor"], "fitted_on_rows": int(len(history)),
+                      "scale_floor": config["scale_floor"], "one_sided": config["one_sided"], "fitted_on_rows": int(len(history)),
                       "window_school_days": int(history.day_index.nunique()),
                       "refit_point": refit_point,
                       "review_quantile": config["review_quantile"], "review_threshold": threshold,

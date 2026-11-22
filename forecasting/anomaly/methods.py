@@ -126,15 +126,22 @@ class RobustZScore:
 # The robust z-score's floors (fixed in protocol version 6), with fed_vs_own added like
 # fed_rate and fed_vs_peers.
 SCALE_FLOOR = {**MIN_SPREAD, "fed_vs_own": 0.02}
+# One-sided scoring (protocol version 11, amendment 2): each feature counts only in the
+# direction its meaning makes worth a look. Every feature is risky when high (more learners
+# fed, more food used, later, batched, after-hours or round entries, steadier figures)
+# except the store count's gap, which is risky when the store is short of the records.
+RISKY_WHEN_LOW = frozenset({"count_gap_change"})
 
 
 class _Learned:
     """Shared scaling and perturbation-based explanations for the learning methods.
     features: the features used, all of them unless one is left out (the ablation).
-    scale_floor: True to divide by at least SCALE_FLOOR (protocol version 11)."""
+    scale_floor: True to divide by at least SCALE_FLOOR (protocol version 11).
+    one_sided: True to set each feature's harmless side to the median (amendment 2)."""
 
     features = FEATURE_NAMES
     scale_floor = False
+    one_sided = False
 
     def fit(self, train):
         self.scaler_ = RobustScaler().fit(train[self.features])
@@ -148,7 +155,11 @@ class _Learned:
         return self
 
     def _x(self, frame):
-        return np.clip(self.scaler_.transform(frame[self.features]), -CLIP, CLIP)
+        x = np.clip(self.scaler_.transform(frame[self.features]), -CLIP, CLIP)
+        if self.one_sided:
+            low = np.array([f in RISKY_WHEN_LOW for f in self.features])
+            x = np.where(low, np.minimum(x, 0.0), np.maximum(x, 0.0))
+        return x
 
     def score(self, frame):
         return self._score(self._x(frame))
@@ -185,11 +196,12 @@ class ExtendedIsolationForestMethod(_Learned):
     name = "extended_isolation_forest"
     SAMPLE = 1024   # rows per tree, as Isolation Forest's larger setting
 
-    def __init__(self, n_estimators=100, ndim=2, random_state=0, scale_floor=False):
+    def __init__(self, n_estimators=100, ndim=2, random_state=0, scale_floor=False, one_sided=False):
         self.n_estimators = n_estimators
         self.ndim = ndim
         self.random_state = random_state
         self.scale_floor = scale_floor
+        self.one_sided = one_sided
 
     def _fit(self, x):
         # Imported when fitted, so the benchmark methods run without isotree installed
