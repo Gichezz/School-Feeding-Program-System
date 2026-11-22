@@ -37,10 +37,12 @@ import yaml  # noqa: E402
 from anomaly.methods import FEATURE_NAMES, METHODS, ExtendedIsolationForestMethod  # noqa: E402
 from common import REPORTS_DIR, md_table, write_json  # noqa: E402
 from run_anomaly_deployment_test import PLAN as DEPLOYMENT_PLAN, load_dataset  # noqa: E402
-from services.scoring_service import METHOD, SETTINGS  # noqa: E402
+from services.scoring_service import CONFIG, METHOD, SETTINGS  # noqa: E402
 
 PLAN = FORECASTING_DIR / "config" / "explanation_faithfulness.yaml"
-REPORT_DIR = REPORTS_DIR / "anomaly" / "explanations"
+# Protocol version 11 made the deployed model one-sided; its check is written beside version 8's
+ONE_SIDED = CONFIG["one_sided"]
+REPORT_DIR = REPORTS_DIR / "anomaly" / "explanations" / ("v11" if ONE_SIDED else "")
 PAIRS = list(itertools.combinations(range(len(FEATURE_NAMES)), 2))
 SHARE_OF_BEST, BEATS_MEDIAN, MIN_LISTINGS = 0.80, 0.90, 20   # plan: deletion.pass, agreement.pass
 
@@ -85,7 +87,7 @@ def run(feats, model_seed, dep):
                 if history.day_index.nunique() < dep["min_history_school_days"]:
                     model = None
                     continue      # the rules alone: no model reasons to check
-                model = ExtendedIsolationForestMethod(**SETTINGS, random_state=model_seed).fit(history)
+                model = ExtendedIsolationForestMethod(**SETTINGS, one_sided=ONE_SIDED, random_state=model_seed).fit(history)
                 next_refit = first_day + dep["refit_every_school_days"]
             scored = week_rows.assign(score=model.score(week_rows))
             top_days = scored.loc[scored.groupby("school_id").score.idxmax()].sort_values("score", ascending=False).head(k)
@@ -156,7 +158,7 @@ def main():
 
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
     result = {
-        "plan": str(PLAN.relative_to(root)), "method": METHOD, "settings": SETTINGS,
+        "plan": str(PLAN.relative_to(root)), "method": METHOD, "settings": {**SETTINGS, "one_sided": ONE_SIDED},
         "datasets": list(datasets), "listings": int(len(listings)), "deletion_checked": int(len(checked)),
         "deletion": {"share_of_best_pair": share_of_best, "beats_median_pair": beats_median, "pair_percentile": percentile,
                      "faithful": faithful, "by_kind": by_kind},

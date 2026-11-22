@@ -145,7 +145,37 @@ One disclosure. While checking the code ran, before the stages, one 2026 figure 
 
 - **Behaviour tests:** two that version 8 passes fail with version 10 in the scorer. A ten-day store shortfall isn't listed, though the fixed check still shows it, and entering later no longer always raises the score.
 - **Why development overstated the gain:** development holds only three types, and on all six the extra listings take places from other problems.
-- **Version 8 stays deployed.** Version 10 is reported as a tested option for a programme most concerned with inflated headcount.
+- **Version 8 stayed deployed.** Version 10 is reported as a tested option for a programme most concerned with inflated headcount.
+
+**Version 11: repairing the deployed model, measured as it runs** ([plan](../forecasting/config/anomaly_v11.yaml), [report](../forecasting/data/reports/anomaly/v11/v11_report.md)). Version 11 kept Extended Isolation Forest and changed one thing at a time, with version 8 as the benchmark.
+- **Measured as the system runs it:** each week is scored on its Sunday with only the records that had arrived, then rescored as late records arrive, up to 28 days. Its figures are lower than earlier versions', which scored every week with all of its records.
+- **Developed on 10 new datasets (2025).** Judged once on 20 others (2026, all six types, 1,800 problems). The frozen setting was committed before the test data was generated.
+
+- **Not adopted:** a floor on each feature's scale, a smoothed threshold estimate, a two-week score and a longer training window. None cleared the 1.0-point margin.
+- **Adopted, one-sided scoring:** each feature counts only in the direction worth a look. A store count counts when it is short; every other feature counts when it is high. In development, many ordinary listings had been schools feeding *fewer* learners than usual (a sports day, a slow start to term).
+- **Adopted, store shortfalls listed directly:**
+  - **Evidence:** in development, no ordinary store count was more than 2 days of food short, while 45 of the 82 counts after a leak were.
+  - **Rule:** such a school is listed first, with the shortfall as its first reason.
+- **Development:** F1@3 rose from 32.7% to 47.0%, and robustness was higher in all 7 scenarios. All behaviour tests pass.
+- **The final test:**
+
+  | | Version 8 (q 0.98) | Version 11 (q 0.99) |
+  |---|---|---|
+  | F1@3 | 41.5% | 41.6% (+0.1, interval −2.8 to +2.9) |
+  | Precision@3 | 52.5% | **66.3%** (+13.8, +11.4 to +16.7) |
+  | Recall@3 | **34.8%** | 30.5% (−4.2, −7.4 to −1.1) |
+  | Problems caught | 69.4% | **74.6%** (+5.1, +0.8 to +9.8) |
+  | Ordinary schools listed per officer-term | 3.1 | **1.6** |
+  | Stock leakage caught | 41% | **87%** |
+  | Round-number entry caught | **82%** | 62% |
+  | Median days to catch | 16 | 21 |
+
+- **Version 11 is deployed.** On the primary measure it is level with version 8. It halves the ordinary schools an officer is sent to, two in three of its listings are real, and it catches more problems, especially stock leaks.
+- **Why development overstated the gain:** as with version 10, development holds only three types, and q 0.99 was chosen there. At q 0.95 version 11 matches version 8 on the held-out types and leads on F1@3 (45.8% against 43.4%), so the threshold is a programme decision about officers' capacity, for a pilot.
+- **Backdated entry and the rescoring window:**
+  - The system rescores a week for 4 weeks after it ends, so a week entered later than that is never rescored with its records.
+  - Rescored for 56 days, backdated entry is caught 95% of the time instead of 53%.
+  - The evidence comes from the test year, the only year with backdated entries, so it should be confirmed on fresh data before the setting changes.
 
 The rest of this section is version 7's method comparison, run again with version 8's weekly score where it applies.
 
@@ -220,6 +250,12 @@ For listings holding one injected problem, at least one reason is a figure that 
 
 Inflated headcount is only just above chance. On the main dataset, its listings were most often given day-to-day steadiness, recent food trends or after-hours entry as reasons, rather than the headcount comparisons. The school-week is found, but the reasons point the officer at the wrong figures, so this is a known weakness of the explanations. A second model seed gives the same two reasons for 90.1% of school-weeks listed under both, and at least one of them for 99.5%.
 
+**With version 11's one-sided model** ([report](../forecasting/data/reports/anomaly/explanations/v11/explanation_faithfulness.md); same plan and datasets):
+- **Faithful:** the named pair lowers the score by 96.5% of what the best pair does, and beats the median pair in every listing.
+- **Stable:** a second seed gives the same two reasons for 98.5% of school-weeks, against 90.1%.
+- **Point at the problem:** better than chance for all six types. Inflated headcount is still only just above chance (62% against 57%).
+- **Store shortfalls:** a school listed for one is now given the shortfall as its first reason.
+
 **How to read the reasons.** Resetting one feature to the sub-county's median while the others stay as they are can create a combination of values that never happens. For example, learners fed is reset to normal but food issued is left high, although the two move together. So the two reasons are **signals the model reacted to, not a causal explanation** of what happened. The officer sees them as observations to check against the school's register and store book ("learners fed 22% above the school's usual number"), next to the week's actual records and the fixed checks, and always worded "needs review".
 
 **Behaviour tests** ([`test_anomaly_behaviour.py`](../forecasting/tests/test_anomaly_behaviour.py), CheckList style). These run the deployed scorer on a generated sub-county:
@@ -232,10 +268,10 @@ Inflated headcount is only just above chance. On the main dataset, its listings 
 
 The scoring service ([`forecasting/services/scoring_service.py`](../forecasting/services/scoring_service.py)) receives one sub-county's records from the API and returns the week's ranking; it stores nothing and never reads the database.
 
-1. The model is Extended Isolation Forest (isotree, 300 trees, splits on combinations of 2 features, 1,024-row samples) on robust-scaled features, fitted on the sub-county's previous 125 school days, about two terms. Refit points fall every 20 school days, so the model changes about monthly and no model file is kept; the seed is fixed, so the same week gives the same list.
+1. The model is Extended Isolation Forest (isotree, 300 trees, splits on combinations of 2 features, 1,024-row samples) on robust-scaled, **one-sided** features (protocol version 11: a store count counts when it is short, every other feature when it is high), fitted on the sub-county's previous 125 school days, about two terms. Refit points fall every 20 school days, so the model changes about monthly and no model file is kept; the seed is fixed, so the same week gives the same list.
 2. School-weeks an officer marked follow-up are left out of the fit, so a confirmed problem does not become normal.
-3. Each school's week is scored as the mean of its two highest-scoring days (protocol version 8; one school day: that day). Up to 3 are the week's list: the highest-scoring, and only those above the **review threshold**, the 98th percentile of the school-week scores in the model's training window, scored the same way. A quiet week can list fewer than 3, or none. Every school is returned in order.
-4. Reasons come from the model itself, for the school's most unusual day: each feature of that day is set in turn to its median in the sub-county's training records, and the two that lower the score most are named in plain words ("learners fed 16% below the school's usual number"). They are signals to check, not causes (section 5).
+3. Each school's week is scored as the mean of its two highest-scoring days (protocol version 8; one school day: that day). Up to 3 are the week's list. First come schools whose store count is more than 2 days of food short of the records (version 11). Then the highest-scoring, only those above the **review threshold**: the 99th percentile of the school-week scores in the model's training window, scored the same way. A quiet week can list fewer than 3, or none. Every school is returned in order.
+4. Reasons come from the model itself, for the school's most unusual day: each feature of that day is set in turn to its median in the sub-county's training records, and the two that lower the score most are named in plain words ("learners fed 16% above the school's usual number"). A school listed for a store shortfall has the shortfall as its first reason, from the day of the count. They are signals to check, not causes (section 5).
 5. Fixed rules run alongside, and their breaches are shown for every school, whatever its rank.
 6. A sub-county with fewer than 60 school days of records is ranked by the fixed rules alone. Only schools that broke a rule are listed then: with no model, a school that broke none has nothing to point the officer at.
 7. A school listed again shows the officer's latest decision on it from the previous four weeks, and whether it was on last week's list.
@@ -244,7 +280,10 @@ The scoring service ([`forecasting/services/scoring_service.py`](../forecasting/
 ## 7. Limitations
 
 - **Synthetic data only.** The comparison shows that anomaly detection is feasible under simulated Kenyan school-feeding conditions: how the methods behave on records shaped like real ones, with planted irregularities. It does not measure how often they would be right about naturally occurring irregularities at real schools, and it is not a measure of real-world fraud detection. Before officers rely on the list, a pilot should compare a few terms of lists with schools' registers and store books and recalibrate the settings; the evaluation scripts re-run on any dataset in the same format.
-- **The review threshold trades recall for precision.** With it, 44% of listed schools have a real problem and an officer sees about one school every two weeks, but 30% of problem school-weeks are listed, against 75% when the top 3 are always shown. The fixed checks still show every rule breach, but problems that break no rule (such as a modest inflated headcount) are more often missed. A pilot should revisit the threshold with the programme's own capacity for visits.
+- **The review threshold trades recall for precision.** At q 0.99 (version 11, as the system runs it), two in three listed schools have a real problem and an officer sees about one school every three weeks, but 30.5% of problem school-weeks are listed. At q 0.95, 88.5% of problems are caught for about five times as many ordinary listings. The fixed checks still show every rule breach. A pilot should set the threshold from the programme's capacity for visits.
+- **Under-recording is not ranked.** Since version 11 the model looks only for records that are higher than they should be (and store counts that are short). Fewer learners recorded than were fed, or less food issued, is left to the fixed checks.
+- **Backdated entry depends on the rescoring window.** A week entered more than 4 weeks after it ended is never rescored with its records (section 5). Lengthening the window is the fix, to be confirmed first.
+- **Leaks wait for a store count.** Food that leaves the store unrecorded shows only when the store is counted, so how quickly leaks are found depends on how often stores are counted, not on the model.
 - **More single-day false alarms.** At a day-level threshold Extended Isolation Forest flags 99.2 of every 1,000 ordinary school-days, against the one-class SVM's 36.3. The system never flags single days from the model; it lists school-weeks above the review threshold.
 - **The same school can stay on the list.** In the deployment test 44% of ordinary listings had the same school listed the week before (42% for the SVM), because some features stay unusual for a whole term (an ordinary enrolment change, for example). The list shows the officer's earlier decision on such a school, but does not drop it; suppressing explained schools would change the ranking and needs its own evaluation.
 - **Fairness is preliminary.** At the deployed threshold no school size, programme type, sub-county, sync interval or outage week is listed for nothing more than 1.24 times the overall rate (the limit is 1.5), and outages no longer raise a school's listing rate. With 40 synthetic schools, these are indications, not conclusions.
@@ -264,6 +303,7 @@ python forecasting/scripts/evaluate_anomaly_detection.py
 python forecasting/scripts/run_anomaly_robustness.py
 python forecasting/scripts/run_anomaly_deployment_test.py
 python forecasting/scripts/check_explanation_faithfulness.py
+cd forecasting && python scripts/run_anomaly_v11.py --step final --workers 4   # version 11; other steps in its report
 ```
 
 Runtimes on a 12-core laptop: about 3 minutes (with the feature ablation), 22, 35 (in parallel, every threshold) and 4 minutes for the last four. `run_anomaly_deployment_test.py --report-only` rebuilds its report from the saved results. The faithfulness check reads the datasets the deployment test generates, so run it after that test. `isotree` (Extended Isolation Forest) is in `requirements.txt`; on Windows and macOS pip installs a ready-built package, on Linux it compiles (the Docker image does this in a build stage).

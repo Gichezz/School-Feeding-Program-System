@@ -1,6 +1,7 @@
 """
 Weekly review scoring for one sub-county, as evaluated in the deployment-matching test
-(config/anomaly_deployment_test.yaml, data/reports/anomaly/deployment/).
+(config/anomaly_deployment_test.yaml, data/reports/anomaly/deployment/), with the
+changes of protocol version 11.
 
 The backend sends the sub-county's records; nothing is stored here and the database is
 never read. For the week requested:
@@ -10,15 +11,21 @@ never read. For the week requested:
      evaluation). Refit points fall every 20 school days, so the model only changes about
      monthly, as tested, without any model having to be saved.
   2. School-weeks an officer marked follow-up are left out of the fit.
-  3. The week's school-days are scored; each school's week takes its highest day.
-  4. Every school is returned in rank order, the top k marked as the week's list, each
-     with its two main reasons in plain words. Fixed rule breaches are returned for every
-     day, whatever the ranking.
+  3. Each feature counts only in the direction worth a look (one-sided scoring, protocol
+     version 11): the store count when it is short, every other feature when it is high.
+     The week's school-days are scored; each school's week is the mean of its two highest
+     days.
+  4. Up to k schools are the week's list: first any school whose store count is more than
+     2 days of food short of the records, then the highest-scoring above the review
+     threshold (the 99th percentile of the training window's school-week scores). Every
+     school is returned in rank order with its two main reasons in plain words; a store
+     shortfall is named first. Fixed rule breaches are returned for every day, whatever
+     the ranking.
   5. A sub-county with fewer than 60 school days of history is ranked by the rules alone;
      then only schools that broke a rule are listed, so a quiet week lists nobody.
 
-The method and its settings are those chosen in protocol version 6 (Extended Isolation
-Forest led all three studies; docs/anomaly-detection.md) and stay fixed.
+The setting is protocol version 11's frozen setting (config/anomaly_v11.yaml,
+data/reports/anomaly/v11/v11_report.md); VERSION_8 is kept as the benchmark.
 """
 
 import datetime as dt
@@ -189,22 +196,28 @@ def rank_week(feats, calendar, week_start, k=DEFAULT_K, follow_up=(), config=Non
         model, scores, mode, threshold = None, rule_scores, "rules_only", None
 
     week = week.assign(score=scores, rule_score=rule_scores)
+    # Amendment 3: a store count well short of the records is listed first, whatever the score
+    short = set(week[week.count_gap_change < -STORE_SHORTFALL_DAYS].school_id)         if model is not None and config["list_store_shortfall"] else set()
     items = []
     for school_id, rows in week.groupby("school_id"):
         # The reasons come from the school's most unusual day; its weekly score, for the model,
         # is the mean of its two highest days. Ranked by the rules alone it stays the highest
         top = rows.loc[rows.score.idxmax()]
         week_score = top.score if model is None else float(weekly_scores(rows).iloc[0])
+        if school_id in short:
+            # Listed for its store count, so the reasons come from the day of that count
+            top = rows.loc[rows.count_gap_change.idxmin()]
         if model is not None and config["weekly"] == "two_week_mean" and school_id in previous.index:
             week_score = (week_score + float(previous[school_id])) / 2
         item = {"school_id": school_id, "score": float(np.round(week_score, 6)), "top_date": str(top.date.date())}
         if explain:
             contributions = model.contributions(top) if model is not None else rules.contributions(top)
             item["reasons"] = _reasons(contributions, top)
+            if school_id in short:
+                store = describe("count_gap_change", top)
+                item["reasons"] = [store] + [r for r in item["reasons"] if r != store][:1]
             item["explanation"] = explain_row(top, contributions)
         items.append(item)
-    # Amendment 3: a store count well short of the records is listed first, whatever the score
-    short = set(week[week.count_gap_change < -STORE_SHORTFALL_DAYS].school_id)         if model is not None and config["list_store_shortfall"] else set()
     items.sort(key=lambda i: (i["school_id"] not in short, -i["score"]))
     for rank, item in enumerate(items, 1):
         item["rank"] = rank
