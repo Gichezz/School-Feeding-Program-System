@@ -196,7 +196,7 @@ its 95% interval.
 ## 6. What the experiments show
 
 **1. Version 11 is not near a cheap improvement.**
-- Twenty-three changes from the audit and from the brief's suggestions were tested: system, scaling,
+- Twenty-four changes from the audit and from the brief's suggestions were tested: system, scaling,
   features, model structure, temporal features and aggregation.
 - None found more problems at the same workload by a margin that clears the 95% interval.
 - The largest point gains were +0.5 to +0.7, inside the noise.
