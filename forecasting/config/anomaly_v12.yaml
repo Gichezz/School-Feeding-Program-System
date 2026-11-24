@@ -279,3 +279,16 @@ frozen:
     precision +6.5, week-level F1@3 +5.9, PR-AUC +10.3 (baselines.json). Against version 11 at
     28 days: +2.5 (+1.5 to +3.5).
   final_runs: V8_as_committed (28 days, q 0.98), V11_as_committed (28 days, q 0.99), V11_56 (q 0.999), FINAL (the same setting, q 0.999)
+
+# Final test, recorded after it was run once (final.json, v12_report.md). Nothing above was changed.
+final_result:
+  realistic: >
+    Version 11 at 56 days (q 0.999): problem-level F1 33.9%, precision 24.6%, recall 55.8%,
+    F1@3 19.6%, PR-AUC 27.9%, 3.3 false listings per officer-term. Against version 8 as deployed
+    (3.4 false listings): problem-level F1 +9.1 (+5.5 to +12.9), recall +16.4 (+10.8 to +22.5),
+    precision +6.3, F1@3 +2.2 (-1.1 to +5.3), PR-AUC +8.4. Against version 11 as committed
+    (28 days, q 0.99, 4.6 false listings): problem-level F1 +4.1 (+2.0 to +6.1), recall -3.3.
+    Seeds 1-5: problem-level F1 31.9% to 32.2%.
+  standard: >
+    Problem-level F1 72.0% (precision 75.0%, recall 70.6%) at 0.5 false listings per
+    officer-term; at about 3 false listings, problem-level recall 91% against version 8's 69%.
