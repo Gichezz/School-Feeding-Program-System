@@ -13,7 +13,7 @@ Grounding:
     salt per learner per day).
   - Day-to-day variation in learners fed: the effects of the first and last days of
     terms and the size of the day-to-day noise, from the real Swedish school lunch
-    series (scripts/evaluate_swedish_forecasts.py).
+    series (data/reports/swedish/; the script is kept at the git tag forecasting-archive).
   - Everything else is an assumption, listed in config/feeding_dataset.yaml.
 
 Learners present is recorded by most schools (the field is optional), and each record

@@ -1,13 +1,3 @@
 # Test and evaluation dependencies for the scoring service
 -r requirements.txt
 pytest>=8
-
-# The forecasting comparison kept as evidence (Prophet and SARIMA against simple averages)
-prophet==1.1.6
-# prophet 1.1.6's bundled CmdStan fails cmdstanpy 1.3's install check.
-cmdstanpy==1.2.5
-statsmodels==0.14.6
-
-# Reads the Swedish school lunch dataset (.xlsx), used by the planning evaluation
-openpyxl
-

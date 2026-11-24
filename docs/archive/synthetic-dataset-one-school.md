@@ -1,4 +1,6 @@
-# Historical Dataset and Synthetic Kenyan School Data (Phase 9)
+# Historical Dataset and Synthetic Kenyan School Data (Phase 9, archived)
+
+> **Archived.** This one-school dataset served the retired demand forecasting. Its scripts and files are kept at the git tag `forecasting-archive`. The current multi-school datasets are described in [synthetic-dataset.md](../synthetic-dataset.md).
 
 This phase prepares a historical dataset for the later meal-demand forecasting phase. It does **not** implement forecasting, connect data to PostgreSQL, or change the application.
 
