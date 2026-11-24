@@ -94,7 +94,7 @@ def step_features(args):
 
 # -- evaluation -----------------------------------------------------------------------------
 
-Q_GRID = [0.95, 0.97, 0.98, 0.985, 0.99, 0.995, 0.998]
+Q_GRID = [0.95, 0.97, 0.98, 0.985, 0.99, 0.995, 0.998, 0.999]
 BUDGET = 2.5
 RESULTS = ROOT / "results"
 MEASURES = ["problem_f1", "problem_precision", "problem_recall", "one_day_claims_caught", "f1_at_k",
@@ -162,6 +162,16 @@ def at_workload(df, budget=BUDGET, q=None):
     return res
 
 
+def floor(df):
+    return float(df.groupby("q").false_listings_per_officer_term.mean().min())
+
+
+def common(df_a, df_b, budget=BUDGET):
+    """Amendment 1: both settings at one workload, 2.5 or the lowest level both can reach."""
+    level = max(budget, floor(df_a), floor(df_b))
+    return at_workload(df_a, level), at_workload(df_b, level), level
+
+
 def paired(a, b, col, n=4000, seed=0):
     """Mean of b - a over datasets, its 95% bootstrap interval and the share of datasets won."""
     d = (b[col] - a[col]).dropna().to_numpy()
@@ -186,9 +196,11 @@ def decide(base, cand, exempt_week_f1=False):
     return all(checks.values()), checks, f1
 
 
-def summary(res):
+def summary(res, raw=None):
     s = {c: float(res[c].mean()) for c in res.columns}
     s.update(q=res.attrs.get("q"), reached=res.attrs.get("reached"))
+    if raw is not None:
+        s["lowest_workload"] = floor(raw)
     return s
 
 
@@ -263,38 +275,45 @@ def name_of(cfg):
 
 def run_stage(stage, base_cfg, cands, datasets, tag, workers, exempt_week_f1=False, datasets_for=None):
     """Each candidate against the stage's start, then the passing ones combined in order of gain."""
-    base = at_workload(evaluate(base_cfg, datasets, workers, tag=tag))
-    record = {"stage": stage, "start": base_cfg, "start_result": summary(base), "candidates": {}}
+    base_raw = evaluate(base_cfg, datasets, workers, tag=tag)
+    base_alone = at_workload(base_raw)
+    record = {"stage": stage, "start": base_cfg, "start_result": summary(base_alone, base_raw), "candidates": {}}
     passing, results = [], {}
     for cname, delta in cands.items():
         cfg = combine(base_cfg, delta)
         cfg["name"] = name_of(cfg)
-        res = at_workload(evaluate(cfg, datasets, workers, tag=tag))
-        results[cname] = res
+        raw = evaluate(cfg, datasets, workers, tag=tag)
+        results[cname] = raw
+        base, res, level = common(base_raw, raw)
         ok, checks, f1 = decide(base, res, exempt_week_f1)
-        record["candidates"][cname] = {"change": delta, "result": summary(res), "against_start": comparison(base, res),
-                                       "checks": checks, "adopted_alone": ok}
+        record["candidates"][cname] = {"change": delta, "workload": level, "result": summary(res, raw),
+                                       "start_at_same_workload": summary(base, base_raw),
+                                       "against_start": comparison(base, res), "checks": checks, "adopted_alone": ok}
         print(f"{cname}: problem F1 {res.problem_f1.mean():.3f} vs {base.problem_f1.mean():.3f} "
-              f"({f1['diff'] * 100:+.1f}, {f1['lo'] * 100:+.1f} to {f1['hi'] * 100:+.1f}) q {res.attrs['q']:.4f} pass={ok}", flush=True)
+              f"({f1['diff'] * 100:+.1f}, {f1['lo'] * 100:+.1f} to {f1['hi'] * 100:+.1f}) workload {level:.2f} "
+              f"q {res.attrs['q']:.4f} vs {base.attrs['q']:.4f} pass={ok}", flush=True)
         if ok:
             passing.append((f1["diff"], cname, delta))
-    current, cur_res = dict(base_cfg), base
+    current, cur_raw = dict(base_cfg), base_raw
     kept = []
     for _, cname, delta in sorted(passing, key=lambda x: -x[0]):
         cfg = combine(current, delta)
         cfg["name"] = name_of(cfg)
         # the first is the candidate alone, already run
-        res = results[cname] if not kept else at_workload(evaluate(cfg, datasets, workers, tag=tag))
-        ok, checks, f1 = decide(cur_res, res, exempt_week_f1)
-        record.setdefault("combination", []).append({"added": cname, "setting": cfg, "checks": checks,
-                                                     "kept": ok, "against_previous": comparison(cur_res, res)})
+        raw = results[cname] if not kept else evaluate(cfg, datasets, workers, tag=tag)
+        prev, res, level = common(cur_raw, raw)
+        ok, checks, f1 = decide(prev, res, exempt_week_f1)
+        record.setdefault("combination", []).append({"added": cname, "setting": cfg, "checks": checks, "workload": level,
+                                                     "kept": ok, "against_previous": comparison(prev, res)})
         if ok:
-            current, cur_res = cfg, res
+            current, cur_raw = cfg, raw
             kept.append(cname)
     record["kept"] = kept
     record["result_setting"] = current
-    record["result"] = summary(cur_res)
-    return record, current, base, cur_res
+    base, res, level = common(base_raw, cur_raw)
+    record["result"] = summary(res, cur_raw)
+    record["result_against_start"] = {"workload": level, **comparison(base, res)}
+    return record, current, base, res
 
 
 def step_parity(args):
@@ -333,14 +352,16 @@ def step_stage(args):
     dev = dataset_dirs("development")
     if stage == "baselines":
         rec = {}
-        res = {n: at_workload(evaluate(setting(n, **kw), dev, args.workers, covers=(2, 8))) for n, kw in BASELINES.items()}
+        raws = {n: evaluate(setting(n, **kw), dev, args.workers, covers=(2, 8)) for n, kw in BASELINES.items()}
+        res = {n: at_workload(r) for n, r in raws.items()}
         for n, r in res.items():
-            rec[n] = summary(r)
+            rec[n] = summary(r, raws[n])
             print(n, {k: round(rec[n][k], 3) for k in ("q", "problem_f1", "problem_precision", "problem_recall", "f1_at_k",
                                                        "precision_at_k", "recall_at_k", "pr_auc", "one_day_claims_caught",
                                                        "false_listings_per_officer_term")}, flush=True)
         for n in ("V8_28", "V8_56", "V11_28"):
-            rec[f"V11_56_vs_{n}"] = comparison(res[n], res["V11_56"])
+            a, b, level = common(raws[n], raws["V11_56"])
+            rec[f"V11_56_vs_{n}"] = {"workload": level, n: summary(a), "V11_56": summary(b), **comparison(a, b)}
         for n, kw in BASELINES.items():   # as committed: version 8 at q 0.98, version 11 at q 0.99
             q = 0.98 if n.startswith("V8") else 0.99
             rec[f"{n}_as_committed_q"] = summary(at_workload(evaluate(setting(n, **kw), dev, args.workers, covers=(2, 8)), q=q))
@@ -354,15 +375,18 @@ def step_stage(args):
             ds = dataset_dirs(f"count{every}")
             cands[f"S3_count{every}"] = ({}, ds, f"count{every}")
             cands[f"S3_count{every}_summed"] = ({"shortfall": "summed"}, ds, f"count{every}")
-        base = at_workload(evaluate(base_cfg, base_ds, args.workers, tag="dev15"))
-        record = {"stage": "S3", "protocol": protocol_text("S3"), "start": base_cfg, "start_result": summary(base), "candidates": {}}
+        base_raw = evaluate(base_cfg, base_ds, args.workers, tag="dev15")
+        record = {"stage": "S3", "protocol": protocol_text("S3"), "start": base_cfg,
+                  "start_result": summary(at_workload(base_raw), base_raw), "candidates": {}}
         best = None
         for cname, (delta, ds, tag) in cands.items():
             cfg = combine(base_cfg, delta)
             cfg["name"] = name_of(cfg)
-            res = at_workload(evaluate(cfg, ds, args.workers, tag=tag if tag != "dev" else "dev15"))
+            raw = evaluate(cfg, ds, args.workers, tag=tag if tag != "dev" else "dev15")
+            base, res, level = common(base_raw, raw)
             ok, checks, f1 = decide(base, res)
-            record["candidates"][cname] = {"change": delta, "data": tag, "result": summary(res),
+            record["candidates"][cname] = {"change": delta, "data": tag, "workload": level, "result": summary(res, raw),
+                                           "start_at_same_workload": summary(base, base_raw),
                                            "against_start": comparison(base, res), "checks": checks, "adopted_alone": ok}
             print(f"{cname}: problem F1 {res.problem_f1.mean():.3f} vs {base.problem_f1.mean():.3f} "
                   f"({f1['diff'] * 100:+.1f}, {f1['lo'] * 100:+.1f} to {f1['hi'] * 100:+.1f}) false from shortfall "
@@ -404,13 +428,13 @@ def step_validate(args):
         raise SystemExit("already validated: the validation datasets are used once per stage")
     dev, val = dataset_dirs("development"), dataset_dirs("validation")
     start, prop = st["start"], st["proposed"]
-    q0 = at_workload(evaluate(start, dev, args.workers)).attrs["q"]
-    q1 = at_workload(evaluate(prop, dev, args.workers)).attrs["q"]
+    d0, d1, level = common(evaluate(start, dev, args.workers), evaluate(prop, dev, args.workers))
+    q0, q1 = d0.attrs["q"], d1.attrs["q"]
     a = at_workload(evaluate(start, val, args.workers, tag="val"), q=q0)
     b = at_workload(evaluate(prop, val, args.workers, tag="val"), q=q1)
     f1 = paired(a, b, "problem_f1")
     ok = f1["lo"] > 0
-    rec = {"stage": args.stage, "start": start, "proposed": prop, "q_start": q0, "q_proposed": q1,
+    rec = {"stage": args.stage, "start": start, "proposed": prop, "q_start": q0, "q_proposed": q1, "dev_workload": level,
            "start_result": summary(a), "proposed_result": summary(b), "comparison": comparison(a, b), "kept": ok}
     write_json(REPORT_DIR / f"validation_{args.stage}.json", rec)
     st["validated"] = ok

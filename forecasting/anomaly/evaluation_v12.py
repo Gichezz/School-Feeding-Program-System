@@ -219,18 +219,30 @@ def run_dataset(data_dir, cache_root, cfg, qs, model_seed=1, loop_start="2025-07
             def open_case(q, school):
                 return suppress and any(wo - cover <= o < wo for o in confirmed[q].get(school, ()))
 
-            if hist.day_index.nunique() < service.MIN_HISTORY:
-                cal = calendar_for(data_dir, cal_start)
-                for q in qs:
-                    res = service.rank_week(frame, cal, monday, k=K, follow_up=follow[q], config=dict(service.CONFIG),
-                                            model_seed=model_seed, cache=None, explain=False)
-                    for it in res["items"]:
-                        listed = bool(it["listed"]) and not open_case(q, it["school_id"])
-                        if measured:
-                            rows[q].append((sc, wk, it["school_id"], moment, it["score"], listed, False))
-                        if listed and (it["school_id"], wk) in labelled:
-                            follow[q].add((it["school_id"], wk))
-                            confirmed[q].setdefault(it["school_id"], set()).add(wo)
+            def record(q, school, score, listed, by_short):
+                if measured:
+                    rows[q].append((sc, wk, school, moment, score, listed, by_short))
+                if listed and (school, wk) in labelled:
+                    follow[q].add((school, wk))
+                    confirmed[q].setdefault(school, set()).add(wo)
+
+            cal = calendar_for(data_dir, cal_start)
+            refit = str(pd.Timestamp(cal.date.iloc[anchor]).date()) if anchor < len(cal) else None
+            hw = set(hist.week)
+            keeps = {}
+            for q in qs:
+                keep = np.array([(s, w) not in follow[q] for s, w in zip(hist.school_id, hist.week)], dtype=bool)
+                keeps[q] = keep
+            model_qs = [q for q in qs if hist[keeps[q]].day_index.nunique() >= service.MIN_HISTORY]
+            for q in qs:
+                if q in model_qs:
+                    continue
+                # rules only, as the service (q plays no part)
+                res = service.rank_week(frame, cal, monday, k=K, follow_up=follow[q], config=dict(service.CONFIG),
+                                        model_seed=model_seed, cache=None, explain=False)
+                for it in res["items"]:
+                    record(q, it["school_id"], it["score"], bool(it["listed"]) and not open_case(q, it["school_id"]), False)
+            if not model_qs:
                 continue
             if extras:
                 frame = add_extras(frame, hist, extras)
@@ -246,14 +258,11 @@ def run_dataset(data_dir, cache_root, cfg, qs, model_seed=1, loop_start="2025-07
                         short |= set(counted[total < -service.STORE_SHORTFALL_DAYS].school_id)
             else:
                 short = set()
-            refit = int(anchor)
-            hw = set(hist.week)
             week_scores = {}
-            for q in qs:
+            for q in model_qs:
                 key = (refit, tuple(sorted(f for f in follow[q] if f[1] in hw)))
                 if key not in fits:
-                    keep = np.array([(s, w) not in follow[q] for s, w in zip(hist.school_id, hist.week)], dtype=bool)
-                    hh = hist[keep]
+                    hh = hist[keeps[q]]
                     m = make_model(cfg, model_seed).fit(hh)
                     ws = weekly(hh.assign(score=m.score(hh)), agg).to_numpy()
                     fits[key] = (m, ws)
@@ -265,13 +274,8 @@ def run_dataset(data_dir, cache_root, cfg, qs, model_seed=1, loop_start="2025-07
                 eligible = [x for x in s.index if not open_case(q, x)]
                 order = sorted(eligible, key=lambda x: (x not in short, -s[x]))
                 listed = {x for x in order[:K] if x in short or s[x] > thr}
-                if measured:
-                    for x in s.index:
-                        rows[q].append((sc, wk, x, moment, float(s[x]), x in listed, x in listed and x in short))
-                for x in listed:
-                    if (x, wk) in labelled:
-                        follow[q].add((x, wk))
-                        confirmed[q].setdefault(x, set()).add(wo)
+                for x in s.index:
+                    record(q, x, float(s[x]), x in listed, x in listed and x in short)
     return {q: pd.DataFrame(rows[q], columns=["sub_county", "week", "school_id", "moment", "score", "listed", "by_shortfall"])
             for q in qs}
 
