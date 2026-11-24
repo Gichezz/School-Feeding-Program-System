@@ -217,3 +217,29 @@ generator_freeze:
   config/feeding_dataset_realistic.yaml: 2038961bbf7325c490f6ad0ee7d73bcb3504628e0dff13417b53eb76adbf69fb
   scripts/generate_feeding_dataset.py: 276d12d1f55c4c8f817ab230af7b83a2921708dad5aebd0402c9cff4a9360e1c
   config/feeding_dataset.yaml: f689e4b55c5128404abb3123608834c94e8e8ab5266fcd4e84a7a7c2d3ab2bce
+
+# Amendment 1, written and committed before any detector is run on a protocol dataset.
+amendment_1:
+  why: >
+    The evaluation code was tested on the sanity dataset (seed 77, outside the protocol). On it,
+    the store-shortfall listing alone gave 2.9 false listings per officer-term, because 11.5% of
+    honest counts are more than 2 days of food short under the realistic count error. Those
+    listings do not depend on q, so 2.5 cannot be reached by any setting that keeps the listing,
+    and comparing each setting at its own nearest point would compare different workloads.
+  operating_point: >
+    Each comparison is made at one workload for both settings: 2.5 false listings per
+    officer-term, or, if either cannot reach it on the grid, the lowest level both can reach
+    (the larger of the two settings' lowest means over the grid). Every summary also reports
+    each setting at its own lowest reachable workload. The q grid gains 0.999.
+  clarifications:
+    summed_shortfall: >
+      The summed rule (S3) is checked on the days of the week with a store count: the sum of
+      that count's gap and the gaps of the school's other counts in the last 20 school days.
+      A week without a count is never listed by it, so one shortfall is not listed again in
+      later weeks.
+    suppression: >
+      A suppressed school-week is not listed and is not marked follow-up (only listed weeks
+      are), as follow_up above says.
+  finding_to_report: >
+    Under realistic store-count precision the store-shortfall listing is itself the largest
+    source of false listings; this is reported whatever the stages find.
