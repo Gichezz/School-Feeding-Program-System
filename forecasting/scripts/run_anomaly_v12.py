@@ -445,8 +445,91 @@ def step_validate(args):
     print(f"validation {args.stage}: problem F1 {f1['diff'] * 100:+.1f} ({f1['lo'] * 100:+.1f} to {f1['hi'] * 100:+.1f}) kept={ok}")
 
 
+FINAL_SETS = {"final_realistic": ("9501-9520", "realistic"), "final_standard": ("9601-9620", "standard")}
+
+
+def final_settings(state):
+    """The settings the final test runs and their q, fixed from development data: version 8 and
+    version 11 as committed (28 days, q 0.98 and 0.99), version 11 at 56 days and the final
+    setting, each at the q giving the common workload of the two on development data."""
+    dev = dataset_dirs("development")
+    final = dict(state["current"])
+    final["name"] = "FINAL"
+    a, b, level = common(evaluate(setting("V11_56"), dev, 2), evaluate(state["current"], dev, 2))
+    return {
+        "V8_as_committed": (setting("V8_28", **BASELINES["V8_28"]), 0.98),
+        "V11_as_committed": (setting("V11_28", **BASELINES["V11_28"]), 0.99),
+        "V11_56": (setting("V11_56"), a.attrs["q"]),
+        "FINAL": (final, b.attrs["q"]),
+    }, level
+
+
+def step_freeze(args):
+    state = load_state()
+    sets, level = final_settings(state)
+    print(json.dumps({"workload": level, "count_every": state.get("count_every", 20),
+                      "settings": {k: {"setting": c, "q": q} for k, (c, q) in sets.items()}}, indent=2))
+
+
+def step_final_data(args):
+    state = load_state()
+    every = state.get("count_every", 20)
+    gen_r = FORECASTING_DIR / "scripts" / "generate_feeding_dataset_realistic.py"
+    subprocess.run([sys.executable, str(gen_r), "--out", str(ROOT / "final_realistic"), "--seeds", "9501-9520",
+                    "--count-every", "20", "--workers", str(args.workers)], check=True)
+    if every != 20:
+        subprocess.run([sys.executable, str(gen_r), "--out", str(ROOT / f"final_count{every}"), "--seeds", "9501-9520",
+                        "--count-every", str(every), "--workers", str(args.workers)], check=True)
+    import copy as _copy
+    import generate_feeding_dataset as gstd
+    base = gstd.load_yaml(gstd.CONFIG)
+    for s in seeds("9601-9620"):
+        d = ROOT / "final_standard" / f"seed_{s}"
+        if not (d / "labels.csv").exists():
+            gstd.generate(dict(_copy.deepcopy(base), seed=s), d, quiet=True)
+            print("generated", s, flush=True)
+
+
 def step_final(args):
-    raise SystemExit("the final step is written after the freeze")
+    """The final datasets, once: every final setting at its frozen q, every measure, paired
+    intervals against version 11 at 56 days and as committed."""
+    state = load_state()
+    sets, level = final_settings(state)
+    every = state.get("count_every", 20)
+    groups = {"final_realistic": ROOT / "final_realistic", "final_standard": ROOT / "final_standard"}
+    if every != 20:
+        groups[f"final_count{every}"] = ROOT / f"final_count{every}"
+    out = {"dev_workload": level, "settings": {k: {"setting": c, "q": q} for k, (c, q) in sets.items()}, "results": {}}
+    for gname, root in groups.items():
+        ds = sorted(root.glob("seed_*"))
+        res = {}
+        for k, (cfg, q) in sets.items():
+            if gname.startswith("final_count") and k != "FINAL":
+                continue
+            raw = evaluate(cfg, ds, args.workers, qs=sorted(set(Q_GRID) | {q}), tag=gname, covers=(2, 8))
+            res[k] = at_workload(raw, q=q)
+            res[k + "_at_common_workload"] = raw
+        g = {k: summary(v) for k, v in res.items() if not k.endswith("_at_common_workload")}
+        if "V11_56" in res:
+            for k in ("FINAL", "V8_as_committed", "V11_as_committed"):
+                g[f"FINAL_vs_{k}" if k != "FINAL" else "FINAL_vs_V11_56"] = (
+                    comparison(res["V11_56"], res["FINAL"]) if k == "FINAL" else comparison(res[k], res["FINAL"]))
+            a, b, lv = common(res["V11_56_at_common_workload"], res["FINAL_at_common_workload"])
+            g["FINAL_vs_V11_56_same_workload"] = {"workload": lv, **comparison(a, b)}
+        g["per_dataset"] = {k: v.reset_index().to_dict(orient="records") for k, v in res.items() if not k.endswith("_at_common_workload")}
+        out["results"][gname] = g
+        if gname == "final_realistic":
+            v11_realistic = res["V11_56"]
+        elif gname.startswith("final_count"):
+            # the same seeds counted at 20 days, version 11: the procedure and model together
+            g["FINAL_vs_V11_56_at_20_day_counts"] = comparison(v11_realistic, res["FINAL"])
+    # seed stability of the final setting: model seeds 2-5 on 5 final realistic datasets
+    ds5 = sorted((ROOT / "final_realistic").glob("seed_*"))[:5]
+    cfg, q = sets["FINAL"]
+    out["seed_stability"] = {s: summary(at_workload(evaluate(cfg, ds5, args.workers, qs=[q], tag="final_realistic5", model_seed=s), q=q))
+                             for s in (1, 2, 3, 4, 5)}
+    write_json(REPORT_DIR / "final.json", out)
+    print("final written", flush=True)
 
 
 def main():
@@ -457,7 +540,7 @@ def main():
     p.add_argument("--workers", type=int, default=3)
     a = p.parse_args()
     {"data": step_data, "features": step_features, "parity": step_parity, "stage": step_stage,
-     "validate": step_validate, "final": step_final}[a.step](a)
+     "validate": step_validate, "freeze": step_freeze, "final_data": step_final_data, "final": step_final}[a.step](a)
 
 
 if __name__ == "__main__":
