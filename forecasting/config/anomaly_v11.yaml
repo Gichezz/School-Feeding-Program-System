@@ -1,0 +1,295 @@
+# Protocol version 11: the deployed model, measured as it runs, then three repairs.
+#
+# Written and committed before any version 11 run. An audit of version 8 (development
+# data only: seeds 8001-8010, 2025) found three faults:
+#
+#   1. Two models called version 8. The scoring service runs Extended Isolation Forest with
+#      300 trees and ndim 2 (protocol version 6's choice). The main evaluation was re-run in
+#      version 7 and chose 100 trees and ndim 15, and versions 7-10 evaluated that, but the
+#      service was never changed. On the development data (version 8's harness) the two
+#      reach a similar F1@3 (31.9% deployed, 33.9% evaluated) and catch different problems
+#      (inflated headcount 59% against 26%, stock leakage 28% against 81%). Every reported
+#      figure since version 7 describes a model that is not the one deployed.
+#   2. The evaluation sees records before they arrive. It builds features from the whole
+#      dataset and scores each week as if every record were on the server. The system
+#      scores a finished week from what has synced (and the last 365 days of it), and
+#      scores it again whenever its records change, for 4 weeks (backend
+#      weeklyReviewSchedule.js). Under the generator's own timing about 65% of backdated
+#      school-weeks arrive after those 4 weeks, so the reported 100% of backdated entries
+#      caught, and the weeks to catch them, cannot hold in the system.
+#   3. Scaling saturates two features. RobustScaler divides by the interquartile range;
+#      pulse_ratio and uptake have point masses (pulses snapped to the recording precision,
+#      uptake filled with one typical value where learners present is blank), so their
+#      ranges are about 0.001 and 32% and 22% of ordinary school-days sit at the +-10 clip:
+#      ordinary rounding looks as unusual as a problem. count_gap_change, entry_delay and
+#      entry_batch have a range of 0 in nearly every fit and are left in raw units.
+#
+# The audit also tested, and did not support: a school's own earlier problem days in the
+# training window hiding its later ones (recall was higher, not lower, for those weeks).
+# Nothing about the injected problems or the generator changes.
+
+version: 11
+baseline: version 8 as deployed (services/scoring_service.py before this version)
+
+datasets:
+  development: {seeds: [8001, 8002, 8003, 8004, 8005, 8006, 8007, 8008, 8009, 8010], period: {start: 2025-01-06, end: 2025-12-31}}
+  # Generated only after the freeze below is committed, from config/feeding_dataset.yaml
+  # with the generator unchanged. None of these seeds has been generated before.
+  test: {seeds: [9201, 9202, 9203, 9204, 9205, 9206, 9207, 9208, 9209, 9210, 9211, 9212, 9213, 9214, 9215, 9216, 9217, 9218, 9219, 9220],
+         period: {start: 2026-01-01, end: 2026-10-23}, loop_from: 2025-07-07}
+model_seeds: {development: [1, 2, 3], final: [1, 2, 3, 4, 5]}
+# 2024 and 2025 hold three of the six types (consumption drift, inflated headcount, stock
+# leakage); every development figure is about those three. The other three appear only in
+# the test year, so they are never used to choose anything.
+
+# One harness from here on: the point-in-time loop (step 1). It calls the scoring
+# service's own ranking code, so what is measured is what runs.
+harness:
+  point_in_time: >
+    For each sub-county and each finished week (Monday to Sunday), the week is first scored
+    the day after it ends, from the records received by then; it is scored again on any
+    later day, up to 28 days after it ends, on which one of its records (feeding or store
+    count) arrives. Each scoring uses only records received by that day, dated within the
+    365 days before the week starts, as the backend sends. A store count arrives with the
+    feeding record of its school and date.
+  model: >
+    As the scoring service: refit points every 20 school days of the calendar (day index a
+    multiple of 20), the last 125 school days before the refit point, school-weeks marked
+    follow-up left out, rules alone below 60 school days of history. A model is fitted once
+    per sub-county, refit point and set of follow-up weeks in its window, on the first
+    scoring that needs it (the service refits on every request; the difference is late
+    records inside the window, measured once on one dataset and reported).
+  officer: >
+    A listed school-week that holds a problem is marked follow-up on the day it is listed
+    (from the labels, which nothing else uses), as in versions 7-10.
+  counting: >
+    A school-week is listed if any of its scorings listed it; it is caught on the day of the
+    first. A school-week with no records received within the 28 days is never scored and
+    counts as not listed. Workload counts every distinct listed school-week.
+  whole_dataset_mode: >
+    For continuity, also run the earlier way (features from every record, each week scored
+    once), with the same ranking code. Reported next to the point-in-time figures, never
+    used to choose.
+
+steps:
+  1_measure_as_deployed: >
+    Version 8 as deployed (300 trees, ndim 2) and as evaluated (100 trees, ndim 15), on the
+    development datasets under the point-in-time harness, q chosen for each from the grid.
+    No adoption rule: this is the baseline every later step is measured against.
+  2_one_model: >
+    Choose the version 8 settings: the higher development F1@3 of the two in step 1. Within
+    1.0 point, the deployed settings stay (no change). The scoring service is then set to
+    the choice, and a test runs one sub-county-week through the service and through the
+    harness and requires identical scores.
+  3_scaling_floor: >
+    The scaler's spread for each feature is the larger of its interquartile range on the
+    training window and a fixed floor; nothing else changes. The floors are the robust
+    z-score baseline's MIN_SPREAD (anomaly/methods.py, fixed in protocol version 6), with
+    fed_vs_own, which that table lacks, at 0.02 like fed_rate and fed_vs_peers:
+      fed_rate 0.02, fed_vs_own 0.02, fed_vs_peers 0.02, fed_rate_vs_last_term 0.02,
+      enrolment_change 0.03, uptake 0.01, cereal_ratio 0.03, pulse_ratio 0.03,
+      usage_trend 0.02, count_gap_change 0.5, entry_delay 1.0, entry_batch 1.0,
+      after_hours_share 0.1, round_share 0.1, fed_steadiness 0.01
+  4_threshold_estimate: >
+    The review threshold, the q-quantile of the training window's school-week scores, is
+    estimated with the Harrell-Davis estimator (a weighted mean of all order statistics)
+    instead of interpolating between the two nearest: at q 0.98 the current estimate rests
+    on about 5 school-weeks. Nothing else changes.
+
+threshold_grid: [none, 0.90, 0.95, 0.98, 0.99, 0.995]   # 0.995 added: version 10 chose the top of its grid
+choose_q: per candidate, highest development F1@3 (mean over datasets and model seeds); ties to the lower q
+
+adoption_rules:   # steps 3 and 4, against the current setting, development datasets
+  f1_gain: at least 1.0 F1@3 point (mean over datasets and model seeds)
+  interval: the 95% interval of the gain (2,000 bootstrap resamples of the 10 datasets, each dataset's mean over model seeds) is above 0
+  problems_caught: does not fall by more than 2.0 points
+  workload: ordinary schools listed per officer-term no more than 1.0 above the current setting's
+  fairness: no group (school size, programme type, sub-county, sync interval, outage week) over 1.5 times the overall false listing rate
+behaviour_tests: >
+  Before the freeze, every behaviour test (tests/test_anomaly_behaviour.py) must pass with
+  the scoring service set to the final setting. If one fails, the last adopted step is
+  removed and the tests run again; this is reported.
+
+robustness: >
+  Before the freeze, version 8 as deployed and the final setting, point-in-time harness, on
+  the robustness scenarios (config/anomaly_robustness.yaml: 7 scenarios x 3 dataset seeds),
+  3 model seeds, q as chosen. The final setting is rejected if its mean F1@3 over all
+  scenarios is below version 8's, or in any scenario more than 3.0 points below; then the
+  last adopted step is removed and the check repeated.
+
+measures:   # development and final test; none can be swapped in later
+  - precision_at_k, recall_at_k, f1_at_k     # school-weeks, within each sub-county-week
+  - pr_auc                                   # average precision of the last scoring's weekly scores over all school-weeks of a run (never scored = lowest)
+  - pr_auc_within_sub_county                 # the same per sub-county, then the mean (each sub-county has its own model)
+  - problems_caught                          # an episode is caught if any school-week it covers is listed
+  - problems_caught_within_2_weeks           # first listed within 14 days of the end of the episode's first week
+  - median_days_to_catch                     # from the end of the episode's first week to the first listing
+  - false_listings_per_officer_term, listings_per_officer_week
+  - listed_by_type and caught_by_type        # all six types in the final test
+  - fairness by school size, programme type, sub-county, sync interval and outage week
+
+freeze: >
+  After development, the behaviour tests and the robustness check, the final setting
+  (settings, scaling, threshold estimate, q) is written below and committed before any test
+  dataset is generated.
+
+final_test: >
+  The 20 test datasets, the loop from 2025-07-07 so the first 2026 fits have their feedback,
+  2026 measured, 5 model seeds: version 8 as deployed (q 0.98, as the service runs it) and
+  the frozen setting, on the same data, point-in-time; and both again in whole-dataset mode
+  for continuity. Each dataset's result, the mean, and 95% intervals from 2,000 bootstrap
+  resamples of the datasets, for each measure and for the paired difference. Reported as it
+  comes out; nothing is changed after it is seen. If nothing was adopted beyond step 2, the
+  final test measures version 8 as it is deployed.
+
+after: the scoring service, its tests and the documentation describe the frozen setting
+
+# Amendment 1, written and committed after steps 1-4 and before anything below is run.
+amendment_1:
+  why: >
+    Steps 1-4 on the development data (data/reports/anomaly/v11/development.json): version
+    8 as deployed reached F1@3 32.7% (q 0.98) and stays; the settings as evaluated reached
+    31.3%, the scaling floor 31.5% and the Harrell-Davis threshold 32.9%, so nothing was
+    adopted. The gaps that remain on the development data: stock leakage caught in 39% of
+    episodes and listed in 11% of its school-weeks; 34% of problems caught within 2 weeks;
+    the threshold resting on few school-weeks. The cache check (cache_check.json, one
+    dataset) put the cached model about 2 F1@3 points and one episode from a refit on every
+    request, in neither direction, so a gain must clear the same rules as before.
+  measure_correction: >
+    A stock leak cannot be seen until the next store count, and the generator labels that
+    count's day as part of the leak (it is in labels.csv, and in every precision and recall
+    figure), but problems_caught only looked at the leak's own weeks. From here, a leak is
+    also caught if the week of the first store count after it ends is listed. The old count
+    is kept as problems_caught_in_own_weeks. Version 8 is re-measured with it first, and
+    every comparison below uses the re-measured figures. No other measure changes.
+  steps:
+    5_two_week_score: >
+      A school-week's score is the mean of its own weekly score (the mean of its two highest
+      days) and the school's previous week with records since the start of the training
+      window, scored by the same model; a school's first week keeps its own score. The
+      threshold is taken over the training window's school-weeks scored the same way.
+      Problems last 2-6 weeks; one odd week at an ordinary school is the commonest false
+      listing. Nothing else changes.
+    6_window: >
+      The training window is the last 150 school days before the refit point instead of 125:
+      the most the backend's 365 days of records hold (about 170 school days, less up to 19
+      days to the refit point), so the review threshold rests on about 20% more school-weeks.
+      Nothing else changes.
+  order: step 5, then step 6, each against the setting current at that point, q chosen from threshold_grid
+  adoption_rules: as adoption_rules above
+  reported_only: >
+    The setting current after step 6, rescored for 56 days after the week instead of 28
+    (backend LOOK_BACK_WEEKS 8 instead of 4), on the development data and in the final test
+    next to the 28-day figures. Never used to choose; the backend is not changed by this
+    version. Backdated entries, the type it bears on, are only in the test year.
+  then: >
+    behaviour_tests, robustness and freeze as above, with the setting current after step 6.
+    final_test as above, with the 56-day run added for version 8 and the frozen setting.
+
+# Amendment 2, written and committed after amendment 1 and an audit of the datasets and the
+# pipeline (development data only), before anything below is run under this protocol.
+amendment_2:
+  results_so_far: >
+    Amendment 1 (development_amendment.json): version 8 re-measured with leaks counted at
+    the revealing store count, F1@3 32.7%, problems caught 66.9%; the two-week score (31.2%)
+    and the 150-day window (32.6%) were not adopted; 56 days of rescoring changed nothing
+    on the development data.
+  audit: >
+    On the development data, with features built from every record (so optimistic):
+    (a) 5.1% of school-weeks hold a problem and 59% of sub-county-weeks hold none, so with
+    3 listed every week the best possible precision is 17% (F1@3 29%); the review threshold
+    is what lets F1@3 rise above that. (b) 22% of problem school-weeks are leak weeks with
+    no store count: nothing in the records shows them, whatever the model. (c) Learners fed
+    (school-day AUC 0.87-0.91 for inflated headcount) and food per learner (0.80-0.85 for
+    consumption drift) carry most of the signal; the entry-behaviour features (about 0.50
+    on these three types) are there for backdated, round-number and ghost-learner records,
+    which the development years do not hold. (d) Gradient boosting trained on the labels of
+    nine datasets and tested on the tenth reached F1@3 about 63% and PR-AUC 0.64 against
+    Extended Isolation Forest's 31% and 0.30: the features hold about twice what the
+    unsupervised model ranks by. It learns the generator's labels, which a real programme
+    does not have, so it is an upper bound, never a candidate. (e) Exploratory, whole
+    dataset, one model seed: an EIF per family of features was worse (F1@3 28% at q 0.98);
+    an EIF that counts each feature only in its risky direction reached 42.6% against
+    31.1%, at the same workload.
+  steps:
+    7_one_sided: >
+      After scaling, each feature's harmless side is set to the median, so only the
+      direction its meaning makes worth a look can make a day unusual: every feature when
+      high (more learners fed than usual, than peers, than last term, than present; more
+      enrolment; more food per learner; a rising use; later, batched, after-hours or round
+      entries; steadier figures), and the store count's gap when the store is short of the
+      records. The directions follow from what each feature describes
+      (anomaly/features.py), the same for all six problem types, not from the labels.
+      Against the setting after amendment 1, point-in-time harness, q from threshold_grid,
+      adoption_rules as above. Nothing else changes. What the model then does not rank:
+      a school feeding fewer learners, or using less food, than usual (the fixed rules still
+      report breaches either way).
+  final_test_addition: >
+    Reported only, never used to choose: version 8 and the frozen setting at review
+    quantile 0.95 as well, point-in-time, next to the frozen q.
+  then: behaviour_tests, robustness, freeze and final_test as above, with the setting after step 7.
+
+# Amendment 3, written and committed after step 7 and before step 8 is run.
+amendment_3:
+  results_so_far: >
+    Step 7 (development_amendment_2.json) was adopted: F1@3 42.4% against 32.7% (+9.7
+    points, 95% interval +6.7 to +13.0), PR-AUC 0.44 against 0.30, problems caught 71.9%
+    against 66.9%, within 2 weeks 44% against 34%, false listings per officer-term 3.3
+    against 3.1, q 0.98. Stock leaks caught fell, 32% against 47%. A behaviour check run
+    beforehand with step 7 on (not the protocol's run, which follows the freeze rules)
+    failed one test: a store count 7 days of food short was not listed. A shortfall is on
+    one day, the weekly score averages the two highest days, and the higher threshold of
+    one-sided scoring left the school just below it (0.529 against 0.540).
+  evidence: >
+    Development store counts, 2025, every record: no count at a school-day without a leak
+    was more than 2 days of food short of the records (0 of 3,118); 55% of leak count days
+    were (45 of 82). The fixed rule (count_gap_change below -2 days, anomaly/methods.py,
+    protocol version 6) already reports these as breaches.
+  steps:
+    8_store_shortfall: >
+      A school whose store count that week is more than 2 days of food short of the records
+      (the fixed rule's threshold, unchanged) is listed first, before the model's ranking,
+      within the same k of 3, whatever its score. A physical count short of the records is
+      direct evidence of missing food, not a statistical guess. Against the setting after
+      step 7, q from threshold_grid, adoption_rules as above. Nothing else changes.
+  then: behaviour_tests, robustness, freeze and final_test as above, with the setting after step 8.
+
+# The freeze: written after development, the behaviour tests and the robustness check, and
+# committed before any test dataset is generated.
+frozen:
+  n_estimators: 300
+  ndim: 2
+  scale_floor: false
+  threshold: interpolated
+  review_quantile: 0.99
+  window: 125
+  weekly: top2_mean
+  one_sided: true
+  list_store_shortfall: true
+  adopted: [7_one_sided, 8_store_shortfall]
+  not_adopted: [2_one_model (deployed settings stay), 3_scaling_floor, 4_threshold_estimate, 5_two_week_score, 6_window]
+  development: >
+    F1@3 47.0% against version 8's 32.7% (q 0.98), problems caught 82.4% against 66.9%,
+    false listings per officer-term 1.7 against 3.1, PR-AUC 0.44 against 0.30; problems
+    caught within 2 weeks 39% against 34%, median days to catch 18 against 14 (leaks are
+    found at the next store count).
+  behaviour_tests: all 12 pass with the scoring service set to this setting
+  robustness: >
+    Passed. Mean F1@3 over the 7 scenarios 48.7% against version 8's 33.4%; higher in every
+    scenario, by 12.0 to 19.1 points (robustness.json).
+  generator_commit: 050703a
+
+# Final test, recorded after it was run (final.json, v11_report.md). Nothing above was changed.
+final_result:
+  point_in_time: >
+    F1@3 41.6% against version 8's 41.5% (+0.1, interval -2.8 to +2.9): level. Precision@3
+    66.3% against 52.5%; recall@3 30.5% against 34.8%; problems caught 74.6% against 69.4%
+    (+5.1, +0.8 to +9.8); ordinary schools listed per officer-term 1.6 against 3.1; stock
+    leakage caught 87% against 41%; round-number entry 62% against 82%; median days to
+    catch 21 against 16.
+  reported_only: >
+    Whole dataset 51.6% against 50.6%. Rescored for 56 days 47.3% against 47.3%, with
+    backdated entry caught 95% against 53% at 28 days for both. q 0.95: 45.8% against 43.4%.
+  note: >
+    The first final run with 8 workers ran out of memory before it produced any result; it
+    was re-run unchanged with 4.

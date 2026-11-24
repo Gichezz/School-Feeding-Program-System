@@ -110,6 +110,16 @@ describe('the weekly schedule', () => {
     expect(list.body.items.find((i) => i.schoolId === SCHOOL_ID).decision).toMatchObject({ status: 'explained', note: 'Sports day' });
   });
 
+  it('scores a week whose records arrive up to 8 weeks late, and leaves older weeks alone', async () => {
+    expect(finishedWeeks(new Date('2026-10-08T06:00:00Z'))).toHaveLength(8);
+    await addFeeding(SCHOOL_ID, '2026-08-11');   // 8 weeks before the week in progress
+    await addFeeding(SCHOOL_ID, '2026-08-04');   // 9 weeks before
+
+    const pass = await runSchedulePass({ log: quiet });
+
+    expect(pass.scored.map((w) => w.weekStart)).toEqual(['2026-08-10']);
+  });
+
   it('scores a week again when a record in it is edited, for example after a conflict is decided', async () => {
     await addFeeding(SCHOOL_ID, '2026-09-29');
     await runSchedulePass({ log: quiet });

@@ -12,12 +12,16 @@ const { scoreWeek } = require('./reviewRuns');
  * So on Monday morning each officer finds last week's list ready, and a school that
  * syncs a week late is still ranked with its records.
  *
+ * The last 8 finished weeks are looked at (56 days), so a week whose records are entered up
+ * to 8 weeks late is still rescored with them. In the evaluation (protocol version 12),
+ * rescoring for 56 days instead of 28 found more backdated entries at the same workload.
+ *
  * Only finished weeks (Monday to Sunday, in the schools' time zone) are scored here; an
  * officer can still score the week in progress from the page. A week that fails (the
  * scoring service is down, for example) is tried again on the next pass.
  */
 
-const LOOK_BACK_WEEKS = 4;
+const LOOK_BACK_WEEKS = 8;
 const DEFAULT_K = 3;
 const DEFAULT_INTERVAL_MINUTES = 60;
 const FIRST_PASS_DELAY_MS = 30 * 1000;

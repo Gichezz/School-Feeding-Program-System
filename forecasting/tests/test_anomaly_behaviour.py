@@ -125,6 +125,9 @@ def test_a_store_count_far_short_of_the_records_is_listed(base, school):
 
     assert school in listed(result)
     assert "count_gap_change" in breaches(result, school)
+    # Listed for the shortfall, so the first reason names it, from the day of the count
+    assert item(result, school)["reasons"][0].startswith("the store count")
+    assert item(result, school)["top_date"] == WEEK_DAYS[3][:10]
 
 
 def test_three_weeks_entered_together_long_after_the_fact_are_listed(base, school):

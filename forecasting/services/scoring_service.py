@@ -1,6 +1,7 @@
 """
 Weekly review scoring for one sub-county, as evaluated in the deployment-matching test
-(config/anomaly_deployment_test.yaml, data/reports/anomaly/deployment/).
+(config/anomaly_deployment_test.yaml, data/reports/anomaly/deployment/), with the
+changes of protocol versions 11 and 12.
 
 The backend sends the sub-county's records; nothing is stored here and the database is
 never read. For the week requested:
@@ -10,18 +11,28 @@ never read. For the week requested:
      evaluation). Refit points fall every 20 school days, so the model only changes about
      monthly, as tested, without any model having to be saved.
   2. School-weeks an officer marked follow-up are left out of the fit.
-  3. The week's school-days are scored; each school's week takes its highest day.
-  4. Every school is returned in rank order, the top k marked as the week's list, each
-     with its two main reasons in plain words. Fixed rule breaches are returned for every
-     day, whatever the ranking.
+  3. Each feature counts only in the direction worth a look (one-sided scoring, protocol
+     version 11): the store count when it is short, every other feature when it is high.
+     The week's school-days are scored; each school's week is the mean of its two highest
+     days.
+  4. Up to k schools are the week's list: first any school whose store count is more than
+     2 days of food short of the records, then the highest-scoring above the review
+     threshold (by default the 99th percentile of the training window's school-week
+     scores; REVIEW_QUANTILE sets it from the officers' capacity for visits). Every
+     school is returned in rank order with its two main reasons in plain words; a store
+     shortfall is named first. Fixed rule breaches are returned for every day, whatever
+     the ranking.
   5. A sub-county with fewer than 60 school days of history is ranked by the rules alone;
      then only schools that broke a rule are listed, so a quiet week lists nobody.
 
-The method and its settings are those chosen in protocol version 6 (Extended Isolation
-Forest led all three studies; docs/anomaly-detection.md) and stay fixed.
+The setting is protocol version 12's frozen setting (config/anomaly_v12.yaml,
+data/reports/anomaly/v12/v12_report.md): version 11's model, with weeks rescored for 56 days
+by the backend, at q 0.99 (the plan's deployment note: at 0.999 a school recording more
+learners fed than enrolled was not listed). VERSION_8 is kept as the benchmark.
 """
 
 import datetime as dt
+import os
 
 # Imported here so a missing or broken isotree stops the service at start-up (and its
 # health check), instead of failing the first weekly list
@@ -30,21 +41,55 @@ import numpy as np
 import pandas as pd
 
 from anomaly.calendar import school_days
-from anomaly.explain import describe, explain
+from anomaly.explain import describe, explain as explain_row
 from anomaly.features import build_features
 from anomaly.methods import ExtendedIsolationForestMethod, Rules
-from anomaly.weekly import WEEKLY_AGGREGATION, weekly_scores
+from anomaly.weekly import WEEKLY_AGGREGATION, review_threshold, two_week_mean, weekly_scores
 
 METHOD = "extended_isolation_forest"
-SETTINGS = {"n_estimators": 300, "ndim": 2}
 REFIT_EVERY = 20
 WINDOW = 125
 MIN_HISTORY = 60
 DEFAULT_K = 3
-# Version 7: a school-week is listed only if it is also more unusual than this share of the
-# school-weeks in the model's own training window, so a quiet week can list fewer than 3, or
-# none. Chosen on the selection year in the deployment test (None: always the top 3).
-REVIEW_QUANTILE = 0.98   # chosen on 2025 by F1@3; protocol version 8 chose it again with the weekly score below (data/reports/anomaly/v8)
+# Version 8 as the service ran it before protocol version 11 (protocol version 6's trees
+# and ndim; version 7's review threshold: a school-week is listed only if it is also more
+# unusual than this share of the school-weeks in the model's own training window, so a
+# quiet week can list fewer than 3, or none).
+VERSION_8 = {"n_estimators": 300, "ndim": 2, "scale_floor": False, "threshold": "interpolated", "review_quantile": 0.98,
+             "window": WINDOW, "weekly": WEEKLY_AGGREGATION, "one_sided": False,
+             "list_store_shortfall": False}
+# A store count this many days of food short of the records (the fixed rule's threshold)
+STORE_SHORTFALL_DAYS = 2.0
+# The review quantiles with a measured workload (data/reports/anomaly/v12/v12_report.md,
+# "The workload trade-off"). A programme picks one from how many needless visits its
+# officers can make. 0.999 sends the fewest, but its threshold is close to the highest
+# school-week in the training window, so even impossible records can miss the list; 0.99 is
+# the default (config/anomaly_v12.yaml, deployment).
+REVIEW_QUANTILES = (0.95, 0.98, 0.99, 0.999)
+DEFAULT_REVIEW_QUANTILE = 0.99
+
+
+def review_quantile_from(value):
+    """The review quantile from REVIEW_QUANTILE; unset is 0.99. Only a tested
+    value is accepted, so a typing mistake stops the service instead of changing the list."""
+    if value in (None, ""):
+        return DEFAULT_REVIEW_QUANTILE
+    try:
+        q = float(value)
+    except ValueError:
+        q = None
+    if q not in REVIEW_QUANTILES:
+        raise ValueError(f"REVIEW_QUANTILE must be one of {', '.join(map(str, REVIEW_QUANTILES))}, not {value!r}")
+    return q
+
+
+# The setting the service runs (config/anomaly_v12.yaml, data/reports/anomaly/v12): version 8
+# with one-sided scoring and store shortfalls listed first (version 11), at review quantile
+# 0.99 unless REVIEW_QUANTILE sets another tested value
+CONFIG = dict(VERSION_8, one_sided=True, list_store_shortfall=True,
+              review_quantile=review_quantile_from(os.environ.get("REVIEW_QUANTILE")))
+SETTINGS = {"n_estimators": CONFIG["n_estimators"], "ndim": CONFIG["ndim"]}
+REVIEW_QUANTILE = CONFIG["review_quantile"]
 NOTICE = ("Ranks records for review; it does not decide anything. Thresholds and settings were tested on "
           "synthetic data and need checking against real records.")
 
@@ -94,9 +139,9 @@ def _reasons(contributions, row):
     return [describe(f, row) for f in top]
 
 
-def score_week(body):
-    week_start = _date(body.get("week_start"), "week_start")
-    k = int(body.get("k", DEFAULT_K))
+def features_for(body):
+    """The school-day features for the records in a request, with each day's school week and
+    school-day index; None when there are no feeding records."""
     calendar = calendar_from(body)
     schools = _frame(body, "schools", ["school_id", "sub_county"])
     enrolment = _frame(body, "enrolment", ["school_id", "term_id", "learners"])
@@ -104,13 +149,45 @@ def score_week(body):
                                        "learners_present", "captured_at", "received_date", "sync_batch_id", "version"])
     counts = _frame(body, "stock_counts", ["school_id", "date", "commodity", "counted_kg", "ledger_kg"])
     if feeding.empty:
-        return {"week_start": str(week_start), "mode": "no_records", "items": [], "rule_breaches": [], "notice": NOTICE}
-
+        return None, calendar
     feeding["learners_present"] = pd.to_numeric(feeding.learners_present, errors="coerce")
-    feats = build_features(schools, enrolment, feeding, counts, calendar)
+    return add_week_index(build_features(schools, enrolment, feeding, counts, calendar), calendar), calendar
+
+
+def add_week_index(feats, calendar):
     feats["week"] = feats.date.dt.strftime("%G-%V")
-    index = {d: i for i, d in enumerate(pd.to_datetime(calendar.date))}
-    feats["day_index"] = feats.date.map(index)
+    feats["day_index"] = feats.date.map({d: i for i, d in enumerate(pd.to_datetime(calendar.date))})
+    return feats
+
+
+def _model_for(history, refit_point, follow_up, config, model_seed, cache):
+    """The model and review threshold for a refit point, fitted on the school-days before it.
+    cache (the evaluation's): {key: (model, threshold)}, one per sub-county. The key is the
+    refit point's date, since the calendar a request carries (and so the day index) slides."""
+    weeks = set(history.week)
+    key = (refit_point, tuple(sorted(f for f in follow_up if f[1] in weeks)))
+    if cache is not None and key in cache:
+        return cache[key]
+    model = ExtendedIsolationForestMethod(n_estimators=config["n_estimators"], ndim=config["ndim"],
+                                          scale_floor=config["scale_floor"], one_sided=config["one_sided"],
+                                          random_state=model_seed).fit(history)
+    # The same weekly score as the list (protocol version 8: the mean of the two highest days)
+    weekly_history = weekly_scores(history.assign(score=model.score(history)))
+    if config["weekly"] == "two_week_mean":
+        weekly_history = two_week_mean(weekly_history)
+    threshold = review_threshold(weekly_history.to_numpy(), config["review_quantile"], config["threshold"])
+    if cache is not None:
+        cache[key] = (model, threshold)
+    return model, threshold
+
+
+def rank_week(feats, calendar, week_start, k=DEFAULT_K, follow_up=(), config=None, model_seed=0, cache=None, explain=True):
+    """Rank a week's schools from their school-day features. follow_up: {(school_id, ISO
+    week)} marked follow-up, left out of the fit. The evaluation calls this with its own
+    config, model seed and model cache; the service with CONFIG."""
+    # A setting it does not name is version 8's (so a setting saved before an option existed runs as it did)
+    config = {**VERSION_8, **(config or CONFIG)}
+    follow_up = set(map(tuple, follow_up))
     week_end = week_start + dt.timedelta(days=6)
     week = feats[(feats.date >= pd.Timestamp(week_start)) & (feats.date <= pd.Timestamp(week_end))]
     if week.empty:
@@ -118,8 +195,7 @@ def score_week(body):
 
     first = int(week.day_index.min())
     anchor = first - (first % REFIT_EVERY)
-    follow_up = {(f["school_id"], f["week"]) for f in body.get("follow_up", [])}
-    history = feats[(feats.day_index < anchor) & (feats.day_index >= anchor - WINDOW)]
+    history = feats[(feats.day_index < anchor) & (feats.day_index >= anchor - config["window"])]
     keep = [(s, w) not in follow_up for s, w in zip(history.school_id, history.week)]
     history = history[np.array(keep, dtype=bool)]
 
@@ -127,36 +203,50 @@ def score_week(body):
     rule_scores = rules.score(week)
     model_info = None
     if history.day_index.nunique() >= MIN_HISTORY:
-        model = ExtendedIsolationForestMethod(**SETTINGS, random_state=0).fit(history)
+        refit_point = str(pd.Timestamp(calendar.date.iloc[anchor]).date()) if anchor < len(calendar) else None
+        model, threshold = _model_for(history, refit_point, follow_up, config, model_seed, cache)
         scores = model.score(week)
         mode = METHOD
-        # The same weekly score as the list (protocol version 8: the mean of the two highest days)
-        weekly_history = weekly_scores(history.assign(score=model.score(history)))
-        threshold = None if REVIEW_QUANTILE is None else float(weekly_history.quantile(REVIEW_QUANTILE))
-        model_info = {"method": METHOD, "settings": SETTINGS, "fitted_on_rows": int(len(history)),
+        if config["weekly"] == "two_week_mean":
+            # Each school's previous week with records (since the start of the training
+            # window), scored by the same model
+            before = feats[(feats.date < pd.Timestamp(week_start)) & (feats.day_index >= anchor - config["window"])]
+            before = before[before.week == before.groupby("school_id").week.transform("max")]
+            previous = weekly_scores(before.assign(score=model.score(before))).droplevel("week") if len(before) else pd.Series(dtype=float)
+        model_info = {"method": METHOD, "settings": {"n_estimators": config["n_estimators"], "ndim": config["ndim"]},
+                      "scale_floor": config["scale_floor"], "one_sided": config["one_sided"],
+                      "list_store_shortfall": config["list_store_shortfall"], "fitted_on_rows": int(len(history)),
                       "window_school_days": int(history.day_index.nunique()),
-                      "refit_point": str(pd.Timestamp(calendar.date.iloc[anchor]).date()) if anchor < len(calendar) else None,
-                      "review_quantile": REVIEW_QUANTILE, "review_threshold": threshold,
-                      "weekly_score": WEEKLY_AGGREGATION}
+                      "refit_point": refit_point,
+                      "review_quantile": config["review_quantile"], "review_threshold": threshold,
+                      "threshold_estimator": config["threshold"], "weekly_score": config["weekly"]}
     else:
         model, scores, mode, threshold = None, rule_scores, "rules_only", None
 
     week = week.assign(score=scores, rule_score=rule_scores)
+    # Amendment 3: a store count well short of the records is listed first, whatever the score
+    short = set(week[week.count_gap_change < -STORE_SHORTFALL_DAYS].school_id)         if model is not None and config["list_store_shortfall"] else set()
     items = []
     for school_id, rows in week.groupby("school_id"):
         # The reasons come from the school's most unusual day; its weekly score, for the model,
         # is the mean of its two highest days. Ranked by the rules alone it stays the highest
         top = rows.loc[rows.score.idxmax()]
-        contributions = model.contributions(top) if model is not None else rules.contributions(top)
         week_score = top.score if model is None else float(weekly_scores(rows).iloc[0])
-        items.append({
-            "school_id": school_id,
-            "score": float(np.round(week_score, 6)),
-            "top_date": str(top.date.date()),
-            "reasons": _reasons(contributions, top),
-            "explanation": explain(top, contributions),
-        })
-    items.sort(key=lambda i: -i["score"])
+        if school_id in short:
+            # Listed for its store count, so the reasons come from the day of that count
+            top = rows.loc[rows.count_gap_change.idxmin()]
+        if model is not None and config["weekly"] == "two_week_mean" and school_id in previous.index:
+            week_score = (week_score + float(previous[school_id])) / 2
+        item = {"school_id": school_id, "score": float(np.round(week_score, 6)), "top_date": str(top.date.date())}
+        if explain:
+            contributions = model.contributions(top) if model is not None else rules.contributions(top)
+            item["reasons"] = _reasons(contributions, top)
+            if school_id in short:
+                store = describe("count_gap_change", top)
+                item["reasons"] = [store] + [r for r in item["reasons"] if r != store][:1]
+            item["explanation"] = explain_row(top, contributions)
+        items.append(item)
+    items.sort(key=lambda i: (i["school_id"] not in short, -i["score"]))
     for rank, item in enumerate(items, 1):
         item["rank"] = rank
         # Ranked by the fixed checks alone, a school that broke none has nothing to look into;
@@ -164,12 +254,23 @@ def score_week(body):
         if mode == "rules_only":
             item["listed"] = rank <= k and item["score"] > 0
         else:
-            item["listed"] = rank <= k and (threshold is None or item["score"] > threshold)
+            item["listed"] = rank <= k and (item["school_id"] in short or threshold is None or item["score"] > threshold)
 
     breaches = []
-    for row in week[week.rule_score >= 1].itertuples():
-        for rule in rules.contributions(week.loc[row.Index]):
-            breaches.append({"school_id": row.school_id, "date": str(row.date.date()), "rule": rule,
-                             "detail": describe(rule, week.loc[row.Index])})
+    if explain:
+        for row in week[week.rule_score >= 1].itertuples():
+            for rule in rules.contributions(week.loc[row.Index]):
+                breaches.append({"school_id": row.school_id, "date": str(row.date.date()), "rule": rule,
+                                 "detail": describe(rule, week.loc[row.Index])})
     return {"week_start": str(week_start), "mode": mode, "model": model_info, "k": k, "items": items,
             "rule_breaches": breaches, "notice": NOTICE}
+
+
+def score_week(body):
+    week_start = _date(body.get("week_start"), "week_start")
+    k = int(body.get("k", DEFAULT_K))
+    feats, calendar = features_for(body)
+    if feats is None:
+        return {"week_start": str(week_start), "mode": "no_records", "items": [], "rule_breaches": [], "notice": NOTICE}
+    follow_up = {(f["school_id"], f["week"]) for f in body.get("follow_up", [])}
+    return rank_week(feats, calendar, week_start, k=k, follow_up=follow_up)

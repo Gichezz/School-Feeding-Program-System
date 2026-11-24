@@ -1,0 +1,61 @@
+{
+  "dataset": "seed_8001",
+  "cached": {
+    "precision_at_k": 0.4706,
+    "recall_at_k": 0.3333,
+    "f1_at_k": 0.3902,
+    "pr_auc": 0.3747,
+    "pr_auc_within_sub_county": 0.4693,
+    "problems_caught": 0.6429,
+    "problems_caught_within_2_weeks": 0.3571,
+    "median_days_to_catch": 9.0,
+    "false_listings_per_officer_term": 2.4375,
+    "listings_per_officer_week": 0.3542,
+    "school_weeks_never_scored": 0.0007,
+    "listed_by_type": {
+      "consumption_drift": 0.44,
+      "inflated_headcount": 0.3182,
+      "stock_leakage": 0.24
+    },
+    "caught_by_type": {
+      "consumption_drift": 0.8,
+      "inflated_headcount": 0.4,
+      "stock_leakage": 0.75
+    },
+    "fairness_max_ratio": 2.868,
+    "over_listed": [
+      "Mfano South",
+      "week with an outage"
+    ],
+    "episodes": 14
+  },
+  "per_request": {
+    "precision_at_k": 0.5,
+    "recall_at_k": 0.3472,
+    "f1_at_k": 0.4098,
+    "pr_auc": 0.3764,
+    "pr_auc_within_sub_county": 0.4688,
+    "problems_caught": 0.5714,
+    "problems_caught_within_2_weeks": 0.2857,
+    "median_days_to_catch": 12.5,
+    "false_listings_per_officer_term": 2.2569,
+    "listings_per_officer_week": 0.3472,
+    "school_weeks_never_scored": 0.0007,
+    "listed_by_type": {
+      "consumption_drift": 0.52,
+      "inflated_headcount": 0.3182,
+      "stock_leakage": 0.2
+    },
+    "caught_by_type": {
+      "consumption_drift": 1.0,
+      "inflated_headcount": 0.2,
+      "stock_leakage": 0.5
+    },
+    "fairness_max_ratio": 3.097,
+    "over_listed": [
+      "Mfano South",
+      "week with an outage"
+    ],
+    "episodes": 14
+  }
+}
