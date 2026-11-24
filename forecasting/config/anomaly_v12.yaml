@@ -1,0 +1,219 @@
+# Protocol version 12: controlled experiments on realistic data, judged at a fixed officer
+# workload, with problem-level measures declared before any data exists.
+#
+# Written and committed before any dataset named below is generated and before any detector
+# is run on the realistic generator. Version 11 (config/anomaly_v11.yaml) is the baseline and
+# its results are kept as they are (data/reports/anomaly/v11/).
+#
+# Why a version 12. An audit after version 11 (development and already-used confirmation
+# data only) found:
+#   - F1@3 counts every week of a problem separately, so it rewards listing a problem that was
+#     already found. A setting that scored 6.7 F1@3 points higher found the same problems.
+#   - Settings were compared at different workloads (q sets how many schools are listed).
+#     At the same workload version 11 finds 14-16 points more problems than version 8.
+#   - The standard generator makes several problems separable by one feature: honest schools
+#     always weigh food, never estimate the register, never enter a week late, never change
+#     enrolment much and count the store almost exactly.
+#   - Rescoring a week for 28 days misses most backdated entries, which arrive later; 56 days
+#     raised problems caught by 8.6 points at 0.3 more false listings per officer-term.
+
+version: 12
+baseline: version 11 as committed (config/anomaly_v11.yaml frozen), services/scoring_service.py at commit 7be2062
+
+# -- data -------------------------------------------------------------------------------
+generators:
+  standard: {script: scripts/generate_feeding_dataset.py, config: config/feeding_dataset.yaml, changed: false}
+  realistic:
+    script: scripts/generate_feeding_dataset_realistic.py
+    config: config/feeding_dataset_realistic.yaml
+    version: 1
+    note: >
+      Frozen with this file (the SHA-256 of both files is in the freeze record below). One
+      dataset (seed 77, never used again) was generated to check that the data are well
+      formed: 1.4% of records never entered; 2.3% of honest records entered over 5 school
+      days late; 11.5% of honest store counts more than 2 days of food short of the records
+      (mostly the count error of 2% of stock, kept from the audit's stress test; it is harsh
+      on the store-shortfall listing and is kept, not tuned). No detector was run on it.
+
+datasets:   # none generated before this file is committed
+  development: {generator: realistic, seeds: 8101-8130, count_every: 20}
+  validation:  {generator: realistic, seeds: 8201-8220, count_every: 20, use: once per stage, for the stage's result only}
+  count_interval: {generator: realistic, seeds: 8101-8115, count_every: [10, 5], use: stage S3 only}
+  final_realistic: {generator: realistic, seeds: 9501-9520, count_every: 20, generated: after the final freeze}
+  final_standard:  {generator: standard, seeds: 9601-9620, generated: after the final freeze}
+  final_count_interval: >
+    Only if stage S3 adopts a shorter store-count interval: the final realistic seeds again,
+    generated with that interval, after the final freeze.
+  never_used: the 2026 final test of version 11 (9201-9220) and every seed used before
+period: {measured: 2026-01-01 to 2026-10-23, loop_from: 2025-07-07}
+model_seed: 1   # 300 trees: listings overlap 98-99% across model seeds (audit); the final setting is also run with seeds 2-5 on 5 final datasets for stability
+
+# -- harness ----------------------------------------------------------------------------
+harness: >
+  Point-in-time, as version 11 (scripts/run_anomaly_v11.py build_scorings): each finished week
+  is scored the day after it ends from the records received by then, and again on any later day
+  within the rescoring window on which one of its records arrives, each time only from records
+  received by that day. The window is 56 days (backend LOOK_BACK_WEEKS 8) unless a setting says
+  28. A 28-day run uses the same cache with the scorings after 28 days left out. Ranking as
+  services.scoring_service.rank_week (model per sub-county, refit every 20 school days on the
+  last 125, follow-up weeks out of the fit, store shortfall listed first, threshold the
+  q-quantile of the training window's weekly scores, k 3); the v12 harness re-implements it
+  and must reproduce rank_week's listings exactly for version 11 before anything else is run.
+
+follow_up: >
+  A listed school-week that holds a problem is confirmed by the officer (from the labels, which
+  nothing else uses) and marked follow-up, as in versions 7-11. Under follow-up suppression
+  (stage S2) the school then stays off the list for the next COVER weeks: the officer is
+  already acting on it. A listing that holds no problem is closed and suppresses nothing.
+cover_weeks: 4      # about one officer visit cycle; 2 and 8 are reported for every final measure
+
+# -- measures (declared now; none can be swapped in later) -------------------------------
+measures:
+  problem_level:   # the headline
+    recall: >
+      problem-level recall: the share of problems (episodes of the six standard types that
+      start in the measured period) listed at least once in a week they cover, or, for a stock
+      leak, the week of the first store count after it ends (version 11 amendment 1).
+    precision: >
+      problem-level precision: the share of visits that find a problem. A visit is a listed
+      school-week that is not a repeat; a repeat is a listing of a school that had a confirmed
+      listing in the previous COVER weeks (under suppression there are none). A visit finds a
+      problem if the school-week holds one (labels).
+    f1: problem-level F1, the harmonic mean of the two
+    one_day_claims: >
+      reported separately and guarded: the share of one-day claims (realistic generator only)
+      listed in their week. They are kept out of problem-level recall because the generator
+      plants about as many as all six types together, and one assumed rate would then decide
+      the headline.
+  week_level:      # reported in every table, next to the headline
+    - precision_at_k, recall_at_k, f1_at_k (raw, as versions 7-11)
+    - recall_at_k_covered: a problem school-week also counts if the school had a confirmed listing in the previous COVER weeks
+    - pr_auc and pr_auc_within_sub_county
+  operational:
+    - false_listings_per_officer_term (listed school-weeks with no problem, per officer per 13 weeks)
+    - problems_caught_within_2_weeks, median_days_to_catch
+    - caught_by_type (six types and one-day claims)
+    - false listings from the store-shortfall listing alone
+    - false listing rate by honest habit (estimates the register, computes issues, enters weekly, copies the delivery note), programme type and school size
+  uncertainty: paired bootstrap over datasets (4,000 resamples), 95% interval, share of datasets won
+
+operating_point: >
+  Every comparison is at the same workload: 2.5 false listings per officer-term. Each setting is
+  run on the q grid [0.95, 0.97, 0.98, 0.985, 0.99, 0.995, 0.998]; its q for 2.5 is found by
+  linear interpolation of the mean over datasets, and every measure is interpolated per dataset
+  at that q. A setting that cannot reach 2.5 on the grid is compared at its nearest point and
+  this is reported. The q found on development data is the one frozen for the final test.
+
+# -- the experiments ------------------------------------------------------------------------
+# Each candidate is one change against the setting current at that point, development data,
+# 56-day window. Each records: hypothesis, change, data and seeds, the setting it is compared
+# with, every measure above, the decision and the reason.
+adoption_rule:
+  - problem-level F1 gain of at least 1.0 point (mean over datasets) with the 95% interval above 0
+  - problem-level recall not more than 2.0 points lower
+  - no type's catch rate (six types and one-day claims) more than 10 points lower
+  - week-level F1@3 not more than 2.0 points lower (not applied to S2, whose purpose is to stop re-listing; reported)
+within_a_stage: >
+  Candidates are each tested against the stage's starting setting. Those that pass are added one
+  at a time in order of their gain, each kept only if it passes the rule again against the
+  setting with the earlier ones. The stage's result is then run once on the validation datasets
+  against the stage's starting setting: it is kept only if its problem-level F1 gain has a 95%
+  interval above 0 there; otherwise the stage changes nothing. This is reported either way.
+
+stages:
+  S_system:
+    S1_window_56: >
+      Reported, not tested again: version 11 at 28 and 56 days on the development data. The
+      56-day window is the starting setting (the audit's confirmation, seeds 9301-9320 and
+      9401-9420, already showed it).
+    S2_follow_up_suppression:
+      hypothesis: >
+        Listing a school the officer is already following up spends a slot that could go to a
+        new problem. Leaving it off the list for COVER weeks finds more distinct problems at the
+        same number of false listings.
+      change: follow-up suppression as defined above
+    S3_store_counts:
+      hypothesis: >
+        A store leak, and the uneaten food of ghost learners, shows only at a count. Counting
+        every 10 or 5 school days instead of 20 catches them sooner. A slow leak then leaves a
+        smaller gap at each count, so the shortfall listing also uses the sum of the gaps over
+        the last 20 school days (same threshold of 2 days of food); more counts also give honest
+        count errors more chances to trip it.
+      change: >
+        Data: counts every 10 and every 5 school days (seeds 8101-8115, compared with the same
+        seeds at 20). Ranking: a school is listed first if a count in the week, or the sum of
+        its counts' gaps over the last 20 school days, is more than 2 days of food short. The
+        summed rule is also run at 20 days. This is a programme procedure plus a ranking rule,
+        reported as system design, never as a model gain.
+  M1_features_and_scaling:
+    M1a_scale_floor:
+      hypothesis: features with an interquartile range near or at 0 are scaled in raw units or blown up; a fixed floor (anomaly/methods.py SCALE_FLOOR, fixed in protocol version 6) stops ordinary rounding looking as unusual as a problem
+      change: scale_floor true
+    M1b_headcount_ablation:
+      hypothesis: five or six of the 15 features measure headcount (Spearman up to 0.91), which tilts random splits towards headcount; one of them may be redundant
+      change: leave out one at a time, each a candidate - fed_rate, fed_vs_own, fed_vs_peers, fed_rate_vs_last_term, uptake, enrolment_change
+    M1c_low_headcount:
+      hypothesis: ghost learners recorded as not fed lower the share of enrolment fed; one-sided scoring throws that away
+      change: fed_rate and fed_rate_vs_last_term scored in both directions (the rest unchanged)
+    M1d_sample_size:
+      hypothesis: each tree samples 1024 of about 1,250 training rows, so problems inside the training window mask one another; smaller samples isolate them (Liu et al. use 256)
+      change: sample size 256; and 128, each a candidate
+  M2_dense_and_sparse:
+    M2a_split:
+      hypothesis: >
+        Rare decisive signals (a store gap, a late entry, a batch, an enrolment jump) are seldom
+        chosen by random splits among continuous features. Scoring them on their own and taking
+        the larger of the two calibrated scores lets either kind of evidence list a school.
+      change: >
+        An Extended Isolation Forest (one-sided, ndim 2) on the continuous features fed_vs_own,
+        fed_vs_peers, uptake, cereal_ratio, pulse_ratio, usage_trend, round_share,
+        fed_steadiness, after_hours_share; and for count_gap_change (low), entry_delay,
+        entry_batch and enrolment_change (high), each value's tail share among the training
+        window's values. Both are put on one scale as -log10 of the training tail share (the
+        share of training school-days scoring at least as high; ties broken by the larger raw
+        excess). A school-day's score is the larger of the two; nothing is added or weighted.
+        The weekly score, threshold and store-shortfall listing are unchanged.
+    M2b_no_shortfall_rule: M2a with the store-shortfall listing removed (the sparse score carries the count gap)
+  M3_temporal:   # features built inside each scoring from that scoring's records only
+    M3a_cusum:
+      hypothesis: a small sustained excess (a slow drift, a steady few percent above peers) is invisible day by day but adds up
+      change: >
+        one-sided CUSUM per school, C_t = max(0, C_{t-1} + z_t - 0.5) with z the feature over its
+        training-window robust scale, for fed_vs_own, fed_vs_peers and cereal_ratio, added as
+        three features
+    M3b_rolling_means:
+      hypothesis: averages over 5, 10 and 20 school days show persistence at several horizons
+      change: rolling means over 5, 10 and 20 school days of the same three features, added as nine features
+    M3c_existing_candidates:
+      hypothesis: the unused candidates already built (anomaly/features.py EXTRA_FEATURES) add a short-horizon trend
+      change: fed_vs_peers_trend and fed_rate_vs_last_term_trend added
+    M3d_weekly_peak: {hypothesis: a single padded day is diluted by averaging two days, change: weekly score the highest day}
+    M3e_weekly_persistence: {hypothesis: sustained problems raise every day, change: weekly score the mean of the week's days}
+
+not_tested_and_why:
+  combined_over_recording_signal: tried in version 10 and not supported
+  ration_vs_headcount_gap: cereal_ratio is already food per learner fed, so the difference double-counts and its sign hides inflated headcount
+  batch_variance_feature: in the realistic generator backdated figures already vary, so it would only learn the standard generator's choice
+  two_sided_food_ratios: recording less food than the ration is common honest stretching of stock, and version 8 (two-sided) found fewer problems at the same workload
+  learned_blend_of_rules_and_model: weights fitted to the generator's labels
+  absolute_targets: no target figure; each change is judged against the baselines
+
+final_test: >
+  After the stages, the final setting (every adopted change, its q, the window and the count
+  rule) is written in the freeze below and committed; only then are the final datasets
+  generated. On final_realistic and final_standard, once, model seed 1: version 8 as deployed
+  (28 days, q 0.98), version 11 as committed (28 days, q 0.99), version 11 at 56 days at the
+  2.5 workload q, and the final setting; on the count-interval datasets too if S3 adopted a
+  shorter interval. Every measure, each dataset, the mean, paired 95% intervals against
+  version 11 at 56 days and against version 11 as committed. Reported as it comes out; nothing
+  is changed after it is seen.
+after: >
+  Only changes adopted here go into the scoring service, its tests and the documentation, each
+  in its own commit (generator, features, model, threshold, backend kept apart).
+
+# The generators as frozen with this file (SHA-256)
+generator_freeze:
+  scripts/generate_feeding_dataset_realistic.py: 3df575018e8b1df3dbacb5da5ebfb1874e33a09caf74e7f05407609f0cb02554
+  config/feeding_dataset_realistic.yaml: 2038961bbf7325c490f6ad0ee7d73bcb3504628e0dff13417b53eb76adbf69fb
+  scripts/generate_feeding_dataset.py: 276d12d1f55c4c8f817ab230af7b83a2921708dad5aebd0402c9cff4a9360e1c
+  config/feeding_dataset.yaml: f689e4b55c5128404abb3123608834c94e8e8ab5266fcd4e84a7a7c2d3ab2bce

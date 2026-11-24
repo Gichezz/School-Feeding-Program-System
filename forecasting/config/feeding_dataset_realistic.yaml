@@ -1,0 +1,52 @@
+# The realistic generator (protocol version 12): config/feeding_dataset.yaml with honest
+# behaviour that real Kenyan school records show and the standard generator leaves out,
+# and with each problem carried out in more varied ways. Every value below is a stated
+# assumption, not fitted to any detector. Written and frozen before any detector is run on
+# data from it (config/anomaly_v12.yaml). The standard generator is unchanged.
+#
+# Read by scripts/generate_feeding_dataset_realistic.py, merged over feeding_dataset.yaml.
+
+base: forecasting/config/feeding_dataset.yaml
+
+overrides:
+  issuing: {log_sd: 0.07}                    # C3: tins and scoops, not scales
+  stock:
+    count_error_kg_share: 0.02               # C6: counting sacks and part-sacks by eye
+  anomalies:
+    inflated_headcount: {inflation: {min: 0.05, max: 0.30}}
+    consumption_drift: {final_excess: {min: 0.10, max: 0.45}}
+    stock_leakage: {share_of_daily_use: {min: 0.08, max: 0.40}}
+    backdated_bulk_entry: {delay_school_days: {min: 3, max: 25}}
+    ghost_learners: {inflation: {min: 0.05, max: 0.30}, recorded_as_fed: {min: 0.0, max: 1.0}}
+
+realism:
+  # C1 recording habits, per school
+  estimates_register: {share: 0.20, round_to: [5, 10]}   # teachers count by class lists
+  computes_issues_share: 0.35          # food issued written as ration x learners fed, not weighed
+  weekly_entry: {share: 0.20, after_hours_probability: 0.4}   # paper register first, entered on Friday
+  # C2 honest catch-up after a broken device or an absent teacher, per school-term
+  catch_up: {per_term_probability: 0.15, run_school_days: [5, 15], delay_school_days: [3, 15], after_hours_probability: 0.6}
+  # C4 genuine enrolment changes (transfers, a new stream, drought migration), per school-term
+  enrolment_shift: {per_term_probability: 0.10, size: [0.08, 0.25]}
+  # C5 shared attendance shocks (heavy rain, market or harvest days, illness), per sub-county-term
+  attendance_shocks: {per_term: 2, run_school_days: [3, 8], drop: [0.08, 0.25]}
+  participation_drift_sd: 0.02         # a school's share fed moves a little each term
+  # C6 a store count written down wrongly
+  count_misrecorded: {probability: 0.05, size: [0.01, 0.03]}
+  # R1 the delivery note's figure written in the ledger instead of what was weighed, per school.
+  # A short delivery (stock.short_delivery_probability) then leaves the ledger above the store.
+  records_delivery_note_share: 0.30
+  # R2 the mobile network down across a sub-county: no device there can sync, per sub-county-term
+  network_outage: {per_term_probability: 0.30, length_school_days: [3, 10], seed_offset: 11}
+  # R3 records never entered: on a share of days (per school, uniform in the range) food was
+  # cooked and eaten but no record was made, so the ledger keeps food that has gone. Never on
+  # a store-count day. And learners present left blank on some days by schools that fill it in.
+  missing_records_share: [0.0, 0.03]
+  present_blank_probability: 0.10
+  # R4 store counts: every count_every_school_days (feeding_dataset.yaml, 20), and some
+  # scheduled counts not done. Count errors come from their own random stream, so changing
+  # how often the store is counted changes nothing else in the data.
+  count_skipped_probability: 0.10
+  # A7 a single padded day: on an ordinary fed day the register is padded and food issued to
+  # match, so the store balances. Per school-year.
+  one_day_claim: {per_school_year: 0.5, padding: [0.30, 0.60]}
