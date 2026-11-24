@@ -15,6 +15,7 @@ Usage
 """
 
 import argparse
+import os
 import subprocess
 import sys
 import time
@@ -42,7 +43,8 @@ from services import scoring_service as service  # noqa: E402
 
 PLAN = FORECASTING_DIR / "config" / "anomaly_v12.yaml"
 ROOT = PROCESSED_DIR / "feeding_deployment" / "v12"
-FEATURE_CACHE = ROOT / "features"
+# The environment can point the caches elsewhere (the harness tests)
+FEATURE_CACHE = Path(os.environ.get("V12_FEATURE_CACHE", ROOT / "features"))
 REPORT_DIR = REPORTS_DIR / "anomaly" / "v12"
 WINDOW_DAYS = 56
 LOOP_FROM, START, END = "2025-07-07", "2026-01-01", "2026-12-31"
