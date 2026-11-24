@@ -179,10 +179,12 @@ def _week_ordinal(monday):
 # -- the loop -----------------------------------------------------------------------------
 
 def run_dataset(data_dir, cache_root, cfg, qs, model_seed=1, loop_start="2025-07-07", start="2026-01-01",
-                end="2026-12-31", calendar_for=None, read=None):
+                end="2026-12-31", calendar_for=None, read=None, fit_q=None):
     """Every q of the grid for one dataset: listings per scoring, with each q's own follow-up
-    (and suppression) history. Fits are shared between q values when their follow-up weeks
-    inside the window agree."""
+    (and suppression) history. fit_q None: each q's model is fitted without its own follow-up
+    weeks (exact, as the service). fit_q a q of the grid (amendment 2, development screening):
+    every q uses the model fitted without fit_q's follow-up weeks; listings, suppression and
+    follow-up marks stay per q."""
     labels = read(data_dir, "labels", parse_dates=["date"])
     labelled = set(zip(labels.school_id, labels.date.dt.strftime("%G-%V")))
     window = cfg.get("window", 56)
@@ -260,9 +262,10 @@ def run_dataset(data_dir, cache_root, cfg, qs, model_seed=1, loop_start="2025-07
                 short = set()
             week_scores = {}
             for q in model_qs:
-                key = (refit, tuple(sorted(f for f in follow[q] if f[1] in hw)))
+                fq = fit_q if (fit_q is not None and fit_q in model_qs) else q
+                key = (refit, tuple(sorted(f for f in follow[fq] if f[1] in hw)))
                 if key not in fits:
-                    hh = hist[keeps[q]]
+                    hh = hist[keeps[fq]]
                     m = make_model(cfg, model_seed).fit(hh)
                     ws = weekly(hh.assign(score=m.score(hh)), agg).to_numpy()
                     fits[key] = (m, ws)

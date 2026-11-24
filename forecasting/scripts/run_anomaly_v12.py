@@ -98,6 +98,7 @@ def step_features(args):
 
 Q_GRID = [0.95, 0.97, 0.98, 0.985, 0.99, 0.995, 0.998, 0.999]
 BUDGET = 2.5
+FIT_Q = 0.99
 RESULTS = ROOT / "results"
 MEASURES = ["problem_f1", "problem_precision", "problem_recall", "one_day_claims_caught", "f1_at_k",
             "precision_at_k", "recall_at_k", "recall_at_k_covered", "pr_auc", "pr_auc_within_sub_county",
@@ -108,8 +109,10 @@ TYPES7 = [f"caught_{t}" for t in ev.SIX_TYPES] + ["one_day_claims_caught"]
 
 def _eval_task(task):
     data_dir, cfg, qs, model_seed, covers = task
+    # amendment 2: a grid shares the fit of q 0.99; a single q is exact
+    fit_q = FIT_Q if len(qs) > 1 and FIT_Q in qs else None
     out = ev.run_dataset(data_dir, FEATURE_CACHE, cfg, qs, model_seed=model_seed, loop_start=LOOP_FROM,
-                         start=START, end=END, calendar_for=h.calendar_for, read=h.read)
+                         start=START, end=END, calendar_for=h.calendar_for, read=h.read, fit_q=fit_q)
     uni = h.school_weeks(data_dir, START, END)
     schools = h.read(data_dir, "schools")
     rows = []
@@ -432,8 +435,9 @@ def step_validate(args):
     start, prop = st["start"], st["proposed"]
     d0, d1, level = common(evaluate(start, dev, args.workers), evaluate(prop, dev, args.workers))
     q0, q1 = d0.attrs["q"], d1.attrs["q"]
-    a = at_workload(evaluate(start, val, args.workers, tag="val"), q=q0)
-    b = at_workload(evaluate(prop, val, args.workers, tag="val"), q=q1)
+    # one q each, so the run is exact (amendment 2)
+    a = at_workload(evaluate(start, val, args.workers, qs=[q0], tag="val"), q=q0)
+    b = at_workload(evaluate(prop, val, args.workers, qs=[q1], tag="val"), q=q1)
     f1 = paired(a, b, "problem_f1")
     ok = f1["lo"] > 0
     rec = {"stage": args.stage, "start": start, "proposed": prop, "q_start": q0, "q_proposed": q1, "dev_workload": level,

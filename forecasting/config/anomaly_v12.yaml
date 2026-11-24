@@ -243,3 +243,17 @@ amendment_1:
   finding_to_report: >
     Under realistic store-count precision the store-shortfall listing is itself the largest
     source of false listings; this is reported whatever the stages find.
+
+# Amendment 2, written and committed before any detector result on a protocol dataset exists.
+amendment_2:
+  why: >
+    Computation only. With each q of the grid keeping its own follow-up weeks, one development
+    dataset needs about 240 forest fits and 3,250 scorings (about 5 minutes), so the stages would
+    take about 40 hours on this machine.
+  change: >
+    In development runs (the q grid), each refit point's model is fitted once, without the
+    follow-up weeks of the listing at q 0.99 (the service's q, where the harness is exact:
+    parity.json); every q of the grid uses that model and its own threshold, and keeps its own
+    listings, suppression and follow-up marks. Validation and final runs use one q each, so the
+    model leaves out that q's own follow-up weeks, exactly as the service does. Nothing else
+    changes.
