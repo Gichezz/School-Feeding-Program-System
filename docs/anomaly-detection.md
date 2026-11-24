@@ -192,6 +192,7 @@ One disclosure. While checking the code ran, before the stages, one 2026 figure 
   | Week-level F1@3 | 17% | **20%** |
   | Needless visits per officer-term | 3.4 | 3.3 |
 
+- **The system runs q 0.99, not 0.999.** At 0.999 the threshold is close to the highest school-week in the training window, and the behaviour tests showed a school recording more learners fed than enrolled, or food issued on a day nobody was fed, was not listed (the rule breach still showed). At 0.99 those are listed. On the final realistic data, at about 4.7 to 4.9 needless visits per officer-term, version 12 finds 66% of problems against version 8's 45% (problem-level F1 31.4% against 23.8%).
 - **On the standard data** (20 datasets) version 12 has problem-level precision 75%, recall 71% and F1 72%, at 0.5 needless visits per officer-term.
 - **Why the realistic figures are lower:** honest store counts there are more than 2 days of food short 11.5% of the time, which causes most needless visits; how precise real counts are is for a pilot to measure. One-day claims (4.5% caught), round-number entry (20%) and inflated headcount (22%) remain hard.
 
@@ -288,7 +289,7 @@ The scoring service ([`forecasting/services/scoring_service.py`](../forecasting/
 
 1. The model is Extended Isolation Forest (isotree, 300 trees, splits on combinations of 2 features, 1,024-row samples) on robust-scaled, **one-sided** features (protocol version 11: a store count counts when it is short, every other feature when it is high), fitted on the sub-county's previous 125 school days, about two terms. Refit points fall every 20 school days, so the model changes about monthly and no model file is kept; the seed is fixed, so the same week gives the same list.
 2. School-weeks an officer marked follow-up are left out of the fit, so a confirmed problem does not become normal.
-3. Each school's week is scored as the mean of its two highest-scoring days (protocol version 8; one school day: that day). Up to 3 are the week's list. First come schools whose store count is more than 2 days of food short of the records (version 11). Then the highest-scoring, only those above the **review threshold**: by default the 99.9th percentile of the school-week scores in the model's training window, scored the same way (protocol version 12). `REVIEW_QUANTILE` sets it from the officers' capacity for visits (section 7). A quiet week can list fewer than 3, or none. Every school is returned in order.
+3. Each school's week is scored as the mean of its two highest-scoring days (protocol version 8; one school day: that day). Up to 3 are the week's list. First come schools whose store count is more than 2 days of food short of the records (version 11). Then the highest-scoring, only those above the **review threshold**: by default the 99th percentile of the school-week scores in the model's training window, scored the same way. `REVIEW_QUANTILE` sets it from the officers' capacity for visits (section 7). A quiet week can list fewer than 3, or none. Every school is returned in order.
 4. Reasons come from the model itself, for the school's most unusual day: each feature of that day is set in turn to its median in the sub-county's training records, and the two that lower the score most are named in plain words ("learners fed 16% above the school's usual number"). A school listed for a store shortfall has the shortfall as its first reason, from the day of the count. They are signals to check, not causes (section 5).
 5. Fixed rules run alongside, and their breaches are shown for every school, whatever its rank.
 6. A sub-county with fewer than 60 school days of records is ranked by the fixed rules alone. Only schools that broke a rule are listed then: with no model, a school that broke none has nothing to point the officer at.
@@ -302,8 +303,8 @@ The scoring service ([`forecasting/services/scoring_service.py`](../forecasting/
 
   | `REVIEW_QUANTILE` | Needless visits per officer-term | Problem-level recall | Problem-level precision | Problem-level F1 |
   |---|---|---|---|---|
-  | 0.999 (default) | 3.35 | 56% | 25% | 34% |
-  | 0.99 | 4.9 | 64% | 21% | 32% |
+  | 0.999 | 3.35 | 56% | 25% | 34% |
+  | 0.99 (default) | 4.9 | 64% | 21% | 32% |
   | 0.98 | 6.3 | 69% | 19% | 29% |
   | 0.95 | 10.5 | 77% | 14% | 24% |
 

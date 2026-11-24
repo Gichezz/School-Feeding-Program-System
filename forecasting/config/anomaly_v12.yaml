@@ -281,6 +281,19 @@ frozen:
   final_runs: V8_as_committed (28 days, q 0.98), V11_as_committed (28 days, q 0.99), V11_56 (q 0.999), FINAL (the same setting, q 0.999)
 
 # Final test, recorded after it was run once (final.json, v12_report.md). Nothing above was changed.
+# Deployment note, written after the final test. Nothing above was changed and no result was
+# re-run. The frozen q 0.999 puts the threshold close to the highest school-week in the
+# training window; the service's behaviour tests (tests/test_anomaly_behaviour.py) then found
+# a school recording more learners fed than enrolled, food issued on a day nobody was fed, and
+# three weeks entered together long afterwards all left off the list. The service therefore
+# runs q 0.99, the next value on the measured workload curve, chosen for that reason and not
+# from the final results.
+deployment:
+  review_quantile: 0.99
+  rescoring_days: 56
+  workload_development: 4.9 false listings per officer-term (problem-level recall 64%, F1 32%)
+  workload_final_realistic: about 4.7 to 4.9 (problem-level recall 66% against version 8's 45%, F1 31.4% against 23.8%)
+
 final_result:
   realistic: >
     Version 11 at 56 days (q 0.999): problem-level F1 33.9%, precision 24.6%, recall 55.8%,

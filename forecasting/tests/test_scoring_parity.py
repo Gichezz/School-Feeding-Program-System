@@ -95,11 +95,12 @@ def test_the_service_runs_the_setting_the_protocol_froze():
     v12 = yaml.safe_load(open(harness.PLAN.with_name("anomaly_v12.yaml"), encoding="utf-8"))["frozen"]
     model = [k for k in service.VERSION_8 if k != "review_quantile"]
     assert {k: service.CONFIG[k] for k in model} == {k: frozen[k] for k in model}
-    assert service.DEFAULT_REVIEW_QUANTILE == v12["review_quantile"]
+    deployment = yaml.safe_load(open(harness.PLAN.with_name("anomaly_v12.yaml"), encoding="utf-8"))["deployment"]
+    assert service.DEFAULT_REVIEW_QUANTILE == deployment["review_quantile"] and v12["review_quantile"] in service.REVIEW_QUANTILES
 
 
 def test_the_review_quantile_is_one_with_a_measured_workload():
-    assert service.review_quantile_from(None) == 0.999
+    assert service.review_quantile_from(None) == 0.99
     assert service.review_quantile_from("0.98") == 0.98
     for wrong in ("0.97", "98", "high"):
         with pytest.raises(ValueError, match="REVIEW_QUANTILE"):

@@ -33,7 +33,7 @@ services:
     build: ./forecasting
     restart: unless-stopped
     environment:
-      REVIEW_QUANTILE: ${REVIEW_QUANTILE:-0.999}
+      REVIEW_QUANTILE: ${REVIEW_QUANTILE:-0.99}
 
   backend:
     build: ./backend

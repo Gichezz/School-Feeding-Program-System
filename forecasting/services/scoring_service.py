@@ -17,7 +17,7 @@ never read. For the week requested:
      days.
   4. Up to k schools are the week's list: first any school whose store count is more than
      2 days of food short of the records, then the highest-scoring above the review
-     threshold (by default the 99.9th percentile of the training window's school-week
+     threshold (by default the 99th percentile of the training window's school-week
      scores; REVIEW_QUANTILE sets it from the officers' capacity for visits). Every
      school is returned in rank order with its two main reasons in plain words; a store
      shortfall is named first. Fixed rule breaches are returned for every day, whatever
@@ -26,8 +26,9 @@ never read. For the week requested:
      then only schools that broke a rule are listed, so a quiet week lists nobody.
 
 The setting is protocol version 12's frozen setting (config/anomaly_v12.yaml,
-data/reports/anomaly/v12/v12_report.md): version 11's model at q 0.999, with weeks rescored
-for 56 days by the backend. VERSION_8 is kept as the benchmark.
+data/reports/anomaly/v12/v12_report.md): version 11's model, with weeks rescored for 56 days
+by the backend, at q 0.99 (the plan's deployment note: at 0.999 a school recording more
+learners fed than enrolled was not listed). VERSION_8 is kept as the benchmark.
 """
 
 import datetime as dt
@@ -61,13 +62,15 @@ VERSION_8 = {"n_estimators": 300, "ndim": 2, "scale_floor": False, "threshold": 
 STORE_SHORTFALL_DAYS = 2.0
 # The review quantiles with a measured workload (data/reports/anomaly/v12/v12_report.md,
 # "The workload trade-off"). A programme picks one from how many needless visits its
-# officers can make; 0.999, the frozen setting, sends the fewest.
+# officers can make. 0.999 sends the fewest, but its threshold is close to the highest
+# school-week in the training window, so even impossible records can miss the list; 0.99 is
+# the default (config/anomaly_v12.yaml, deployment).
 REVIEW_QUANTILES = (0.95, 0.98, 0.99, 0.999)
-DEFAULT_REVIEW_QUANTILE = 0.999
+DEFAULT_REVIEW_QUANTILE = 0.99
 
 
 def review_quantile_from(value):
-    """The review quantile from REVIEW_QUANTILE; unset is the frozen 0.999. Only a tested
+    """The review quantile from REVIEW_QUANTILE; unset is 0.99. Only a tested
     value is accepted, so a typing mistake stops the service instead of changing the list."""
     if value in (None, ""):
         return DEFAULT_REVIEW_QUANTILE
@@ -82,7 +85,7 @@ def review_quantile_from(value):
 
 # The setting the service runs (config/anomaly_v12.yaml, data/reports/anomaly/v12): version 8
 # with one-sided scoring and store shortfalls listed first (version 11), at review quantile
-# 0.999 unless REVIEW_QUANTILE sets another tested value
+# 0.99 unless REVIEW_QUANTILE sets another tested value
 CONFIG = dict(VERSION_8, one_sided=True, list_store_shortfall=True,
               review_quantile=review_quantile_from(os.environ.get("REVIEW_QUANTILE")))
 SETTINGS = {"n_estimators": CONFIG["n_estimators"], "ndim": CONFIG["ndim"]}

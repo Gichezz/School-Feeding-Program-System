@@ -310,6 +310,17 @@ Version 11 stays. Of the 24 changes tested, only rescoring for 56 days instead o
 it is a backend change. On fresh realistic data at the same workload, the system found 16 points
 more distinct problems than version 8 as deployed, and had 9 points higher problem-level F1.
 
+### Deployment note (added after the final test)
+
+The service runs q 0.99, not the frozen 0.999. At 0.999 the threshold is close to the highest
+school-week in the training window, and the service's behaviour tests found that a school recording
+more learners fed than enrolled, food issued on a day nobody was fed, or three weeks entered together
+long afterwards was not listed (the rule breach still showed). 0.99 is the next value on the
+measured workload curve and lists all three. It was chosen for that reason, not from the final
+results, and nothing above was re-run. Its cost and gain, from the curves above: about 4.9 false
+listings per officer-term instead of 3.35; on the final realistic data, problem-level recall 66%
+against version 8's 45% at that workload (problem-level F1 31.4% against 23.8%).
+
 ## 8. Limits
 
 **Synthetic data**
