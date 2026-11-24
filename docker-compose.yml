@@ -32,6 +32,8 @@ services:
   scoring:
     build: ./forecasting
     restart: unless-stopped
+    environment:
+      REVIEW_QUANTILE: ${REVIEW_QUANTILE:-0.999}
 
   backend:
     build: ./backend

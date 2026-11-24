@@ -1,5 +1,5 @@
 """
-The evaluation measures the scorer that runs (protocol version 11).
+The evaluation measures the scorer that runs (protocol version 11; version 12 kept its model).
 
 The point-in-time harness (scripts/run_anomaly_v11.py) scores each week from the records
 the backend would send at that moment. Here one sub-county-week is scored twice: through
@@ -89,10 +89,21 @@ def test_the_harness_scores_a_week_exactly_as_the_service_does(dataset, scorings
 
 
 def test_the_service_runs_the_setting_the_protocol_froze():
+    # Version 12 kept version 11's model and changed only the review quantile (and the
+    # backend's rescoring window), so the model settings come from version 11's plan
     frozen = yaml.safe_load(open(harness.PLAN, encoding="utf-8")).get("frozen")
-    if not frozen:
-        pytest.skip("protocol version 11 is not frozen yet")
-    assert {k: service.CONFIG[k] for k in service.VERSION_8} == {k: frozen[k] for k in service.VERSION_8}
+    v12 = yaml.safe_load(open(harness.PLAN.with_name("anomaly_v12.yaml"), encoding="utf-8"))["frozen"]
+    model = [k for k in service.VERSION_8 if k != "review_quantile"]
+    assert {k: service.CONFIG[k] for k in model} == {k: frozen[k] for k in model}
+    assert service.DEFAULT_REVIEW_QUANTILE == v12["review_quantile"]
+
+
+def test_the_review_quantile_is_one_with_a_measured_workload():
+    assert service.review_quantile_from(None) == 0.999
+    assert service.review_quantile_from("0.98") == 0.98
+    for wrong in ("0.97", "98", "high"):
+        with pytest.raises(ValueError, match="REVIEW_QUANTILE"):
+            service.review_quantile_from(wrong)
 
 
 @pytest.mark.parametrize("change", [{"weekly": "two_week_mean"}, {"window": harness.MAX_WINDOW}, {"one_sided": True},

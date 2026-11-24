@@ -1,7 +1,7 @@
 """
 Weekly review scoring for one sub-county, as evaluated in the deployment-matching test
 (config/anomaly_deployment_test.yaml, data/reports/anomaly/deployment/), with the
-changes of protocol version 11.
+changes of protocol versions 11 and 12.
 
 The backend sends the sub-county's records; nothing is stored here and the database is
 never read. For the week requested:
@@ -17,18 +17,21 @@ never read. For the week requested:
      days.
   4. Up to k schools are the week's list: first any school whose store count is more than
      2 days of food short of the records, then the highest-scoring above the review
-     threshold (the 99th percentile of the training window's school-week scores). Every
+     threshold (by default the 99.9th percentile of the training window's school-week
+     scores; REVIEW_QUANTILE sets it from the officers' capacity for visits). Every
      school is returned in rank order with its two main reasons in plain words; a store
      shortfall is named first. Fixed rule breaches are returned for every day, whatever
      the ranking.
   5. A sub-county with fewer than 60 school days of history is ranked by the rules alone;
      then only schools that broke a rule are listed, so a quiet week lists nobody.
 
-The setting is protocol version 11's frozen setting (config/anomaly_v11.yaml,
-data/reports/anomaly/v11/v11_report.md); VERSION_8 is kept as the benchmark.
+The setting is protocol version 12's frozen setting (config/anomaly_v12.yaml,
+data/reports/anomaly/v12/v12_report.md): version 11's model at q 0.999, with weeks rescored
+for 56 days by the backend. VERSION_8 is kept as the benchmark.
 """
 
 import datetime as dt
+import os
 
 # Imported here so a missing or broken isotree stops the service at start-up (and its
 # health check), instead of failing the first weekly list
@@ -56,10 +59,32 @@ VERSION_8 = {"n_estimators": 300, "ndim": 2, "scale_floor": False, "threshold": 
              "list_store_shortfall": False}
 # A store count this many days of food short of the records (the fixed rule's threshold)
 STORE_SHORTFALL_DAYS = 2.0
-# The setting the service runs (config/anomaly_v11.yaml, data/reports/anomaly/v11): version 8
-# with one-sided scoring (step 7) and store shortfalls listed first (step 8), at review
-# quantile 0.99, as chosen on the development data
-CONFIG = dict(VERSION_8, one_sided=True, list_store_shortfall=True, review_quantile=0.99)
+# The review quantiles with a measured workload (data/reports/anomaly/v12/v12_report.md,
+# "The workload trade-off"). A programme picks one from how many needless visits its
+# officers can make; 0.999, the frozen setting, sends the fewest.
+REVIEW_QUANTILES = (0.95, 0.98, 0.99, 0.999)
+DEFAULT_REVIEW_QUANTILE = 0.999
+
+
+def review_quantile_from(value):
+    """The review quantile from REVIEW_QUANTILE; unset is the frozen 0.999. Only a tested
+    value is accepted, so a typing mistake stops the service instead of changing the list."""
+    if value in (None, ""):
+        return DEFAULT_REVIEW_QUANTILE
+    try:
+        q = float(value)
+    except ValueError:
+        q = None
+    if q not in REVIEW_QUANTILES:
+        raise ValueError(f"REVIEW_QUANTILE must be one of {', '.join(map(str, REVIEW_QUANTILES))}, not {value!r}")
+    return q
+
+
+# The setting the service runs (config/anomaly_v12.yaml, data/reports/anomaly/v12): version 8
+# with one-sided scoring and store shortfalls listed first (version 11), at review quantile
+# 0.999 unless REVIEW_QUANTILE sets another tested value
+CONFIG = dict(VERSION_8, one_sided=True, list_store_shortfall=True,
+              review_quantile=review_quantile_from(os.environ.get("REVIEW_QUANTILE")))
 SETTINGS = {"n_estimators": CONFIG["n_estimators"], "ndim": CONFIG["ndim"]}
 REVIEW_QUANTILE = CONFIG["review_quantile"]
 NOTICE = ("Ranks records for review; it does not decide anything. Thresholds and settings were tested on "
