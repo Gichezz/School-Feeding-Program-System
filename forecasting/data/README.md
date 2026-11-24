@@ -2,8 +2,10 @@
 
 | Folder | Contents | Written by |
 |---|---|---|
-| `raw/` | Original downloaded files. **Never modified.** | You (manual download) |
-| `processed/` | US reference aggregate/profile (`source_type = transformed`) and the synthetic Kenyan school dataset (`source_type = synthetic`) | `scripts/inspect_us_dataset.py`, `scripts/generate_synthetic_dataset.py` |
-| `reports/` | Inspection, validation and data-quality reports | `scripts/*.py` |
+| `raw/` | Open datasets, downloaded and checked against their recorded hashes. **Never modified.** | `scripts/fetch_open_datasets.py` |
+| `processed/` | Generated synthetic feeding datasets and evaluation caches (not committed) | `scripts/generate_feeding_dataset.py`, `scripts/generate_feeding_dataset_realistic.py`, the evaluation scripts |
+| `reports/anomaly/` | Every anomaly-monitoring evaluation, one folder per protocol version | `scripts/run_anomaly_v*.py` and the other evaluation scripts |
+| `reports/swedish/` | The demand-forecasting evaluation on real Swedish school canteens, the evidence for dropping forecasting | the retired forecasting code, kept at the git tag `forecasting-archive` |
 
-The synthetic dataset represents **one simulated Kenyan school** under the assumptions in `../config/synthetic_kenya_school.yaml`. It is not observed data. Full documentation: [`docs/archive/synthetic-dataset-one-school.md`](../../docs/archive/synthetic-dataset-one-school.md).
+The data is synthetic. It is not observed data from Kenyan schools. See
+[`docs/synthetic-dataset.md`](../../docs/synthetic-dataset.md).

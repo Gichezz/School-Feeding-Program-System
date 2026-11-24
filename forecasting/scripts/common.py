@@ -1,5 +1,5 @@
 """
-Shared paths and helpers for the Phase 9 dataset scripts.
+Shared paths and helpers for the dataset and evaluation scripts.
 
 All scripts resolve paths relative to the forecasting/ folder so they can be
 run from the repository root or from inside forecasting/.
@@ -16,22 +16,6 @@ DATA_DIR = FORECASTING_DIR / "data"
 RAW_DIR = DATA_DIR / "raw"
 PROCESSED_DIR = DATA_DIR / "processed"
 REPORTS_DIR = DATA_DIR / "reports"
-CONFIG_PATH = FORECASTING_DIR / "config" / "synthetic_kenya_school.yaml"
-
-# Raw dataset as downloaded from Kaggle. Never written to by these scripts.
-RAW_US_DATASET = RAW_DIR / "us_school_attendance.csv"
-
-# Outputs
-US_INSPECTION_JSON = REPORTS_DIR / "us_dataset_inspection.json"
-US_INSPECTION_MD = REPORTS_DIR / "us_dataset_inspection.md"
-US_REFERENCE_DAILY = PROCESSED_DIR / "us_reference_daily.csv"
-US_REFERENCE_PROFILE = PROCESSED_DIR / "us_reference_profile.json"
-SYNTHETIC_DATASET = PROCESSED_DIR / "synthetic_kenya_school_daily.csv"
-SYNTHETIC_METADATA = PROCESSED_DIR / "synthetic_kenya_school_metadata.json"
-VALIDATION_JSON = REPORTS_DIR / "validation_report.json"
-VALIDATION_MD = REPORTS_DIR / "validation_report.md"
-QUALITY_MD = REPORTS_DIR / "data_quality_report.md"
-
 
 def ensure_output_dirs():
     for d in (PROCESSED_DIR, REPORTS_DIR):
@@ -46,7 +30,7 @@ def sha256_of(path):
     return h.hexdigest()
 
 
-def load_config(path=CONFIG_PATH):
+def load_config(path):
     with open(path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 

@@ -224,6 +224,7 @@ Every setting is listed in [backend/.env.example](backend/.env.example), [.env.e
 
 | Document | Covers |
 |---|---|
+| [Reading guide](docs/README.md) | Where each part of the project write-up comes from, the measures and the gaps to state |
 | [Architecture](docs/architecture.md) | Components, data, the sync protocol, conflicts, monitoring, sign-in and record integrity |
 | [Anomaly detection](docs/anomaly-detection.md) | Why monitoring instead of forecasting, the features, the method comparison and its results |
 | [Model audit](docs/anomaly-model-audit.md) | The audit behind the final method choice |

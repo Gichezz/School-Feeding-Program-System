@@ -27,7 +27,7 @@ COPY --from=isotree-build /wheels /wheels
 COPY requirements.txt ./
 RUN pip install --find-links /wheels -r requirements.txt && rm -rf /wheels
 
-# Only what the running service needs (no datasets, notebooks or tests)
+# Only what the running service needs (no datasets or tests)
 COPY app.py ./
 COPY anomaly ./anomaly
 COPY services/__init__.py services/scoring_service.py ./services/
