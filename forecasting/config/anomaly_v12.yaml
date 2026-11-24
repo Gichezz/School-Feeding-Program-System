@@ -257,3 +257,25 @@ amendment_2:
     listings, suppression and follow-up marks. Validation and final runs use one q each, so the
     model leaves out that q's own follow-up weeks, exactly as the service does. Nothing else
     changes.
+
+# The freeze: written after every stage and committed before any final dataset is generated.
+frozen:
+  adopted: []
+  setting: version 11 as committed (300 trees, ndim 2, one-sided, top-2 mean, store shortfall first, window 125) with 56-day rescoring
+  review_quantile: 0.999   # the q of the lowest workload version 11 reaches on development data (3.35 false listings per officer-term); 2.5 cannot be reached
+  count_every_school_days: 20
+  not_adopted: >
+    S2 follow-up suppression (-0.6 problem-level F1 points, interval -1.5 to +0.2); S3 counts every
+    10 or 5 school days, with or without the summed rule (-2.9 to -13.7, more false listings from
+    honest count errors), the summed rule at 20 days (no change); M1 scale floor (+0.2), each
+    headcount feature left out (-0.9 to +0.5), low headcount scored both ways (+0.2), sample sizes
+    256 and 128 (-0.9, -1.4); M2 forest plus sparse tail scores (-0.8 at 5.1 false listings, its
+    lowest), the same without the store-shortfall listing (-3.8, -6.0 to -1.4); M3 CUSUM (-1.0),
+    rolling means (-2.2), the existing trend candidates (-0.7), weekly peak (+0.5), weekly mean
+    (+0.7). Nothing reached the stage validation (stage_*.json).
+  development: >
+    Version 11 at 56 days against version 8 as deployed (28 days), same workload 3.35:
+    problem-level F1 +10.1 points (+7.5 to +12.8), problem-level recall +19.9, problem-level
+    precision +6.5, week-level F1@3 +5.9, PR-AUC +10.3 (baselines.json). Against version 11 at
+    28 days: +2.5 (+1.5 to +3.5).
+  final_runs: V8_as_committed (28 days, q 0.98), V11_as_committed (28 days, q 0.99), V11_56 (q 0.999), FINAL (the same setting, q 0.999)

@@ -510,9 +510,13 @@ def step_final(args):
         for k, (cfg, q) in sets.items():
             if gname.startswith("final_count") and k != "FINAL":
                 continue
-            raw = evaluate(cfg, ds, args.workers, qs=sorted(set(Q_GRID) | {q}), tag=gname, covers=(2, 8))
-            res[k] = at_workload(raw, q=q)
+            # the headline: one q, exact (amendment 2); the grid only for the workload curve
+            res[k] = at_workload(evaluate(cfg, ds, args.workers, qs=[q], tag=gname, covers=(2, 8)), q=q)
+            raw = evaluate(cfg, ds, args.workers, qs=Q_GRID, tag=gname + "_grid")
             res[k + "_at_common_workload"] = raw
+            curve = raw.groupby("q")[["false_listings_per_officer_term", "problem_f1", "problem_precision",
+                                      "problem_recall", "f1_at_k", "precision_at_k", "recall_at_k"]].mean()
+            out.setdefault("workload_curves", {}).setdefault(gname, {})[k] = curve.reset_index().to_dict(orient="records")
         g = {k: summary(v) for k, v in res.items() if not k.endswith("_at_common_workload")}
         if "V11_56" in res:
             for k in ("FINAL", "V8_as_committed", "V11_as_committed"):

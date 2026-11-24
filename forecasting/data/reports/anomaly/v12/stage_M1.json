@@ -1,0 +1,2494 @@
+{
+  "stage": "M1",
+  "start": {
+    "name": "V11_56"
+  },
+  "start_result": {
+    "problem_f1": 0.3393951378037181,
+    "problem_precision": 0.24495013475708713,
+    "problem_recall": 0.5611111111111111,
+    "one_day_claims_caught": 0.0701595006948352,
+    "f1_at_k": 0.19953264906866738,
+    "precision_at_k": 0.32943709459655296,
+    "recall_at_k": 0.14418105947208737,
+    "recall_at_k_covered": 0.2636568045928998,
+    "pr_auc": 0.2821313179775469,
+    "pr_auc_within_sub_county": 0.3014579170653359,
+    "false_listings_per_officer_term": 3.3493055555555555,
+    "false_from_shortfall_per_officer_term": 2.542824074074074,
+    "visits_per_officer_term": 4.336342592592592,
+    "problems_caught_within_2_weeks": 0.10370370370370369,
+    "median_days_to_catch": 33.45,
+    "caught_backdated_bulk_entry": 0.688888888888889,
+    "caught_consumption_drift": 0.6777777777777778,
+    "caught_ghost_learners": 0.7111111111111114,
+    "caught_inflated_headcount": 0.2666666666666666,
+    "caught_round_number_entry": 0.16666666666666666,
+    "caught_stock_leakage": 0.8555555555555556,
+    "false_rate_programme_type_cash_transfer": 0.015244152182297934,
+    "false_rate_programme_type_in_kind": 0.03415205405540349,
+    "false_rate_estimates_to_False": 0.027211133283727495,
+    "false_rate_estimates_to_True": 0.03273469207785802,
+    "false_rate_computes_issues_False": 0.02985459014494874,
+    "false_rate_computes_issues_True": 0.02510079277131263,
+    "false_rate_weekly_enterer_False": 0.025766404326276866,
+    "false_rate_weekly_enterer_True": 0.03861299969843852,
+    "false_rate_records_note_False": 0.0252893141662164,
+    "false_rate_records_note_True": 0.035304250023430864,
+    "false_rate_overall": 0.028287183325945313,
+    "problem_f1_cover2": 0.3467764586056061,
+    "problem_precision_cover2": 0.2525768605939552,
+    "recall_at_k_covered_cover2": 0.21673296390103344,
+    "problem_f1_cover8": 0.3338457023230174,
+    "problem_precision_cover8": 0.23895439595904572,
+    "recall_at_k_covered_cover8": 0.30847486511844163,
+    "q": 0.999,
+    "reached": false,
+    "lowest_workload": 3.3493055555555555
+  },
+  "candidates": {
+    "M1a_scale_floor": {
+      "change": {
+        "scale_floor": true
+      },
+      "workload": 3.3493055555555555,
+      "result": {
+        "problem_f1": 0.34091138863597076,
+        "problem_precision": 0.24621301279698604,
+        "problem_recall": 0.5615384615384615,
+        "one_day_claims_caught": 0.07361538304777639,
+        "f1_at_k": 0.2044940044635459,
+        "precision_at_k": 0.3351680909940512,
+        "recall_at_k": 0.1483107824008439,
+        "recall_at_k_covered": 0.26584041821155646,
+        "pr_auc": 0.29154591716812006,
+        "pr_auc_within_sub_county": 0.310698002020736,
+        "false_listings_per_officer_term": 3.349305555555556,
+        "false_from_shortfall_per_officer_term": 2.548842592592593,
+        "visits_per_officer_term": 4.342824074074074,
+        "problems_caught_within_2_weeks": 0.10754985754985755,
+        "median_days_to_catch": 33.98333333333333,
+        "caught_backdated_bulk_entry": 0.7123931623931626,
+        "caught_consumption_drift": 0.7004273504273505,
+        "caught_ghost_learners": 0.7111111111111114,
+        "caught_inflated_headcount": 0.24529914529914537,
+        "caught_round_number_entry": 0.14444444444444443,
+        "caught_stock_leakage": 0.8555555555555556,
+        "false_rate_programme_type_cash_transfer": 0.015244063248073127,
+        "false_rate_programme_type_in_kind": 0.03410212830079852,
+        "false_rate_estimates_to_False": 0.02740751304442681,
+        "false_rate_estimates_to_True": 0.03185307010312562,
+        "false_rate_computes_issues_False": 0.02966749092174436,
+        "false_rate_computes_issues_True": 0.02540259216982778,
+        "false_rate_weekly_enterer_False": 0.025634739572040932,
+        "false_rate_weekly_enterer_True": 0.039592768007547026,
+        "false_rate_records_note_False": 0.02521705817648314,
+        "false_rate_records_note_True": 0.03516392670066796,
+        "false_rate_overall": 0.028288609969538806,
+        "q": 0.9989615384615385,
+        "reached": true,
+        "lowest_workload": 3.343287037037037
+      },
+      "start_at_same_workload": {
+        "problem_f1": 0.3393951378037181,
+        "problem_precision": 0.24495013475708713,
+        "problem_recall": 0.5611111111111111,
+        "one_day_claims_caught": 0.0701595006948352,
+        "f1_at_k": 0.19953264906866738,
+        "precision_at_k": 0.32943709459655296,
+        "recall_at_k": 0.14418105947208737,
+        "recall_at_k_covered": 0.2636568045928998,
+        "pr_auc": 0.2821313179775469,
+        "pr_auc_within_sub_county": 0.3014579170653359,
+        "false_listings_per_officer_term": 3.3493055555555555,
+        "false_from_shortfall_per_officer_term": 2.542824074074074,
+        "visits_per_officer_term": 4.336342592592592,
+        "problems_caught_within_2_weeks": 0.10370370370370369,
+        "median_days_to_catch": 33.45,
+        "caught_backdated_bulk_entry": 0.688888888888889,
+        "caught_consumption_drift": 0.6777777777777778,
+        "caught_ghost_learners": 0.7111111111111114,
+        "caught_inflated_headcount": 0.2666666666666666,
+        "caught_round_number_entry": 0.16666666666666666,
+        "caught_stock_leakage": 0.8555555555555556,
+        "false_rate_programme_type_cash_transfer": 0.015244152182297934,
+        "false_rate_programme_type_in_kind": 0.03415205405540349,
+        "false_rate_estimates_to_False": 0.027211133283727495,
+        "false_rate_estimates_to_True": 0.03273469207785802,
+        "false_rate_computes_issues_False": 0.02985459014494874,
+        "false_rate_computes_issues_True": 0.02510079277131263,
+        "false_rate_weekly_enterer_False": 0.025766404326276866,
+        "false_rate_weekly_enterer_True": 0.03861299969843852,
+        "false_rate_records_note_False": 0.0252893141662164,
+        "false_rate_records_note_True": 0.035304250023430864,
+        "false_rate_overall": 0.028287183325945313,
+        "problem_f1_cover2": 0.3467764586056061,
+        "problem_precision_cover2": 0.2525768605939552,
+        "recall_at_k_covered_cover2": 0.21673296390103344,
+        "problem_f1_cover8": 0.3338457023230174,
+        "problem_precision_cover8": 0.23895439595904572,
+        "recall_at_k_covered_cover8": 0.30847486511844163,
+        "q": 0.999,
+        "reached": true,
+        "lowest_workload": 3.3493055555555555
+      },
+      "against_start": {
+        "problem_f1": {
+          "diff": 0.0015162508322526431,
+          "lo": -0.005137903000076644,
+          "hi": 0.008073510798890416,
+          "won": 0.43333333333333335
+        },
+        "problem_precision": {
+          "diff": 0.00126287803989882,
+          "lo": -0.003558375000543053,
+          "hi": 0.006127326543718666,
+          "won": 0.43333333333333335
+        },
+        "problem_recall": {
+          "diff": 0.00042735042735046286,
+          "lo": -0.012678062678062657,
+          "hi": 0.013319088319088342,
+          "won": 0.26666666666666666
+        },
+        "one_day_claims_caught": {
+          "diff": 0.0034558823529411767,
+          "lo": -0.00392156862745098,
+          "hi": 0.01221936274509809,
+          "won": 0.06666666666666667
+        },
+        "f1_at_k": {
+          "diff": 0.00496135539487852,
+          "lo": -0.00036654435120679884,
+          "hi": 0.010546180843093767,
+          "won": 0.43333333333333335
+        },
+        "precision_at_k": {
+          "diff": 0.005730996397498241,
+          "lo": -0.0011695152527907609,
+          "hi": 0.012759744211250057,
+          "won": 0.5333333333333333
+        },
+        "recall_at_k": {
+          "diff": 0.00412972292875651,
+          "lo": -0.0002454103178888857,
+          "hi": 0.008791157706037537,
+          "won": 0.5333333333333333
+        },
+        "recall_at_k_covered": {
+          "diff": 0.0021836136186567266,
+          "lo": -0.0038147728401612267,
+          "hi": 0.0077153494010766335,
+          "won": 0.6
+        },
+        "pr_auc": {
+          "diff": 0.009414599190573142,
+          "lo": 0.006282638144381073,
+          "hi": 0.01262836146688933,
+          "won": 0.9
+        },
+        "pr_auc_within_sub_county": {
+          "diff": 0.009240084955400081,
+          "lo": 0.005784109263882092,
+          "hi": 0.012787307817646875,
+          "won": 0.8333333333333334
+        },
+        "false_listings_per_officer_term": {
+          "diff": 6.957397620984314e-16,
+          "lo": -0.05613715277777696,
+          "hi": 0.055211226851852625,
+          "won": 0.6
+        },
+        "false_from_shortfall_per_officer_term": {
+          "diff": 0.006018518518518526,
+          "lo": -0.006018518518518497,
+          "hi": 0.01805555555555558,
+          "won": 0.1
+        },
+        "visits_per_officer_term": {
+          "diff": 0.006481481481482184,
+          "lo": -0.054866898148147686,
+          "hi": 0.06678240740740815,
+          "won": 0.6
+        },
+        "problems_caught_within_2_weeks": {
+          "diff": 0.003846153846153861,
+          "lo": -0.003491809116809093,
+          "hi": 0.011253561253561266,
+          "won": 0.16666666666666666
+        },
+        "median_days_to_catch": {
+          "diff": 0.5333333333333296,
+          "lo": -0.6237980769230816,
+          "hi": 1.8423397435897357,
+          "won": 0.3333333333333333
+        },
+        "caught_backdated_bulk_entry": {
+          "diff": 0.023504273504273643,
+          "lo": -0.020085470085469855,
+          "hi": 0.0675213675213676,
+          "won": 0.16666666666666666
+        },
+        "caught_consumption_drift": {
+          "diff": 0.022649572649572697,
+          "lo": -0.020512820512820325,
+          "hi": 0.06666666666666668,
+          "won": 0.1
+        },
+        "caught_ghost_learners": {
+          "diff": 0.0,
+          "lo": 0.0,
+          "hi": 0.0,
+          "won": 0.0
+        },
+        "caught_inflated_headcount": {
+          "diff": -0.021367521367521274,
+          "lo": -0.06538461538461524,
+          "hi": 0.022649572649572694,
+          "won": 0.06666666666666667
+        },
+        "caught_round_number_entry": {
+          "diff": -0.02222222222222222,
+          "lo": -0.05555555555555555,
+          "hi": 0.0,
+          "won": 0.0
+        },
+        "caught_stock_leakage": {
+          "diff": 0.0,
+          "lo": 0.0,
+          "hi": 0.0,
+          "won": 0.0
+        }
+      },
+      "checks": {
+        "problem_f1_gain": false,
+        "problem_recall": true,
+        "types": true,
+        "week_f1": true
+      },
+      "adopted_alone": false
+    },
+    "M1b_drop_fed_rate": {
+      "change": {
+        "drop": [
+          "fed_rate"
+        ]
+      },
+      "workload": 3.3613425925925924,
+      "result": {
+        "problem_f1": 0.33648484589492395,
+        "problem_precision": 0.24295897646606893,
+        "problem_recall": 0.5574074074074074,
+        "one_day_claims_caught": 0.06460431078670412,
+        "f1_at_k": 0.20257850600649388,
+        "precision_at_k": 0.33270382779394575,
+        "recall_at_k": 0.14678908745528177,
+        "recall_at_k_covered": 0.2633286479080373,
+        "pr_auc": 0.28742234574753883,
+        "pr_auc_within_sub_county": 0.3060655518589339,
+        "false_listings_per_officer_term": 3.3613425925925924,
+        "false_from_shortfall_per_officer_term": 2.548842592592593,
+        "visits_per_officer_term": 4.336342592592592,
+        "problems_caught_within_2_weeks": 0.10925925925925924,
+        "median_days_to_catch": 33.9,
+        "caught_backdated_bulk_entry": 0.6444444444444446,
+        "caught_consumption_drift": 0.7222222222222222,
+        "caught_ghost_learners": 0.7111111111111114,
+        "caught_inflated_headcount": 0.25555555555555554,
+        "caught_round_number_entry": 0.15555555555555553,
+        "caught_stock_leakage": 0.8555555555555556,
+        "false_rate_programme_type_cash_transfer": 0.015773794069005195,
+        "false_rate_programme_type_in_kind": 0.03422338010020209,
+        "false_rate_estimates_to_False": 0.027355102315694897,
+        "false_rate_estimates_to_True": 0.03255236053395114,
+        "false_rate_computes_issues_False": 0.029962815504710506,
+        "false_rate_computes_issues_True": 0.025015536453354126,
+        "false_rate_weekly_enterer_False": 0.02596124695293097,
+        "false_rate_weekly_enterer_True": 0.03908932929603635,
+        "false_rate_records_note_False": 0.025597778684988696,
+        "false_rate_records_note_True": 0.034962311510385743,
+        "false_rate_overall": 0.028392985223697438,
+        "q": 0.999,
+        "reached": true,
+        "lowest_workload": 3.3613425925925924
+      },
+      "start_at_same_workload": {
+        "problem_f1": 0.3392192176381753,
+        "problem_precision": 0.2446395254963893,
+        "problem_recall": 0.5618099231306776,
+        "one_day_claims_caught": 0.0701595006948352,
+        "f1_at_k": 0.20008388862366472,
+        "precision_at_k": 0.3295289033431905,
+        "recall_at_k": 0.14474871674576534,
+        "recall_at_k_covered": 0.264318474710849,
+        "pr_auc": 0.2821313179775469,
+        "pr_auc_within_sub_county": 0.3014579170653359,
+        "false_listings_per_officer_term": 3.3613425925925866,
+        "false_from_shortfall_per_officer_term": 2.542824074074074,
+        "visits_per_officer_term": 4.349515199161419,
+        "problems_caught_within_2_weeks": 0.10426275331935682,
+        "median_days_to_catch": 33.463836477987414,
+        "caught_backdated_bulk_entry": 0.6914046121593281,
+        "caught_consumption_drift": 0.6777777777777778,
+        "caught_ghost_learners": 0.7119496855345909,
+        "caught_inflated_headcount": 0.2675052410901463,
+        "caught_round_number_entry": 0.16666666666666666,
+        "caught_stock_leakage": 0.8555555555555556,
+        "false_rate_programme_type_cash_transfer": 0.015349354647456338,
+        "false_rate_programme_type_in_kind": 0.03425651488129668,
+        "false_rate_estimates_to_False": 0.027303540047050778,
+        "false_rate_estimates_to_True": 0.03287109484759006,
+        "false_rate_computes_issues_False": 0.029980987581775042,
+        "false_rate_computes_issues_True": 0.025156642812330543,
+        "false_rate_weekly_enterer_False": 0.025861169814525468,
+        "false_rate_weekly_enterer_True": 0.03877540624598607,
+        "false_rate_records_note_False": 0.025389364735532986,
+        "false_rate_records_note_True": 0.03539042788628731,
+        "false_rate_overall": 0.028388914673802227,
+        "problem_f1_cover2": 0.34662033321140917,
+        "problem_precision_cover2": 0.25228093856837436,
+        "recall_at_k_covered_cover2": 0.21738733417843428,
+        "problem_f1_cover8": 0.3336554214561294,
+        "problem_precision_cover8": 0.23864196814800748,
+        "recall_at_k_covered_cover8": 0.30925940328378726,
+        "q": 0.9989245283018868,
+        "reached": true,
+        "lowest_workload": 3.3493055555555555
+      },
+      "against_start": {
+        "problem_f1": {
+          "diff": -0.0027343717432514155,
+          "lo": -0.009903292676720734,
+          "hi": 0.004527095955958404,
+          "won": 0.4666666666666667
+        },
+        "problem_precision": {
+          "diff": -0.0016805490303203983,
+          "lo": -0.0074775101835840695,
+          "hi": 0.0037174738891908427,
+          "won": 0.5
+        },
+        "problem_recall": {
+          "diff": -0.0044025157232701175,
+          "lo": -0.019640111809922603,
+          "hi": 0.012124388539483267,
+          "won": 0.13333333333333333
+        },
+        "one_day_claims_caught": {
+          "diff": -0.005555189908131085,
+          "lo": -0.016731660496366377,
+          "hi": 0.005333333333333333,
+          "won": 0.03333333333333333
+        },
+        "f1_at_k": {
+          "diff": 0.002494617382829177,
+          "lo": -0.003420473904180521,
+          "hi": 0.008402179737155471,
+          "won": 0.6
+        },
+        "precision_at_k": {
+          "diff": 0.003174924450755177,
+          "lo": -0.0049402830923025946,
+          "hi": 0.011139067918979728,
+          "won": 0.5333333333333333
+        },
+        "recall_at_k": {
+          "diff": 0.002040370709516475,
+          "lo": -0.00288125200978286,
+          "hi": 0.006871895671744343,
+          "won": 0.4666666666666667
+        },
+        "recall_at_k_covered": {
+          "diff": -0.0009898268028117594,
+          "lo": -0.007859892449487975,
+          "hi": 0.005944235059457603,
+          "won": 0.36666666666666664
+        },
+        "pr_auc": {
+          "diff": 0.005291027769991991,
+          "lo": 0.002518039813027061,
+          "hi": 0.008213170320176792,
+          "won": 0.7666666666666667
+        },
+        "pr_auc_within_sub_county": {
+          "diff": 0.00460763479359799,
+          "lo": 0.002319586767508036,
+          "hi": 0.006850297906748495,
+          "won": 0.7
+        },
+        "false_listings_per_officer_term": {
+          "diff": 5.713947833404139e-15,
+          "lo": -0.08102856394129421,
+          "hi": 0.08381070929420587,
+          "won": 0.26666666666666666
+        },
+        "false_from_shortfall_per_officer_term": {
+          "diff": 0.006018518518518526,
+          "lo": -0.009027777777777753,
+          "hi": 0.021064814814814807,
+          "won": 0.13333333333333333
+        },
+        "visits_per_officer_term": {
+          "diff": -0.013172606568826847,
+          "lo": -0.10254760656882732,
+          "hi": 0.08023224580713677,
+          "won": 0.3
+        },
+        "problems_caught_within_2_weeks": {
+          "diff": 0.004996505939902429,
+          "lo": -0.0022711390635916954,
+          "hi": 0.012543675751223116,
+          "won": 0.13333333333333333
+        },
+        "median_days_to_catch": {
+          "diff": 0.4361635220125851,
+          "lo": -1.0261242138364584,
+          "hi": 1.9890172955974972,
+          "won": 0.2
+        },
+        "caught_backdated_bulk_entry": {
+          "diff": -0.046960167714883504,
+          "lo": -0.10167714884695939,
+          "hi": 1.8503717077085942e-18,
+          "won": 0.03333333333333333
+        },
+        "caught_consumption_drift": {
+          "diff": 0.044444444444444446,
+          "lo": -0.011111111111111112,
+          "hi": 0.10027777777777883,
+          "won": 0.13333333333333333
+        },
+        "caught_ghost_learners": {
+          "diff": -0.0008385744234796858,
+          "lo": -0.034171907756813016,
+          "hi": 0.03249475890985365,
+          "won": 0.03333333333333333
+        },
+        "caught_inflated_headcount": {
+          "diff": -0.011949685534590799,
+          "lo": -0.04528301886792414,
+          "hi": 0.020545073375262846,
+          "won": 0.03333333333333333
+        },
+        "caught_round_number_entry": {
+          "diff": -0.01111111111111111,
+          "lo": -0.03333333333333333,
+          "hi": 0.0,
+          "won": 0.0
+        },
+        "caught_stock_leakage": {
+          "diff": 0.0,
+          "lo": 0.0,
+          "hi": 0.0,
+          "won": 0.0
+        }
+      },
+      "checks": {
+        "problem_f1_gain": false,
+        "problem_recall": true,
+        "types": true,
+        "week_f1": true
+      },
+      "adopted_alone": false
+    },
+    "M1b_drop_fed_vs_own": {
+      "change": {
+        "drop": [
+          "fed_vs_own"
+        ]
+      },
+      "workload": 3.3493055555555555,
+      "result": {
+        "problem_f1": 0.34074547738170496,
+        "problem_precision": 0.24497501825540616,
+        "problem_recall": 0.5708534621578097,
+        "one_day_claims_caught": 0.05612145945219025,
+        "f1_at_k": 0.2010735120998674,
+        "precision_at_k": 0.3320704951804665,
+        "recall_at_k": 0.14535611295230585,
+        "recall_at_k_covered": 0.26161708524716915,
+        "pr_auc": 0.2805270837102881,
+        "pr_auc_within_sub_county": 0.29816892729760763,
+        "false_listings_per_officer_term": 3.3493055555555515,
+        "false_from_shortfall_per_officer_term": 2.5458333333333334,
+        "visits_per_officer_term": 4.348641304347821,
+        "problems_caught_within_2_weeks": 0.10386473429951676,
+        "median_days_to_catch": 33.944565217391315,
+        "caught_backdated_bulk_entry": 0.7342995169082119,
+        "caught_consumption_drift": 0.7120772946859896,
+        "caught_ghost_learners": 0.7060386473429949,
+        "caught_inflated_headcount": 0.21714975845410592,
+        "caught_round_number_entry": 0.18888888888888886,
+        "caught_stock_leakage": 0.8666666666666667,
+        "false_rate_programme_type_cash_transfer": 0.01606677554435425,
+        "false_rate_programme_type_in_kind": 0.03384637540546896,
+        "false_rate_estimates_to_False": 0.027534926265425995,
+        "false_rate_estimates_to_True": 0.030993993334370775,
+        "false_rate_computes_issues_False": 0.029964881234946044,
+        "false_rate_computes_issues_True": 0.02478971259526997,
+        "false_rate_weekly_enterer_False": 0.02581864093516165,
+        "false_rate_weekly_enterer_True": 0.038675031593336635,
+        "false_rate_records_note_False": 0.02526728879781833,
+        "false_rate_records_note_True": 0.03490502625721259,
+        "false_rate_overall": 0.02828752542645003,
+        "q": 0.9984565217391305,
+        "reached": true,
+        "lowest_workload": 3.274074074074074
+      },
+      "start_at_same_workload": {
+        "problem_f1": 0.3393951378037181,
+        "problem_precision": 0.24495013475708713,
+        "problem_recall": 0.5611111111111111,
+        "one_day_claims_caught": 0.0701595006948352,
+        "f1_at_k": 0.19953264906866738,
+        "precision_at_k": 0.32943709459655296,
+        "recall_at_k": 0.14418105947208737,
+        "recall_at_k_covered": 0.2636568045928998,
+        "pr_auc": 0.2821313179775469,
+        "pr_auc_within_sub_county": 0.3014579170653359,
+        "false_listings_per_officer_term": 3.3493055555555555,
+        "false_from_shortfall_per_officer_term": 2.542824074074074,
+        "visits_per_officer_term": 4.336342592592592,
+        "problems_caught_within_2_weeks": 0.10370370370370369,
+        "median_days_to_catch": 33.45,
+        "caught_backdated_bulk_entry": 0.688888888888889,
+        "caught_consumption_drift": 0.6777777777777778,
+        "caught_ghost_learners": 0.7111111111111114,
+        "caught_inflated_headcount": 0.2666666666666666,
+        "caught_round_number_entry": 0.16666666666666666,
+        "caught_stock_leakage": 0.8555555555555556,
+        "false_rate_programme_type_cash_transfer": 0.015244152182297934,
+        "false_rate_programme_type_in_kind": 0.03415205405540349,
+        "false_rate_estimates_to_False": 0.027211133283727495,
+        "false_rate_estimates_to_True": 0.03273469207785802,
+        "false_rate_computes_issues_False": 0.02985459014494874,
+        "false_rate_computes_issues_True": 0.02510079277131263,
+        "false_rate_weekly_enterer_False": 0.025766404326276866,
+        "false_rate_weekly_enterer_True": 0.03861299969843852,
+        "false_rate_records_note_False": 0.0252893141662164,
+        "false_rate_records_note_True": 0.035304250023430864,
+        "false_rate_overall": 0.028287183325945313,
+        "problem_f1_cover2": 0.3467764586056061,
+        "problem_precision_cover2": 0.2525768605939552,
+        "recall_at_k_covered_cover2": 0.21673296390103344,
+        "problem_f1_cover8": 0.3338457023230174,
+        "problem_precision_cover8": 0.23895439595904572,
+        "recall_at_k_covered_cover8": 0.30847486511844163,
+        "q": 0.999,
+        "reached": true,
+        "lowest_workload": 3.3493055555555555
+      },
+      "against_start": {
+        "problem_f1": {
+          "diff": 0.00135033957798692,
+          "lo": -0.008176043731900668,
+          "hi": 0.010389465599655963,
+          "won": 0.4
+        },
+        "problem_precision": {
+          "diff": 2.4883498319019e-05,
+          "lo": -0.007466698257381351,
+          "hi": 0.007343217601113544,
+          "won": 0.4
+        },
+        "problem_recall": {
+          "diff": 0.009742351046698515,
+          "lo": -0.0072463768115943235,
+          "hi": 0.02673510466988671,
+          "won": 0.3
+        },
+        "one_day_claims_caught": {
+          "diff": -0.01403804124264496,
+          "lo": -0.028240554373163286,
+          "hi": -0.003315430520034237,
+          "won": 0.0
+        },
+        "f1_at_k": {
+          "diff": 0.0015408630311999978,
+          "lo": -0.00454245585045608,
+          "hi": 0.007461437018442415,
+          "won": 0.6666666666666666
+        },
+        "precision_at_k": {
+          "diff": 0.0026334005839135327,
+          "lo": -0.007009602352193137,
+          "hi": 0.012571414868776274,
+          "won": 0.5
+        },
+        "recall_at_k": {
+          "diff": 0.0011750534802184608,
+          "lo": -0.0035692504375160017,
+          "hi": 0.005791377385042053,
+          "won": 0.6
+        },
+        "recall_at_k_covered": {
+          "diff": -0.002039719345730674,
+          "lo": -0.010786688616115129,
+          "hi": 0.006686720100395024,
+          "won": 0.4
+        },
+        "pr_auc": {
+          "diff": -0.0016042342672587158,
+          "lo": -0.006940822714394326,
+          "hi": 0.0037381682440358367,
+          "won": 0.43333333333333335
+        },
+        "pr_auc_within_sub_county": {
+          "diff": -0.003288989767728288,
+          "lo": -0.00848888272139131,
+          "hi": 0.002012315958092998,
+          "won": 0.43333333333333335
+        },
+        "false_listings_per_officer_term": {
+          "diff": -4.366877230192283e-15,
+          "lo": -0.09507133152174545,
+          "hi": 0.09087472322865985,
+          "won": 0.4666666666666667
+        },
+        "false_from_shortfall_per_officer_term": {
+          "diff": 0.003009259259259271,
+          "lo": -0.009027777777777768,
+          "hi": 0.015046296296296339,
+          "won": 0.1
+        },
+        "visits_per_officer_term": {
+          "diff": 0.012298711755228868,
+          "lo": -0.07627981582125969,
+          "hi": 0.10258793780192764,
+          "won": 0.5
+        },
+        "problems_caught_within_2_weeks": {
+          "diff": 0.00016103059581308772,
+          "lo": -0.01010466988727864,
+          "hi": 0.010265700483091729,
+          "won": 0.16666666666666666
+        },
+        "median_days_to_catch": {
+          "diff": 0.49456521739131426,
+          "lo": -0.7754800724637612,
+          "hi": 1.8877355072463742,
+          "won": 0.3
+        },
+        "caught_backdated_bulk_entry": {
+          "diff": 0.04541062801932298,
+          "lo": -1.8503717077085942e-18,
+          "hi": 0.09589371980676224,
+          "won": 0.2
+        },
+        "caught_consumption_drift": {
+          "diff": 0.03429951690821187,
+          "lo": -0.014251207729470338,
+          "hi": 0.08381642512077261,
+          "won": 0.16666666666666666
+        },
+        "caught_ghost_learners": {
+          "diff": -0.005072463768116289,
+          "lo": -0.03333333333333333,
+          "hi": 0.018115942028984467,
+          "won": 0.03333333333333333
+        },
+        "caught_inflated_headcount": {
+          "diff": -0.04951690821256073,
+          "lo": -0.09299516908212666,
+          "hi": -0.01111111111111111,
+          "won": 0.0
+        },
+        "caught_round_number_entry": {
+          "diff": 0.022222222222222223,
+          "lo": -0.02222222222222222,
+          "hi": 0.06666666666666667,
+          "won": 0.1
+        },
+        "caught_stock_leakage": {
+          "diff": 0.011111111111111112,
+          "lo": 0.0,
+          "hi": 0.03333333333333333,
+          "won": 0.03333333333333333
+        }
+      },
+      "checks": {
+        "problem_f1_gain": false,
+        "problem_recall": true,
+        "types": true,
+        "week_f1": true
+      },
+      "adopted_alone": false
+    },
+    "M1b_drop_fed_vs_peers": {
+      "change": {
+        "drop": [
+          "fed_vs_peers"
+        ]
+      },
+      "workload": 3.352314814814815,
+      "result": {
+        "problem_f1": 0.33403735083627056,
+        "problem_precision": 0.24107634831409375,
+        "problem_recall": 0.5518518518518518,
+        "one_day_claims_caught": 0.06427686045925379,
+        "f1_at_k": 0.19867909294682978,
+        "precision_at_k": 0.32896115820628496,
+        "recall_at_k": 0.14324842048738848,
+        "recall_at_k_covered": 0.26543131052470054,
+        "pr_auc": 0.2849078415122382,
+        "pr_auc_within_sub_county": 0.3045931941703225,
+        "false_listings_per_officer_term": 3.352314814814814,
+        "false_from_shortfall_per_officer_term": 2.5428240740740744,
+        "visits_per_officer_term": 4.333333333333333,
+        "problems_caught_within_2_weeks": 0.1111111111111111,
+        "median_days_to_catch": 33.38333333333333,
+        "caught_backdated_bulk_entry": 0.6666666666666667,
+        "caught_consumption_drift": 0.7,
+        "caught_ghost_learners": 0.7444444444444447,
+        "caught_inflated_headcount": 0.19999999999999993,
+        "caught_round_number_entry": 0.14444444444444443,
+        "caught_stock_leakage": 0.8555555555555556,
+        "false_rate_programme_type_cash_transfer": 0.015446578651973991,
+        "false_rate_programme_type_in_kind": 0.034171673011979535,
+        "false_rate_estimates_to_False": 0.02724435276439968,
+        "false_rate_estimates_to_True": 0.032366562701856595,
+        "false_rate_computes_issues_False": 0.02984593942831208,
+        "false_rate_computes_issues_True": 0.025103619191406856,
+        "false_rate_weekly_enterer_False": 0.026038463264834995,
+        "false_rate_weekly_enterer_True": 0.038347596082404345,
+        "false_rate_records_note_False": 0.02536239040319343,
+        "false_rate_records_note_True": 0.03540497211042224,
+        "false_rate_overall": 0.028314886571455825,
+        "q": 0.999,
+        "reached": true,
+        "lowest_workload": 3.352314814814815
+      },
+      "start_at_same_workload": {
+        "problem_f1": 0.3393511577623324,
+        "problem_precision": 0.24487248244191256,
+        "problem_recall": 0.561285814116003,
+        "one_day_claims_caught": 0.0701595006948352,
+        "f1_at_k": 0.19967045895741692,
+        "precision_at_k": 0.32946004678321233,
+        "recall_at_k": 0.1443229737905071,
+        "recall_at_k_covered": 0.2638222221223873,
+        "pr_auc": 0.2821313179775469,
+        "pr_auc_within_sub_county": 0.3014579170653359,
+        "false_listings_per_officer_term": 3.3523148148148176,
+        "false_from_shortfall_per_officer_term": 2.542824074074074,
+        "visits_per_officer_term": 4.339635744234804,
+        "problems_caught_within_2_weeks": 0.10384346610761716,
+        "median_days_to_catch": 33.453459119496856,
+        "caught_backdated_bulk_entry": 0.6895178197064997,
+        "caught_consumption_drift": 0.6777777777777778,
+        "caught_ghost_learners": 0.7113207547169815,
+        "caught_inflated_headcount": 0.26687631027253683,
+        "caught_round_number_entry": 0.16666666666666666,
+        "caught_stock_leakage": 0.8555555555555556,
+        "false_rate_programme_type_cash_transfer": 0.015270452798587573,
+        "false_rate_programme_type_in_kind": 0.03417816926187683,
+        "false_rate_estimates_to_False": 0.02723423497455835,
+        "false_rate_estimates_to_True": 0.03276879277029108,
+        "false_rate_computes_issues_False": 0.029886189504155357,
+        "false_rate_computes_issues_True": 0.02511475528156713,
+        "false_rate_weekly_enterer_False": 0.025790095698339056,
+        "false_rate_weekly_enterer_True": 0.038653601335325465,
+        "false_rate_records_note_False": 0.025314326808545576,
+        "false_rate_records_note_True": 0.035325794489145,
+        "false_rate_overall": 0.02831261616290958,
+        "problem_f1_cover2": 0.34673742725705675,
+        "problem_precision_cover2": 0.25250288008755983,
+        "recall_at_k_covered_cover2": 0.21689655647038392,
+        "problem_f1_cover8": 0.3337981321062954,
+        "problem_precision_cover8": 0.23887628900628596,
+        "recall_at_k_covered_cover8": 0.30867099965977834,
+        "q": 0.9989811320754717,
+        "reached": true,
+        "lowest_workload": 3.3493055555555555
+      },
+      "against_start": {
+        "problem_f1": {
+          "diff": -0.005313806926061747,
+          "lo": -0.015291443683232864,
+          "hi": 0.006214281754394651,
+          "won": 0.3333333333333333
+        },
+        "problem_precision": {
+          "diff": -0.0037961341278188584,
+          "lo": -0.01059842193184577,
+          "hi": 0.004309463829462823,
+          "won": 0.26666666666666666
+        },
+        "problem_recall": {
+          "diff": -0.009433962264151134,
+          "lo": -0.03340408805031455,
+          "hi": 0.016388015373864143,
+          "won": 0.2
+        },
+        "one_day_claims_caught": {
+          "diff": -0.005882640235581413,
+          "lo": -0.017907153630683043,
+          "hi": 0.00592030453206924,
+          "won": 0.06666666666666667
+        },
+        "f1_at_k": {
+          "diff": -0.0009913660105871616,
+          "lo": -0.009158462394799114,
+          "hi": 0.007177382964497066,
+          "won": 0.5
+        },
+        "precision_at_k": {
+          "diff": -0.0004988885769274633,
+          "lo": -0.010438528215957112,
+          "hi": 0.010328744383324689,
+          "won": 0.5
+        },
+        "recall_at_k": {
+          "diff": -0.0010745533031186383,
+          "lo": -0.007856885657329896,
+          "hi": 0.0056032345957128795,
+          "won": 0.36666666666666664
+        },
+        "recall_at_k_covered": {
+          "diff": 0.0016090884023132338,
+          "lo": -0.009151636449498405,
+          "hi": 0.013250660838072364,
+          "won": 0.43333333333333335
+        },
+        "pr_auc": {
+          "diff": 0.0027765235346912435,
+          "lo": -0.001024610208142022,
+          "hi": 0.00644655743441214,
+          "won": 0.6666666666666666
+        },
+        "pr_auc_within_sub_county": {
+          "diff": 0.0031352771049865946,
+          "lo": -0.000563322383181272,
+          "hi": 0.00675264570351393,
+          "won": 0.6666666666666666
+        },
+        "false_listings_per_officer_term": {
+          "diff": -2.9902006796570883e-15,
+          "lo": -0.08431887665968155,
+          "hi": 0.08670215321453165,
+          "won": 0.5
+        },
+        "false_from_shortfall_per_officer_term": {
+          "diff": 0.0,
+          "lo": -0.012037037037037023,
+          "hi": 0.012037037037037023,
+          "won": 0.06666666666666667
+        },
+        "visits_per_officer_term": {
+          "diff": -0.006302410901470612,
+          "lo": -0.10844689028651587,
+          "hi": 0.09629913522012322,
+          "won": 0.43333333333333335
+        },
+        "problems_caught_within_2_weeks": {
+          "diff": 0.007267645003493918,
+          "lo": -0.002061495457722084,
+          "hi": 0.02026554856743525,
+          "won": 0.1
+        },
+        "median_days_to_catch": {
+          "diff": -0.07012578616352544,
+          "lo": -1.7151179245283006,
+          "hi": 1.6069182389937013,
+          "won": 0.23333333333333334
+        },
+        "caught_backdated_bulk_entry": {
+          "diff": -0.022851153039832917,
+          "lo": -0.11132599580712813,
+          "hi": 0.06561844863731552,
+          "won": 0.13333333333333333
+        },
+        "caught_consumption_drift": {
+          "diff": 0.022222222222222223,
+          "lo": -0.022222222222222223,
+          "hi": 0.06666666666666667,
+          "won": 0.1
+        },
+        "caught_ghost_learners": {
+          "diff": 0.0331236897274631,
+          "lo": 0.0,
+          "hi": 0.06666666666666667,
+          "won": 0.1
+        },
+        "caught_inflated_headcount": {
+          "diff": -0.0668763102725369,
+          "lo": -0.11153039832285157,
+          "hi": -0.022431865828092454,
+          "won": 0.0
+        },
+        "caught_round_number_entry": {
+          "diff": -0.02222222222222222,
+          "lo": -0.05555555555555555,
+          "hi": 0.0,
+          "won": 0.0
+        },
+        "caught_stock_leakage": {
+          "diff": 0.0,
+          "lo": 0.0,
+          "hi": 0.0,
+          "won": 0.0
+        }
+      },
+      "checks": {
+        "problem_f1_gain": false,
+        "problem_recall": true,
+        "types": true,
+        "week_f1": true
+      },
+      "adopted_alone": false
+    },
+    "M1b_drop_fed_rate_vs_last_term": {
+      "change": {
+        "drop": [
+          "fed_rate_vs_last_term"
+        ]
+      },
+      "workload": 3.3493055555555555,
+      "result": {
+        "problem_f1": 0.34228307103984723,
+        "problem_precision": 0.24619622660511611,
+        "problem_recall": 0.5698105081826009,
+        "one_day_claims_caught": 0.05637077050118019,
+        "f1_at_k": 0.20155217770724815,
+        "precision_at_k": 0.3322333841004872,
+        "recall_at_k": 0.14567182131420325,
+        "recall_at_k_covered": 0.2650029306523763,
+        "pr_auc": 0.28980965038470735,
+        "pr_auc_within_sub_county": 0.307910377255675,
+        "false_listings_per_officer_term": 3.3493055555555515,
+        "false_from_shortfall_per_officer_term": 2.5428240740740744,
+        "visits_per_officer_term": 4.345160422049953,
+        "problems_caught_within_2_weeks": 0.10292850990525379,
+        "median_days_to_catch": 33.8701550387597,
+        "caught_backdated_bulk_entry": 0.7038759689922471,
+        "caught_consumption_drift": 0.7248062015503869,
+        "caught_ghost_learners": 0.7333333333333335,
+        "caught_inflated_headcount": 0.21240310077519345,
+        "caught_round_number_entry": 0.17777777777777776,
+        "caught_stock_leakage": 0.8666666666666667,
+        "false_rate_programme_type_cash_transfer": 0.01630349274754712,
+        "false_rate_programme_type_in_kind": 0.0338398033288176,
+        "false_rate_estimates_to_False": 0.02742503609579298,
+        "false_rate_estimates_to_True": 0.03189075997966368,
+        "false_rate_computes_issues_False": 0.029603015752116376,
+        "false_rate_computes_issues_True": 0.025624859673369815,
+        "false_rate_weekly_enterer_False": 0.02639120938857651,
+        "false_rate_weekly_enterer_True": 0.03666565638256295,
+        "false_rate_records_note_False": 0.025343567029330202,
+        "false_rate_records_note_True": 0.03504633399326994,
+        "false_rate_overall": 0.028287777003677024,
+        "q": 0.9988837209302326,
+        "reached": true,
+        "lowest_workload": 3.3342592592592593
+      },
+      "start_at_same_workload": {
+        "problem_f1": 0.3393951378037181,
+        "problem_precision": 0.24495013475708713,
+        "problem_recall": 0.5611111111111111,
+        "one_day_claims_caught": 0.0701595006948352,
+        "f1_at_k": 0.19953264906866738,
+        "precision_at_k": 0.32943709459655296,
+        "recall_at_k": 0.14418105947208737,
+        "recall_at_k_covered": 0.2636568045928998,
+        "pr_auc": 0.2821313179775469,
+        "pr_auc_within_sub_county": 0.3014579170653359,
+        "false_listings_per_officer_term": 3.3493055555555555,
+        "false_from_shortfall_per_officer_term": 2.542824074074074,
+        "visits_per_officer_term": 4.336342592592592,
+        "problems_caught_within_2_weeks": 0.10370370370370369,
+        "median_days_to_catch": 33.45,
+        "caught_backdated_bulk_entry": 0.688888888888889,
+        "caught_consumption_drift": 0.6777777777777778,
+        "caught_ghost_learners": 0.7111111111111114,
+        "caught_inflated_headcount": 0.2666666666666666,
+        "caught_round_number_entry": 0.16666666666666666,
+        "caught_stock_leakage": 0.8555555555555556,
+        "false_rate_programme_type_cash_transfer": 0.015244152182297934,
+        "false_rate_programme_type_in_kind": 0.03415205405540349,
+        "false_rate_estimates_to_False": 0.027211133283727495,
+        "false_rate_estimates_to_True": 0.03273469207785802,
+        "false_rate_computes_issues_False": 0.02985459014494874,
+        "false_rate_computes_issues_True": 0.02510079277131263,
+        "false_rate_weekly_enterer_False": 0.025766404326276866,
+        "false_rate_weekly_enterer_True": 0.03861299969843852,
+        "false_rate_records_note_False": 0.0252893141662164,
+        "false_rate_records_note_True": 0.035304250023430864,
+        "false_rate_overall": 0.028287183325945313,
+        "problem_f1_cover2": 0.3467764586056061,
+        "problem_precision_cover2": 0.2525768605939552,
+        "recall_at_k_covered_cover2": 0.21673296390103344,
+        "problem_f1_cover8": 0.3338457023230174,
+        "problem_precision_cover8": 0.23895439595904572,
+        "recall_at_k_covered_cover8": 0.30847486511844163,
+        "q": 0.999,
+        "reached": true,
+        "lowest_workload": 3.3493055555555555
+      },
+      "against_start": {
+        "problem_f1": {
+          "diff": 0.002887933236129225,
+          "lo": -0.005556781124017762,
+          "hi": 0.012049943762910485,
+          "won": 0.4666666666666667
+        },
+        "problem_precision": {
+          "diff": 0.0012460918480289341,
+          "lo": -0.004712135504739254,
+          "hi": 0.007631204962587689,
+          "won": 0.43333333333333335
+        },
+        "problem_recall": {
+          "diff": 0.008699397071489746,
+          "lo": -0.009819121447028767,
+          "hi": 0.027995262704564955,
+          "won": 0.3333333333333333
+        },
+        "one_day_claims_caught": {
+          "diff": -0.013788730193655016,
+          "lo": -0.02794257634750117,
+          "hi": -0.002802304854288499,
+          "won": 0.03333333333333333
+        },
+        "f1_at_k": {
+          "diff": 0.0020195286385808,
+          "lo": -0.005025835837140341,
+          "hi": 0.008967302489489928,
+          "won": 0.5333333333333333
+        },
+        "precision_at_k": {
+          "diff": 0.0027962895039343044,
+          "lo": -0.007332859432767855,
+          "hi": 0.012675481294202267,
+          "won": 0.6333333333333333
+        },
+        "recall_at_k": {
+          "diff": 0.0014907618421158332,
+          "lo": -0.003999285184767338,
+          "hi": 0.006905818553168655,
+          "won": 0.5333333333333333
+        },
+        "recall_at_k_covered": {
+          "diff": 0.0013461260594765517,
+          "lo": -0.0065123679015801055,
+          "hi": 0.009258565464229058,
+          "won": 0.5
+        },
+        "pr_auc": {
+          "diff": 0.007678332407160472,
+          "lo": 0.0034069100494625026,
+          "hi": 0.011661044774135624,
+          "won": 0.7333333333333333
+        },
+        "pr_auc_within_sub_county": {
+          "diff": 0.006452460190339126,
+          "lo": 0.0024284394283058354,
+          "hi": 0.010175469343293548,
+          "won": 0.7333333333333333
+        },
+        "false_listings_per_officer_term": {
+          "diff": -3.967196941327226e-15,
+          "lo": -0.07349065999139118,
+          "hi": 0.07173234280792105,
+          "won": 0.5
+        },
+        "false_from_shortfall_per_officer_term": {
+          "diff": 0.0,
+          "lo": -0.015046296296296295,
+          "hi": 0.015046296296296295,
+          "won": 0.1
+        },
+        "visits_per_officer_term": {
+          "diff": 0.008817829457359523,
+          "lo": -0.07887408484066091,
+          "hi": 0.09574168281653282,
+          "won": 0.5666666666666667
+        },
+        "problems_caught_within_2_weeks": {
+          "diff": -0.0007751937984498997,
+          "lo": -0.010034453057709159,
+          "hi": 0.008268733850128968,
+          "won": 0.2
+        },
+        "median_days_to_catch": {
+          "diff": 0.4201550387597023,
+          "lo": -0.972984496123994,
+          "hi": 1.7147286821705428,
+          "won": 0.4
+        },
+        "caught_backdated_bulk_entry": {
+          "diff": 0.014987080103358145,
+          "lo": -0.03930878552971712,
+          "hi": 0.06925064599483137,
+          "won": 0.16666666666666666
+        },
+        "caught_consumption_drift": {
+          "diff": 0.047028423772609136,
+          "lo": 0.0025839793281646874,
+          "hi": 0.10129198966408236,
+          "won": 0.2
+        },
+        "caught_ghost_learners": {
+          "diff": 0.022222222222222223,
+          "lo": 0.0,
+          "hi": 0.055555555555555566,
+          "won": 0.06666666666666667
+        },
+        "caught_inflated_headcount": {
+          "diff": -0.05426356589147321,
+          "lo": -0.09870801033591767,
+          "hi": -0.01111111111111111,
+          "won": 0.0
+        },
+        "caught_round_number_entry": {
+          "diff": 0.01111111111111111,
+          "lo": -0.02222222222222222,
+          "hi": 0.04444444444444444,
+          "won": 0.06666666666666667
+        },
+        "caught_stock_leakage": {
+          "diff": 0.011111111111111112,
+          "lo": 0.0,
+          "hi": 0.03333333333333333,
+          "won": 0.03333333333333333
+        }
+      },
+      "checks": {
+        "problem_f1_gain": false,
+        "problem_recall": true,
+        "types": true,
+        "week_f1": true
+      },
+      "adopted_alone": false
+    },
+    "M1b_drop_uptake": {
+      "change": {
+        "drop": [
+          "uptake"
+        ]
+      },
+      "workload": 3.3493055555555555,
+      "result": {
+        "problem_f1": 0.3301161383230064,
+        "problem_precision": 0.23858516496086177,
+        "problem_recall": 0.5438019652305374,
+        "one_day_claims_caught": 0.06277660827712907,
+        "f1_at_k": 0.1888765822928035,
+        "precision_at_k": 0.31601143647833946,
+        "recall_at_k": 0.13575265330344555,
+        "recall_at_k_covered": 0.2531117098396358,
+        "pr_auc": 0.2606998926290699,
+        "pr_auc_within_sub_county": 0.281057301491744,
+        "false_listings_per_officer_term": 3.3493055555555604,
+        "false_from_shortfall_per_officer_term": 2.539814814814815,
+        "visits_per_officer_term": 4.304591836734701,
+        "problems_caught_within_2_weeks": 0.10011337868480749,
+        "median_days_to_catch": 33.342176870748304,
+        "caught_backdated_bulk_entry": 0.6310657596371895,
+        "caught_consumption_drift": 0.691836734693878,
+        "caught_ghost_learners": 0.7170068027210894,
+        "caught_inflated_headcount": 0.21700680272108921,
+        "caught_round_number_entry": 0.15034013605442256,
+        "caught_stock_leakage": 0.8555555555555556,
+        "false_rate_programme_type_cash_transfer": 0.015318797980634824,
+        "false_rate_programme_type_in_kind": 0.03419299327434669,
+        "false_rate_estimates_to_False": 0.027600919957328544,
+        "false_rate_estimates_to_True": 0.031183825549973572,
+        "false_rate_computes_issues_False": 0.029460872218593892,
+        "false_rate_computes_issues_True": 0.025841531226159637,
+        "false_rate_weekly_enterer_False": 0.02585608461567794,
+        "false_rate_weekly_enterer_True": 0.0385774648965983,
+        "false_rate_records_note_False": 0.025339125388963303,
+        "false_rate_records_note_True": 0.035063917709386765,
+        "false_rate_overall": 0.028290639592380977,
+        "q": 0.998734693877551,
+        "reached": true,
+        "lowest_workload": 3.310185185185185
+      },
+      "start_at_same_workload": {
+        "problem_f1": 0.3393951378037181,
+        "problem_precision": 0.24495013475708713,
+        "problem_recall": 0.5611111111111111,
+        "one_day_claims_caught": 0.0701595006948352,
+        "f1_at_k": 0.19953264906866738,
+        "precision_at_k": 0.32943709459655296,
+        "recall_at_k": 0.14418105947208737,
+        "recall_at_k_covered": 0.2636568045928998,
+        "pr_auc": 0.2821313179775469,
+        "pr_auc_within_sub_county": 0.3014579170653359,
+        "false_listings_per_officer_term": 3.3493055555555555,
+        "false_from_shortfall_per_officer_term": 2.542824074074074,
+        "visits_per_officer_term": 4.336342592592592,
+        "problems_caught_within_2_weeks": 0.10370370370370369,
+        "median_days_to_catch": 33.45,
+        "caught_backdated_bulk_entry": 0.688888888888889,
+        "caught_consumption_drift": 0.6777777777777778,
+        "caught_ghost_learners": 0.7111111111111114,
+        "caught_inflated_headcount": 0.2666666666666666,
+        "caught_round_number_entry": 0.16666666666666666,
+        "caught_stock_leakage": 0.8555555555555556,
+        "false_rate_programme_type_cash_transfer": 0.015244152182297934,
+        "false_rate_programme_type_in_kind": 0.03415205405540349,
+        "false_rate_estimates_to_False": 0.027211133283727495,
+        "false_rate_estimates_to_True": 0.03273469207785802,
+        "false_rate_computes_issues_False": 0.02985459014494874,
+        "false_rate_computes_issues_True": 0.02510079277131263,
+        "false_rate_weekly_enterer_False": 0.025766404326276866,
+        "false_rate_weekly_enterer_True": 0.03861299969843852,
+        "false_rate_records_note_False": 0.0252893141662164,
+        "false_rate_records_note_True": 0.035304250023430864,
+        "false_rate_overall": 0.028287183325945313,
+        "problem_f1_cover2": 0.3467764586056061,
+        "problem_precision_cover2": 0.2525768605939552,
+        "recall_at_k_covered_cover2": 0.21673296390103344,
+        "problem_f1_cover8": 0.3338457023230174,
+        "problem_precision_cover8": 0.23895439595904572,
+        "recall_at_k_covered_cover8": 0.30847486511844163,
+        "q": 0.999,
+        "reached": true,
+        "lowest_workload": 3.3493055555555555
+      },
+      "against_start": {
+        "problem_f1": {
+          "diff": -0.009278999480711708,
+          "lo": -0.01796232650587821,
+          "hi": -0.0008758364852251483,
+          "won": 0.4
+        },
+        "problem_precision": {
+          "diff": -0.006364969796225423,
+          "lo": -0.012692012919999145,
+          "hi": -0.00018368097712341812,
+          "won": 0.36666666666666664
+        },
+        "problem_recall": {
+          "diff": -0.017309145880573796,
+          "lo": -0.03397864701436065,
+          "hi": -0.0010204081632644486,
+          "won": 0.2
+        },
+        "one_day_claims_caught": {
+          "diff": -0.007382892417706137,
+          "lo": -0.017107259687091494,
+          "hi": 0.00028377065111781047,
+          "won": 0.06666666666666667
+        },
+        "f1_at_k": {
+          "diff": -0.010656066775863933,
+          "lo": -0.018654634727622174,
+          "hi": -0.00293418941257737,
+          "won": 0.3
+        },
+        "precision_at_k": {
+          "diff": -0.01342565811821349,
+          "lo": -0.024035556568288475,
+          "hi": -0.003907196282003505,
+          "won": 0.36666666666666664
+        },
+        "recall_at_k": {
+          "diff": -0.008428406168641865,
+          "lo": -0.015001022313712184,
+          "hi": -0.0020223936031888755,
+          "won": 0.3
+        },
+        "recall_at_k_covered": {
+          "diff": -0.010545094753263892,
+          "lo": -0.02124519843561667,
+          "hi": -0.0007268906055315756,
+          "won": 0.3333333333333333
+        },
+        "pr_auc": {
+          "diff": -0.021431425348476973,
+          "lo": -0.02547556834257557,
+          "hi": -0.01775362994883093,
+          "won": 0.0
+        },
+        "pr_auc_within_sub_county": {
+          "diff": -0.020400615573591845,
+          "lo": -0.025470535112998523,
+          "hi": -0.01558044295521341,
+          "won": 0.06666666666666667
+        },
+        "false_listings_per_officer_term": {
+          "diff": 5.403085386509095e-15,
+          "lo": -0.06983630952380386,
+          "hi": 0.07259530895692237,
+          "won": 0.43333333333333335
+        },
+        "false_from_shortfall_per_officer_term": {
+          "diff": -0.003009259259259256,
+          "lo": -0.01504629629629628,
+          "hi": 0.009027777777777768,
+          "won": 0.06666666666666667
+        },
+        "visits_per_officer_term": {
+          "diff": -0.03175075585789197,
+          "lo": -0.10514597505668354,
+          "hi": 0.04890046296297017,
+          "won": 0.4
+        },
+        "problems_caught_within_2_weeks": {
+          "diff": -0.00359032501889618,
+          "lo": -0.011866969009825753,
+          "hi": 0.0038170823885112274,
+          "won": 0.13333333333333333
+        },
+        "median_days_to_catch": {
+          "diff": -0.10782312925169961,
+          "lo": -0.9275595238095297,
+          "hi": 0.7024149659863893,
+          "won": 0.26666666666666666
+        },
+        "caught_backdated_bulk_entry": {
+          "diff": -0.057823129251699475,
+          "lo": -0.13038548752834425,
+          "hi": 0.003628117913834213,
+          "won": 0.13333333333333333
+        },
+        "caught_consumption_drift": {
+          "diff": 0.01405895691610018,
+          "lo": -0.02222222222222222,
+          "hi": 0.05034013605442257,
+          "won": 0.1
+        },
+        "caught_ghost_learners": {
+          "diff": 0.0058956916099781286,
+          "lo": -0.02087868480725305,
+          "hi": 0.03401360544217848,
+          "won": 0.06666666666666667
+        },
+        "caught_inflated_headcount": {
+          "diff": -0.04965986394557742,
+          "lo": -0.1022675736961439,
+          "hi": 0.0006802721088451461,
+          "won": 0.06666666666666667
+        },
+        "caught_round_number_entry": {
+          "diff": -0.016326530612244095,
+          "lo": -0.04671201814058836,
+          "hi": 0.0058956916099781286,
+          "won": 0.03333333333333333
+        },
+        "caught_stock_leakage": {
+          "diff": 0.0,
+          "lo": 0.0,
+          "hi": 0.0,
+          "won": 0.0
+        }
+      },
+      "checks": {
+        "problem_f1_gain": false,
+        "problem_recall": true,
+        "types": true,
+        "week_f1": true
+      },
+      "adopted_alone": false
+    },
+    "M1b_drop_enrolment_change": {
+      "change": {
+        "drop": [
+          "enrolment_change"
+        ]
+      },
+      "workload": 3.3493055555555555,
+      "result": {
+        "problem_f1": 0.3446004326094121,
+        "problem_precision": 0.24735066641926987,
+        "problem_recall": 0.5766160570508402,
+        "one_day_claims_caught": 0.06984212424592799,
+        "f1_at_k": 0.2006405092234766,
+        "precision_at_k": 0.3321868737796907,
+        "recall_at_k": 0.144723499593199,
+        "recall_at_k_covered": 0.25943846104567686,
+        "pr_auc": 0.24983963826931768,
+        "pr_auc_within_sub_county": 0.2688891564848286,
+        "false_listings_per_officer_term": 3.349305555555562,
+        "false_from_shortfall_per_officer_term": 2.5458333333333334,
+        "visits_per_officer_term": 4.364547389003919,
+        "problems_caught_within_2_weeks": 0.10032206119162658,
+        "median_days_to_catch": 34.34461697722568,
+        "caught_backdated_bulk_entry": 0.7677708764665295,
+        "caught_consumption_drift": 0.7122153209109736,
+        "caught_ghost_learners": 0.6674948240165638,
+        "caught_inflated_headcount": 0.26749482401656355,
+        "caught_round_number_entry": 0.1891649413388545,
+        "caught_stock_leakage": 0.8555555555555556,
+        "false_rate_programme_type_cash_transfer": 0.015603278847571435,
+        "false_rate_programme_type_in_kind": 0.033974144078348416,
+        "false_rate_estimates_to_False": 0.027822665640034074,
+        "false_rate_estimates_to_True": 0.029346463705258993,
+        "false_rate_computes_issues_False": 0.029901963675690094,
+        "false_rate_computes_issues_True": 0.025096125567471796,
+        "false_rate_weekly_enterer_False": 0.026132370055035034,
+        "false_rate_weekly_enterer_True": 0.037567333272568455,
+        "false_rate_records_note_False": 0.02502648445943205,
+        "false_rate_records_note_True": 0.035556803699556536,
+        "false_rate_overall": 0.028287143248384702,
+        "q": 0.9979254658385093,
+        "reached": true,
+        "lowest_workload": 3.1958333333333333
+      },
+      "start_at_same_workload": {
+        "problem_f1": 0.3393951378037181,
+        "problem_precision": 0.24495013475708713,
+        "problem_recall": 0.5611111111111111,
+        "one_day_claims_caught": 0.0701595006948352,
+        "f1_at_k": 0.19953264906866738,
+        "precision_at_k": 0.32943709459655296,
+        "recall_at_k": 0.14418105947208737,
+        "recall_at_k_covered": 0.2636568045928998,
+        "pr_auc": 0.2821313179775469,
+        "pr_auc_within_sub_county": 0.3014579170653359,
+        "false_listings_per_officer_term": 3.3493055555555555,
+        "false_from_shortfall_per_officer_term": 2.542824074074074,
+        "visits_per_officer_term": 4.336342592592592,
+        "problems_caught_within_2_weeks": 0.10370370370370369,
+        "median_days_to_catch": 33.45,
+        "caught_backdated_bulk_entry": 0.688888888888889,
+        "caught_consumption_drift": 0.6777777777777778,
+        "caught_ghost_learners": 0.7111111111111114,
+        "caught_inflated_headcount": 0.2666666666666666,
+        "caught_round_number_entry": 0.16666666666666666,
+        "caught_stock_leakage": 0.8555555555555556,
+        "false_rate_programme_type_cash_transfer": 0.015244152182297934,
+        "false_rate_programme_type_in_kind": 0.03415205405540349,
+        "false_rate_estimates_to_False": 0.027211133283727495,
+        "false_rate_estimates_to_True": 0.03273469207785802,
+        "false_rate_computes_issues_False": 0.02985459014494874,
+        "false_rate_computes_issues_True": 0.02510079277131263,
+        "false_rate_weekly_enterer_False": 0.025766404326276866,
+        "false_rate_weekly_enterer_True": 0.03861299969843852,
+        "false_rate_records_note_False": 0.0252893141662164,
+        "false_rate_records_note_True": 0.035304250023430864,
+        "false_rate_overall": 0.028287183325945313,
+        "problem_f1_cover2": 0.3467764586056061,
+        "problem_precision_cover2": 0.2525768605939552,
+        "recall_at_k_covered_cover2": 0.21673296390103344,
+        "problem_f1_cover8": 0.3338457023230174,
+        "problem_precision_cover8": 0.23895439595904572,
+        "recall_at_k_covered_cover8": 0.30847486511844163,
+        "q": 0.999,
+        "reached": true,
+        "lowest_workload": 3.3493055555555555
+      },
+      "against_start": {
+        "problem_f1": {
+          "diff": 0.005205294805694094,
+          "lo": -0.002753263895422907,
+          "hi": 0.012590365223791871,
+          "won": 0.6333333333333333
+        },
+        "problem_precision": {
+          "diff": 0.0024005316621826347,
+          "lo": -0.004170014456427293,
+          "hi": 0.008699706827530004,
+          "won": 0.5666666666666667
+        },
+        "problem_recall": {
+          "diff": 0.015504945939728924,
+          "lo": 0.0005981136415922332,
+          "hi": 0.03041292845640715,
+          "won": 0.5
+        },
+        "one_day_claims_caught": {
+          "diff": -0.00031737644890721025,
+          "lo": -0.013134868754433714,
+          "hi": 0.012274214258521998,
+          "won": 0.13333333333333333
+        },
+        "f1_at_k": {
+          "diff": 0.0011078601548091783,
+          "lo": -0.00598855465033522,
+          "hi": 0.008143472168952316,
+          "won": 0.6666666666666666
+        },
+        "precision_at_k": {
+          "diff": 0.0027497791831377857,
+          "lo": -0.00857910833658598,
+          "hi": 0.015125303290396956,
+          "won": 0.5666666666666667
+        },
+        "recall_at_k": {
+          "diff": 0.0005424401211115722,
+          "lo": -0.005071759779388758,
+          "hi": 0.00594657992541405,
+          "won": 0.7
+        },
+        "recall_at_k_covered": {
+          "diff": -0.004218343547222916,
+          "lo": -0.014453293123809783,
+          "hi": 0.004927361781570945,
+          "won": 0.5666666666666667
+        },
+        "pr_auc": {
+          "diff": -0.032291679708229146,
+          "lo": -0.040577348599545926,
+          "hi": -0.023840414860259364,
+          "won": 0.1
+        },
+        "pr_auc_within_sub_county": {
+          "diff": -0.03256876058050732,
+          "lo": -0.04225911188060603,
+          "hi": -0.023121369268342934,
+          "won": 0.06666666666666667
+        },
+        "false_listings_per_officer_term": {
+          "diff": 6.676141121412608e-15,
+          "lo": -0.08734515182884088,
+          "hi": 0.08508353462158526,
+          "won": 0.5333333333333333
+        },
+        "false_from_shortfall_per_officer_term": {
+          "diff": 0.003009259259259271,
+          "lo": -0.009027777777777768,
+          "hi": 0.015046296296296354,
+          "won": 0.1
+        },
+        "visits_per_officer_term": {
+          "diff": 0.028204796411325568,
+          "lo": -0.047939275649866595,
+          "hi": 0.10463437428112146,
+          "won": 0.6333333333333333
+        },
+        "problems_caught_within_2_weeks": {
+          "diff": -0.0033816425120771153,
+          "lo": -0.012732919254658255,
+          "hi": 0.005785599263860261,
+          "won": 0.23333333333333334
+        },
+        "median_days_to_catch": {
+          "diff": 0.8946169772256697,
+          "lo": -0.36055124223603063,
+          "hi": 2.2467287784679066,
+          "won": 0.4666666666666667
+        },
+        "caught_backdated_bulk_entry": {
+          "diff": 0.07888198757764037,
+          "lo": 0.03388543823326463,
+          "hi": 0.13416149068323027,
+          "won": 0.3333333333333333
+        },
+        "caught_consumption_drift": {
+          "diff": 0.03443754313319592,
+          "lo": -0.009730848861282873,
+          "hi": 0.07998619737750297,
+          "won": 0.23333333333333334
+        },
+        "caught_ghost_learners": {
+          "diff": -0.043616287094547505,
+          "lo": -0.0877846790890263,
+          "hi": -0.01028295376121417,
+          "won": 0.03333333333333333
+        },
+        "caught_inflated_headcount": {
+          "diff": 0.0008281573498969408,
+          "lo": -0.054451345755692965,
+          "hi": 0.056107660455486846,
+          "won": 0.16666666666666666
+        },
+        "caught_round_number_entry": {
+          "diff": 0.022498274672187867,
+          "lo": 0.0,
+          "hi": 0.0558316080055212,
+          "won": 0.1
+        },
+        "caught_stock_leakage": {
+          "diff": 0.0,
+          "lo": 0.0,
+          "hi": 0.0,
+          "won": 0.0
+        }
+      },
+      "checks": {
+        "problem_f1_gain": false,
+        "problem_recall": true,
+        "types": true,
+        "week_f1": true
+      },
+      "adopted_alone": false
+    },
+    "M1c_low_headcount": {
+      "change": {
+        "two_sided": [
+          "fed_rate",
+          "fed_rate_vs_last_term"
+        ]
+      },
+      "workload": 3.3493055555555555,
+      "result": {
+        "problem_f1": 0.34092909588381043,
+        "problem_precision": 0.24594311234012925,
+        "problem_recall": 0.5629629629629628,
+        "one_day_claims_caught": 0.06260431078670411,
+        "f1_at_k": 0.20266417474165613,
+        "precision_at_k": 0.3330288606634167,
+        "recall_at_k": 0.14669997346977995,
+        "recall_at_k_covered": 0.26604540313454245,
+        "pr_auc": 0.30301640005978187,
+        "pr_auc_within_sub_county": 0.3192435427913856,
+        "false_listings_per_officer_term": 3.3493055555555515,
+        "false_from_shortfall_per_officer_term": 2.5458333333333334,
+        "visits_per_officer_term": 4.353796296296292,
+        "problems_caught_within_2_weeks": 0.10666666666666652,
+        "median_days_to_catch": 34.37666666666668,
+        "caught_backdated_bulk_entry": 0.6844444444444437,
+        "caught_consumption_drift": 0.7244444444444441,
+        "caught_ghost_learners": 0.7333333333333335,
+        "caught_inflated_headcount": 0.2111111111111111,
+        "caught_round_number_entry": 0.15777777777777752,
+        "caught_stock_leakage": 0.8666666666666667,
+        "false_rate_programme_type_cash_transfer": 0.015771806824200603,
+        "false_rate_programme_type_in_kind": 0.0340376494709436,
+        "false_rate_estimates_to_False": 0.027280865146063947,
+        "false_rate_estimates_to_True": 0.03250917934125934,
+        "false_rate_computes_issues_False": 0.030165737811070386,
+        "false_rate_computes_issues_True": 0.024496166509297247,
+        "false_rate_weekly_enterer_False": 0.02615951817142536,
+        "false_rate_weekly_enterer_True": 0.03748504388658069,
+        "false_rate_records_note_False": 0.025412837117066912,
+        "false_rate_records_note_True": 0.0350062730296343,
+        "false_rate_overall": 0.028289015643243594,
+        "q": 0.9988,
+        "reached": true,
+        "lowest_workload": 3.316203703703704
+      },
+      "start_at_same_workload": {
+        "problem_f1": 0.3393951378037181,
+        "problem_precision": 0.24495013475708713,
+        "problem_recall": 0.5611111111111111,
+        "one_day_claims_caught": 0.0701595006948352,
+        "f1_at_k": 0.19953264906866738,
+        "precision_at_k": 0.32943709459655296,
+        "recall_at_k": 0.14418105947208737,
+        "recall_at_k_covered": 0.2636568045928998,
+        "pr_auc": 0.2821313179775469,
+        "pr_auc_within_sub_county": 0.3014579170653359,
+        "false_listings_per_officer_term": 3.3493055555555555,
+        "false_from_shortfall_per_officer_term": 2.542824074074074,
+        "visits_per_officer_term": 4.336342592592592,
+        "problems_caught_within_2_weeks": 0.10370370370370369,
+        "median_days_to_catch": 33.45,
+        "caught_backdated_bulk_entry": 0.688888888888889,
+        "caught_consumption_drift": 0.6777777777777778,
+        "caught_ghost_learners": 0.7111111111111114,
+        "caught_inflated_headcount": 0.2666666666666666,
+        "caught_round_number_entry": 0.16666666666666666,
+        "caught_stock_leakage": 0.8555555555555556,
+        "false_rate_programme_type_cash_transfer": 0.015244152182297934,
+        "false_rate_programme_type_in_kind": 0.03415205405540349,
+        "false_rate_estimates_to_False": 0.027211133283727495,
+        "false_rate_estimates_to_True": 0.03273469207785802,
+        "false_rate_computes_issues_False": 0.02985459014494874,
+        "false_rate_computes_issues_True": 0.02510079277131263,
+        "false_rate_weekly_enterer_False": 0.025766404326276866,
+        "false_rate_weekly_enterer_True": 0.03861299969843852,
+        "false_rate_records_note_False": 0.0252893141662164,
+        "false_rate_records_note_True": 0.035304250023430864,
+        "false_rate_overall": 0.028287183325945313,
+        "problem_f1_cover2": 0.3467764586056061,
+        "problem_precision_cover2": 0.2525768605939552,
+        "recall_at_k_covered_cover2": 0.21673296390103344,
+        "problem_f1_cover8": 0.3338457023230174,
+        "problem_precision_cover8": 0.23895439595904572,
+        "recall_at_k_covered_cover8": 0.30847486511844163,
+        "q": 0.999,
+        "reached": true,
+        "lowest_workload": 3.3493055555555555
+      },
+      "against_start": {
+        "problem_f1": {
+          "diff": 0.0015339580800924513,
+          "lo": -0.008291885669476305,
+          "hi": 0.011143591680787624,
+          "won": 0.4666666666666667
+        },
+        "problem_precision": {
+          "diff": 0.0009929775830420891,
+          "lo": -0.005842166643889579,
+          "hi": 0.00774128824748999,
+          "won": 0.43333333333333335
+        },
+        "problem_recall": {
+          "diff": 0.0018518518518516381,
+          "lo": -0.017777777777778076,
+          "hi": 0.020740740740740487,
+          "won": 0.36666666666666664
+        },
+        "one_day_claims_caught": {
+          "diff": -0.0075551899081310854,
+          "lo": -0.016646098999040175,
+          "hi": 0.0,
+          "won": 0.0
+        },
+        "f1_at_k": {
+          "diff": 0.003131525672988708,
+          "lo": -0.0051080528069244666,
+          "hi": 0.011723160154166018,
+          "won": 0.5333333333333333
+        },
+        "precision_at_k": {
+          "diff": 0.0035917660668637517,
+          "lo": -0.007557868757406029,
+          "hi": 0.014906923805322039,
+          "won": 0.5
+        },
+        "recall_at_k": {
+          "diff": 0.002518913997692567,
+          "lo": -0.0041854321524261665,
+          "hi": 0.00949176018646687,
+          "won": 0.4666666666666667
+        },
+        "recall_at_k_covered": {
+          "diff": 0.002388598541642702,
+          "lo": -0.009065307754717016,
+          "hi": 0.0147569722406801,
+          "won": 0.36666666666666664
+        },
+        "pr_auc": {
+          "diff": 0.02088508208223496,
+          "lo": 0.014651216373608658,
+          "hi": 0.0276536406736823,
+          "won": 0.9
+        },
+        "pr_auc_within_sub_county": {
+          "diff": 0.01778562572604981,
+          "lo": 0.011179835034017538,
+          "hi": 0.025057559893205635,
+          "won": 0.8333333333333334
+        },
+        "false_listings_per_officer_term": {
+          "diff": -3.68594044175552e-15,
+          "lo": -0.06921296296296733,
+          "hi": 0.06439814814814472,
+          "won": 0.5666666666666667
+        },
+        "false_from_shortfall_per_officer_term": {
+          "diff": 0.003009259259259256,
+          "lo": -0.006018518518518512,
+          "hi": 0.012037037037037023,
+          "won": 0.06666666666666667
+        },
+        "visits_per_officer_term": {
+          "diff": 0.017453703703699846,
+          "lo": -0.05416666666667066,
+          "hi": 0.08787037037036606,
+          "won": 0.6
+        },
+        "problems_caught_within_2_weeks": {
+          "diff": 0.0029629629629628397,
+          "lo": -0.010000000000000123,
+          "hi": 0.01778703703703695,
+          "won": 0.16666666666666666
+        },
+        "median_days_to_catch": {
+          "diff": 0.9266666666666783,
+          "lo": -0.6567499999999905,
+          "hi": 2.5734166666666756,
+          "won": 0.4666666666666667
+        },
+        "caught_backdated_bulk_entry": {
+          "diff": -0.004444444444445185,
+          "lo": -0.06888888888888987,
+          "hi": 0.05999999999999951,
+          "won": 0.2
+        },
+        "caught_consumption_drift": {
+          "diff": 0.046666666666666426,
+          "lo": 0.011111111111111112,
+          "hi": 0.09111111111111088,
+          "won": 0.16666666666666666
+        },
+        "caught_ghost_learners": {
+          "diff": 0.022222222222222223,
+          "lo": 0.0,
+          "hi": 0.055555555555555566,
+          "won": 0.06666666666666667
+        },
+        "caught_inflated_headcount": {
+          "diff": -0.05555555555555555,
+          "lo": -0.1,
+          "hi": -0.01111111111111111,
+          "won": 0.0
+        },
+        "caught_round_number_entry": {
+          "diff": -0.008888888888889135,
+          "lo": -0.026666666666667404,
+          "hi": 0.0,
+          "won": 0.0
+        },
+        "caught_stock_leakage": {
+          "diff": 0.011111111111111112,
+          "lo": 0.0,
+          "hi": 0.03333333333333333,
+          "won": 0.03333333333333333
+        }
+      },
+      "checks": {
+        "problem_f1_gain": false,
+        "problem_recall": true,
+        "types": true,
+        "week_f1": true
+      },
+      "adopted_alone": false
+    },
+    "M1d_sample_256": {
+      "change": {
+        "sample": 256
+      },
+      "workload": 3.3493055555555555,
+      "result": {
+        "problem_f1": 0.3303221697401127,
+        "problem_precision": 0.23935070763488273,
+        "problem_recall": 0.5410879629629631,
+        "one_day_claims_caught": 0.0739914971297729,
+        "f1_at_k": 0.19094615611113325,
+        "precision_at_k": 0.31844972271114214,
+        "recall_at_k": 0.1374911423447001,
+        "recall_at_k_covered": 0.2580710843881087,
+        "pr_auc": 0.26457648058162675,
+        "pr_auc_within_sub_county": 0.2853400827806379,
+        "false_listings_per_officer_term": 3.349305555555558,
+        "false_from_shortfall_per_officer_term": 2.554861111111111,
+        "visits_per_officer_term": 4.319603587962965,
+        "problems_caught_within_2_weeks": 0.10694444444444447,
+        "median_days_to_catch": 34.885416666666664,
+        "caught_backdated_bulk_entry": 0.6076388888888896,
+        "caught_consumption_drift": 0.6687500000000001,
+        "caught_ghost_learners": 0.7222222222222224,
+        "caught_inflated_headcount": 0.23472222222222267,
+        "caught_round_number_entry": 0.15763888888888897,
+        "caught_stock_leakage": 0.8555555555555556,
+        "false_rate_programme_type_cash_transfer": 0.015381948284962038,
+        "false_rate_programme_type_in_kind": 0.03418434692439847,
+        "false_rate_estimates_to_False": 0.02733200029872435,
+        "false_rate_estimates_to_True": 0.03187976640820011,
+        "false_rate_computes_issues_False": 0.029853189532278463,
+        "false_rate_computes_issues_True": 0.024998181710449242,
+        "false_rate_weekly_enterer_False": 0.02573436355511575,
+        "false_rate_weekly_enterer_True": 0.039205683806733095,
+        "false_rate_records_note_False": 0.025174704779412624,
+        "false_rate_records_note_True": 0.03544519773919747,
+        "false_rate_overall": 0.028290055161768145,
+        "q": 0.9974375,
+        "reached": true,
+        "lowest_workload": 3.120601851851852
+      },
+      "start_at_same_workload": {
+        "problem_f1": 0.3393951378037181,
+        "problem_precision": 0.24495013475708713,
+        "problem_recall": 0.5611111111111111,
+        "one_day_claims_caught": 0.0701595006948352,
+        "f1_at_k": 0.19953264906866738,
+        "precision_at_k": 0.32943709459655296,
+        "recall_at_k": 0.14418105947208737,
+        "recall_at_k_covered": 0.2636568045928998,
+        "pr_auc": 0.2821313179775469,
+        "pr_auc_within_sub_county": 0.3014579170653359,
+        "false_listings_per_officer_term": 3.3493055555555555,
+        "false_from_shortfall_per_officer_term": 2.542824074074074,
+        "visits_per_officer_term": 4.336342592592592,
+        "problems_caught_within_2_weeks": 0.10370370370370369,
+        "median_days_to_catch": 33.45,
+        "caught_backdated_bulk_entry": 0.688888888888889,
+        "caught_consumption_drift": 0.6777777777777778,
+        "caught_ghost_learners": 0.7111111111111114,
+        "caught_inflated_headcount": 0.2666666666666666,
+        "caught_round_number_entry": 0.16666666666666666,
+        "caught_stock_leakage": 0.8555555555555556,
+        "false_rate_programme_type_cash_transfer": 0.015244152182297934,
+        "false_rate_programme_type_in_kind": 0.03415205405540349,
+        "false_rate_estimates_to_False": 0.027211133283727495,
+        "false_rate_estimates_to_True": 0.03273469207785802,
+        "false_rate_computes_issues_False": 0.02985459014494874,
+        "false_rate_computes_issues_True": 0.02510079277131263,
+        "false_rate_weekly_enterer_False": 0.025766404326276866,
+        "false_rate_weekly_enterer_True": 0.03861299969843852,
+        "false_rate_records_note_False": 0.0252893141662164,
+        "false_rate_records_note_True": 0.035304250023430864,
+        "false_rate_overall": 0.028287183325945313,
+        "problem_f1_cover2": 0.3467764586056061,
+        "problem_precision_cover2": 0.2525768605939552,
+        "recall_at_k_covered_cover2": 0.21673296390103344,
+        "problem_f1_cover8": 0.3338457023230174,
+        "problem_precision_cover8": 0.23895439595904572,
+        "recall_at_k_covered_cover8": 0.30847486511844163,
+        "q": 0.999,
+        "reached": true,
+        "lowest_workload": 3.3493055555555555
+      },
+      "against_start": {
+        "problem_f1": {
+          "diff": -0.009072968063605285,
+          "lo": -0.01784539422534518,
+          "hi": 0.00110884767391447,
+          "won": 0.23333333333333334
+        },
+        "problem_precision": {
+          "diff": -0.005599427122204469,
+          "lo": -0.01200885450221692,
+          "hi": 0.0015263947236088123,
+          "won": 0.3
+        },
+        "problem_recall": {
+          "diff": -0.020023148148147936,
+          "lo": -0.03807870370370352,
+          "hi": 0.0004658564814816401,
+          "won": 0.13333333333333333
+        },
+        "one_day_claims_caught": {
+          "diff": 0.003831996434937702,
+          "lo": -0.0041979500891264725,
+          "hi": 0.013386363636363688,
+          "won": 0.13333333333333333
+        },
+        "f1_at_k": {
+          "diff": -0.008586492957534149,
+          "lo": -0.017414520870094184,
+          "hi": -8.889641486154995e-05,
+          "won": 0.36666666666666664
+        },
+        "precision_at_k": {
+          "diff": -0.010987371885410817,
+          "lo": -0.022702743312655004,
+          "hi": -2.5466409655748288e-05,
+          "won": 0.3
+        },
+        "recall_at_k": {
+          "diff": -0.006689917127387301,
+          "lo": -0.013844702616086755,
+          "hi": 0.0002543137520701159,
+          "won": 0.36666666666666664
+        },
+        "recall_at_k_covered": {
+          "diff": -0.005585720204791079,
+          "lo": -0.014748737313242086,
+          "hi": 0.004164904960742389,
+          "won": 0.3
+        },
+        "pr_auc": {
+          "diff": -0.01755483739592013,
+          "lo": -0.021926271427390346,
+          "hi": -0.013598291713171541,
+          "won": 0.0
+        },
+        "pr_auc_within_sub_county": {
+          "diff": -0.016117834284698058,
+          "lo": -0.020977831475940904,
+          "hi": -0.0117764643731139,
+          "won": 0.03333333333333333
+        },
+        "false_listings_per_officer_term": {
+          "diff": 2.930988785010413e-15,
+          "lo": -0.08143807870370061,
+          "hi": 0.082942708333336,
+          "won": 0.5333333333333333
+        },
+        "false_from_shortfall_per_officer_term": {
+          "diff": 0.012037037037037023,
+          "lo": -0.003009259259259256,
+          "hi": 0.03009259259259256,
+          "won": 0.13333333333333333
+        },
+        "visits_per_officer_term": {
+          "diff": -0.01673900462962655,
+          "lo": -0.106264467592589,
+          "hi": 0.07391493055555869,
+          "won": 0.4666666666666667
+        },
+        "problems_caught_within_2_weeks": {
+          "diff": 0.0032407407407407923,
+          "lo": -0.008564814814814787,
+          "hi": 0.013657407407407432,
+          "won": 0.23333333333333334
+        },
+        "median_days_to_catch": {
+          "diff": 1.435416666666662,
+          "lo": 0.2686979166666654,
+          "hi": 2.8313281249999935,
+          "won": 0.36666666666666664
+        },
+        "caught_backdated_bulk_entry": {
+          "diff": -0.0812499999999993,
+          "lo": -0.14166666666666572,
+          "hi": -0.02291666666666627,
+          "won": 0.13333333333333333
+        },
+        "caught_consumption_drift": {
+          "diff": -0.0090277777777777,
+          "lo": -0.0451388888888885,
+          "hi": 0.024305555555555632,
+          "won": 0.03333333333333333
+        },
+        "caught_ghost_learners": {
+          "diff": 0.011111111111111112,
+          "lo": 0.0,
+          "hi": 0.03333333333333333,
+          "won": 0.03333333333333333
+        },
+        "caught_inflated_headcount": {
+          "diff": -0.03194444444444398,
+          "lo": -0.08333333333333269,
+          "hi": 0.016666666666667287,
+          "won": 0.13333333333333333
+        },
+        "caught_round_number_entry": {
+          "diff": -0.009027777777777699,
+          "lo": -0.04722222222222191,
+          "hi": 0.024305555555555632,
+          "won": 0.03333333333333333
+        },
+        "caught_stock_leakage": {
+          "diff": 0.0,
+          "lo": 0.0,
+          "hi": 0.0,
+          "won": 0.0
+        }
+      },
+      "checks": {
+        "problem_f1_gain": false,
+        "problem_recall": false,
+        "types": true,
+        "week_f1": true
+      },
+      "adopted_alone": false
+    },
+    "M1d_sample_128": {
+      "change": {
+        "sample": 128
+      },
+      "workload": 3.3493055555555555,
+      "result": {
+        "problem_f1": 0.3258811941785832,
+        "problem_precision": 0.23707451137231045,
+        "problem_recall": 0.531144781144781,
+        "one_day_claims_caught": 0.07090878930846375,
+        "f1_at_k": 0.1875227875682223,
+        "precision_at_k": 0.3143850869758914,
+        "recall_at_k": 0.1346167334602985,
+        "recall_at_k_covered": 0.2516312294220611,
+        "pr_auc": 0.24867736087263956,
+        "pr_auc_within_sub_county": 0.2703571206512555,
+        "false_listings_per_officer_term": 3.3493055555555546,
+        "false_from_shortfall_per_officer_term": 2.551851851851852,
+        "visits_per_officer_term": 4.305702861952861,
+        "problems_caught_within_2_weeks": 0.09646464646464639,
+        "median_days_to_catch": 34.86363636363637,
+        "caught_backdated_bulk_entry": 0.6535353535353533,
+        "caught_consumption_drift": 0.5454545454545452,
+        "caught_ghost_learners": 0.7222222222222224,
+        "caught_inflated_headcount": 0.25757575757575746,
+        "caught_round_number_entry": 0.15252525252525248,
+        "caught_stock_leakage": 0.8555555555555556,
+        "false_rate_programme_type_cash_transfer": 0.015129059836492565,
+        "false_rate_programme_type_in_kind": 0.03420585787191269,
+        "false_rate_estimates_to_False": 0.02761925108922903,
+        "false_rate_estimates_to_True": 0.030204694497250082,
+        "false_rate_computes_issues_False": 0.029939387398470973,
+        "false_rate_computes_issues_True": 0.02504523018279509,
+        "false_rate_weekly_enterer_False": 0.025556029011638084,
+        "false_rate_weekly_enterer_True": 0.04004462523353271,
+        "false_rate_records_note_False": 0.0251765135381255,
+        "false_rate_records_note_True": 0.03510454484233364,
+        "false_rate_overall": 0.028288326978784983,
+        "q": 0.9958181818181818,
+        "reached": true,
+        "lowest_workload": 3.0303240740740742
+      },
+      "start_at_same_workload": {
+        "problem_f1": 0.3393951378037181,
+        "problem_precision": 0.24495013475708713,
+        "problem_recall": 0.5611111111111111,
+        "one_day_claims_caught": 0.0701595006948352,
+        "f1_at_k": 0.19953264906866738,
+        "precision_at_k": 0.32943709459655296,
+        "recall_at_k": 0.14418105947208737,
+        "recall_at_k_covered": 0.2636568045928998,
+        "pr_auc": 0.2821313179775469,
+        "pr_auc_within_sub_county": 0.3014579170653359,
+        "false_listings_per_officer_term": 3.3493055555555555,
+        "false_from_shortfall_per_officer_term": 2.542824074074074,
+        "visits_per_officer_term": 4.336342592592592,
+        "problems_caught_within_2_weeks": 0.10370370370370369,
+        "median_days_to_catch": 33.45,
+        "caught_backdated_bulk_entry": 0.688888888888889,
+        "caught_consumption_drift": 0.6777777777777778,
+        "caught_ghost_learners": 0.7111111111111114,
+        "caught_inflated_headcount": 0.2666666666666666,
+        "caught_round_number_entry": 0.16666666666666666,
+        "caught_stock_leakage": 0.8555555555555556,
+        "false_rate_programme_type_cash_transfer": 0.015244152182297934,
+        "false_rate_programme_type_in_kind": 0.03415205405540349,
+        "false_rate_estimates_to_False": 0.027211133283727495,
+        "false_rate_estimates_to_True": 0.03273469207785802,
+        "false_rate_computes_issues_False": 0.02985459014494874,
+        "false_rate_computes_issues_True": 0.02510079277131263,
+        "false_rate_weekly_enterer_False": 0.025766404326276866,
+        "false_rate_weekly_enterer_True": 0.03861299969843852,
+        "false_rate_records_note_False": 0.0252893141662164,
+        "false_rate_records_note_True": 0.035304250023430864,
+        "false_rate_overall": 0.028287183325945313,
+        "problem_f1_cover2": 0.3467764586056061,
+        "problem_precision_cover2": 0.2525768605939552,
+        "recall_at_k_covered_cover2": 0.21673296390103344,
+        "problem_f1_cover8": 0.3338457023230174,
+        "problem_precision_cover8": 0.23895439595904572,
+        "recall_at_k_covered_cover8": 0.30847486511844163,
+        "q": 0.999,
+        "reached": true,
+        "lowest_workload": 3.3493055555555555
+      },
+      "against_start": {
+        "problem_f1": {
+          "diff": -0.01351394362513484,
+          "lo": -0.024150302757576837,
+          "hi": -0.0024069694290989796,
+          "won": 0.26666666666666666
+        },
+        "problem_precision": {
+          "diff": -0.007875623384776733,
+          "lo": -0.015994364847183983,
+          "hi": 0.0006814859932778907,
+          "won": 0.36666666666666664
+        },
+        "problem_recall": {
+          "diff": -0.0299663299663301,
+          "lo": -0.05016835016835028,
+          "hi": -0.008922558922559082,
+          "won": 0.23333333333333334
+        },
+        "one_day_claims_caught": {
+          "diff": 0.0007492886136285644,
+          "lo": -0.013554080266295346,
+          "hi": 0.01433265955359957,
+          "won": 0.16666666666666666
+        },
+        "f1_at_k": {
+          "diff": -0.012009861500445088,
+          "lo": -0.0197994761867397,
+          "hi": -0.004111117948978428,
+          "won": 0.3
+        },
+        "precision_at_k": {
+          "diff": -0.015052007620661605,
+          "lo": -0.026482917576470897,
+          "hi": -0.0036599317586577217,
+          "won": 0.3
+        },
+        "recall_at_k": {
+          "diff": -0.009564326011788898,
+          "lo": -0.0161385876522882,
+          "hi": -0.0029374938399993333,
+          "won": 0.36666666666666664
+        },
+        "recall_at_k_covered": {
+          "diff": -0.012025575170838698,
+          "lo": -0.019860923132322475,
+          "hi": -0.004324073461028373,
+          "won": 0.26666666666666666
+        },
+        "pr_auc": {
+          "diff": -0.033453957104907284,
+          "lo": -0.0401499842825294,
+          "hi": -0.02687107223460526,
+          "won": 0.0
+        },
+        "pr_auc_within_sub_county": {
+          "diff": -0.031100796414080433,
+          "lo": -0.03743205870541802,
+          "hi": -0.02485905409054955,
+          "won": 0.03333333333333333
+        },
+        "false_listings_per_officer_term": {
+          "diff": -1.0658141036401502e-15,
+          "lo": -0.11490582912458035,
+          "hi": 0.11544612794612667,
+          "won": 0.5333333333333333
+        },
+        "false_from_shortfall_per_officer_term": {
+          "diff": 0.009027777777777768,
+          "lo": -0.003009259259259256,
+          "hi": 0.021064814814814793,
+          "won": 0.13333333333333333
+        },
+        "visits_per_officer_term": {
+          "diff": -0.030639730639731924,
+          "lo": -0.1488283880471392,
+          "hi": 0.0856339436026924,
+          "won": 0.5
+        },
+        "problems_caught_within_2_weeks": {
+          "diff": -0.007239057239057283,
+          "lo": -0.021548821548821588,
+          "hi": 0.0057239057239056815,
+          "won": 0.2
+        },
+        "median_days_to_catch": {
+          "diff": 1.413636363636364,
+          "lo": -0.4894696969696918,
+          "hi": 3.2863636363636335,
+          "won": 0.6
+        },
+        "caught_backdated_bulk_entry": {
+          "diff": -0.03535353535353565,
+          "lo": -0.10505050505050541,
+          "hi": 0.03131313131313101,
+          "won": 0.2
+        },
+        "caught_consumption_drift": {
+          "diff": -0.1323232323232326,
+          "lo": -0.19898989898989922,
+          "hi": -0.06868686868686899,
+          "won": 0.06666666666666667
+        },
+        "caught_ghost_learners": {
+          "diff": 0.011111111111111112,
+          "lo": 0.0,
+          "hi": 0.03333333333333333,
+          "won": 0.03333333333333333
+        },
+        "caught_inflated_headcount": {
+          "diff": -0.009090909090909203,
+          "lo": -0.06464646464646476,
+          "hi": 0.04646464646464635,
+          "won": 0.13333333333333333
+        },
+        "caught_round_number_entry": {
+          "diff": -0.014141414141414177,
+          "lo": -0.03939393939393946,
+          "hi": 0.0,
+          "won": 0.0
+        },
+        "caught_stock_leakage": {
+          "diff": 0.0,
+          "lo": 0.0,
+          "hi": 0.0,
+          "won": 0.0
+        }
+      },
+      "checks": {
+        "problem_f1_gain": false,
+        "problem_recall": false,
+        "types": false,
+        "week_f1": true
+      },
+      "adopted_alone": false
+    }
+  },
+  "kept": [],
+  "result_setting": {
+    "name": "V11_56"
+  },
+  "result": {
+    "problem_f1": 0.3393951378037181,
+    "problem_precision": 0.24495013475708713,
+    "problem_recall": 0.5611111111111111,
+    "one_day_claims_caught": 0.0701595006948352,
+    "f1_at_k": 0.19953264906866738,
+    "precision_at_k": 0.32943709459655296,
+    "recall_at_k": 0.14418105947208737,
+    "recall_at_k_covered": 0.2636568045928998,
+    "pr_auc": 0.2821313179775469,
+    "pr_auc_within_sub_county": 0.3014579170653359,
+    "false_listings_per_officer_term": 3.3493055555555555,
+    "false_from_shortfall_per_officer_term": 2.542824074074074,
+    "visits_per_officer_term": 4.336342592592592,
+    "problems_caught_within_2_weeks": 0.10370370370370369,
+    "median_days_to_catch": 33.45,
+    "caught_backdated_bulk_entry": 0.688888888888889,
+    "caught_consumption_drift": 0.6777777777777778,
+    "caught_ghost_learners": 0.7111111111111114,
+    "caught_inflated_headcount": 0.2666666666666666,
+    "caught_round_number_entry": 0.16666666666666666,
+    "caught_stock_leakage": 0.8555555555555556,
+    "false_rate_programme_type_cash_transfer": 0.015244152182297934,
+    "false_rate_programme_type_in_kind": 0.03415205405540349,
+    "false_rate_estimates_to_False": 0.027211133283727495,
+    "false_rate_estimates_to_True": 0.03273469207785802,
+    "false_rate_computes_issues_False": 0.02985459014494874,
+    "false_rate_computes_issues_True": 0.02510079277131263,
+    "false_rate_weekly_enterer_False": 0.025766404326276866,
+    "false_rate_weekly_enterer_True": 0.03861299969843852,
+    "false_rate_records_note_False": 0.0252893141662164,
+    "false_rate_records_note_True": 0.035304250023430864,
+    "false_rate_overall": 0.028287183325945313,
+    "problem_f1_cover2": 0.3467764586056061,
+    "problem_precision_cover2": 0.2525768605939552,
+    "recall_at_k_covered_cover2": 0.21673296390103344,
+    "problem_f1_cover8": 0.3338457023230174,
+    "problem_precision_cover8": 0.23895439595904572,
+    "recall_at_k_covered_cover8": 0.30847486511844163,
+    "q": 0.999,
+    "reached": true,
+    "lowest_workload": 3.3493055555555555
+  },
+  "result_against_start": {
+    "workload": 3.3493055555555555,
+    "problem_f1": {
+      "diff": 0.0,
+      "lo": 0.0,
+      "hi": 0.0,
+      "won": 0.0
+    },
+    "problem_precision": {
+      "diff": 0.0,
+      "lo": 0.0,
+      "hi": 0.0,
+      "won": 0.0
+    },
+    "problem_recall": {
+      "diff": 0.0,
+      "lo": 0.0,
+      "hi": 0.0,
+      "won": 0.0
+    },
+    "one_day_claims_caught": {
+      "diff": 0.0,
+      "lo": 0.0,
+      "hi": 0.0,
+      "won": 0.0
+    },
+    "f1_at_k": {
+      "diff": 0.0,
+      "lo": 0.0,
+      "hi": 0.0,
+      "won": 0.0
+    },
+    "precision_at_k": {
+      "diff": 0.0,
+      "lo": 0.0,
+      "hi": 0.0,
+      "won": 0.0
+    },
+    "recall_at_k": {
+      "diff": 0.0,
+      "lo": 0.0,
+      "hi": 0.0,
+      "won": 0.0
+    },
+    "recall_at_k_covered": {
+      "diff": 0.0,
+      "lo": 0.0,
+      "hi": 0.0,
+      "won": 0.0
+    },
+    "pr_auc": {
+      "diff": 0.0,
+      "lo": 0.0,
+      "hi": 0.0,
+      "won": 0.0
+    },
+    "pr_auc_within_sub_county": {
+      "diff": 0.0,
+      "lo": 0.0,
+      "hi": 0.0,
+      "won": 0.0
+    },
+    "false_listings_per_officer_term": {
+      "diff": 0.0,
+      "lo": 0.0,
+      "hi": 0.0,
+      "won": 0.0
+    },
+    "false_from_shortfall_per_officer_term": {
+      "diff": 0.0,
+      "lo": 0.0,
+      "hi": 0.0,
+      "won": 0.0
+    },
+    "visits_per_officer_term": {
+      "diff": 0.0,
+      "lo": 0.0,
+      "hi": 0.0,
+      "won": 0.0
+    },
+    "problems_caught_within_2_weeks": {
+      "diff": 0.0,
+      "lo": 0.0,
+      "hi": 0.0,
+      "won": 0.0
+    },
+    "median_days_to_catch": {
+      "diff": 0.0,
+      "lo": 0.0,
+      "hi": 0.0,
+      "won": 0.0
+    },
+    "caught_backdated_bulk_entry": {
+      "diff": 0.0,
+      "lo": 0.0,
+      "hi": 0.0,
+      "won": 0.0
+    },
+    "caught_consumption_drift": {
+      "diff": 0.0,
+      "lo": 0.0,
+      "hi": 0.0,
+      "won": 0.0
+    },
+    "caught_ghost_learners": {
+      "diff": 0.0,
+      "lo": 0.0,
+      "hi": 0.0,
+      "won": 0.0
+    },
+    "caught_inflated_headcount": {
+      "diff": 0.0,
+      "lo": 0.0,
+      "hi": 0.0,
+      "won": 0.0
+    },
+    "caught_round_number_entry": {
+      "diff": 0.0,
+      "lo": 0.0,
+      "hi": 0.0,
+      "won": 0.0
+    },
+    "caught_stock_leakage": {
+      "diff": 0.0,
+      "lo": 0.0,
+      "hi": 0.0,
+      "won": 0.0
+    }
+  },
+  "protocol": {
+    "M1a_scale_floor": {
+      "hypothesis": "features with an interquartile range near or at 0 are scaled in raw units or blown up; a fixed floor (anomaly/methods.py SCALE_FLOOR, fixed in protocol version 6) stops ordinary rounding looking as unusual as a problem",
+      "change": "scale_floor true"
+    },
+    "M1b_drop_fed_rate": {
+      "hypothesis": "five or six of the 15 features measure headcount (Spearman up to 0.91), which tilts random splits towards headcount; one of them may be redundant",
+      "change": "leave out one at a time, each a candidate - fed_rate, fed_vs_own, fed_vs_peers, fed_rate_vs_last_term, uptake, enrolment_change"
+    },
+    "M1b_drop_fed_vs_own": {
+      "hypothesis": "five or six of the 15 features measure headcount (Spearman up to 0.91), which tilts random splits towards headcount; one of them may be redundant",
+      "change": "leave out one at a time, each a candidate - fed_rate, fed_vs_own, fed_vs_peers, fed_rate_vs_last_term, uptake, enrolment_change"
+    },
+    "M1b_drop_fed_vs_peers": {
+      "hypothesis": "five or six of the 15 features measure headcount (Spearman up to 0.91), which tilts random splits towards headcount; one of them may be redundant",
+      "change": "leave out one at a time, each a candidate - fed_rate, fed_vs_own, fed_vs_peers, fed_rate_vs_last_term, uptake, enrolment_change"
+    },
+    "M1b_drop_fed_rate_vs_last_term": {
+      "hypothesis": "five or six of the 15 features measure headcount (Spearman up to 0.91), which tilts random splits towards headcount; one of them may be redundant",
+      "change": "leave out one at a time, each a candidate - fed_rate, fed_vs_own, fed_vs_peers, fed_rate_vs_last_term, uptake, enrolment_change"
+    },
+    "M1b_drop_uptake": {
+      "hypothesis": "five or six of the 15 features measure headcount (Spearman up to 0.91), which tilts random splits towards headcount; one of them may be redundant",
+      "change": "leave out one at a time, each a candidate - fed_rate, fed_vs_own, fed_vs_peers, fed_rate_vs_last_term, uptake, enrolment_change"
+    },
+    "M1b_drop_enrolment_change": {
+      "hypothesis": "five or six of the 15 features measure headcount (Spearman up to 0.91), which tilts random splits towards headcount; one of them may be redundant",
+      "change": "leave out one at a time, each a candidate - fed_rate, fed_vs_own, fed_vs_peers, fed_rate_vs_last_term, uptake, enrolment_change"
+    },
+    "M1c_low_headcount": {
+      "hypothesis": "ghost learners recorded as not fed lower the share of enrolment fed; one-sided scoring throws that away",
+      "change": "fed_rate and fed_rate_vs_last_term scored in both directions (the rest unchanged)"
+    },
+    "M1d_sample_256": {
+      "hypothesis": "each tree samples 1024 of about 1,250 training rows, so problems inside the training window mask one another; smaller samples isolate them (Liu et al. use 256)",
+      "change": "sample size 256; and 128, each a candidate"
+    },
+    "M1d_sample_128": {
+      "hypothesis": "each tree samples 1024 of about 1,250 training rows, so problems inside the training window mask one another; smaller samples isolate them (Liu et al. use 256)",
+      "change": "sample size 256; and 128, each a candidate"
+    }
+  }
+}
