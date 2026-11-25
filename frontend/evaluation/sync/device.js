@@ -12,7 +12,7 @@ const localDb = await import('../../src/services/localDb.js');
 const syncManager = await import('../../src/sync/syncManager.js');
 const { default: db } = await import('../../src/db/database.js');
 const feedingDb = await import('../../src/services/feedingDb.js');
-const { saveDeviceIdentity } = await import('../../src/features/devices/deviceIdentity.js');
+const deviceClient = await import('../../src/features/devices/deviceClient.js');
 const { stockBalances } = await import('../../src/features/feeding/planning.js');
 
 // Automatic sync when the connection returns, as the app sets it up in App.jsx
@@ -36,14 +36,23 @@ const KINDS = {
 };
 
 const commands = {
-  async init({ baseUrl, email, password, seed, register = false }) {
+  /**
+   * Set this browser up as a school device, as a feeding teacher does from the sign-in
+   * page: the device creates its key pair and the teacher sets a PIN. The device then
+   * waits for an administrator to approve it (the evaluation runner does that).
+   */
+  async setUp({ baseUrl, email, password, pin, deviceName, seed }) {
     network.baseUrl = baseUrl;
     network.random = seededRandom(seed);
-    session.saveSession(await api.login(email, password));
+    const { device } = await deviceClient.setUpDevice({ email, password, pin }, deviceName);
+    return { deviceId: device.id, schoolId: device.schoolId };
+  },
+
+  /** The feeding teacher signs in on the approved device with their email and PIN. */
+  async signIn({ email, pin }) {
+    session.saveSession(await deviceClient.signInWithPin(email, pin));
     const { schools } = await api.getSchools();
     await localDb.cacheSchools(schools);
-    // A school device (version 2 scenarios): it downloads the school's records with every sync
-    if (register) await saveDeviceIdentity({ schoolId: schools[0].id, status: 'approved' });
     return { schoolId: schools[0].id };
   },
 

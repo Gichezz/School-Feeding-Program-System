@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-11-01T13:51:37.679Z",
+  "generatedAt": "2026-11-25T23:32:35.047Z",
   "environment": {
     "node": "v20.14.0",
     "platform": "win32 x64"
   },
-  "runtimeMs": 170083,
+  "runtimeMs": 192186,
   "scenarios": [
     {
       "name": "good_connection",
@@ -34,12 +34,12 @@
       ],
       "latencyMs": {
         "n": 60,
-        "median": 6711.8715,
-        "p95": 8056.446199999999,
-        "max": 8196.568599999999
+        "median": 6627.6211,
+        "p95": 7874.387700000001,
+        "max": 8015.6954000000005
       },
       "traffic": {
-        "requests": 66,
+        "requests": 81,
         "droppedRequests": 0,
         "lostResponses": 0,
         "syncRequests": 60
@@ -73,12 +73,12 @@
       ],
       "latencyMs": {
         "n": 60,
-        "median": 17542.9648,
-        "p95": 28694.16,
-        "max": 29926.303499999998
+        "median": 18594.6237,
+        "p95": 29707.2396,
+        "max": 30943.4331
       },
       "traffic": {
-        "requests": 66,
+        "requests": 81,
         "droppedRequests": 0,
         "lostResponses": 0,
         "syncRequests": 60
@@ -114,15 +114,15 @@
       ],
       "latencyMs": {
         "n": 60,
-        "median": 10447.4885,
-        "p95": 28273.4258,
-        "max": 49507.155099999996
+        "median": 17263.4355,
+        "p95": 34199.1673,
+        "max": 61842.8444
       },
       "traffic": {
-        "requests": 97,
-        "droppedRequests": 29,
-        "lostResponses": 2,
-        "syncRequests": 62
+        "requests": 131,
+        "droppedRequests": 32,
+        "lostResponses": 5,
+        "syncRequests": 64
       }
     },
     {
@@ -238,9 +238,9 @@
       "stuckAsFailed": 0,
       "latencyMs": {
         "n": 22,
-        "median": 6030.152599999999,
-        "p95": 6685.622500000001,
-        "max": 6874.4181
+        "median": 5893.169900000001,
+        "p95": 6516.224999999999,
+        "max": 6782.225299999999
       }
     },
     {
@@ -296,9 +296,9 @@
       "stuckAsFailed": 0,
       "latencyMs": {
         "n": 22,
-        "median": 8020.909,
-        "p95": 20917.014600000002,
-        "max": 36979.1675
+        "median": 7500.9036,
+        "p95": 21925.820900000002,
+        "max": 36476.0094
       }
     },
     {
