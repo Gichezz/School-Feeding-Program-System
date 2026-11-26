@@ -31,8 +31,15 @@ export const UNUSUAL_REASONS = {
   school_event: 'School event',
   exams: 'Exams',
   visitors_fed: 'Visitors fed too',
+  new_learners: 'New learners, not yet in the enrolment',
   other: 'Other (explain in the note)',
 };
+
+// More learners fed than enrolled. Any excess needs a reason: new learners, or other with a
+// note. Above this multiple of enrolment the day is not saved until the number is checked
+// or the enrolment is updated (docs/feeding-record-rules.md says why 1.25).
+export const FED_ABOVE_ENROLMENT_LIMIT = 1.25;
+export const FED_ABOVE_ENROLMENT_REASONS = ['new_learners', 'other'];
 
 const round2 = (n) => Math.round(n * 100) / 100;
 
@@ -226,11 +233,15 @@ function toKg(value) {
  *
  *   errors    hard rules, the same the server applies: the record cannot be saved
  *             (a missing answer, fed more than the present count given, a future date)
- *   warnings  checks against what this device knows, which can be out of date: more fed
- *             than enrolled (enrolment may not be updated yet) and more issued than this
- *             device's stock balance (a delivery recorded on another device may not have
- *             arrived yet). The teacher can confirm and save; the server checks the
- *             record against its own full records and flags it for review if needed.
+ *             More fed than enrolled needs a reason (new learners, or other with a note),
+ *             and more than FED_ABOVE_ENROLMENT_LIMIT times enrolment is refused: the
+ *             number is checked, or the enrolment is updated first. An enrolment update
+ *             goes to the programme officer for verification like any other.
+ *   warnings  checks against what this device knows, which can be out of date: more
+ *             issued than this device's stock balance (a delivery recorded on another
+ *             device may not have arrived yet). The teacher can confirm and save; the
+ *             server checks the record against its own full records and flags it for
+ *             review if needed.
  *
  * form: strings from the inputs; feedingHappened is 'yes', 'no' or ''.
  * enrolled: learners enrolled this term, or null when no enrolment is recorded yet.
@@ -273,7 +284,13 @@ export function validateFeeding(form, { enrolled = null, available = null, now =
     if (cereals === null) errors.cerealsKg = 'Enter the kilograms of cereals issued, to at most 2 decimals';
     if (pulses === null) errors.pulsesKg = 'Enter the kilograms of pulses issued, to at most 2 decimals';
     if (fed !== null && present !== null && fed > present) errors.learnersFed = `Learners fed cannot be more than the ${present} present`;
-    else if (fed !== null && enrolled !== null && fed > enrolled) warnings.learnersFed = `${fed} learners fed is more than the ${enrolled} enrolled this term`;
+    else if (fed !== null && enrolled !== null && fed > enrolled) {
+      if (fed > enrolled * FED_ABOVE_ENROLMENT_LIMIT) {
+        errors.learnersFed = `${fed} is far more than the ${enrolled} enrolled this term. Check the number, or update the enrolment first`;
+      } else if (!FED_ABOVE_ENROLMENT_REASONS.includes(values.reasonCode)) {
+        errors.reasonCode = `More learners fed than the ${enrolled} enrolled. Choose New learners, or Other and explain`;
+      }
+    }
     if (available && cereals !== null && cereals > available.cereals) warnings.cerealsKg = `This device shows only ${available.cereals} kg of cereals in the store`;
     if (available && pulses !== null && pulses > available.pulses) warnings.pulsesKg = `This device shows only ${available.pulses} kg of pulses in the store`;
     if (values.reasonCode && !UNUSUAL_REASONS[values.reasonCode]) errors.reasonCode = 'Choose a reason for a day when learners were fed';

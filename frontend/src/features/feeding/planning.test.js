@@ -129,20 +129,48 @@ describe('validateFeeding', () => {
     expect(values).toMatchObject({ feedingHappened: true, learnersFed: 400, cerealsKg: 60, reasonCode: null });
   });
 
-  it('warns, without refusing, about more fed than enrolled and more issued than this device shows in store', () => {
-    const { errors, warnings } = validateFeeding({ ...form, learnersPresent: '' }, { enrolled: 350, available: { cereals: 40, pulses: 100 }, now });
+  it('warns, without refusing, about more issued than this device shows in store', () => {
+    const { errors, warnings } = validateFeeding(form, { enrolled: 420, available: { cereals: 40, pulses: 100 }, now });
 
-    // Enrolment and this device's stock balance can be out of date, so these can be confirmed
+    // This device's stock balance can be out of date, so this can be confirmed
     expect(errors).toEqual({});
-    expect(warnings.learnersFed).toMatch(/350 enrolled/);
     expect(warnings.cerealsKg).toMatch(/only 40 kg/);
   });
 
+  describe('more learners fed than enrolled', () => {
+    const above = { ...form, learnersPresent: '' };
+
+    it('needs a reason for any excess', () => {
+      const { errors } = validateFeeding(above, { enrolled: 399, now });
+
+      expect(errors.reasonCode).toMatch(/399 enrolled/);
+      expect(errors.learnersFed).toBeUndefined();
+    });
+
+    it('accepts new learners, or other with a note, as the reason', () => {
+      expect(validateFeeding({ ...above, reasonCode: 'new_learners' }, { enrolled: 350, now }).errors).toEqual({});
+      expect(validateFeeding({ ...above, reasonCode: 'other', note: 'PP2 class fed too' }, { enrolled: 350, now }).errors).toEqual({});
+      // Visitors are not learners, so they do not explain more learners fed
+      expect(validateFeeding({ ...above, reasonCode: 'visitors_fed' }, { enrolled: 350, now }).errors.reasonCode).toMatch(/350 enrolled/);
+    });
+
+    it('refuses more than 1.25 times enrolment, whatever the reason', () => {
+      // 400 is 1.25 times 320 exactly: still allowed with a reason
+      expect(validateFeeding({ ...above, reasonCode: 'new_learners' }, { enrolled: 320, now }).errors).toEqual({});
+
+      const { errors } = validateFeeding({ ...above, reasonCode: 'new_learners' }, { enrolled: 319, now });
+      expect(errors.learnersFed).toMatch(/update the enrolment first/);
+    });
+
+    it('checks nothing against enrolment when none is recorded', () => {
+      expect(validateFeeding(above, { enrolled: null, now }).errors).toEqual({});
+    });
+  });
+
   it('still refuses more fed than the present count given', () => {
-    const { errors, warnings } = validateFeeding({ ...form, learnersPresent: '390' }, { enrolled: 350, now });
+    const { errors } = validateFeeding({ ...form, learnersPresent: '390' }, { enrolled: 350, now });
 
     expect(errors.learnersFed).toMatch(/390 present/);
-    expect(warnings.learnersFed).toBeUndefined();
   });
 
   it('asks for a reason when learners were not fed, and records nothing issued', () => {

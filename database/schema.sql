@@ -823,7 +823,7 @@ CREATE TABLE IF NOT EXISTS daily_feeding (
         -- feeding did not happen
         'no_food', 'school_closed', 'cook_absent', 'no_water_or_fuel', 'learners_sent_home',
         -- feeding happened but the day was unusual
-        'half_day', 'school_event', 'exams', 'visitors_fed',
+        'half_day', 'school_event', 'exams', 'visitors_fed', 'new_learners',
         'other')),
     CONSTRAINT daily_feeding_other_explained CHECK (
         reason_code IS DISTINCT FROM 'other' OR (note IS NOT NULL AND btrim(note) <> '')),
@@ -1071,5 +1071,6 @@ INSERT INTO schema_migrations (name) VALUES
     ('019_email_delivery.sql'),
     ('020_enrolment_discrepancy.sql'),
     ('021_email_deliveries_and_account_events.sql'),
-    ('022_pending_device_expiry.sql')
+    ('022_pending_device_expiry.sql'),
+    ('023_new_learners_reason.sql')
 ON CONFLICT (name) DO NOTHING;
