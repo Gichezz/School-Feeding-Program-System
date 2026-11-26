@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Synchronisation evaluation (#72): sync success rate, conflict detection accuracy and
- * sync latency (project documentation §3.8.1, Table 3.2). Version 2 adds the records
+ * sync latency (project documentation §3.4.5, Table 3.3). Version 2 adds the records
  * schools now keep (daily feeding, enrolment, the stock ledger), two devices at one
  * school, and convergence: whether every device ends with the server's records.
  *
@@ -40,6 +40,8 @@ const BASE_URL = `http://localhost:${PORT}`;
 // Demo accounts from database/seed.sql (development only); the throwaway database is seeded with them
 const ADMIN = { email: 'admin@demo-school.local', password: 'ChangeMeAdmin1' };
 const OFFICER = { email: 'officer@demo-school.local', password: 'ChangeMeOfficer1' };
+// The feeding teacher signs in on each school device with a PIN set when the device is set up
+const TEACHER = { email: 'staff@demo-school.local', password: 'ChangeMeStaff1', pin: '258014' };
 const LATE_REASON = 'Sync evaluation: backfilled day';
 const AUTO_SYNC_DELAY_MS = 5000; // the app waits 5 s after reconnecting before it syncs
 const AUTOMATIC_SYNC_LIMIT_MS = 180000; // how long to leave the app's automatic sync and retries alone
@@ -132,10 +134,9 @@ async function waitForHealth() {
 const VITE_NODE = path.join(FRONTEND, 'node_modules', 'vite-node', 'vite-node.mjs');
 
 class Device {
-  constructor(name, seed, { register = false } = {}) {
+  constructor(name, seed) {
     this.name = name;
     this.seed = seed;
-    this.register = register;
     this.pending = new Map();
     this.nextId = 1;
     this.stderr = '';
@@ -163,7 +164,13 @@ class Device {
         else waiting.reject(new Error(`${this.name}: ${message.error}`));
       });
     });
-    const { schoolId } = await this.call('init', { baseUrl: BASE_URL, ...ADMIN, seed: this.seed, register: this.register });
+    // Set up as a school device, approved by the administrator; the teacher then signs in
+    const { deviceId } = await this.call('setUp', {
+      baseUrl: BASE_URL, ...TEACHER, deviceName: this.name, seed: this.seed,
+    });
+    const admin = await signIn(ADMIN);
+    await apiCall(admin, 'POST', `/api/devices/${deviceId}/approve`);
+    const { schoolId } = await this.call('signIn', TEACHER);
     this.schoolId = schoolId;
     return this;
   }
@@ -189,8 +196,8 @@ class Device {
   }
 }
 
-async function startDevices(names, seedBase, options) {
-  return Promise.all(names.map((name, i) => new Device(name, seedBase + i, options).start()));
+async function startDevices(names, seedBase) {
+  return Promise.all(names.map((name, i) => new Device(name, seedBase + i).start()));
 }
 
 // ---------------------------------------------------------------------------
@@ -622,7 +629,7 @@ function differences(local, server, limit = 5) {
  */
 async function schoolDevicesScenario({ name, label, profile, seedBase }) {
   await clearRecords();
-  const [kitchen, office] = await startDevices(['kitchen-tablet', 'office-phone'], seedBase, { register: true });
+  const [kitchen, office] = await startDevices(['kitchen-tablet', 'office-phone'], seedBase);
   const schoolId = kitchen.schoolId;
   try {
     const term = await termId();
@@ -666,10 +673,10 @@ async function schoolDevicesScenario({ name, label, profile, seedBase }) {
     }
     const before = await serverSchoolState(schoolId);
 
-    // The administrator discards the second entry of the note; both devices sync again
-    const admin = await signIn(ADMIN);
-    const { held } = await apiCall(admin, 'GET', '/api/sync/held');
-    for (const h of held) await apiCall(admin, 'POST', `/api/sync/held/${h.id}/discard`);
+    // The programme officer discards the second entry of the note; both devices sync again
+    const officer = await signIn(OFFICER);
+    const { held } = await apiCall(officer, 'GET', '/api/sync/held');
+    for (const h of held) await apiCall(officer, 'POST', `/api/sync/held/${h.id}/discard`);
     await Promise.all([kitchen, office].map((d) => d.network({ mode: 'online', delayMs: profile.delayMs })));
     for (const d of [kitchen, office]) await d.call('sync');
     const server = await serverSchoolState(schoolId);
@@ -726,7 +733,7 @@ const ENROLMENT_CASES = [
 
 async function schoolConflictScenario({ reps = 3, seedBase }) {
   await clearRecords();
-  const [a, b] = await startDevices(['device-A', 'device-B'], seedBase, { register: true });
+  const [a, b] = await startDevices(['device-A', 'device-B'], seedBase);
   const schoolId = a.schoolId;
   try {
     const term = await termId();
@@ -871,6 +878,9 @@ function renderReport(r) {
     + 'automatically (5 s after a sync that got some through, then 15 s, 30 s, 1, 2 and 5 minutes while nothing does). '
     + 'A dropped connection does not count as a failed attempt; an operation the server rejects is marked failed '
     + `after 3 retries. The automatic sync is left alone for up to ${AUTOMATIC_SYNC_LIMIT_MS / 60000} minutes; users press "Sync now" (at most ${MAX_SYNC_NOW_PRESSES} times) only if records are still waiting after that.\n`);
+  L.push('Each device is set up as a school device with its own key pair, approved by the administrator, and the '
+    + 'feeding teacher signs in on it with a PIN, as in the app. Conflicts and held records are decided by the '
+    + 'programme officer.\n');
 
   L.push('## 1. Sync success rate and latency\n');
   const capture = r.scenarios.filter((s) => s.records && s.kind !== 'school');
@@ -904,13 +914,13 @@ function renderReport(r) {
     x.conflictsReported, `${x.correct} of ${x.repetitions}`, `${x.serverValuesCorrect} of ${x.repetitions}`]),
   ['Case', 'Correct answer', 'Times', 'Conflicts reported', 'Judged correctly', 'Server numbers as expected']));
   L.push(`\nRecords with unexpected numbers on the server: ${c.recordsLost}. When a conflict is reported the server keeps `
-    + 'the first device\'s numbers until an administrator decides, so nothing is overwritten.\n');
+    + 'the first device\'s numbers until the programme officer decides, so nothing is overwritten.\n');
   const school = r.scenarios.filter((s) => s.kind === 'school');
   if (school.length) {
     L.push('## 3. Version 2: one school, two devices, a week offline\n');
     L.push('A kitchen tablet records 10 days of feeding and a store count; the office phone records the term\'s enrolment, '
       + 'two deliveries on one delivery note and a loss; the kitchen tablet also records the cereals delivery from the same '
-      + 'note. After the automatic sync an administrator discards the held duplicate and both devices sync again. '
+      + 'note. After the automatic sync the programme officer discards the held duplicate and both devices sync again. '
       + `${school[0].records} records (the plan said 21; with the store count it is 22).\n`);
     L.push(table(school.map((s) => [
       s.label, `${s.onServerCorrect} of ${s.records} (${pct(s.successRate)})`, s.appliedMoreThanOnce,
