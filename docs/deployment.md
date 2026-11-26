@@ -76,7 +76,14 @@ A server for a demonstration can carry the demo school, its accounts and two yea
    ```
 
    It generates the synthetic dataset with the scoring service's image and loads one sub-county of it with the API's image, so nothing else needs installing. It refuses a database that is not a demo one, or that already has the records.
-4. Run the smoke test with the new passwords.
+4. Optional, for showing the officer's screens: load the demonstration scenarios.
+
+   ```bash
+   docker compose exec backend node scripts/load-demo-scenarios.js
+   ```
+
+   It records at Jaribio Primary School through the real sync endpoint, as a teacher on two school devices: two conflicts, a held duplicate delivery note, and records the server flags (a short delivery, a night capture, a day kept offline, a late entry far from the ration, more learners fed than enrolled). It then scores Term 3 2026's weeks and prints which schools each week lists. It needs Jaribio's last four school days to be empty, and runs once.
+5. Run the smoke test with the new passwords.
 
 ## Configuration
 

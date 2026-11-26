@@ -1,0 +1,242 @@
+#!/usr/bin/env node
+/**
+ * Demonstration scenarios for the officer's screens, on top of the demo records
+ * (scripts/load-demo-records.js). Run it inside the running API container:
+ *
+ *   docker compose exec backend node scripts/load-demo-scenarios.js
+ *
+ * Every record goes through the real sync endpoint, as a feeding teacher at Jaribio
+ * Primary School on two school devices, so the server's own checks decide what becomes a
+ * conflict, what is held and what is flagged. It adds:
+ *   - two conflicts: the same day recorded on both devices with different numbers, and
+ *     the same day edited on both devices from the same version;
+ *   - a held delivery: the same delivery note recorded on both devices;
+ *   - flagged records: a short delivery, a day captured at night, a day kept offline for
+ *     days, a day entered late with a reason, food issued far from the ration, more
+ *     pulses issued than the store held, and more learners fed than enrolled;
+ * then scores Term 3 2026's weeks that are not scored yet, and prints which schools each
+ * week lists, so a presenter can pick a week that shows a given kind of problem.
+ *
+ * Only for a demo database. It refuses to run twice (the scenario teacher exists).
+ */
+const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
+const { pool } = require('../src/db/pool');
+const { scoreWeek } = require('../src/services/reviewRuns');
+
+const API = process.argv.includes('--api') ? process.argv[process.argv.indexOf('--api') + 1] : `http://localhost:${process.env.PORT || 5000}`;
+const SCHOOL = '11111111-1111-1111-1111-111111111112'; // Jaribio Primary School in database/seed.sql
+const TEACHER = { id: 'cccccccc-cccc-4ccc-8ccc-000000000001', name: 'Wanjiru Kamau', email: 'wanjiru.kamau@demo-school.local' };
+const DEVICES = {
+  store: { id: 'cccccccc-cccc-4ccc-8ccc-0000000000d1', name: 'Store tablet', clientId: 'demo-store-tablet' },
+  phone: { id: 'cccccccc-cccc-4ccc-8ccc-0000000000d2', name: "Head teacher's phone", clientId: 'demo-head-phone' },
+};
+const TIME_ZONE = 'Africa/Nairobi';
+const PLACEHOLDER_KEY = '{"kty":"EC","crv":"P-256","x":"demo","y":"demo"}';
+
+const pad = (n) => String(n).padStart(2, '0');
+const display = (iso) => iso.split('-').reverse().join('-');
+/** A moment on a school-local date: "2026-11-20", "07:30" → ISO string. Nairobi is UTC+3 all year. */
+const at = (iso, time) => new Date(`${iso}T${time}:00+03:00`).toISOString();
+
+let opCount = 0;
+function op(entityType, operation, payload, baseVersion, device, capturedAt) {
+  opCount += 1;
+  return {
+    id: `demo-scenario-${Date.now()}-${opCount}`,
+    entityType, operation, payload, baseVersion,
+    capturedBy: TEACHER.id, deviceId: device.id, capturedAt,
+  };
+}
+
+async function sync(device, operations) {
+  const token = jwt.sign({ name: TEACHER.name, role: 'school_staff', dev: device.id }, process.env.JWT_SECRET,
+    { subject: TEACHER.id, expiresIn: '10m', algorithm: 'HS256' });
+  const res = await fetch(`${API}/api/sync`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ clientId: device.clientId, operations }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(`Sync refused (${res.status}): ${body.error || 'no message'}`);
+  return body.results || [];
+}
+
+function outcome(result) {
+  if (result.success) return 'saved';
+  return result.status || result.error || 'not saved';
+}
+
+/**
+ * School days up to today, newest first: weekdays inside a term, not a holiday or closure.
+ * Each is { day, free } (free: the school has no feeding record for it yet).
+ */
+async function schoolDays(count) {
+  return (await pool.query(
+    `SELECT to_char(d, 'YYYY-MM-DD') AS day,
+            NOT EXISTS (SELECT 1 FROM daily_feeding f WHERE f.school_id = $1 AND f.feeding_date = d) AS free
+     FROM generate_series((now() AT TIME ZONE $2)::date - 60, (now() AT TIME ZONE $2)::date, interval '1 day') AS d
+     WHERE EXTRACT(ISODOW FROM d) < 6
+       AND EXISTS (SELECT 1 FROM school_terms t WHERE d BETWEEN t.opens_on AND t.closes_on)
+       AND NOT EXISTS (SELECT 1 FROM calendar_events e WHERE d BETWEEN e.starts_on AND e.ends_on
+                       AND e.kind IN ('public_holiday', 'school_closure') AND (e.school_id IS NULL OR e.school_id = $1))
+     ORDER BY d DESC LIMIT $3`,
+    [SCHOOL, TIME_ZONE, count]
+  )).rows;
+}
+
+async function enrolledOn(iso) {
+  const r = await pool.query(
+    `SELECT SUM(e.learners)::int AS n FROM enrolment e JOIN school_terms t ON t.id = e.term_id
+     WHERE e.school_id = $1 AND $2::date BETWEEN t.opens_on AND t.closes_on`, [SCHOOL, iso]);
+  return r.rows[0].n;
+}
+
+async function pulsesInStore(iso) {
+  const r = await pool.query(
+    "SELECT COALESCE(SUM(quantity_kg), 0) AS kg FROM stock_flows WHERE school_id = $1 AND commodity = 'pulses' AND flow_date <= $2",
+    [SCHOOL, iso]);
+  return Number(r.rows[0].kg);
+}
+
+const day = (iso, fed, cereals, pulses, extra = {}) => ({
+  schoolId: SCHOOL, feedingDate: display(iso), feedingHappened: true,
+  learnersPresent: fed + 12, learnersFed: fed, cerealsKg: cereals, pulsesKg: pulses, ...extra,
+});
+
+async function setUp() {
+  const school = (await pool.query('SELECT name, sub_county FROM schools WHERE id = $1', [SCHOOL])).rows[0];
+  if (!school) throw new Error('This is not a demo database: Jaribio Primary School from database/seed.sql is missing');
+  const done = (await pool.query('SELECT 1 FROM users WHERE id = $1', [TEACHER.id])).rowCount;
+  if (done) throw new Error('The demonstration scenarios are already loaded.');
+  const history = (await pool.query('SELECT count(*)::int AS n FROM daily_feeding WHERE school_id = $1', [SCHOOL])).rows[0].n;
+  if (history === 0) throw new Error('Load the demo records first: sh deploy/load-demo-records.sh');
+
+  // The teacher has no usable password: the scenarios sign their requests here
+  await pool.query(
+    `INSERT INTO users (id, name, email, password_hash, role, school_id)
+     VALUES ($1, $2, $3, $4, 'school_staff', $5)`,
+    [TEACHER.id, TEACHER.name, TEACHER.email, `demo-only-${crypto.randomBytes(16).toString('hex')}`, SCHOOL]
+  );
+  for (const device of Object.values(DEVICES)) {
+    await pool.query(
+      `INSERT INTO devices (id, school_id, name, status, public_key, approved_at)
+       VALUES ($1, $2, $3, 'approved', $4, NOW())`,
+      [device.id, SCHOOL, device.name, PLACEHOLDER_KEY]
+    );
+  }
+  return school;
+}
+
+async function recordScenarios() {
+  // The four most recent school days (today first) are within the entry window and,
+  // captured on the day, sync within the offline limit; older days are for the late and
+  // kept-offline scenarios.
+  const days = await schoolDays(12);
+  const recent = days.slice(0, 4);
+  if (recent.length < 4 || recent.some((d) => !d.free)) {
+    throw new Error(`Jaribio Primary School already has records on ${recent.filter((d) => !d.free).map((d) => display(d.day)).join(', ') || 'none of the last four school days'}; the scenarios need its last four school days empty`);
+  }
+  const older = days.slice(4).filter((d) => d.free).map((d) => d.day);
+  if (older.length < 2) throw new Error('Not enough earlier school days without a record');
+  const [today, d1, d2, d3] = recent.map((d) => d.day);
+  const [offlineDay, lateDay] = older;
+  const { store, phone } = DEVICES;
+  const report = [];
+  const note = (what, results) => report.push(`  ${what}: ${results.map(outcome).join(', ')}`);
+  // Entries made "today" are captured in school hours, so only the scenario's own flag shows
+  const todayAt = (time) => (Date.now() > Date.parse(at(today, time)) ? at(today, time) : new Date(Date.now() - 60000).toISOString());
+
+  // Food in the store first, so the days below are not all short of stock. The cereals
+  // note is recorded on both devices: the second is held, not counted twice. The pulses
+  // arrive lighter than their note.
+  const deliveryOn = (commodity, kg, noteKg, reference) => ({
+    id: crypto.randomUUID(), schoolId: SCHOOL, movementDate: display(d3), commodity, kind: 'delivery',
+    quantityKg: kg, noteQuantityKg: noteKg, reference, witness: 'Mr Ochieng, school meals committee',
+  });
+  note('Delivery DN-JAR-0412 (1,000 kg cereals) on the tablet', await sync(store, [op('stockMovement', 'create', deliveryOn('cereals', 1000, 1000, 'DN-JAR-0412'), 0, store, at(d2, '07:00'))]));
+  note('Delivery DN-JAR-0412 again on the phone', await sync(phone, [op('stockMovement', 'create', deliveryOn('cereals', 1000, 1000, 'DN-JAR-0412'), 0, phone, at(d2, '07:20'))]));
+  note('Pulses delivery DN-JAR-0413, 280 kg against 300 kg on the note', await sync(store, [op('stockMovement', 'create', deliveryOn('pulses', 280, 300, 'DN-JAR-0413'), 0, store, at(d2, '07:05'))]));
+
+  // Conflict 1: the same day recorded on both devices, with different numbers
+  note(`${display(d2)} recorded on the store tablet`, await sync(store, [op('dailyFeeding', 'create', day(d2, 412, 62, 16.5), 0, store, at(d2, '13:10'))]));
+  note(`${display(d2)} recorded again on the head teacher's phone (different numbers)`,
+    await sync(phone, [op('dailyFeeding', 'create', day(d2, 398, 60, 16), 0, phone, at(d2, '13:40'))]));
+
+  // Conflict 2: the same day edited on both devices from the same version
+  note(`${display(d3)} recorded`, await sync(store, [op('dailyFeeding', 'create', day(d3, 405, 61, 16), 0, store, at(d2, '07:30'))]));
+  note(`${display(d3)} corrected on the phone`, await sync(phone, [op('dailyFeeding', 'update', day(d3, 409, 61.5, 16.5), 1, phone, at(d2, '09:00'))]));
+  note(`${display(d3)} corrected on the tablet from the old version`,
+    await sync(store, [op('dailyFeeding', 'update', day(d3, 421, 63, 17), 1, store, at(d2, '09:10'))]));
+
+  // Captured at night
+  note(`${display(d1)} captured at 21:40`, await sync(store, [op('dailyFeeding', 'create', day(d1, 402, 60.5, 16), 0, store, at(d1, '21:40'))]));
+
+  // Kept on the phone for days before it synced: a day without food, before the delivery
+  note(`${display(offlineDay)} (not fed: no food in the store) kept offline on the phone since that day`,
+    await sync(phone, [op('dailyFeeding', 'create', {
+      schoolId: SCHOOL, feedingDate: display(offlineDay), feedingHappened: false, learnersPresent: 380,
+      learnersFed: 0, cerealsKg: 0, pulsesKg: 0, reasonCode: 'no_food',
+    }, 0, phone, at(offlineDay, '13:20'))]));
+
+  // Entered late from paper, before the delivery: food issued far from the ration, and
+  // more pulses than the store held
+  const pulses = await pulsesInStore(lateDay);
+  note(`${display(lateDay)} entered today from paper: 30 kg of cereals for 400 learners, more pulses than the ${pulses} kg in store`,
+    await sync(store, [op('dailyFeeding', 'create',
+      day(lateDay, 400, 30, Math.max(16, Math.round(pulses + 25)), { lateReason: 'Copied from the paper register after the tablet was repaired' }),
+      0, store, todayAt('10:00'))]));
+
+  // More learners fed than enrolled, with a reason
+  const enrolled = await enrolledOn(today);
+  if (enrolled) {
+    const fed = enrolled + Math.max(5, Math.round(enrolled * 0.04));
+    note(`${display(today)} with ${fed} fed against ${enrolled} enrolled`, await sync(store, [op('dailyFeeding', 'create',
+      day(today, fed, Math.round(fed * 0.15 * 2) / 2, Math.round(fed * 0.04 * 2) / 2,
+        { learnersPresent: fed + 3, reasonCode: 'other', note: 'Two families moved here after the drought; admission forms with the head teacher' }),
+      0, store, todayAt('13:30'))]));
+  }
+  return report;
+}
+
+/** Score Term 3 2026's weeks that have no ranking yet, as the weekly schedule would. */
+async function scoreTerm(subCounty) {
+  const term = (await pool.query(
+    "SELECT to_char(opens_on, 'YYYY-MM-DD') AS opens, to_char(closes_on, 'YYYY-MM-DD') AS closes FROM school_terms WHERE year = 2026 AND term = 3"
+  )).rows[0];
+  if (!term) return ['  Term 3 2026 is not in the calendar; nothing scored'];
+  const weeks = (await pool.query(
+    `SELECT to_char(w, 'YYYY-MM-DD') AS week FROM generate_series(date_trunc('week', $1::date), $2::date, interval '7 days') AS w
+     WHERE NOT EXISTS (SELECT 1 FROM review_runs r WHERE r.sub_county = $3 AND r.week_start = w::date)`,
+    [term.opens, term.closes, subCounty]
+  )).rows.map((r) => r.week);
+  const lines = [];
+  for (const week of weeks) {
+    try {
+      await scoreWeek({ subCounty, weekStart: week, k: 3, bySchedule: true });
+    } catch (error) {
+      lines.push(`  ${display(week)}: not scored (${error.message})`);
+    }
+  }
+  const listed = (await pool.query(
+    `SELECT to_char(r.week_start, 'YYYY-MM-DD') AS week, s.name, i.explanation
+     FROM review_runs r JOIN review_items i ON i.run_id = r.id AND i.listed JOIN schools s ON s.id = i.school_id
+     WHERE r.sub_county = $1 AND r.week_start BETWEEN date_trunc('week', $2::date) AND $3::date
+     ORDER BY r.week_start, i.rank`,
+    [subCounty, term.opens, term.closes]
+  )).rows;
+  for (const row of listed) lines.push(`  Week of ${display(row.week)} · ${row.name}: ${row.explanation.replace(/^Needs review:\s*/, '')}`);
+  return lines;
+}
+
+async function main() {
+  const school = await setUp();
+  console.log(`Scenarios at ${school.name}, as ${TEACHER.name} on "${DEVICES.store.name}" and "${DEVICES.phone.name}":`);
+  for (const line of await recordScenarios()) console.log(line);
+  console.log(`\nTerm 3 2026 weekly review for ${school.sub_county} (weeks scored now, and listed schools):`);
+  for (const line of await scoreTerm(school.sub_county)) console.log(line);
+}
+
+main()
+  .catch((error) => { console.error(error.message); process.exitCode = 1; })
+  .finally(() => pool.end());
