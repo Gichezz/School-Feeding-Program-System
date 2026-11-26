@@ -49,22 +49,13 @@ export function weekLabel(week, scored, index) {
  * week it means rather than calling every week "this week".
  */
 export function notScoredText(week, index) {
-  if (index === 0) {
-    return {
-      title: 'This week has not been scored',
-      description: 'It is scored automatically once it is over and its records have reached the server. To see it so far, score it now.',
-    };
-  }
-  return {
-    title: `The week of ${week} has not been scored`,
-    description: 'A finished week is scored automatically once its records have reached the server. To see it now, score it here.',
-  };
+  return { title: index === 0 ? 'This week has not been scored' : `The week of ${week} has not been scored` };
 }
 
-/** "Scored automatically on …." or "Scored on … by <name>.": who or what produced the list. */
+/** "Scored 09-11-2026 06:00 · automatically" or "… · <name>": when, and who or what scored it. */
 export function scoredText(list, when) {
-  if (list.scoredBySchedule) return `Scored automatically on ${when}.`;
-  return `Scored on ${when}${list.scoredBy ? ` by ${list.scoredBy}` : ''}.`;
+  if (list.scoredBySchedule) return `Scored ${when} · automatically`;
+  return `Scored ${when}${list.scoredBy ? ` · ${list.scoredBy}` : ''}`;
 }
 
 /**
@@ -75,18 +66,22 @@ export function withoutVerdict(explanation) {
   return (explanation || '').replace(/^Needs review:\s*/, '');
 }
 
+/** A school's reasons as a list, each starting with a capital: "a; b" → ["A", "B"]. */
+export function reasonList(explanation) {
+  return withoutVerdict(explanation).split(/;\s*/).map((r) => r.trim()).filter(Boolean)
+    .map((r) => r.charAt(0).toUpperCase() + r.slice(1));
+}
+
 export const DECISIONS = {
   explained: { label: 'Explained', tone: 'success' },
   follow_up: { label: 'Follow-up', tone: 'warning' },
 };
 
+/** A note for weeks not ranked the usual way; the usual way (the model) needs none. */
 export const MODES = {
-  extended_isolation_forest: 'Ranked against each school’s own records and similar schools over about the last two terms.',
-  // Weeks scored before the switch to Extended Isolation Forest (protocol version 6)
-  one_class_svm: 'Ranked against each school’s own records and similar schools over about the last two terms.',
-  rules_only: 'Ranked by the fixed checks only, until there are enough records to compare schools.',
+  rules_only: 'Fixed checks only: not enough records yet to compare schools',
   // Only school days are ranked, so a week can have records and still have none to rank
-  no_records: 'No feeding on a school day has reached the server for this week yet. Weekends, holidays and days outside the school terms are not ranked.',
+  no_records: 'No school-day records for this week yet',
 };
 
 /**

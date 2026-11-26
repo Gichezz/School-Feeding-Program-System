@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { groupBreaches, notScoredText, recentMondays, reviewWeeks, scoredText, weekLabel, withoutVerdict } from './weeks';
+import { groupBreaches, notScoredText, reasonList, recentMondays, reviewWeeks, scoredText, weekLabel, withoutVerdict } from './weeks';
 
 describe('recentMondays', () => {
   it('starts at the Monday of the current week', () => {
@@ -57,18 +57,17 @@ describe('notScoredText', () => {
   it('names an earlier week instead of calling it this week', () => {
     const text = notScoredText('16-11-2026', 1);
     expect(text.title).toBe('The week of 16-11-2026 has not been scored');
-    expect(text.description).not.toMatch(/this week/i);
   });
 });
 
 describe('scoredText', () => {
   it('says when the schedule scored the week', () => {
-    expect(scoredText({ scoredBySchedule: true, scoredBy: null }, '09-11-2026 06:00')).toBe('Scored automatically on 09-11-2026 06:00.');
+    expect(scoredText({ scoredBySchedule: true, scoredBy: null }, '09-11-2026 06:00')).toBe('Scored 09-11-2026 06:00 · automatically');
   });
 
   it('names the officer who scored it, when one did', () => {
-    expect(scoredText({ scoredBySchedule: false, scoredBy: 'Amina Otieno' }, '09-11-2026 10:15')).toBe('Scored on 09-11-2026 10:15 by Amina Otieno.');
-    expect(scoredText({ scoredBySchedule: false, scoredBy: null }, '09-11-2026 10:15')).toBe('Scored on 09-11-2026 10:15.');
+    expect(scoredText({ scoredBySchedule: false, scoredBy: 'Amina Otieno' }, '09-11-2026 10:15')).toBe('Scored 09-11-2026 10:15 · Amina Otieno');
+    expect(scoredText({ scoredBySchedule: false, scoredBy: null }, '09-11-2026 10:15')).toBe('Scored 09-11-2026 10:15');
   });
 });
 
@@ -96,5 +95,13 @@ describe('groupBreaches', () => {
       { key: `a|enrolment|${detail}`, schoolName: 'Demo Primary School', detail, dates: ['19-10-2026', '21-10-2026'] },
       { key: 'b|ration|cereals at 1.4 times the ration', schoolName: 'Amani Primary School', detail: 'cereals at 1.4 times the ration', dates: ['19-10-2026'] },
     ]);
+  });
+});
+
+describe('reasonList', () => {
+  it('splits the reasons into a list, each starting with a capital', () => {
+    expect(reasonList("Needs review: learners fed 161% above the school's usual number; enrolment 35% up on last term"))
+      .toEqual(["Learners fed 161% above the school's usual number", 'Enrolment 35% up on last term']);
+    expect(reasonList(undefined)).toEqual([]);
   });
 });

@@ -18,7 +18,7 @@ import {
 } from '../components/ui';
 import { useDataFreshness } from '../hooks/useDataFreshness';
 import { decideReviewItem, getReviewList, getReviewWeeks, scoreReviewWeek } from '../services/api';
-import { DECISIONS, groupBreaches, MODES, notScoredText, recentMondays, reviewWeeks, scoredText, weekLabel, withoutVerdict } from '../features/weeklyReview/weeks';
+import { DECISIONS, groupBreaches, MODES, notScoredText, reasonList, recentMondays, reviewWeeks, scoredText, weekLabel } from '../features/weeklyReview/weeks';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useSession } from '../hooks/useSession';
 import { formatDateTime } from '../utils/format';
@@ -93,9 +93,11 @@ function ListedSchool({ item, week, canDecide, onSaved }) {
                 {decision ? decision.label : 'To review'}
               </Badge>
             </h2>
-            <p className="review__detail">{item.explanation}</p>
+            <ul className="weekly-review__reasons" aria-label="Why it is listed">
+              {reasonList(item.explanation).map((reason) => <li key={reason}>{reason}</li>)}
+            </ul>
             <p className="review__record">
-              Most unusual day: {item.topDate}
+              Most unusual day {item.topDate}
               {item.listedLastWeek && ' · also listed last week'}
             </p>
           </div>
@@ -103,13 +105,15 @@ function ListedSchool({ item, week, canDecide, onSaved }) {
 
         {!item.decision && item.earlierDecision && (
           <p className="review__note">
-            {DECISIONS[item.earlierDecision.status].label} for the week of {item.earlierDecision.week}: {item.earlierDecision.note}.
+            <strong>Earlier: {DECISIONS[item.earlierDecision.status].label}</strong> · week of {item.earlierDecision.week}
+            <span className="weekly-review__note-text">{item.earlierDecision.note}</span>
           </p>
         )}
 
         {item.decision && !editing && (
           <p className="review__note">
-            {decision.label} by {item.decision.reviewedBy || 'an officer'} on {formatDateTime(item.decision.reviewedAt)}: {item.decision.note}
+            <strong>{decision.label}</strong> · {item.decision.reviewedBy || 'an officer'} · {formatDateTime(item.decision.reviewedAt)}
+            <span className="weekly-review__note-text">{item.decision.note}</span>
           </p>
         )}
 
@@ -141,7 +145,7 @@ function OtherSchools({ others, startRank }) {
       <table id={listId} className={`weekly-review__others ${open ? '' : 'weekly-review__others--closed'}`.trim()}>
         <caption className="visually-hidden">Other schools this week, ranked</caption>
         <thead>
-          <tr><th scope="col">Rank</th><th scope="col">School</th><th scope="col">Strongest reasons</th></tr>
+          <tr><th scope="col">Rank</th><th scope="col">School</th><th scope="col">Reasons</th></tr>
         </thead>
         <tbody>
           {others.map((item, i) => (
@@ -149,8 +153,10 @@ function OtherSchools({ others, startRank }) {
               <td className="tabular-nums">{startRank + i}</td>
               <th scope="row">{item.schoolName}</th>
               <td>
-                {withoutVerdict(item.explanation)}
-                {item.decision && ` (${DECISIONS[item.decision.status].label.toLowerCase()})`}
+                <ul className="weekly-review__reasons">
+                  {reasonList(item.explanation).map((reason) => <li key={reason}>{reason}</li>)}
+                </ul>
+                {item.decision && <Badge tone={DECISIONS[item.decision.status].tone}>{DECISIONS[item.decision.status].label}</Badge>}
               </td>
             </tr>
           ))}
@@ -259,8 +265,8 @@ function WeeklyReview() {
           </div>
           {list && (
             <p className="weekly-review__meta">
-              {MODES[list.mode]} {scoredText(list, formatDateTime(list.scoredAt))}{' '}
-              Late records for a recent week get it scored again automatically; decisions are kept.
+              {scoredText(list, formatDateTime(list.scoredAt))}
+              {MODES[list.mode] && <> · {MODES[list.mode]}</>}
             </p>
           )}
         </Card>
@@ -279,9 +285,7 @@ function WeeklyReview() {
 
         {list && listed.length > 0 && (
           <StatusLine icon={ListChecks} tone={decided === listed.length ? 'success' : 'neutral'}>
-            <strong>{decided} of {listed.length} listed schools reviewed.</strong>{' '}
-            A school is listed because its records differ from what is usual for it and for similar schools nearby;
-            there is often an ordinary reason, such as a school event or a late sync.
+            <strong>{decided} of {listed.length} listed schools reviewed</strong>
           </StatusLine>
         )}
 

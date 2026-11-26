@@ -130,7 +130,7 @@ async function listRuns(req, res, next) {
     );
     const term = await pool.query(
       `SELECT to_char(opens_on - (EXTRACT(ISODOW FROM opens_on)::int - 1), 'YYYY-MM-DD') AS first_week
-       FROM school_terms WHERE opens_on <= $1 ORDER BY opens_on DESC LIMIT 1`,
+       FROM school_terms WHERE opens_on <= $1 AND NOT practice ORDER BY opens_on DESC LIMIT 1`,
       [localDate(clock.now())]
     );
     res.json({

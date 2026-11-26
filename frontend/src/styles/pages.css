@@ -1954,3 +1954,17 @@
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-medium);
 }
+
+/* Weekly review: each reason on its own line, and a decision's note under its heading */
+.weekly-review__reasons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding-left: var(--space-5);
+}
+
+.weekly-review__note-text {
+  display: block;
+  margin-top: var(--space-1);
+}
