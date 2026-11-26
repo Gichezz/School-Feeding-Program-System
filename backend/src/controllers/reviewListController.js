@@ -108,7 +108,9 @@ async function loadRun(db, subCounty, weekStart) {
 
 /**
  * GET /api/review-lists?subCounty=
- * The sub-county's scored weeks, newest first, with how many listed schools are decided.
+ * The sub-county's scored weeks, newest first, with how many listed schools are decided,
+ * and firstWeek: the Monday of the week the latest term to have opened began, so an
+ * officer can look back over the whole term (or the term just ended) during the holidays.
  */
 async function listRuns(req, res, next) {
   try {
@@ -126,8 +128,14 @@ async function listRuns(req, res, next) {
        LIMIT 52`,
       [subCounty]
     );
+    const term = await pool.query(
+      `SELECT to_char(opens_on - (EXTRACT(ISODOW FROM opens_on)::int - 1), 'YYYY-MM-DD') AS first_week
+       FROM school_terms WHERE opens_on <= $1 ORDER BY opens_on DESC LIMIT 1`,
+      [localDate(clock.now())]
+    );
     res.json({
       subCounty,
+      firstWeek: toDisplay(term.rows[0]?.first_week),
       weeks: result.rows.map((r) => ({
         week: toDisplay(r.week_start), mode: r.mode, k: r.k, scoredAt: r.created_at, scoredBySchedule: r.scored_by_schedule,
         listed: r.listed, decided: r.decided,

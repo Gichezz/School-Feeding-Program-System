@@ -150,6 +150,13 @@ describe('scoring a week', () => {
     ]);
   });
 
+  it('gives the first week of the latest term to have opened, so the whole term can be looked back on', async () => {
+    // Term 3 2026 opens on Monday 24 August; the test clock is 8 October
+    const res = await asOfficer.get('/api/review-lists');
+
+    expect(res.body.firstWeek).toBe('24-08-2026');
+  });
+
   it('leaves follow-up weeks out of later fits', async () => {
     requestScores.mockResolvedValue(scores([SCHOOL_ID, OTHER_SCHOOL_ID]));
     await asOfficer.post('/api/review-lists/28-09-2026/run').send({});

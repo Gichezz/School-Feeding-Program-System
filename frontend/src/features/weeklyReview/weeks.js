@@ -17,6 +17,25 @@ export function recentMondays(now = new Date(), count = 8) {
   });
 }
 
+const toTime = (week) => {
+  const [d, m, y] = week.split('-').map(Number);
+  return new Date(y, m - 1, d).getTime();
+};
+
+/**
+ * The weeks an officer can pick, newest first: at least the last `count` weeks, back to
+ * `firstWeek` (the first week of the latest term to have opened, from the API) so the whole
+ * term stays reachable in the holidays, and any older week already scored.
+ */
+export function reviewWeeks(now = new Date(), firstWeek = null, scored = [], count = 8) {
+  const MAX_WEEKS = 60;
+  let weeks = recentMondays(now, MAX_WEEKS);
+  const stop = firstWeek ? weeks.indexOf(firstWeek) : -1;
+  weeks = weeks.slice(0, Math.max(count, stop + 1));
+  const all = new Set([...weeks, ...scored]);
+  return [...all].sort((a, b) => toTime(b) - toTime(a));
+}
+
 /** "Week of 05-10-2026 (this week)", with how far the officer has got through its list. */
 export function weekLabel(week, scored, index) {
   const when = index === 0 ? ' (this week)' : index === 1 ? ' (last week)' : '';

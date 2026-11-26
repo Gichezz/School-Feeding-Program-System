@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { groupBreaches, notScoredText, recentMondays, scoredText, weekLabel, withoutVerdict } from './weeks';
+import { groupBreaches, notScoredText, recentMondays, reviewWeeks, scoredText, weekLabel, withoutVerdict } from './weeks';
 
 describe('recentMondays', () => {
   it('starts at the Monday of the current week', () => {
@@ -21,6 +21,31 @@ describe('weekLabel', () => {
   it('says how far the list has been reviewed', () => {
     expect(weekLabel('05-10-2026', { listed: 3, decided: 1 }, 0)).toBe('Week of 05-10-2026 (this week) · 1 of 3 reviewed');
     expect(weekLabel('28-09-2026', null, 1)).toBe('Week of 28-09-2026 (last week) · not scored');
+  });
+});
+
+describe('reviewWeeks', () => {
+  const now = new Date(2026, 10, 26); // Thursday 26 November 2026
+
+  it('offers the last eight weeks when no term is known', () => {
+    expect(reviewWeeks(now)).toEqual(recentMondays(now, 8));
+  });
+
+  it('reaches back to the first week of the term just ended', () => {
+    const weeks = reviewWeeks(now, '24-08-2026');
+    expect(weeks[0]).toBe('23-11-2026');
+    expect(weeks.at(-1)).toBe('24-08-2026');
+    expect(weeks).toHaveLength(14);
+  });
+
+  it('keeps at least eight weeks early in a term', () => {
+    expect(reviewWeeks(now, '16-11-2026')).toHaveLength(8);
+  });
+
+  it('adds older weeks that were already scored, newest first', () => {
+    const weeks = reviewWeeks(now, '24-08-2026', ['20-07-2026', '05-10-2026']);
+    expect(weeks.at(-1)).toBe('20-07-2026');
+    expect(weeks).toHaveLength(15);
   });
 });
 

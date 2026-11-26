@@ -18,7 +18,7 @@ import {
 } from '../components/ui';
 import { useDataFreshness } from '../hooks/useDataFreshness';
 import { decideReviewItem, getReviewList, getReviewWeeks, scoreReviewWeek } from '../services/api';
-import { DECISIONS, groupBreaches, MODES, notScoredText, recentMondays, scoredText, weekLabel, withoutVerdict } from '../features/weeklyReview/weeks';
+import { DECISIONS, groupBreaches, MODES, notScoredText, recentMondays, reviewWeeks, scoredText, weekLabel, withoutVerdict } from '../features/weeklyReview/weeks';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useSession } from '../hooks/useSession';
 import { formatDateTime } from '../utils/format';
@@ -179,9 +179,13 @@ function WeeklyReview() {
   const allowed = isOfficer;
 
   const [scoredWeeks, setScoredWeeks] = useState({});
-  const mondays = useMemo(() => recentMondays(new Date(), 8), []);
+  const [firstWeek, setFirstWeek] = useState(null);
+  const mondays = useMemo(
+    () => reviewWeeks(new Date(), firstWeek, Object.keys(scoredWeeks)),
+    [firstWeek, scoredWeeks]
+  );
   // Last week first: finished weeks are scored automatically, the week in progress is not
-  const [week, setWeek] = useState(mondays[1]);
+  const [week, setWeek] = useState(() => recentMondays(new Date(), 2)[1]);
   const [list, setList] = useState(undefined);
   const [error, setError] = useState(null);
   const [scoring, setScoring] = useState(false);
@@ -194,6 +198,7 @@ function WeeklyReview() {
     try {
       const weeks = await getReviewWeeks();
       setScoredWeeks(Object.fromEntries((weeks.weeks || []).map((w) => [w.week, w])));
+      setFirstWeek(weeks.firstWeek || null);
       setList(await getReviewList(week));
       markLoaded();
     } catch (err) {
