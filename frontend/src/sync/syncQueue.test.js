@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import db from '../db/database';
 import {
   addToSyncQueue,
@@ -34,6 +34,22 @@ describe('addToSyncQueue', () => {
       retryCount: 0,
       errorMessage: null,
     });
+  });
+});
+
+describe('operation order', () => {
+  it('returns operations queued in the same millisecond in the order they were made', async () => {
+    // A create and its edit saved in one click share a millisecond; the edit must
+    // still come back after the create, whatever the random part of the id is.
+    vi.spyOn(Date, 'now').mockReturnValue(1795553770791);
+    const made = [];
+    for (let i = 0; i < 20; i += 1) {
+      made.push((await queue({ recordId: i, operation: i === 0 ? 'create' : 'update' })).id);
+    }
+
+    const pending = await getPendingOperations();
+
+    expect(pending.map((op) => op.id)).toEqual(made);
   });
 });
 

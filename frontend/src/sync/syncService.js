@@ -119,10 +119,12 @@ export async function processSingleOperation(operation, options = {}) {
 }
 
 /**
- * Check if the browser is online
+ * Check if the browser is online. Only an explicit `onLine === false` counts as offline:
+ * browsers always report a boolean, while Node.js 21 and later define `navigator`
+ * without `onLine`, and a missing value must not stop the sync.
  */
 export function isOnline() {
-  return typeof navigator !== 'undefined' ? navigator.onLine : true;
+  return typeof navigator === 'undefined' || navigator.onLine !== false;
 }
 
 /**
