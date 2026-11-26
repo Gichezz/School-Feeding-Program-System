@@ -2,11 +2,19 @@ import db from '../db/database';
 import { getOrCreateClientId } from '../db/database';
 import { getSession } from '../services/session';
 
+// Last timestamp used in an operation id on this page
+let lastIdTime = 0;
+
 /**
- * Generate a unique operation ID for synchronization
+ * Generate a unique operation ID for synchronization.
+ * Pending operations are sent in id order, so a record's create must sort before its
+ * later edits. The timestamp part never repeats or goes back within a page: two
+ * operations queued in the same millisecond get consecutive values instead of being
+ * ordered by their random suffix.
  */
-function generateOperationId() {
-  return `op_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+export function generateOperationId() {
+  lastIdTime = Math.max(Date.now(), lastIdTime + 1);
+  return `op_${lastIdTime}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
 /**

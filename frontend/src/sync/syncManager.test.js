@@ -59,6 +59,18 @@ describe('processSyncQueue', () => {
     expect((await db.syncQueue.toArray())[0].status).toBe('pending');
   });
 
+  it('treats a navigator that does not report onLine as online', async () => {
+    // Node.js 21 and later define navigator without onLine; only false means offline
+    vi.stubGlobal('navigator', {});
+    await saveLocalAttendance(attendance);
+    const [operation] = await db.syncQueue.toArray();
+    syncOperations.mockResolvedValue(synced(operation.id, 1));
+
+    await processSyncQueue();
+
+    expect(syncOperations).toHaveBeenCalledTimes(1);
+  });
+
   it('sends queued operations and marks them and their records as synced', async () => {
     const saved = await saveLocalAttendance(attendance);
     const [operation] = await db.syncQueue.toArray();

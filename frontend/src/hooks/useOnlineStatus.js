@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { isOnline as browserIsOnline } from '../sync/syncService';
 
 /**
  * Hook to track online/offline status using browser's online/offline events
@@ -6,11 +7,8 @@ import { useState, useEffect } from 'react';
  */
 export function useOnlineStatus() {
   const [isOnline, setIsOnline] = useState(() => {
-    // Initialize with current browser status
-    if (typeof navigator !== 'undefined') {
-      return navigator.onLine;
-    }
-    return true;
+    // Initialize with current browser status; offline only when it says so
+    return browserIsOnline();
   });
 
   useEffect(() => {
