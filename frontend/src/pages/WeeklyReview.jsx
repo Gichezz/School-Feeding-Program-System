@@ -18,7 +18,7 @@ import {
 } from '../components/ui';
 import { useDataFreshness } from '../hooks/useDataFreshness';
 import { decideReviewItem, getReviewList, getReviewWeeks, scoreReviewWeek } from '../services/api';
-import { DECISIONS, groupBreaches, MODES, recentMondays, scoredText, weekLabel, withoutVerdict } from '../features/weeklyReview/weeks';
+import { DECISIONS, groupBreaches, MODES, notScoredText, recentMondays, scoredText, weekLabel, withoutVerdict } from '../features/weeklyReview/weeks';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useSession } from '../hooks/useSession';
 import { formatDateTime } from '../utils/format';
@@ -255,7 +255,7 @@ function WeeklyReview() {
               options={mondays.map((monday, i) => ({ value: monday, label: weekLabel(monday, scoredWeeks[monday], i) }))}
             />
             <Button icon={RefreshCw} loading={scoring} disabled={!ready} onClick={score}>
-              {list ? 'Score again' : 'Score this week'}
+              {list ? 'Score again' : 'Score now'}
             </Button>
           </div>
           {list && (
@@ -273,8 +273,7 @@ function WeeklyReview() {
           <Card>
             <EmptyState
               icon={ListChecks}
-              title="This week has not been scored"
-              description="Each week is scored automatically once it is over and its records have reached the server. To see the week in progress now, score it here."
+              {...notScoredText(week, mondays.indexOf(week))}
             />
           </Card>
         )}

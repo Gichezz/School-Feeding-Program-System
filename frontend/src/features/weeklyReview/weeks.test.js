@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { groupBreaches, recentMondays, scoredText, weekLabel, withoutVerdict } from './weeks';
+import { groupBreaches, notScoredText, recentMondays, scoredText, weekLabel, withoutVerdict } from './weeks';
 
 describe('recentMondays', () => {
   it('starts at the Monday of the current week', () => {
@@ -21,6 +21,18 @@ describe('weekLabel', () => {
   it('says how far the list has been reviewed', () => {
     expect(weekLabel('05-10-2026', { listed: 3, decided: 1 }, 0)).toBe('Week of 05-10-2026 (this week) · 1 of 3 reviewed');
     expect(weekLabel('28-09-2026', null, 1)).toBe('Week of 28-09-2026 (last week) · not scored');
+  });
+});
+
+describe('notScoredText', () => {
+  it('calls the current week this week', () => {
+    expect(notScoredText('23-11-2026', 0).title).toBe('This week has not been scored');
+  });
+
+  it('names an earlier week instead of calling it this week', () => {
+    const text = notScoredText('16-11-2026', 1);
+    expect(text.title).toBe('The week of 16-11-2026 has not been scored');
+    expect(text.description).not.toMatch(/this week/i);
   });
 });
 

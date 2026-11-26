@@ -25,6 +25,23 @@ export function weekLabel(week, scored, index) {
   return `Week of ${week}${when} · ${progress}`;
 }
 
+/**
+ * What to say about a week with no list yet. The page opens on last week, so it names the
+ * week it means rather than calling every week "this week".
+ */
+export function notScoredText(week, index) {
+  if (index === 0) {
+    return {
+      title: 'This week has not been scored',
+      description: 'It is scored automatically once it is over and its records have reached the server. To see it so far, score it now.',
+    };
+  }
+  return {
+    title: `The week of ${week} has not been scored`,
+    description: 'A finished week is scored automatically once its records have reached the server. To see it now, score it here.',
+  };
+}
+
 /** "Scored automatically on …." or "Scored on … by <name>.": who or what produced the list. */
 export function scoredText(list, when) {
   if (list.scoredBySchedule) return `Scored automatically on ${when}.`;
@@ -49,7 +66,8 @@ export const MODES = {
   // Weeks scored before the switch to Extended Isolation Forest (protocol version 6)
   one_class_svm: 'Ranked against each school’s own records and similar schools over about the last two terms.',
   rules_only: 'Ranked by the fixed checks only, until there are enough records to compare schools.',
-  no_records: 'No feeding records have synced for this week yet.',
+  // Only school days are ranked, so a week can have records and still have none to rank
+  no_records: 'No feeding on a school day has reached the server for this week yet. Weekends, holidays and days outside the school terms are not ranked.',
 };
 
 /**
