@@ -23,8 +23,7 @@ function StockTable({ schools, caption, limit }) {
 
   if (rows.length === 0) {
     return (
-      <EmptyState compact icon={Warehouse} title="No store figures yet"
-        description="They appear once schools have sent feeding and stock records for this term." />
+      <EmptyState compact icon={Warehouse} title="No store figures yet" />
     );
   }
 

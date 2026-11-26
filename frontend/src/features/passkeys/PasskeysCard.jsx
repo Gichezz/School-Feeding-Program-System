@@ -29,8 +29,7 @@ export function RecoveryCodes({ codes, onDone }) {
     <div className="passkeys__codes">
       <h3 ref={headingRef} tabIndex={-1} className="passkeys__codes-title">Save your recovery codes</h3>
       <p>
-        If you cannot use your passkeys or authenticator app, sign in with your password and one of these codes. Each code works
-        once. Keep them somewhere safe, away from this device. <strong>They will not be shown again.</strong>
+        Each code works once. Keep them safe, away from this device. <strong>They will not be shown again.</strong>
       </p>
       <ol className="passkeys__code-list" aria-label="Recovery codes">
         {codes.map((code) => <li key={code} className="passkeys__code tabular-nums">{code}</li>)}
@@ -129,7 +128,7 @@ function PasskeysCard() {
     <Card
       id="passkeys"
       title="Passkeys"
-      description="Sign in with your device's fingerprint, face or screen lock. Add one on each device you use."
+      description="Fingerprint, face or screen lock"
       actions={!adding && !codes && supported && (
         <Button icon={Fingerprint} onClick={() => setAdding(true)} disabled={!isOnline}>Add a passkey</Button>
       )}
@@ -167,7 +166,6 @@ function PasskeysCard() {
             compact
             icon={KeyRound}
             title="No passkey yet"
-            description="Add a passkey to secure your account. After that, signing in needs the passkey, not just your password."
           />
         )}
 

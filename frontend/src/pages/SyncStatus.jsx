@@ -5,7 +5,6 @@ import {
   DataTable,
   PageHeader,
   RecordStatus,
-  RECORD_STATES,
   SyncStatusBar,
   recordStateFor,
   useToast,
@@ -104,7 +103,7 @@ function SyncStatus() {
 
   return (
     <>
-      <PageHeader title="Sync" description="What is saved on this device and what has been sent." />
+      <PageHeader title="Sync" />
 
       <div className="ui-stack">
         <SyncStatusBar
@@ -121,7 +120,7 @@ function SyncStatus() {
           onSyncNow={syncNow}
         />
 
-        <Card title="Records on this device" description="Every change saved here, by where it is now.">
+        <Card title="Records on this device">
           {loading ? null : (
             <ul className="sync-status__counts">
               {COUNT_ORDER.filter((state) => counts[state]).map((state) => (
@@ -137,23 +136,14 @@ function SyncStatus() {
           )}
         </Card>
 
-        <Card title="Recent changes" description={`The latest ${RECENT_LIMIT} changes saved on this device, newest first.`}>
+        <Card title="Recent changes">
           <DataTable
             caption="Recent changes"
             columns={COLUMNS}
             rows={recent}
             loading={loading}
-            emptyState={{ title: 'No changes yet', description: 'Records you save on this device appear here.' }}
+            emptyState={{ title: 'No changes yet' }}
           />
-        </Card>
-
-        <Card title="How sending works">
-          <ul className="sync-status__notes">
-            <li>Everything you save is kept on this device first, so nothing is lost without a connection.</li>
-            <li>Lishe sends your changes by itself when you are online. Sync now sends them straight away.</li>
-            <li>If something does not send, it stays here and is tried again.</li>
-            <li>{RECORD_STATES.waiting.label}: a record changed on another device too. You don’t need to do anything.</li>
-          </ul>
         </Card>
       </div>
     </>

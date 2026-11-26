@@ -227,7 +227,7 @@ function Login() {
             <div>
               <h1 className="login__title">Sign in</h1>
               <p className="login__intro">
-                {identity.name}. Sign in with your email and the 6-digit PIN you set on this device.
+                {identity.name}
               </p>
             </div>
             {!isOnline && (
@@ -237,7 +237,7 @@ function Login() {
             )}
             {(identity.status !== 'approved' || justApproved) && <DeviceSteps status={identity.status} />}
             {identity.status !== 'approved' && !error && (
-              <p className="login__intro">Waiting for approval. You can sign in once it is approved; this page will tell you.</p>
+              <p className="login__intro">Waiting for approval.</p>
             )}
             {justApproved && !error && (
               <Alert tone="success" title="This device is approved">You can sign in now.</Alert>
@@ -271,7 +271,7 @@ function Login() {
             <div>
               <h1 className="login__title">Sign in</h1>
               <p className="login__intro">
-                {user ? 'Sign in again to keep sending records. Records saved on this device are kept.' : 'Use the account you were given.'}
+                {user ? 'Sign in again to keep sending records.' : null}
               </p>
             </div>
 
@@ -343,7 +343,7 @@ function Login() {
             <div>
               <h1 className="login__title">Enter your code</h1>
               <p className="login__intro">
-                Enter the 6-digit code your authenticator app shows for Lishe.
+                The 6-digit code from your authenticator app.
               </p>
             </div>
             {!isOnline && <Alert tone="neutral" title="You are offline">Signing in needs a connection.</Alert>}
@@ -379,7 +379,7 @@ function Login() {
             <div>
               <h1 className="login__title">Use a recovery code</h1>
               <p className="login__intro">
-                Each code works once. If you have none left, ask another administrator for help.
+                Each code works once.
               </p>
             </div>
             {!isOnline && <Alert tone="neutral" title="You are offline">Signing in needs a connection.</Alert>}

@@ -88,7 +88,7 @@ function EnrolmentForm({ data }) {
   };
 
   return (
-    <Card title="Learners on the register" description="By class and sex, from the admission register. Leave classes the school does not have empty.">
+    <Card title="Learners on the register" description="Leave classes the school does not have empty.">
       <form className="recording__form" onSubmit={save} noValidate>
         <FormField id="enrolment-term" label="Term" as="select" value={termId} onChange={(e) => setTermId(e.target.value)}
           options={[...data.terms].sort((a, b) => b.year - a.year || b.term - a.term).map((t) => ({ value: t.id, label: termLabel(t) }))} />
@@ -161,7 +161,7 @@ function Enrolment() {
   const data = useSchoolData();
   return (
     <>
-      <PageHeader title="Enrolment" description="Learners registered each term, by class and sex. It sets the food the school can request." />
+      <PageHeader title="Enrolment" />
       <SchoolGate data={data}>
         <EnrolmentForm data={data} />
       </SchoolGate>

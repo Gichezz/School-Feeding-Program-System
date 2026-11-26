@@ -64,7 +64,7 @@ function Settings() {
 
   return (
     <>
-      <PageHeader title="Settings" description="Your account and what is stored on this device." />
+      <PageHeader title="Settings" />
 
       <div className="ui-stack">
         <Card
@@ -87,7 +87,7 @@ function Settings() {
 
         <ChangePasswordCard />
 
-        <Card title="This device" description="Records are saved here first, so they are safe without a connection.">
+        <Card title="This device">
           <SummaryList
             rows={[
               { key: 'connection', label: 'Connection', value: isOnline ? 'Online' : 'Offline' },
@@ -105,17 +105,13 @@ function Settings() {
             ]}
           />
           <p className="settings__note">
-            Signing out keeps these records on the device; they sync the next time someone signs in here.
+            Signing out keeps these records on this device.
           </p>
         </Card>
 
         <Card title={`About ${APP_NAME}`}>
           <div className="settings__about">
             <LisheLogo withTagline />
-            <p className="settings__note">
-              {APP_NAME} records each school day&apos;s feeding and the school&apos;s food stock, works without a
-              connection, and syncs with the programme&apos;s central server when one is available.
-            </p>
           </div>
         </Card>
       </div>

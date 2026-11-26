@@ -47,8 +47,7 @@ function ActivationCode({ name, email, status, code, expiresAt, onDone }) {
       <div className="users__code">
         <h3 ref={headingRef} tabIndex={-1} className="users__panel-title">Activation email sent to {name}</h3>
         <p>
-          The email to <strong>{email}</strong> was accepted for sending. That does not mean it has arrived. The code works
-          once, until {formatDateTime(expiresAt)}. If it does not arrive, check the address and email a new one from Manage.
+          Sent to <strong>{email}</strong>. The code works once, until {formatDateTime(expiresAt)}.
         </p>
         {done}
       </div>
@@ -72,9 +71,7 @@ function ActivationCode({ name, email, status, code, expiresAt, onDone }) {
       <h3 ref={headingRef} tabIndex={-1} className="users__panel-title">Activation code for {name}</h3>
       <p className="users__code-value tabular-nums">{code}</p>
       <p>
-        Give this code to {name} in person. On the school device they choose <strong>Set up this school device</strong>,
-        enter their email and this code, and pick their own password and PIN. It works once and expires {formatDateTime(expiresAt)}.
-        It will not be shown again. This hand-over is recorded in their account history.
+        Give this code to {name} in person. It works once and expires {formatDateTime(expiresAt)}. It will not be shown again.
       </p>
       <div className="users__actions">
         <Button variant="secondary" icon={Copy} onClick={copy}>Copy code</Button>
@@ -160,7 +157,7 @@ function ActivationSection({ user, busy, setBusy, setServerError, onCode }) {
     <div className="users__section">
       <h4 className="users__section-title">Activation</h4>
       <p className="users__panel-meta">
-        {state} A new code is for setting up a school device for the first time, or after forgetting their password. Any earlier code stops working.
+        {state} Any earlier code stops working.
       </p>
       <div className="users__actions">
         <Button variant="secondary" icon={Mail} onClick={sendEmail} loading={busy === 'email'} disabled={Boolean(busy)}>
@@ -175,7 +172,7 @@ function ActivationSection({ user, busy, setBusy, setServerError, onCode }) {
       {handingOver && (
         <div className="ui-stack">
           <FormField id={`handover-${user.id}`} label="Why in person, and how" as="textarea" rows={2} maxLength={500}
-            hint="For example: No email access; given at the sub-county office. Kept in their account history."
+            hint="For example: no email access"
             value={note} onChange={(e) => setNote(e.target.value)} error={noteError || undefined} />
           <div className="users__actions">
             <Button onClick={handOver} loading={busy === 'handover'} disabled={Boolean(busy)}>Show a code to hand over</Button>

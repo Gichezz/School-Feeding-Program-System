@@ -94,7 +94,7 @@ function ProgrammeDashboard() {
       ...(enrolmentToCheck === null
         ? { title: 'Enrolment checks', description: 'Each school’s termly enrolment, to verify against the register.', actionLabel: 'Open', unknown: true }
         : enrolmentToCheck > 0
-          ? { title: count(enrolmentToCheck, 'school’s enrolment to check', 'schools’ enrolment to check'), description: 'It sets the food a school can request.' }
+          ? { title: count(enrolmentToCheck, 'school’s enrolment to check', 'schools’ enrolment to check') }
           : { title: 'No enrolment to check', done: true }),
     },
     ...(term ? [{
@@ -155,9 +155,6 @@ function ProgrammeDashboard() {
         {term && (
           <Card
             title={term.term.closed ? 'Cereals in each store at the close of term' : 'Cereals in each store'}
-            description={term.term.closed
-              ? 'The term has closed, so none of these is marked: this is what each store carries into next term.'
-              : 'School days of food at each school’s recent daily use, against the school days left in the term.'}
             actions={<Link to="/analytics" className="ui-button ui-button--ghost ui-button--sm"><PieChart className="ui-button__icon" aria-hidden="true" />All figures in Analytics</Link>}
           >
             <StockTable schools={schools} caption="Cereals in store and school days of food, by school" />

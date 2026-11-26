@@ -131,7 +131,6 @@ function Review() {
     <div data-density="compact">
       <PageHeader
         title="Record review"
-        description="Records that look unusual are saved as normal and flagged here. Check each one against the school's register."
       />
 
       <div className="ui-stack">
@@ -160,9 +159,6 @@ function Review() {
             <EmptyState
               icon={CheckCircle2}
               title={status === 'open' ? 'Nothing to check' : 'Nothing checked yet'}
-              description={status === 'open'
-                ? 'Records that look unusual appear here.'
-                : 'Flags you mark as checked appear here with your notes.'}
             />
           </Card>
         )}
@@ -203,7 +199,7 @@ function Review() {
                   <FormField
                     id={`note-${flag.id}`}
                     label="What did you find?"
-                    hint="Optional. For example: matches the paper register, or the head teacher confirmed the late entry."
+                    hint="Optional"
                     as="textarea"
                     rows={2}
                     maxLength={MAX_NOTE_LENGTH}

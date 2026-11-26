@@ -47,7 +47,7 @@ function ChangePasswordCard() {
   };
 
   return (
-    <Card title="Change password" description="You need your current password. Other devices you are signed in on will need to sign in again.">
+    <Card title="Change password">
       <form className="settings__form" onSubmit={submit} noValidate>
         {!isOnline && <Alert tone="neutral" title="You are offline">Changing your password needs a connection.</Alert>}
         {serverError && <Alert tone="danger" title="Password not changed">{serverError}</Alert>}
@@ -57,7 +57,7 @@ function ChangePasswordCard() {
           label="New password"
           type="password"
           autoComplete="new-password"
-          hint={`At least ${MIN_PASSWORD_LENGTH} characters. A short phrase is easy to remember.`}
+          hint={`At least ${MIN_PASSWORD_LENGTH} characters.`}
           required
           {...field('newPassword')}
         />

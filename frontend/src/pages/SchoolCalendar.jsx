@@ -10,7 +10,6 @@ function SchoolCalendarPage() {
     <div data-density="compact">
       <PageHeader
         title="School calendar"
-        description="Term dates, half-terms, public holidays and national exams. School devices get changes the next time they sync."
       />
       <SchoolCalendar />
     </div>

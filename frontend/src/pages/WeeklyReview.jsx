@@ -62,9 +62,6 @@ function DecisionForm({ item, week, onSaved }) {
       <FormField
         id={`note-${item.schoolId}`}
         label={status === 'explained' ? 'What explained it?' : 'What will you follow up?'}
-        hint={status === 'explained'
-          ? 'For example: sports day, visitors were fed; or the register matched on a call to the head teacher.'
-          : 'For example: visit to compare the daily record with the class registers and the store.'}
         as="textarea"
         rows={2}
         required
@@ -107,7 +104,6 @@ function ListedSchool({ item, week, canDecide, onSaved }) {
         {!item.decision && item.earlierDecision && (
           <p className="review__note">
             {DECISIONS[item.earlierDecision.status].label} for the week of {item.earlierDecision.week}: {item.earlierDecision.note}.
-            If the same reasons still apply, the same note may do.
           </p>
         )}
 
@@ -136,7 +132,6 @@ function OtherSchools({ others, startRank }) {
   const listId = useId();
   return (
     <Card title={`Other schools this week (${others.length})`}
-      description="Ranked below the list. Their strongest reasons are shown for reference."
       actions={(
         <Button variant="ghost" size="sm" className="no-print" icon={open ? ChevronUp : ChevronDown} aria-expanded={open} aria-controls={listId}
           onClick={() => setOpen((v) => !v)}>
@@ -244,7 +239,6 @@ function WeeklyReview() {
       {list && <PrintHeader title={`Weekly review, week of ${week}`} scope={`${decided} of ${listed.length} listed schools reviewed`} />}
       <PageHeader
         title="Weekly review"
-        description="Each week the schools in your sub-county are ranked by how unusual their feeding records look. Look into the top few and record what you found."
         actions={list && <PrintButton />}
       />
 
@@ -296,9 +290,6 @@ function WeeklyReview() {
             <EmptyState
               icon={CheckCircle2}
               title="No schools listed"
-              description={list.mode === 'rules_only'
-                ? 'No school broke a fixed check this week. Every school is still ranked below.'
-                : 'No school’s records were unusual enough to list this week. Every school is still ranked below.'}
             />
           </Card>
         )}
@@ -311,7 +302,6 @@ function WeeklyReview() {
           <Card>
             <section className="review__item" aria-labelledby="rule-breaches">
               <h2 id="rule-breaches" className="review__title"><Search className="review__icon" aria-hidden="true" />Fixed checks this week</h2>
-              <p className="review__record">These are shown for every school, whatever its rank.</p>
               <ul className="weekly-review__breaches">
                 {groupBreaches(list.ruleBreaches).map((b) => (
                   <li key={b.key}>

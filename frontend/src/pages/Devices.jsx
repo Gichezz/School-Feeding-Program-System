@@ -8,7 +8,7 @@ import DevicesCard from '../features/devices/DevicesCard';
 function Devices() {
   return (
     <div data-density="compact">
-      <PageHeader title="Devices" description="The school tablets and phones that teachers sign in on." />
+      <PageHeader title="Devices" />
       <DevicesCard />
     </div>
   );

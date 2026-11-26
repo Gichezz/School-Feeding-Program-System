@@ -239,7 +239,7 @@ function Analytics() {
       {data && <PrintHeader title="Schools to look at" scope={`${data.subCounty} · ${data.term.label} · figures up to ${data.asOf}`} />}
       <PageHeader
         title="Analytics"
-        description={data ? `${data.subCounty} · ${data.term.label} · from the records that have reached the server, up to ${data.asOf}.` : 'How each school’s term is going, from the records that have reached the server.'}
+        description={data ? `${data.subCounty} · ${data.term.label} · up to ${data.asOf}` : undefined}
         actions={data && <PrintButton />}
       />
       <div className="ui-stack">
