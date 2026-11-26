@@ -63,6 +63,21 @@ Any Linux server that can run Docker works, for example a small cloud VM. Use on
 
 To shorten the commands on the server, you can set `COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml` in `.env`. After that, a plain `docker compose up -d --build` uses both files.
 
+### A public demo server
+
+A server for a demonstration can carry the demo school, its accounts and two years of synthetic records, so the officer screens have history to show. It holds no real school records.
+
+1. In `.env`, set `LOAD_DEMO_DATA=true` before the **first** start (step 5).
+2. **Change the demo passwords straight away.** They are printed in `database/seed.sql`, so anyone could sign in with them. Sign in as `admin@demo-school.local`, change your own password in **Settings**, then reset the officer's and the feeding teacher's from **Settings → Users**. Do not create the administrator in step 6; the demo one is enough.
+3. Load the records, from the project folder:
+
+   ```bash
+   sh deploy/load-demo-records.sh
+   ```
+
+   It generates the synthetic dataset with the scoring service's image and loads one sub-county of it with the API's image, so nothing else needs installing. It refuses a database that is not a demo one, or that already has the records.
+4. Run the smoke test with the new passwords.
+
 ## Configuration
 
 All settings come from `.env` in the project folder, which Git ignores. [`.env.example`](../.env.example) lists them:

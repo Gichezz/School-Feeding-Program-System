@@ -17,12 +17,48 @@ export function recentMondays(now = new Date(), count = 8) {
   });
 }
 
+const toTime = (week) => {
+  const [d, m, y] = week.split('-').map(Number);
+  return new Date(y, m - 1, d).getTime();
+};
+
+/**
+ * The weeks an officer can pick, newest first: at least the last `count` weeks, back to
+ * `firstWeek` (the first week of the latest term to have opened, from the API) so the whole
+ * term stays reachable in the holidays, and any older week already scored.
+ */
+export function reviewWeeks(now = new Date(), firstWeek = null, scored = [], count = 8) {
+  const MAX_WEEKS = 60;
+  let weeks = recentMondays(now, MAX_WEEKS);
+  const stop = firstWeek ? weeks.indexOf(firstWeek) : -1;
+  weeks = weeks.slice(0, Math.max(count, stop + 1));
+  const all = new Set([...weeks, ...scored]);
+  return [...all].sort((a, b) => toTime(b) - toTime(a));
+}
+
 /** "Week of 05-10-2026 (this week)", with how far the officer has got through its list. */
 export function weekLabel(week, scored, index) {
   const when = index === 0 ? ' (this week)' : index === 1 ? ' (last week)' : '';
   if (!scored) return `Week of ${week}${when} · not scored`;
   const progress = scored.listed === 0 ? 'nothing listed' : `${scored.decided} of ${scored.listed} reviewed`;
   return `Week of ${week}${when} · ${progress}`;
+}
+
+/**
+ * What to say about a week with no list yet. The page opens on last week, so it names the
+ * week it means rather than calling every week "this week".
+ */
+export function notScoredText(week, index) {
+  if (index === 0) {
+    return {
+      title: 'This week has not been scored',
+      description: 'It is scored automatically once it is over and its records have reached the server. To see it so far, score it now.',
+    };
+  }
+  return {
+    title: `The week of ${week} has not been scored`,
+    description: 'A finished week is scored automatically once its records have reached the server. To see it now, score it here.',
+  };
 }
 
 /** "Scored automatically on …." or "Scored on … by <name>.": who or what produced the list. */
@@ -49,7 +85,8 @@ export const MODES = {
   // Weeks scored before the switch to Extended Isolation Forest (protocol version 6)
   one_class_svm: 'Ranked against each school’s own records and similar schools over about the last two terms.',
   rules_only: 'Ranked by the fixed checks only, until there are enough records to compare schools.',
-  no_records: 'No feeding records have synced for this week yet.',
+  // Only school days are ranked, so a week can have records and still have none to rank
+  no_records: 'No feeding on a school day has reached the server for this week yet. Weekends, holidays and days outside the school terms are not ranked.',
 };
 
 /**
