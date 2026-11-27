@@ -7,7 +7,7 @@ import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useSession } from '../hooks/useSession';
 import { ENROLMENT_STATUS, TO_CHECK } from '../features/enrolment/checkStatus';
 import { formatDateTime, formatNumber } from '../utils/format';
-import { useChosenTerm } from '../hooks/useChosenTerm';
+import { chosenTermGone, useChosenTerm } from '../hooks/useChosenTerm';
 
 const STATUS = ENROLMENT_STATUS;
 // Each status has an icon as well as a colour
@@ -154,9 +154,10 @@ function EnrolmentChecks() {
       setData(res);
       markLoaded(res.subCounty);
     } catch (err) {
-      setError(err.message);
+      if (chosenTermGone(err, termId)) setTermId('');
+      else setError(err.message);
     }
-  }, [termId, markLoaded]);
+  }, [termId, setTermId, markLoaded]);
 
   useEffect(() => {
     setData(null);

@@ -12,7 +12,7 @@ import { NOT_FED_REASONS } from '../features/feeding/planning';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useSession } from '../hooks/useSession';
 import { formatNumber, formatPercent } from '../utils/format';
-import { useChosenTerm } from '../hooks/useChosenTerm';
+import { chosenTermGone, useChosenTerm } from '../hooks/useChosenTerm';
 
 /**
  * A figure, with an optional muted second line (sub). When it needs attention it is
@@ -215,9 +215,13 @@ function Analytics() {
     setError(null);
     getTermAnalytics({ ...(termId && { termId }) })
       .then((res) => { if (active) { setData(res); markLoaded(res.subCounty); } })
-      .catch((err) => { if (active) setError(err.message); });
+      .catch((err) => {
+        if (!active) return;
+        if (chosenTermGone(err, termId)) setTermId('');
+        else setError(err.message);
+      });
     return () => { active = false; };
-  }, [ready, termId, refreshKey, markLoaded]);
+  }, [ready, termId, setTermId, refreshKey, markLoaded]);
 
   if (!allowed) {
     return (
