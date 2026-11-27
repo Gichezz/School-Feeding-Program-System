@@ -118,7 +118,9 @@ async function listRuns(req, res, next) {
     const result = await pool.query(
       `SELECT to_char(r.week_start, 'YYYY-MM-DD') AS week_start, r.mode, r.k, r.created_at, r.scored_by_schedule,
               COUNT(i.id) FILTER (WHERE i.listed)::int AS listed,
-              COUNT(d.id) FILTER (WHERE i.listed)::int AS decided
+              COUNT(d.id) FILTER (WHERE i.listed)::int AS decided,
+              COUNT(d.id) FILTER (WHERE i.listed AND d.status = 'follow_up')::int AS follow_up,
+              COUNT(d.id) FILTER (WHERE i.listed AND d.status = 'explained')::int AS explained
        FROM review_runs r
        LEFT JOIN review_items i ON i.run_id = r.id
        LEFT JOIN review_decisions d ON d.school_id = i.school_id AND d.week_start = r.week_start
@@ -130,7 +132,7 @@ async function listRuns(req, res, next) {
     );
     const term = await pool.query(
       `SELECT to_char(opens_on - (EXTRACT(ISODOW FROM opens_on)::int - 1), 'YYYY-MM-DD') AS first_week
-       FROM school_terms WHERE opens_on <= $1 ORDER BY opens_on DESC LIMIT 1`,
+       FROM school_terms WHERE opens_on <= $1 AND NOT practice ORDER BY opens_on DESC LIMIT 1`,
       [localDate(clock.now())]
     );
     res.json({
@@ -138,7 +140,7 @@ async function listRuns(req, res, next) {
       firstWeek: toDisplay(term.rows[0]?.first_week),
       weeks: result.rows.map((r) => ({
         week: toDisplay(r.week_start), mode: r.mode, k: r.k, scoredAt: r.created_at, scoredBySchedule: r.scored_by_schedule,
-        listed: r.listed, decided: r.decided,
+        listed: r.listed, decided: r.decided, followUp: r.follow_up, explained: r.explained,
       })),
     });
   } catch (error) {

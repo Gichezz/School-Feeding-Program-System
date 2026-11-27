@@ -56,14 +56,14 @@ function HeldRecordsCard() {
     <Card
       id="held"
       title="Held records"
-      description="Records that need a check before they count. Apply or discard each one."
+      description="Apply or discard each one."
     >
       <div className="ui-stack">
         {!isOnline && <Alert tone="neutral" title="You are offline">Reviewing held records needs a connection.</Alert>}
         {error && <Alert tone="danger" title="Not done">{error}</Alert>}
         {isOnline && held === null && <LoadingRegion label="Loading held records"><SkeletonText lines={3} /></LoadingRegion>}
         {held?.length === 0 && !error && (
-          <EmptyState compact icon={CheckCircle2} title="Nothing held" description="No records are waiting for a check." />
+          <EmptyState compact icon={CheckCircle2} title="Nothing held" />
         )}
 
         {held?.length > 0 && (

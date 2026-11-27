@@ -1,3 +1,4 @@
+import math
 from pathlib import Path
 
 import numpy as np
@@ -121,6 +122,12 @@ def test_uptake_is_neutral_where_present_is_not_recorded_and_after_hours_is_flag
 def test_explanations_read_correctly_at_the_edges():
     from anomaly.explain import describe
 
+    # The figures behind a reason, to check against the register and store book
+    assert describe("fed_vs_own", {"fed_vs_own": math.log(901 / 346), "learners_fed": 900}) == \
+        "learners fed 160% above the school's usual number (900; usually about 345)"
+    assert describe("cereal_ratio", {"cereal_ratio": math.log(1.1), "cereals_kg": 59.5, "learners_fed": 360}) == \
+        "cereals issued at 1.10 times the ration for learners fed (59.5 kg for 360 learners; ration 54 kg)"
+    assert describe("fed_vs_own", {"fed_vs_own": 0.5}) == "learners fed 65% above the school's usual number"
     assert describe("entry_batch", {"entry_batch": 1}) == "entered on its own"
     assert describe("entry_batch", {"entry_batch": 6}) == "6 dates entered in the same sitting"
     assert describe("fed_steadiness", {"fed_steadiness": -0.005}) == "almost the same number of learners fed day after day"

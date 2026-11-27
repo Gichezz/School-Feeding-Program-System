@@ -8,6 +8,8 @@ happened: an unusual record may be a mistake, a real event or a problem.
 
 import math
 
+from .features import RATION_KG
+
 TOP = 2
 
 
@@ -19,20 +21,51 @@ def _points(x):
     return f"{abs(x) * 100:.0f} percentage points"
 
 
+def _value(row, key):
+    """A figure from the school-day's record, or None when it is not there."""
+    try:
+        value = row[key]
+    except (KeyError, IndexError):
+        return None
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        return None
+    return None if math.isnan(value) else value
+
+
+def _kg(x):
+    return f"{x:,.1f}".rstrip("0").rstrip(".") + " kg"
+
+
 def describe(feature, row):
-    """One sentence about one feature of a school-day."""
+    """One sentence about one feature of a school-day, with the figures an officer can check
+    against the school's register and store book where the record holds them."""
     if feature in ("fed_rate", "share_fed"):
         return f"{row['learners_fed']} learners fed of {row['learners']} enrolled ({_pct(row['share_fed'])})"
     if feature == "fed_vs_own":
         change = math.exp(row["fed_vs_own"]) - 1
-        return f"learners fed {_pct(change)} {'above' if change > 0 else 'below'} the school's usual number"
+        text = f"learners fed {_pct(change)} {'above' if change > 0 else 'below'} the school's usual number"
+        fed = _value(row, "learners_fed")
+        if fed is not None:
+            usual = (fed + 1) / math.exp(row["fed_vs_own"]) - 1
+            text += f" ({fed:.0f}; usually about {usual:.0f})"
+        return text
     if feature == "fed_vs_peers":
         diff = row["fed_vs_peers"]
-        return f"a share of learners fed {_points(diff)} {'above' if diff > 0 else 'below'} similar schools nearby that day"
+        text = f"a share of learners fed {_points(diff)} {'above' if diff > 0 else 'below'} similar schools nearby that day"
+        share, peers = _value(row, "share_fed"), _value(row, "peer_rate")
+        if share is not None and peers is not None:
+            text += f" ({share * 100:.0f}% of enrolment here; {peers * 100:.0f}% at similar schools)"
+        return text
     if feature in ("cereal_ratio", "pulse_ratio"):
         food = "cereals" if feature == "cereal_ratio" else "pulses"
         factor = math.exp(row[feature])
-        return f"{food} issued at {factor:.2f} times the ration for learners fed"
+        text = f"{food} issued at {factor:.2f} times the ration for learners fed"
+        issued, fed = _value(row, f"{food}_kg"), _value(row, "learners_fed")
+        if issued is not None and fed:
+            text += f" ({_kg(issued)} for {fed:.0f} learners; ration {_kg(fed * RATION_KG[food])})"
+        return text
     if feature == "usage_trend":
         return f"food issued per learner up {_pct(math.exp(row['usage_trend']) - 1)} on the weeks before"
     if feature == "count_gap_change":
@@ -55,7 +88,8 @@ def describe(feature, row):
         return f"a share of learners fed, for that kind of day, {_points(diff)} {'above' if diff > 0 else 'below'} last term's"
     if feature == "enrolment_change":
         change = math.exp(row["enrolment_change"]) - 1
-        return f"enrolment {_pct(change)} {'up' if change > 0 else 'down'} on last term ({row['learners']} learners)"
+        before = row["learners"] / math.exp(row["enrolment_change"])
+        return f"enrolment {_pct(change)} {'up' if change > 0 else 'down'} on last term ({row['learners']} learners; {before:.0f} last term)"
     if feature == "uptake":
         return f"{row['learners_fed']} learners fed of {row['learners_present']:.0f} present ({_pct(row['uptake'])})"
     if feature == "fed_vs_peers_trend":

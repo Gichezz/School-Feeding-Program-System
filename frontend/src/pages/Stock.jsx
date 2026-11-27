@@ -169,7 +169,7 @@ function MovementForm({ data }) {
   };
 
   return (
-    <Card id="stock-form" className="recording__form-anchor" title="Record food in or out" description="To fix a mistake, reverse the entry and record it again.">
+    <Card id="stock-form" className="recording__form-anchor" title="Record food in or out">
       <form className="recording__form" onSubmit={save} noValidate>
         <ChoiceGroup id="stock-kind" label="What happened" value={form.kind} onChange={choose('kind')}
           options={Object.entries(KINDS).map(([value, k]) => ({ value, label: k.label }))} />
@@ -236,7 +236,7 @@ function CountForm({ data }) {
   };
 
   return (
-    <Card id="count-form" className="recording__form-anchor" title="Count the store" description="Weigh the food in the store and enter what you count.">
+    <Card id="count-form" className="recording__form-anchor" title="Count the store">
       <form className="recording__form" onSubmit={save} noValidate>
         <ChoiceGroup id="count-commodity" label="Food" value={form.commodity} onChange={(value) => setForm((f) => ({ ...f, commodity: value }))} options={commodityOptions} />
         <div className="ui-grid ui-grid--2">
@@ -307,9 +307,9 @@ function Ledger({ data }) {
   ];
 
   return (
-    <Card title="Store ledger" description="Food received and removed, newest first. Daily issues come from the feeding records.">
+    <Card title="Store ledger">
       {rows.length === 0
-        ? <EmptyState icon={Warehouse} title="No entries yet" description="Record the first delivery or purchase above." compact />
+        ? <EmptyState icon={Warehouse} title="No entries yet" compact />
         : <DataTable caption="Store ledger" columns={columns} rows={rows} getRowKey={(r) => r.key} pageSize={50} />}
     </Card>
   );
@@ -319,14 +319,13 @@ function Stock() {
   const data = useSchoolData();
   return (
     <>
-      <PageHeader title="Stock" description="What is in the store, how long it lasts, and every delivery, loss and count." />
+      <PageHeader title="Stock" />
       <SchoolGate data={data}>
         <div className="ui-stack">
           {data.heldDeliveries?.length > 0 && (
             <StatusLine icon={undefined}>
               <RecordStatus state="hold" reason={data.heldDeliveries.length === 1 ? '1 delivery' : `${data.heldDeliveries.length} deliveries`} />{' '}
-              {data.heldDeliveries.map((m) => m.reference).join(', ')}: this delivery note was already recorded, so it is not in
-              the store yet. If it was a second delivery, it is added once your officer confirms it.
+              {data.heldDeliveries.map((m) => m.reference).join(', ')}: this delivery note was already recorded. It is being checked.
             </StatusLine>
           )}
           <Balances data={data} />

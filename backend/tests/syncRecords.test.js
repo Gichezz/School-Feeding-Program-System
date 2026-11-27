@@ -202,6 +202,16 @@ describe('daily feeding records', () => {
     });
   });
 
+  it('keeps "new learners" as the reason, and still flags the day for a check', async () => {
+    await sync([syncOperation('op-0', 'enrolment', 'create', enrolment({ learners: 350 }), 0)]);
+
+    const res = await sync([syncOperation('op-1', 'dailyFeeding', 'create', feeding({ reasonCode: 'new_learners' }), 0)]);
+
+    expect(res.status).toBe(200);
+    expect((await pool.query('SELECT reason_code FROM daily_feeding')).rows).toEqual([{ reason_code: 'new_learners' }]);
+    expect(await flagsFor('daily_feeding')).toContainEqual(expect.objectContaining({ flag: 'fed_exceeds_enrolled' }));
+  });
+
   it('flags food issued far from the ration, and more issued than the store held', async () => {
     // 400 learners × 150 g = 60 kg of cereals; 90 kg is 50% over. No pulses were delivered.
     await sync([syncOperation('op-0', 'stockMovement', 'create', delivery(), 0)]);

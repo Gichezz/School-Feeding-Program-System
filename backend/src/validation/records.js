@@ -61,7 +61,7 @@ const COMMODITIES = ['cereals', 'pulses', 'oil', 'salt'];
 const MOVEMENT_KINDS = ['delivery', 'purchase', 'loss', 'return', 'reversal'];
 // Why feeding did not happen, or why a day was unusual
 const NOT_FED_REASONS = ['no_food', 'school_closed', 'cook_absent', 'no_water_or_fuel', 'learners_sent_home'];
-const UNUSUAL_REASONS = ['half_day', 'school_event', 'exams', 'visitors_fed'];
+const UNUSUAL_REASONS = ['half_day', 'school_event', 'exams', 'visitors_fed', 'new_learners'];
 const REASON_CODES = [...NOT_FED_REASONS, ...UNUSUAL_REASONS, 'other'];
 const MAX_KG = 100000;
 

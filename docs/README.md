@@ -11,6 +11,7 @@ document, a report or the code.
 |---|---|---|
 | What the system does, for whom | [../README.md](../README.md) | [architecture.md](architecture.md) (Roles) |
 | System design: components, data, offline capture and sync, conflicts, calendar, sign-in, record integrity | [architecture.md](architecture.md) | `database/schema.sql`, `database/migrations/`, `backend/src/`, `frontend/src/sync/` |
+| Feeding record rules: more learners fed than enrolled, and why the limits are where they are | [feeding-record-rules.md](feeding-record-rules.md) | `frontend/src/features/feeding/planning.js`, `database/migrations/023_new_learners_reason.sql` |
 | Synchronisation evaluation (success rate, conflict detection, latency) | [sync-evaluation.md](sync-evaluation.md) | `frontend/evaluation/sync/results/sync_evaluation_report.md` |
 | Why the system monitors records instead of forecasting meal demand | [anomaly-detection.md](anomaly-detection.md), section 1 | `forecasting/data/reports/swedish/forecast_evaluation.md`; [archive/forecasting-prophet.md](archive/forecasting-prophet.md) |
 | Evaluation data: what is real, what is assumed | [synthetic-dataset.md](synthetic-dataset.md) | `forecasting/config/kenya_inputs.yaml`, `forecasting/config/feeding_dataset.yaml`, `forecasting/config/feeding_dataset_realistic.yaml` |

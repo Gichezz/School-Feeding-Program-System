@@ -28,7 +28,7 @@ export function calendarItems(status) {
   const items = [];
   const terms = { key: 'terms', icon: CalendarDays, to: '/calendar' };
   if (status.calendarEnded) {
-    items.push({ ...terms, title: 'No school term is in the calendar after today', description: 'Enter the next terms from the Ministry of Education circular. Until then schools have no term to plan for.' });
+    items.push({ ...terms, title: 'No school term is in the calendar after today', description: 'Add the next terms.' });
   } else if (status.termsReminder) {
     const which = status.missingTerms.length === 3 ? 'school terms' : status.missingTerms.map((n) => `Term ${n}`).join(' and ');
     items.push({ ...terms, title: `Enter the ${status.nextYear} ${which} from the Ministry circular`, description: 'Schools need them to plan food for next year.' });
@@ -92,7 +92,7 @@ function SystemDashboard() {
 
   return (
     <div data-density="compact">
-      <PageHeader title="Dashboard" description="Accounts, school devices and the school calendar." />
+      <PageHeader title="Dashboard" />
       <div className="ui-stack">
         {!isOnline && <StatusLine icon={CloudOff}>Offline. Accounts and devices need a connection.</StatusLine>}
         {error && <Alert tone="danger" title="Could not load accounts and devices">{error}</Alert>}

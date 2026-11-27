@@ -121,7 +121,7 @@ function ActivateDevice() {
             <p className="login__intro">
               {approved
                 ? `${result.user.name}, you can now sign in on ${result.device.name} with your email and PIN.`
-                : `${result.device.name} is set up. You can sign in with your email and PIN once it is approved. This page will tell you.`}
+                : `${result.device.name} is set up. Waiting for approval.`}
             </p>
             <Button as={Link} to="/login" icon={LogIn} fullWidth>Go to sign in</Button>
           </div>
@@ -137,9 +137,6 @@ function ActivateDevice() {
         <form className="login__form" onSubmit={submit} noValidate>
           <div>
             <h1 className="login__title">Set up this school device</h1>
-            <p className="login__intro">
-              For feeding teachers, on the school's tablet or phone. You choose a PIN to sign in with here.
-            </p>
           </div>
           {!identity && <DeviceSteps status={null} />}
 
@@ -172,7 +169,7 @@ function ActivateDevice() {
               <FormField
                 id="activate-code"
                 label="Activation code"
-                hint="The code you were given, e.g. ABCD-EFGH-JKLM. It works once, within 48 hours."
+                hint="For example ABCD-EFGH-JKLM"
                 autoComplete="one-time-code"
                 autoCapitalize="characters"
                 spellCheck={false}
@@ -180,7 +177,7 @@ function ActivateDevice() {
                 {...field('activationCode')}
               />
               <FormField id="activate-new-password" label="Choose a password" type="password" autoComplete="new-password"
-                hint={`At least ${MIN_PASSWORD_LENGTH} characters. You need it to set up a device again.`} required {...field('newPassword')} />
+                hint={`At least ${MIN_PASSWORD_LENGTH} characters.`} required {...field('newPassword')} />
               <FormField id="activate-confirm-password" label="Type the password again" type="password" autoComplete="new-password" required {...field('confirmPassword')} />
             </>
           ) : (

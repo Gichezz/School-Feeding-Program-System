@@ -18,7 +18,7 @@ import {
 } from '../components/ui';
 import { useDataFreshness } from '../hooks/useDataFreshness';
 import { decideReviewItem, getReviewList, getReviewWeeks, scoreReviewWeek } from '../services/api';
-import { DECISIONS, groupBreaches, MODES, notScoredText, recentMondays, reviewWeeks, scoredText, weekLabel, withoutVerdict } from '../features/weeklyReview/weeks';
+import { DECISIONS, groupBreaches, listRecord, MODES, notScoredText, reasonList, recentMondays, reviewWeeks, scoredText, weekLabel } from '../features/weeklyReview/weeks';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useSession } from '../hooks/useSession';
 import { formatDateTime } from '../utils/format';
@@ -62,9 +62,6 @@ function DecisionForm({ item, week, onSaved }) {
       <FormField
         id={`note-${item.schoolId}`}
         label={status === 'explained' ? 'What explained it?' : 'What will you follow up?'}
-        hint={status === 'explained'
-          ? 'For example: sports day, visitors were fed; or the register matched on a call to the head teacher.'
-          : 'For example: visit to compare the daily record with the class registers and the store.'}
         as="textarea"
         rows={2}
         required
@@ -96,9 +93,11 @@ function ListedSchool({ item, week, canDecide, onSaved }) {
                 {decision ? decision.label : 'To review'}
               </Badge>
             </h2>
-            <p className="review__detail">{item.explanation}</p>
+            <ul className="weekly-review__reasons" aria-label="Why it is listed">
+              {reasonList(item.explanation).map((reason) => <li key={reason}>{reason}</li>)}
+            </ul>
             <p className="review__record">
-              Most unusual day: {item.topDate}
+              Most unusual day {item.topDate}
               {item.listedLastWeek && ' · also listed last week'}
             </p>
           </div>
@@ -106,14 +105,15 @@ function ListedSchool({ item, week, canDecide, onSaved }) {
 
         {!item.decision && item.earlierDecision && (
           <p className="review__note">
-            {DECISIONS[item.earlierDecision.status].label} for the week of {item.earlierDecision.week}: {item.earlierDecision.note}.
-            If the same reasons still apply, the same note may do.
+            <strong>Earlier: {DECISIONS[item.earlierDecision.status].label}</strong> · week of {item.earlierDecision.week}
+            <span className="weekly-review__note-text">{item.earlierDecision.note}</span>
           </p>
         )}
 
         {item.decision && !editing && (
           <p className="review__note">
-            {decision.label} by {item.decision.reviewedBy || 'an officer'} on {formatDateTime(item.decision.reviewedAt)}: {item.decision.note}
+            <strong>{decision.label}</strong> · {item.decision.reviewedBy || 'an officer'} · {formatDateTime(item.decision.reviewedAt)}
+            <span className="weekly-review__note-text">{item.decision.note}</span>
           </p>
         )}
 
@@ -136,7 +136,6 @@ function OtherSchools({ others, startRank }) {
   const listId = useId();
   return (
     <Card title={`Other schools this week (${others.length})`}
-      description="Ranked below the list. Their strongest reasons are shown for reference."
       actions={(
         <Button variant="ghost" size="sm" className="no-print" icon={open ? ChevronUp : ChevronDown} aria-expanded={open} aria-controls={listId}
           onClick={() => setOpen((v) => !v)}>
@@ -146,7 +145,7 @@ function OtherSchools({ others, startRank }) {
       <table id={listId} className={`weekly-review__others ${open ? '' : 'weekly-review__others--closed'}`.trim()}>
         <caption className="visually-hidden">Other schools this week, ranked</caption>
         <thead>
-          <tr><th scope="col">Rank</th><th scope="col">School</th><th scope="col">Strongest reasons</th></tr>
+          <tr><th scope="col">Rank</th><th scope="col">School</th><th scope="col">Reasons</th></tr>
         </thead>
         <tbody>
           {others.map((item, i) => (
@@ -154,8 +153,10 @@ function OtherSchools({ others, startRank }) {
               <td className="tabular-nums">{startRank + i}</td>
               <th scope="row">{item.schoolName}</th>
               <td>
-                {withoutVerdict(item.explanation)}
-                {item.decision && ` (${DECISIONS[item.decision.status].label.toLowerCase()})`}
+                <ul className="weekly-review__reasons">
+                  {reasonList(item.explanation).map((reason) => <li key={reason}>{reason}</li>)}
+                </ul>
+                {item.decision && <Badge tone={DECISIONS[item.decision.status].tone}>{DECISIONS[item.decision.status].label}</Badge>}
               </td>
             </tr>
           ))}
@@ -184,6 +185,8 @@ function WeeklyReview() {
     () => reviewWeeks(new Date(), firstWeek, Object.keys(scoredWeeks)),
     [firstWeek, scoredWeeks]
   );
+  // How the list has done since the term opened, from the officers' own decisions
+  const record = useMemo(() => listRecord(Object.values(scoredWeeks), firstWeek), [scoredWeeks, firstWeek]);
   // Last week first: finished weeks are scored automatically, the week in progress is not
   const [week, setWeek] = useState(() => recentMondays(new Date(), 2)[1]);
   const [list, setList] = useState(undefined);
@@ -244,7 +247,6 @@ function WeeklyReview() {
       {list && <PrintHeader title={`Weekly review, week of ${week}`} scope={`${decided} of ${listed.length} listed schools reviewed`} />}
       <PageHeader
         title="Weekly review"
-        description="Each week the schools in your sub-county are ranked by how unusual their feeding records look. Look into the top few and record what you found."
         actions={list && <PrintButton />}
       />
 
@@ -265,8 +267,15 @@ function WeeklyReview() {
           </div>
           {list && (
             <p className="weekly-review__meta">
-              {MODES[list.mode]} {scoredText(list, formatDateTime(list.scoredAt))}{' '}
-              Late records for a recent week get it scored again automatically; decisions are kept.
+              {scoredText(list, formatDateTime(list.scoredAt))}
+              {MODES[list.mode] && <> · {MODES[list.mode]}</>}
+            </p>
+          )}
+          {record.listed > 0 && (
+            <p className="weekly-review__meta">
+              <strong>Since the week of {firstWeek || 'the term opening'}:</strong>{' '}
+              {record.listed} listed · {record.followUp} needed follow-up · {record.explained} explained
+              {record.toReview > 0 && ` · ${record.toReview} to review`}
             </p>
           )}
         </Card>
@@ -285,9 +294,7 @@ function WeeklyReview() {
 
         {list && listed.length > 0 && (
           <StatusLine icon={ListChecks} tone={decided === listed.length ? 'success' : 'neutral'}>
-            <strong>{decided} of {listed.length} listed schools reviewed.</strong>{' '}
-            A school is listed because its records differ from what is usual for it and for similar schools nearby;
-            there is often an ordinary reason, such as a school event or a late sync.
+            <strong>{decided} of {listed.length} listed schools reviewed</strong>
           </StatusLine>
         )}
 
@@ -296,9 +303,6 @@ function WeeklyReview() {
             <EmptyState
               icon={CheckCircle2}
               title="No schools listed"
-              description={list.mode === 'rules_only'
-                ? 'No school broke a fixed check this week. Every school is still ranked below.'
-                : 'No school’s records were unusual enough to list this week. Every school is still ranked below.'}
             />
           </Card>
         )}
@@ -311,7 +315,6 @@ function WeeklyReview() {
           <Card>
             <section className="review__item" aria-labelledby="rule-breaches">
               <h2 id="rule-breaches" className="review__title"><Search className="review__icon" aria-hidden="true" />Fixed checks this week</h2>
-              <p className="review__record">These are shown for every school, whatever its rank.</p>
               <ul className="weekly-review__breaches">
                 {groupBreaches(list.ruleBreaches).map((b) => (
                   <li key={b.key}>

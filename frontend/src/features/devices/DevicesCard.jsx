@@ -68,7 +68,6 @@ function DevicesCard() {
     <Card
       id="devices"
       title="School devices"
-      description="Approve a school's tablet or phone before staff can sign in on it. Remove one that is lost or no longer used."
     >
       <div className="ui-stack">
         {!isOnline && <Alert tone="neutral" title="You are offline">Managing devices needs a connection.</Alert>}
@@ -87,7 +86,6 @@ function DevicesCard() {
             compact
             icon={Tablet}
             title="No school devices yet"
-            description="A device appears here for approval once staff set it up."
           />
         )}
 

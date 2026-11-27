@@ -51,7 +51,8 @@ The ration check compares food issued with the ration for the **learners fed**. 
 
 **Hard rules and warnings on the device.**
 - **Hard rules** stop a record from being saved, and are the same ones the server applies: missing answers, a future date, learners fed above the present count when one is given, food recorded on a day without feeding, and a late entry without a reason.
-- **Warnings** are checks against what the device knows, which can be out of date: more fed than enrolled (enrolment may not be updated yet), and more issued or lost than the device's stock balance (a delivery recorded on another device may not have arrived). The teacher sees "Check before saving" and can save anyway.
+- **More fed than enrolled** needs a reason (new learners, or other with a note), and more than 1.25 times enrolment is not saved until the number is checked or the enrolment is updated. The server flags it either way. [feeding-record-rules.md](feeding-record-rules.md) explains the limits.
+- **Warnings** are checks against what the device knows, which can be out of date: more issued or lost than the device's stock balance (a delivery recorded on another device may not have arrived). The teacher sees "Check before saving" and can save anyway.
 - **The server is authoritative.** It checks every record against its own complete records and **flags** it for the programme officer to review (`fed_exceeds_enrolled`, `issue_exceeds_stock`, `usage_far_from_ration`), keeping the record as entered. Two devices that each issue within their own balance, but together exceed the store, are caught this way.
 
 **Device (IndexedDB, Dexie version 8)**

@@ -93,7 +93,6 @@ function AuthenticatorCard() {
     <Card
       id="authenticator"
       title="Authenticator app"
-      description="A second option if this computer or phone cannot hold a passkey: sign in with your password and a 6-digit code from an app such as Google Authenticator."
       actions={status && !status.enabled && !setup && !codes && (
         <Button icon={Smartphone} onClick={begin} loading={busy === 'setup'} disabled={!isOnline || Boolean(busy)}>
           Set up an app
@@ -142,7 +141,7 @@ function AuthenticatorCard() {
             <Smartphone className="passkeys__item-icon" aria-hidden="true" />
             <div className="passkeys__item-text">
               <p className="passkeys__item-name">Authenticator app is on</p>
-              <p className="passkeys__item-meta">Set up {formatDate(status.confirmedAt)}. Your recovery codes work for it too.</p>
+              <p className="passkeys__item-meta">Set up {formatDate(status.confirmedAt)}.</p>
             </div>
             {!confirmRemove && (
               <Button variant="ghost" size="sm" icon={Trash2} onClick={() => setConfirmRemove(true)} disabled={!isOnline || Boolean(busy)}>
@@ -166,7 +165,7 @@ function AuthenticatorCard() {
           </Alert>
         )}
         {status && !status.enabled && !setup && !codes && (
-          <p className="passkeys__item-meta">Not set up. Passkeys are the main way to sign in; use this if you cannot use one.</p>
+          <p className="passkeys__item-meta">Not set up.</p>
         )}
       </div>
     </Card>

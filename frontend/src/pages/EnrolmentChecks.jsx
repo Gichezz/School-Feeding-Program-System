@@ -102,8 +102,7 @@ function DiscrepancyForm({ school, termId, onRecorded }) {
   }
   return (
     <form className="ui-stack" onSubmit={save} noValidate>
-      <FormField id={`discrepancy-${school.schoolId}`} label="What does not match" as="textarea" rows={3} maxLength={500}
-        hint="For example: Grade 4 girls are 47 in the admission register." value={note}
+      <FormField id={`discrepancy-${school.schoolId}`} label="What does not match" as="textarea" rows={3} maxLength={500} value={note}
         onChange={(e) => setNote(e.target.value)} error={error || undefined} />
       <div className="users__actions">
         <Button type="submit" size="sm" loading={saving}>Record discrepancy</Button>
@@ -193,7 +192,6 @@ function EnrolmentChecks() {
     <div data-density="compact">
       <PageHeader
         title="Enrolment checks"
-        description="Each school's enrolment sets the food it can request. Check it against the admission register, then verify it."
       />
       <div className="ui-stack">
         <div className="analytics__controls">

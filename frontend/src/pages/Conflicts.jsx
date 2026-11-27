@@ -52,11 +52,11 @@ function DeviceConflicts() {
 
   if (!selected) {
     return (
-      <Card title="Waiting for your officer" description="Records changed on this device and on another one. Your programme officer chooses which to keep; you don’t need to do anything.">
+      <Card title="Waiting for your officer" description="You don’t need to do anything.">
         {conflicts === null ? (
           <LoadingRegion label="Loading conflicts"><SkeletonText lines={3} /></LoadingRegion>
         ) : conflicts.length === 0 ? (
-          <EmptyState compact icon={CheckCircle2} title="Nothing waiting" description="A record changed on this device and on another one appears here until it has been checked." />
+          <EmptyState compact icon={CheckCircle2} title="Nothing waiting" />
         ) : (
           <ul className="conflicts__list">
             {conflicts.map((conflict) => {
@@ -143,9 +143,6 @@ function Conflicts() {
     <div data-density={resolves ? 'compact' : undefined}>
       <PageHeader
         title={resolves ? 'Conflicts' : 'Waiting for your officer'}
-        description={resolves
-          ? 'Records changed on two devices with different numbers. Decide which numbers to keep.'
-          : 'Records changed on this device and on another one.'}
       />
       <div className="ui-stack">
         {resolves ? <ServerConflicts /> : <DeviceConflicts />}

@@ -122,7 +122,7 @@ function ServerConflicts() {
     const schools = [...new Set((conflicts || []).map((c) => c.schoolName || 'School'))].sort();
     const shown = (conflicts || []).filter((c) => !school || (c.schoolName || 'School') === school);
     return (
-      <Card title="Records to decide" description="Each was changed on two devices with different numbers. Choose which to keep, or combine them.">
+      <Card title="Records to decide">
         {schools.length > 1 && (
           <FilterChips groups={[{ key: 'school', label: 'School', options: schools.map((name) => ({ value: name, label: name })) }]}
             value={{ school }} onChange={(next) => setSchool(next.school || '')}
@@ -136,7 +136,6 @@ function ServerConflicts() {
             compact
             icon={CheckCircle2}
             title="No conflicts"
-            description="A record changed on two devices with different numbers appears here."
           />
         ) : (
           <ul className="conflicts__list">
@@ -254,7 +253,6 @@ function ServerConflicts() {
             <h2 ref={headingRef} tabIndex={-1} className="conflicts__heading">Check before resolving</h2>
             <p>{chosen.label}. These will be saved for {type.title.toLowerCase()}, {type.when(selected.local, selected)}:</p>
             <SummaryList rows={resultRows()} />
-            <p className="conflicts__note">Your decision is saved with your name. The earlier numbers are kept in the record's history.</p>
             <div className="conflicts__actions">
               <Button onClick={confirm} loading={submitting}>Resolve conflict</Button>
               <Button variant="secondary" icon={ArrowLeft} onClick={() => setStep('choose')} disabled={submitting}>Back</Button>

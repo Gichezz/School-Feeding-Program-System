@@ -193,11 +193,11 @@ function TodayForm({ data }) {
             <ul className="recording__error-list">
               {Object.values(check.warnings).map((message) => <li key={message}>{message}.</li>)}
             </ul>
-            If the numbers are right, save anyway. A delivery or enrolment change recorded on another device may not be here yet.
+            If the numbers are right, save anyway.
           </Alert>
         )}
         <p className="recording__note">
-          {isOnline ? 'Saved on this device first, then sent straight away.' : 'You are offline. It is saved on this device and sent when you are back online.'}
+          {isOnline ? 'Saved on this device, then sent.' : 'You are offline. It is saved on this device.'}
         </p>
         <div className="recording__actions">
           <Button type="submit" size="lg" icon={Save} loading={saving}>
@@ -214,9 +214,9 @@ function Recent({ data }) {
     .sort((a, b) => dayKey(b.feedingDate).localeCompare(dayKey(a.feedingDate)))
     .slice(0, RECENT_DAYS);
   return (
-    <Card title="Recent days" description="Newest first, from every device at the school.">
+    <Card title="Recent days">
       {rows.length === 0
-        ? <EmptyState icon={CalendarCheck} title="No feeding recorded yet" description="Days you record appear here." compact />
+        ? <EmptyState icon={CalendarCheck} title="No feeding recorded yet" compact />
         : (
           <table className="recent-days">
             <caption className="visually-hidden">Recent feeding days</caption>
@@ -345,7 +345,7 @@ function Today() {
   const data = useSchoolData();
   return (
     <>
-      <PageHeader title="Today" description="Record whether learners were fed and the food issued from the store." />
+      <PageHeader title="Today" />
       <SchoolGate data={data}>
         <div className="today__layout">
           {/* The day's record comes first; the store and recent days sit beside it, or under it on phones */}

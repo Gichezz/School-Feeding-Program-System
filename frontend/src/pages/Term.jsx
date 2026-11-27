@@ -43,25 +43,22 @@ function Requirement({ data, term }) {
     { key: 'grams', header: 'Ration (g a day)', align: 'end', render: (r) => formatNumber(r.grams) },
     // Whole kilograms, rounded up like the request, so the columns add up
     { key: 'needKg', header: 'Needed (kg)', align: 'end', render: (r) => formatNumber(Math.ceil(r.needKg)) },
-    { key: 'carryKg', header: 'In store (kg)', align: 'end', render: (r) => kgFigure(r.carryKg) },
+    { key: 'carryKg', header: 'Carried over (kg)', align: 'end', render: (r) => kgFigure(r.carryKg) },
     { key: 'requestKg', header: 'To request (kg)', align: 'end', render: (r) => <strong>{formatNumber(Math.ceil(r.requestKg))}</strong> },
   ];
 
   return (
     <Card title={`Food needed for ${termLabel(term)}`}
-      description={`${formatNumber(need.learners)} learners × ${formatNumber(days.length)} school days × the ration, less the food already in the store.`}>
+      description={`${formatNumber(need.learners)} learners · ${formatNumber(days.length)} school days`}>
       {enrolment.length === 0 && <Alert tone="warning" title="No enrolment for this term">Record this term’s enrolment first.</Alert>}
       {enrolment.length > 0 && !need.verified && (
         <Alert tone="warning" title="Enrolment not verified yet">These figures may change once it is verified.</Alert>
       )}
       {need.awaitingCheck > 0 && (
-        <Alert tone="info">Changed classes count at their last verified number until the programme officer checks them.</Alert>
+        <Alert tone="info">Changed classes count at their last verified number.</Alert>
       )}
       {need.verified && !need.allVerified && need.awaitingCheck === 0 && <Alert tone="info">Only the verified classes are counted.</Alert>}
       <DataTable caption={`Food needed for ${termLabel(term)}`} columns={columns} rows={rows} getRowKey={(r) => r.key} />
-      <p className="recording__note">
-        School days follow the Ministry of Education calendar.
-      </p>
     </Card>
   );
 }
@@ -81,29 +78,56 @@ function Report({ data, term }) {
     { key: 'ratio', header: 'Issued vs ration', align: 'end', render: (x) => (x.ratio === null ? '–' : formatPercent(x.ratio)) },
     { key: 'closing', header: 'Closing (kg)', align: 'end', render: (x) => kgFigure(x.closing) },
   ];
-  const notFed = Object.entries(r.notFed).map(([code, n]) => `${NOT_FED_REASONS[code] || code}: ${n}`).join('; ');
-  const counts = COMMODITIES.filter((c) => r.lastCount[c]).map((c) => ({
-    key: c, label: COMMODITY_LABELS[c],
-    value: `${formatNumber(r.lastCount[c].countedKg)} kg counted on ${r.lastCount[c].date}; records said ${formatNumber(r.lastCount[c].ledgerKg)} kg (${r.lastCount[c].differenceKg > 0 ? '+' : ''}${formatNumber(r.lastCount[c].differenceKg)} kg)`,
-  }));
+  const days = [
+    { key: 'notRecorded', label: 'School days not recorded', value: formatNumber(r.notRecordedDays) },
+    { key: 'notFed', label: 'Days without feeding', value: formatNumber(r.notFedDays) },
+    ...Object.entries(r.notFed).map(([code, n]) => ({ key: code, label: `· ${NOT_FED_REASONS[code] || code}`, value: formatNumber(n) })),
+  ];
+  const deliveryColumns = [
+    { key: 'movementDate', header: 'Date', primary: true, nowrap: true },
+    { key: 'kind', header: 'Entry', render: (d) => (d.kind === 'purchase' ? 'Bought' : 'Delivered') },
+    { key: 'commodity', header: 'Food', render: (d) => COMMODITY_LABELS[d.commodity] },
+    { key: 'quantityKg', header: 'Weighed (kg)', align: 'end', render: (d) => formatNumber(d.quantityKg) },
+    { key: 'noteQuantityKg', header: 'On the note (kg)', align: 'end', render: (d) => (d.noteQuantityKg ? formatNumber(d.noteQuantityKg) : '–') },
+    { key: 'reference', header: 'Note or receipt', nowrap: true, render: (d) => d.reference || '–' },
+  ];
+  const counts = COMMODITIES.filter((c) => r.lastCount[c]).map((c) => ({ key: c, commodity: COMMODITY_LABELS[c], ...r.lastCount[c] }));
+  const countColumns = [
+    { key: 'commodity', header: 'Food', primary: true },
+    { key: 'date', header: 'Counted on', nowrap: true },
+    { key: 'countedKg', header: 'Counted (kg)', align: 'end', render: (x) => formatNumber(x.countedKg) },
+    { key: 'ledgerKg', header: 'Records (kg)', align: 'end', render: (x) => formatNumber(x.ledgerKg) },
+    { key: 'differenceKg', header: 'Difference (kg)', align: 'end', render: (x) => `${x.differenceKg > 0 ? '+' : ''}${formatNumber(x.differenceKg)}` },
+  ];
 
   return (
     <Card title={`Termly report: ${termLabel(term)}`} description={`${data.school?.name || ''} · ${term.opensOn} – ${term.closesOn} · figures up to ${r.upTo}`}
       actions={<PrintButton />}>
       <div className="ui-stack">
         <div className="ui-grid ui-grid--4">
-          <StatCard label="Feeding days" value={`${formatNumber(r.fedDays)} of ${formatNumber(r.expectedDays)}`} hint="School days so far in the term" />
+          <StatCard label="Feeding days" value={`${formatNumber(r.fedDays)} of ${formatNumber(r.expectedDays)}`} />
           <StatCard label="Learners enrolled" value={formatNumber(r.enrolled)} hint={`${formatNumber(r.bySex.F)} girls, ${formatNumber(r.bySex.M)} boys`} />
           <StatCard label="Average fed" value={r.avgFed === null ? '–' : formatNumber(Math.round(r.avgFed))} hint="On days with feeding" />
           <StatCard label="Coverage" value={r.coverage === null ? '–' : formatPercent(r.coverage)} hint="Average fed ÷ enrolled" />
         </div>
-        <SummaryList rows={[
-          { key: 'notFed', label: 'Days without feeding', value: r.notFedDays ? `${r.notFedDays} (${notFed})` : 'None' },
-          { key: 'notRecorded', label: 'School days not recorded', value: formatNumber(r.notRecordedDays) },
-          { key: 'deliveries', label: 'Deliveries and purchases', value: r.deliveries.length ? r.deliveries.map((d) => `${d.movementDate} ${COMMODITY_LABELS[d.commodity]} ${formatNumber(d.quantityKg)} kg (${d.reference || 'no reference'})`).join('; ') : 'None' },
-          ...(counts.length ? counts : [{ key: 'counts', label: 'Stock counts', value: 'No physical count this term' }]),
-        ]} />
-        <DataTable caption={`Food for ${termLabel(term)}`} columns={columns} rows={consumption} getRowKey={(x) => x.key} />
+        <section className="term-report__section" aria-labelledby="term-days">
+          <h3 id="term-days" className="term-report__heading">School days</h3>
+          <SummaryList rows={days} />
+        </section>
+        <section className="term-report__section" aria-labelledby="term-food">
+          <h3 id="term-food" className="term-report__heading">Food</h3>
+          <DataTable caption={`Food for ${termLabel(term)}`} columns={columns} rows={consumption} getRowKey={(x) => x.key} />
+        </section>
+        <section className="term-report__section" aria-labelledby="term-deliveries">
+          <h3 id="term-deliveries" className="term-report__heading">Deliveries and purchases</h3>
+          <DataTable caption="Deliveries and purchases" columns={deliveryColumns} rows={r.deliveries} getRowKey={(d) => d.id}
+            emptyState={{ title: 'None this term' }} />
+        </section>
+        <section className="term-report__section" aria-labelledby="term-counts">
+          <h3 id="term-counts" className="term-report__heading">Store counts</h3>
+          <DataTable caption="Store counts" columns={countColumns} rows={counts} getRowKey={(x) => x.key}
+            emptyState={{ title: 'No count this term' }} />
+        </section>
       </div>
     </Card>
   );
@@ -140,8 +164,8 @@ function TermScreens({ data }) {
           options={[...data.terms].sort((a, b) => b.year - a.year || b.term - a.term).map((t) => ({ value: t.id, label: termLabel(t) }))} />
       </div>
       <StatusLine icon={Users} className="no-print">
-        Food is planned from the last 10 school days with feeding: on average{' '}
-        <strong>{avg === null ? 'not known yet' : `${formatNumber(Math.round(avg))} learners fed`}</strong> a day.
+        Average fed, last 10 feeding days:{' '}
+        <strong>{avg === null ? 'not known yet' : formatNumber(Math.round(avg))}</strong>
       </StatusLine>
       <Requirement data={data} term={term} />
       <Report data={data} term={term} />
@@ -154,7 +178,7 @@ function Term() {
   const data = useSchoolData();
   return (
     <>
-      <PageHeader title="Term plan and report" description="The food to request for a term, and the termly report from this device's records." />
+      <PageHeader title="Term plan and report" />
       <SchoolGate data={data}>
         <TermScreens data={data} />
       </SchoolGate>

@@ -273,17 +273,6 @@
   align-self: center;
 }
 
-/* ---------- Sync status ---------- */
-.sync-status__notes {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  max-width: var(--measure-wide);
-  margin: 0;
-  padding-left: var(--space-5);
-  color: var(--color-ink-muted);
-}
-
 /* ---------- Conflicts ---------- */
 .conflicts__list {
   margin: 0;
@@ -992,7 +981,7 @@
   flex: 1 1 16rem;
 }
 
-/* ---------- Officer home: to do beside the term in three lines ---------- */
+/* ---------- Officer home: to do beside this term's figures ---------- */
 .officer-home__split {
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
@@ -1952,4 +1941,30 @@
 /* A long name wraps rather than push Manage out of sight */
 .users .ui-table--sticky td.ui-table__cell--sticky {
   white-space: normal;
+}
+
+/* Termly report: one heading per part, so each part reads on its own */
+.term-report__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.term-report__heading {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+}
+
+/* Weekly review: each reason on its own line, and a decision's note under its heading */
+.weekly-review__reasons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding-left: var(--space-5);
+}
+
+.weekly-review__note-text {
+  display: block;
+  margin-top: var(--space-1);
 }

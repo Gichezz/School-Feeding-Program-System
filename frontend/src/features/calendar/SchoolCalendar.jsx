@@ -282,13 +282,12 @@ function SchoolCalendar() {
               <strong>
                 {missing.length === 3 ? `${year} has no terms yet.` : `${year} has no ${missing.map((n) => `Term ${n}`).join(' or ')} yet.`}
               </strong>{' '}
-              Add them from the Ministry of Education&apos;s school calendar for {year}. Until they are added, schools have no current term for planning and reports in those weeks.
+              Add them for {year}.
             </StatusLine>
           )}
 
           <Card
             title={`Terms ${year}`}
-            description="Opening and closing days and half-term. Schools feed learners on the weekdays in between."
             actions={missing.length > 0 && editing?.type !== 'term' && (
               <Button icon={Plus} disabled={disabled} onClick={() => { closeForms(); setEditing({ type: 'term' }); }}>Add a term</Button>
             )}
@@ -298,7 +297,7 @@ function SchoolCalendar() {
                 <TermForm year={year} takenTerms={terms} busy={busy} serverError={serverError} onSave={saveTerm} onCancel={closeForms} />
               )}
               {yearTerms.length === 0 && editing?.type !== 'term' && (
-                <EmptyState compact icon={CalendarDays} title={`No terms for ${year}`} description="Add each term with its half-term." />
+                <EmptyState compact icon={CalendarDays} title={`No terms for ${year}`} />
               )}
               {yearTerms.length > 0 && (
                 <ul className="calendar__list">
@@ -353,7 +352,7 @@ function SchoolCalendar() {
 
           <Card
             title={`Holidays and national exams ${year}`}
-            description="Days schools do not feed learners as usual. Lishe fills in the regular public holidays; add exam periods and any extra gazetted holiday."
+            description="Add exam periods and any extra gazetted holiday."
             actions={!(editing?.type === 'event' && !editing.id) && (
               <div className="calendar__actions">
                 <Button variant="secondary" icon={CalendarCheck2} disabled={disabled} loading={busy && !editing} onClick={fillHolidays}>Fill in public holidays</Button>
