@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { readChosenTerm, saveChosenTerm } from './useChosenTerm';
+import { chosenTermGone, readChosenTerm, saveChosenTerm } from './useChosenTerm';
+
+describe('chosenTermGone', () => {
+  const notFound = (message) => Object.assign(new Error(message), { status: 404 });
+
+  it('is true only when a chosen term no longer exists', () => {
+    expect(chosenTermGone(notFound('Term not found'), 'old-term-id')).toBe(true);
+    // The current term was asked for, so there is no choice to drop
+    expect(chosenTermGone(notFound('Term not found'), '')).toBe(false);
+    expect(chosenTermGone(notFound('School not found'), 'old-term-id')).toBe(false);
+    expect(chosenTermGone(Object.assign(new Error('Server error'), { status: 500 }), 'old-term-id')).toBe(false);
+  });
+});
 
 function memoryStorage() {
   const values = new Map();

@@ -10,7 +10,7 @@ import { lowOnFood } from '../features/analytics/analyticsData';
 import { ENROLMENT_STATUS, TO_CHECK } from '../features/enrolment/checkStatus';
 import { registerWeeks, termSentence, monthLabels } from '../features/feeding/register';
 import { formatDateTime, formatNumber, formatPercent } from '../utils/format';
-import { useChosenTerm } from '../hooks/useChosenTerm';
+import { chosenTermGone, useChosenTerm } from '../hooks/useChosenTerm';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 const CELL_WORDS = {
@@ -76,9 +76,10 @@ function School() {
       getEnrolmentChecks(params).then((e) => setEnrolment((e.schools || []).find((s) => s.schoolId === id) || null)).catch(() => setEnrolment(null));
       getReviewFlags('open').then((f) => setFlags((f.flags || []).filter((x) => x.school === res.school.name))).catch(() => setFlags(null));
     } catch (err) {
-      setError(err.message);
+      if (chosenTermGone(err, termId)) setTermId('');
+      else setError(err.message);
     }
-  }, [id, termId, markLoaded]);
+  }, [id, termId, setTermId, markLoaded]);
 
   useEffect(() => {
     setFeeding(null);
