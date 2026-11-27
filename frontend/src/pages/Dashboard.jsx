@@ -137,7 +137,7 @@ function ProgrammeDashboard() {
           </section>
 
           <section aria-labelledby="term-h" className="officer-home__term">
-            <h2 id="term-h" className="officer-home__h">The term in three lines</h2>
+            <h2 id="term-h" className="officer-home__h">This term</h2>
             {term && (
               <>
                 <p className="officer-home__line"><b>{formatNumber(totals.schools)}</b> schools, {formatPercent(totals.recordedShare)} of school days recorded.</p>

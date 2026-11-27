@@ -981,7 +981,7 @@
   flex: 1 1 16rem;
 }
 
-/* ---------- Officer home: to do beside the term in three lines ---------- */
+/* ---------- Officer home: to do beside this term's figures ---------- */
 .officer-home__split {
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
