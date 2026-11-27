@@ -142,6 +142,11 @@ async function recordScenarios() {
   const [today, d1, d2, d3] = recent.map((d) => d.day);
   const [offlineDay, lateDay] = older;
   const { store, phone } = DEVICES;
+  // Learners fed on an ordinary day: about 90% of the school's enrolment, with food at the ration
+  const enrolled = await enrolledOn(today);
+  const base = Math.round((enrolled || 450) * 0.9);
+  const half = (kg) => Math.round(kg * 2) / 2;
+  const meal = (iso, delta, extra) => { const fed = base + delta; return day(iso, fed, half(fed * 0.15), half(fed * 0.04), extra); };
   const report = [];
   const note = (what, results) => report.push(`  ${what}: ${results.map(outcome).join(', ')}`);
   // Entries made "today" are captured in school hours, so only the scenario's own flag shows
@@ -159,18 +164,18 @@ async function recordScenarios() {
   note('Pulses delivery DN-JAR-0413, 280 kg against 300 kg on the note', await sync(store, [op('stockMovement', 'create', deliveryOn('pulses', 280, 300, 'DN-JAR-0413'), 0, store, at(d2, '07:05'))]));
 
   // Conflict 1: the same day recorded on both devices, with different numbers
-  note(`${display(d2)} recorded on the store tablet`, await sync(store, [op('dailyFeeding', 'create', day(d2, 412, 62, 16.5), 0, store, at(d2, '13:10'))]));
+  note(`${display(d2)} recorded on the store tablet`, await sync(store, [op('dailyFeeding', 'create', meal(d2, 6), 0, store, at(d2, '13:10'))]));
   note(`${display(d2)} recorded again on the head teacher's phone (different numbers)`,
-    await sync(phone, [op('dailyFeeding', 'create', day(d2, 398, 60, 16), 0, phone, at(d2, '13:40'))]));
+    await sync(phone, [op('dailyFeeding', 'create', meal(d2, -8), 0, phone, at(d2, '13:40'))]));
 
   // Conflict 2: the same day edited on both devices from the same version
-  note(`${display(d3)} recorded`, await sync(store, [op('dailyFeeding', 'create', day(d3, 405, 61, 16), 0, store, at(d2, '07:30'))]));
-  note(`${display(d3)} corrected on the phone`, await sync(phone, [op('dailyFeeding', 'update', day(d3, 409, 61.5, 16.5), 1, phone, at(d2, '09:00'))]));
+  note(`${display(d3)} recorded`, await sync(store, [op('dailyFeeding', 'create', meal(d3, 0), 0, store, at(d2, '07:30'))]));
+  note(`${display(d3)} corrected on the phone`, await sync(phone, [op('dailyFeeding', 'update', meal(d3, 4), 1, phone, at(d2, '09:00'))]));
   note(`${display(d3)} corrected on the tablet from the old version`,
-    await sync(store, [op('dailyFeeding', 'update', day(d3, 421, 63, 17), 1, store, at(d2, '09:10'))]));
+    await sync(store, [op('dailyFeeding', 'update', meal(d3, 16), 1, store, at(d2, '09:10'))]));
 
   // Captured at night
-  note(`${display(d1)} captured at 21:40`, await sync(store, [op('dailyFeeding', 'create', day(d1, 402, 60.5, 16), 0, store, at(d1, '21:40'))]));
+  note(`${display(d1)} captured at 21:40`, await sync(store, [op('dailyFeeding', 'create', meal(d1, -3), 0, store, at(d1, '21:40'))]));
 
   // Kept on the phone for days before it synced: a day without food, before the delivery
   note(`${display(offlineDay)} (not fed: no food in the store) kept offline on the phone since that day`,
@@ -182,13 +187,12 @@ async function recordScenarios() {
   // Entered late from paper, before the delivery: food issued far from the ration, and
   // more pulses than the store held
   const pulses = await pulsesInStore(lateDay);
-  note(`${display(lateDay)} entered today from paper: 30 kg of cereals for 400 learners, more pulses than the ${pulses} kg in store`,
+  note(`${display(lateDay)} entered today from paper: half the cereals ration for ${base} learners, more pulses than the ${pulses} kg in store`,
     await sync(store, [op('dailyFeeding', 'create',
-      day(lateDay, 400, 30, Math.max(16, Math.round(pulses + 25)), { lateReason: 'Copied from the paper register after the tablet was repaired' }),
+      day(lateDay, base, half(base * 0.075), Math.max(half(base * 0.04), Math.round(pulses + 25)), { lateReason: 'Copied from the paper register after the tablet was repaired' }),
       0, store, todayAt('10:00'))]));
 
   // More learners fed than enrolled, with a reason
-  const enrolled = await enrolledOn(today);
   if (enrolled) {
     const fed = enrolled + Math.max(5, Math.round(enrolled * 0.04));
     note(`${display(today)} with ${fed} fed against ${enrolled} enrolled`, await sync(store, [op('dailyFeeding', 'create',
