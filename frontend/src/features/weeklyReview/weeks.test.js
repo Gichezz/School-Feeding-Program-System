@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { groupBreaches, notScoredText, reasonList, recentMondays, reviewWeeks, scoredText, weekLabel, withoutVerdict } from './weeks';
+import { groupBreaches, listRecord, notScoredText, reasonList, recentMondays, reviewWeeks, scoredText, weekLabel, withoutVerdict } from './weeks';
 
 describe('recentMondays', () => {
   it('starts at the Monday of the current week', () => {
@@ -95,6 +95,18 @@ describe('groupBreaches', () => {
       { key: `a|enrolment|${detail}`, schoolName: 'Demo Primary School', detail, dates: ['19-10-2026', '21-10-2026'] },
       { key: 'b|ration|cereals at 1.4 times the ration', schoolName: 'Amani Primary School', detail: 'cereals at 1.4 times the ration', dates: ['19-10-2026'] },
     ]);
+  });
+});
+
+describe('listRecord', () => {
+  it('adds up the decisions on listed schools since the term opened', () => {
+    const weeks = [
+      { week: '16-11-2026', listed: 2, decided: 1, followUp: 1, explained: 0 },
+      { week: '31-08-2026', listed: 3, decided: 3, followUp: 2, explained: 1 },
+      { week: '17-08-2026', listed: 1, decided: 1, followUp: 1, explained: 0 },
+    ];
+    expect(listRecord(weeks, '24-08-2026')).toEqual({ listed: 5, followUp: 3, explained: 1, toReview: 1 });
+    expect(listRecord([], null)).toEqual({ listed: 0, followUp: 0, explained: 0, toReview: 0 });
   });
 });
 

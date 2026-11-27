@@ -18,7 +18,7 @@ import {
 } from '../components/ui';
 import { useDataFreshness } from '../hooks/useDataFreshness';
 import { decideReviewItem, getReviewList, getReviewWeeks, scoreReviewWeek } from '../services/api';
-import { DECISIONS, groupBreaches, MODES, notScoredText, reasonList, recentMondays, reviewWeeks, scoredText, weekLabel } from '../features/weeklyReview/weeks';
+import { DECISIONS, groupBreaches, listRecord, MODES, notScoredText, reasonList, recentMondays, reviewWeeks, scoredText, weekLabel } from '../features/weeklyReview/weeks';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useSession } from '../hooks/useSession';
 import { formatDateTime } from '../utils/format';
@@ -185,6 +185,8 @@ function WeeklyReview() {
     () => reviewWeeks(new Date(), firstWeek, Object.keys(scoredWeeks)),
     [firstWeek, scoredWeeks]
   );
+  // How the list has done since the term opened, from the officers' own decisions
+  const record = useMemo(() => listRecord(Object.values(scoredWeeks), firstWeek), [scoredWeeks, firstWeek]);
   // Last week first: finished weeks are scored automatically, the week in progress is not
   const [week, setWeek] = useState(() => recentMondays(new Date(), 2)[1]);
   const [list, setList] = useState(undefined);
@@ -267,6 +269,13 @@ function WeeklyReview() {
             <p className="weekly-review__meta">
               {scoredText(list, formatDateTime(list.scoredAt))}
               {MODES[list.mode] && <> · {MODES[list.mode]}</>}
+            </p>
+          )}
+          {record.listed > 0 && (
+            <p className="weekly-review__meta">
+              <strong>Since the week of {firstWeek || 'the term opening'}:</strong>{' '}
+              {record.listed} listed · {record.followUp} needed follow-up · {record.explained} explained
+              {record.toReview > 0 && ` · ${record.toReview} to review`}
             </p>
           )}
         </Card>

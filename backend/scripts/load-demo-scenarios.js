@@ -5,15 +5,19 @@
  *
  *   docker compose exec backend node scripts/load-demo-scenarios.js
  *
- * Every record goes through the real sync endpoint, as a feeding teacher at Jaribio
- * Primary School on two school devices, so the server's own checks decide what becomes a
- * conflict, what is held and what is flagged. It adds:
+ * First it gives every school in the sub-county ordinary days in the practice term
+ * (database/demo/practice_term.sql), up to yesterday, and the term's food on opening day,
+ * so the officer's term figures are not empty.
+ *
+ * Then every scenario record goes through the real sync endpoint, as a feeding teacher at
+ * Jaribio Primary School on two school devices, so the server's own checks decide what
+ * becomes a conflict, what is held and what is flagged. It adds:
  *   - two conflicts: the same day recorded on both devices with different numbers, and
  *     the same day edited on both devices from the same version;
  *   - a held delivery: the same delivery note recorded on both devices;
  *   - flagged records: a short delivery, a day captured at night, a day kept offline for
- *     days, a day entered late with a reason, food issued far from the ration, more
- *     pulses issued than the store held, and more learners fed than enrolled;
+ *     days, a day entered late with a reason and half the cereals ration, and more learners
+ *     fed than enrolled;
  * then scores Term 3 2026's weeks that are not scored yet, and prints which schools each
  * week lists, so a presenter can pick a week that shows a given kind of problem.
  *
@@ -92,12 +96,6 @@ async function enrolledOn(iso) {
   return r.rows[0].n;
 }
 
-async function pulsesInStore(iso) {
-  const r = await pool.query(
-    "SELECT COALESCE(SUM(quantity_kg), 0) AS kg FROM stock_flows WHERE school_id = $1 AND commodity = 'pulses' AND flow_date <= $2",
-    [SCHOOL, iso]);
-  return Number(r.rows[0].kg);
-}
 
 const day = (iso, fed, cereals, pulses, extra = {}) => ({
   schoolId: SCHOOL, feedingDate: display(iso), feedingHappened: true,
@@ -142,9 +140,15 @@ async function recordScenarios() {
   const [today, d1, d2, d3] = recent.map((d) => d.day);
   const [offlineDay, lateDay] = older;
   const { store, phone } = DEVICES;
-  // Learners fed on an ordinary day: about 90% of the school's enrolment, with food at the ration
+  // Learners fed on an ordinary day: the school's usual number over its last 20 feeding
+  // days, with food at the ration
   const enrolled = await enrolledOn(today);
-  const base = Math.round((enrolled || 450) * 0.9);
+  const usual = (await pool.query(
+    `SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY learners_fed) AS fed
+     FROM (SELECT learners_fed FROM daily_feeding WHERE school_id = $1 AND feeding_happened ORDER BY feeding_date DESC LIMIT 20) f`,
+    [SCHOOL]
+  )).rows[0].fed;
+  const base = Math.round(Number(usual) || (enrolled || 450) * 0.85);
   const half = (kg) => Math.round(kg * 2) / 2;
   const meal = (iso, delta, extra) => { const fed = base + delta; return day(iso, fed, half(fed * 0.15), half(fed * 0.04), extra); };
   const report = [];
@@ -177,19 +181,17 @@ async function recordScenarios() {
   // Captured at night
   note(`${display(d1)} captured at 21:40`, await sync(store, [op('dailyFeeding', 'create', meal(d1, -3), 0, store, at(d1, '21:40'))]));
 
-  // Kept on the phone for days before it synced: a day without food, before the delivery
-  note(`${display(offlineDay)} (not fed: no food in the store) kept offline on the phone since that day`,
+  // Kept on the phone for days before it synced: a day without feeding
+  note(`${display(offlineDay)} (not fed: the cook was absent) kept offline on the phone since that day`,
     await sync(phone, [op('dailyFeeding', 'create', {
       schoolId: SCHOOL, feedingDate: display(offlineDay), feedingHappened: false, learnersPresent: 380,
-      learnersFed: 0, cerealsKg: 0, pulsesKg: 0, reasonCode: 'no_food',
+      learnersFed: 0, cerealsKg: 0, pulsesKg: 0, reasonCode: 'cook_absent',
     }, 0, phone, at(offlineDay, '13:20'))]));
 
-  // Entered late from paper, before the delivery: food issued far from the ration, and
-  // more pulses than the store held
-  const pulses = await pulsesInStore(lateDay);
-  note(`${display(lateDay)} entered today from paper: half the cereals ration for ${base} learners, more pulses than the ${pulses} kg in store`,
+  // Entered late from paper, with half the cereals ration issued
+  note(`${display(lateDay)} entered today from paper: half the cereals ration for ${base} learners`,
     await sync(store, [op('dailyFeeding', 'create',
-      day(lateDay, base, half(base * 0.075), Math.max(half(base * 0.04), Math.round(pulses + 25)), { lateReason: 'Copied from the paper register after the tablet was repaired' }),
+      day(lateDay, base, half(base * 0.075), half(base * 0.04), { lateReason: 'Copied from the paper register after the tablet was repaired' }),
       0, store, todayAt('10:00'))]));
 
   // More learners fed than enrolled, with a reason
@@ -201,6 +203,79 @@ async function recordScenarios() {
       0, store, todayAt('13:30'))]));
   }
   return report;
+}
+
+/**
+ * The practice term (database/demo/practice_term.sql) starts after the demo records end, so
+ * without this the officer's term figures would show almost no school days recorded. Every
+ * school in the sub-county gets ordinary days up to yesterday, like its last 20 days of
+ * Term 3: learners fed within a few per cent of its usual number, food at its usual rate,
+ * captured at lunchtime and synced the same afternoon. Each school also receives (in kind)
+ * or buys (cash transfer) the term's food on opening day, so its store does not run dry.
+ * Jaribio's last 12 school days stay empty for the scenarios.
+ */
+async function fillPracticeTerm(subCounty) {
+  const term = (await pool.query(
+    "SELECT id, to_char(opens_on, 'YYYY-MM-DD') AS opens, to_char(closes_on, 'YYYY-MM-DD') AS closes FROM school_terms WHERE practice ORDER BY opens_on DESC LIMIT 1"
+  )).rows[0];
+  if (!term) return ['  No practice term in the calendar; nothing added'];
+  const days = (await pool.query(
+    `SELECT to_char(d, 'YYYY-MM-DD') AS day
+     FROM generate_series($1::date, LEAST($2::date, (now() AT TIME ZONE $3)::date - 1), interval '1 day') AS d
+     WHERE EXTRACT(ISODOW FROM d) < 6
+       AND NOT EXISTS (SELECT 1 FROM calendar_events e WHERE d BETWEEN e.starts_on AND e.ends_on
+                       AND e.kind IN ('public_holiday', 'school_closure') AND e.school_id IS NULL)
+     ORDER BY d`,
+    [term.opens, term.closes, TIME_ZONE]
+  )).rows.map((r) => r.day);
+  const termDays = (await pool.query(
+    `SELECT count(*)::int AS n FROM generate_series($1::date, $2::date, interval '1 day') AS d WHERE EXTRACT(ISODOW FROM d) < 6`,
+    [term.opens, term.closes]
+  )).rows[0].n;
+  const schools = (await pool.query(
+    `SELECT s.id, s.name, s.programme_type,
+            percentile_cont(0.5) WITHIN GROUP (ORDER BY f.learners_fed) AS fed,
+            SUM(f.cereals_kg) / NULLIF(SUM(f.learners_fed), 0) AS cereals_per_learner,
+            SUM(f.pulses_kg) / NULLIF(SUM(f.learners_fed), 0) AS pulses_per_learner
+     FROM schools s
+     JOIN LATERAL (SELECT * FROM daily_feeding f WHERE f.school_id = s.id AND f.feeding_happened AND f.feeding_date < $2
+                   ORDER BY f.feeding_date DESC LIMIT 20) f ON true
+     WHERE s.sub_county = $1
+     GROUP BY s.id ORDER BY s.name`,
+    [subCounty, term.opens]
+  )).rows;
+  const half = (kg) => Math.round(kg * 2) / 2;
+  // The same small, repeatable variation every time the demo is built
+  const wobble = (text) => (crypto.createHash('md5').update(text).digest()[0] / 255 - 0.5) * 0.08;
+  let rows = 0;
+  for (const s of schools) {
+    const usual = Number(s.fed);
+    const cpl = Number(s.cereals_per_learner) || 0.15;
+    const ppl = Number(s.pulses_per_learner) || 0.04;
+    const own = s.id === SCHOOL ? days.slice(0, Math.max(0, days.length - 12)) : days;
+    for (const day of own) {
+      const fed = Math.round(usual * (1 + wobble(`${s.id}${day}`)));
+      await pool.query(
+        `INSERT INTO daily_feeding (school_id, feeding_date, feeding_happened, learners_present, learners_fed, cereals_kg, pulses_kg,
+                                    captured_at, received_at)
+         VALUES ($1, $2, true, $3, $4, $5, $6, ($2::date + time '13:00') AT TIME ZONE '${TIME_ZONE}', ($2::date + time '16:00') AT TIME ZONE '${TIME_ZONE}')
+         ON CONFLICT (school_id, feeding_date) DO NOTHING`,
+        [s.id, day, fed + Math.round(fed * 0.03), fed, half(fed * cpl), half(fed * ppl)]
+      );
+      rows += 1;
+    }
+    // The term's food, received on opening day
+    const kind = s.programme_type === 'in_kind' ? 'delivery' : 'purchase';
+    for (const [commodity, perLearner] of [['cereals', cpl], ['pulses', ppl]]) {
+      const kg = Math.ceil((usual * perLearner * termDays * 1.05) / 50) * 50;
+      await pool.query(
+        `INSERT INTO stock_movements (id, school_id, movement_date, commodity, kind, quantity_kg, note_quantity_kg, reference)
+         VALUES ($1, $2, $3, $4, $5, $6, $6, $7)`,
+        [crypto.randomUUID(), s.id, term.opens, commodity, kind, kg, kind === 'delivery' ? `DN-PT-${commodity.slice(0, 1).toUpperCase()}-${s.name.slice(0, 3).toUpperCase()}` : `RECEIPT-PT-${s.name.slice(0, 3).toUpperCase()}`]
+      );
+    }
+  }
+  return [`  ${rows} ordinary school days added to the practice term across ${schools.length} schools, and each school's term food on opening day`];
 }
 
 /** Score Term 3 2026's weeks that have no ranking yet, as the weekly schedule would. */
@@ -235,6 +310,8 @@ async function scoreTerm(subCounty) {
 
 async function main() {
   const school = await setUp();
+  console.log('Practice term:');
+  for (const line of await fillPracticeTerm(school.sub_county)) console.log(line);
   console.log(`Scenarios at ${school.name}, as ${TEACHER.name} on "${DEVICES.store.name}" and "${DEVICES.phone.name}":`);
   for (const line of await recordScenarios()) console.log(line);
   console.log(`\nTerm 3 2026 weekly review for ${school.sub_county} (weeks scored now, and listed schools):`);

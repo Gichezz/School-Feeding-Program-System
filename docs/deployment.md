@@ -82,7 +82,7 @@ A server for a demonstration can carry the demo school, its accounts and two yea
    docker compose exec backend node scripts/load-demo-scenarios.js
    ```
 
-   It records at Jaribio Primary School through the real sync endpoint, as a teacher on two school devices: two conflicts, a held duplicate delivery note, and records the server flags (a short delivery, a night capture, a day kept offline, a late entry far from the ration, more learners fed than enrolled). It then scores Term 3 2026's weeks and prints which schools each week lists. It needs Jaribio's last four school days to be empty, and runs once.
+   Load `database/demo/practice_term.sql` first if the demo runs outside a school term. The script gives every demo school ordinary days in the practice term up to yesterday, with the term's food on opening day. It then records at Jaribio Primary School through the real sync endpoint, as a teacher on two school devices: two conflicts, a held duplicate delivery note, and records the server flags (a short delivery, a night capture, a day kept offline, a late entry far from the ration, more learners fed than enrolled). It then scores Term 3 2026's weeks and prints which schools each week lists. It runs once per database.
 5. Run the smoke test with the new passwords.
 
 ## Configuration

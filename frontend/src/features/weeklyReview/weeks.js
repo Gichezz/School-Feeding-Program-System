@@ -72,6 +72,23 @@ export function reasonList(explanation) {
     .map((r) => r.charAt(0).toUpperCase() + r.slice(1));
 }
 
+/**
+ * The list's record since `firstWeek` (DD-MM-YYYY), from the officers' decisions:
+ * { listed, followUp, explained, toReview }. scored: the weeks from the API.
+ */
+export function listRecord(scored, firstWeek) {
+  const from = firstWeek ? toTime(firstWeek) : -Infinity;
+  const record = { listed: 0, followUp: 0, explained: 0, toReview: 0 };
+  for (const w of scored || []) {
+    if (toTime(w.week) < from) continue;
+    record.listed += w.listed || 0;
+    record.followUp += w.followUp || 0;
+    record.explained += w.explained || 0;
+    record.toReview += (w.listed || 0) - (w.decided || 0);
+  }
+  return record;
+}
+
 export const DECISIONS = {
   explained: { label: 'Explained', tone: 'success' },
   follow_up: { label: 'Follow-up', tone: 'warning' },
